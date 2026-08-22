@@ -39,6 +39,21 @@ ansteuert. Läuft auf deiner **Subscription** (OAuth), **kein API-Key** nötig.
   zur Installation) und synchron in die Seite eingesetzt, damit beim Laden
   keine abgeschaltete Kachel aufblitzt.
 
+- 🎨 **Farbwelten** (v3.8): Matrix, Bernstein, Eis, Space, Asche, Blut. Ein
+  Theme ist nur ein Satz CSS-Variablen — dafür mussten erst 65 fest
+  verdrahtete `rgba(0,255,65,…)` in Variablen gezogen werden, sonst bliebe
+  bei jedem Wechsel ein Rest Grün stehen. Der Matrix-Regen färbt sich mit.
+
+## Installation
+```bash
+./install.sh                                    # Linux / macOS
+powershell -ExecutionPolicy Bypass -File install.ps1   # Windows
+```
+Prüft Python (mindestens 3.10), holt bzw. aktualisiert das Repository, baut
+die Umgebung, legt einen Starter ins Menü und sagt, was als Nächstes zu tun
+ist. **Ohne sudo bzw. Adminrechte** — alles landet im Benutzerkonto. Läuft
+sowohl aus einem fertigen Klon heraus als auch allein (dann klont es selbst).
+
 ## Start (Desktop, empfohlen)
 ```bash
 cd matrix-chat
