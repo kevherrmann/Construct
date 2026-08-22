@@ -27,7 +27,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-import config as cfg  # Ausbaustufe (voll/lite) + Namen
+import config as cfg  # Einstellungen der Installation (Namen)
 
 BASE_DIR = Path(__file__).parent
 CONFIG_FILE = BASE_DIR / ".llm-config.json"
@@ -84,7 +84,7 @@ def no_tools_note(model: str, has_claude: bool = True) -> str:
     Ohne installiertes CLI auf „wähl ein Claude-Modell“ zu verweisen, schickt
     den Nutzer zu einem Menüeintrag, der bei ihm nur in einen Fehler läuft.
     """
-    who = cfg.USER_NAME
+    who = cfg.user_name()
     base = (f"[Modus-Hinweis: Du läufst gerade als externes Modell ({model}) in "
             f"CONSTRUCT — als REINES Chat-Modell ohne Werkzeuge. Du hast KEINEN "
             f"Zugriff auf Dateien, Terminal, Kalender, E-Mails oder Skills und "
@@ -714,10 +714,10 @@ def history_block(sid: str, max_n=30, max_chars=40000) -> str:
     if not s or not s.get("messages"):
         return ""
     lines = [f"[Kontext: Dieses Gespräch lief bisher mit {s.get('provider')}:{s.get('model')} "
-             f"(externes Chat-Modell); {cfg.USER_NAME} wechselt jetzt zu dir. "
+             f"(externes Chat-Modell); {cfg.user_name()} wechselt jetzt zu dir. "
              "Bisheriger Verlauf:]"]
     for m in recent_messages(s, max_n, max_chars):
-        who = cfg.USER_NAME if m["role"] == "user" else "Assistent"
+        who = cfg.user_name() if m["role"] == "user" else "Assistent"
         lines.append(f"{who}: {m['content']}")
     lines.append("[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]")
     return "\n\n".join(lines)

@@ -74,12 +74,11 @@ if [ "$SETUP_ONLY" = "1" ]; then
 fi
 
 # ---- Vorbedingungen prüfen ----
-# Die Lite-Version (Datei .lite, siehe config.py) spricht nur fremde Anbieter an
-# und braucht das claude-CLI gar nicht — die Warnung wäre dort schlicht falsch.
-if [ ! -f .lite ]; then
-  command -v claude >/dev/null 2>&1 \
-    || echo "⚠  Das 'claude'-CLI ist nicht im PATH — ohne das kann Cody nicht antworten."
-fi
+# Kein harter Fehler: ohne claude-CLI laeuft der Chat ueber die Anbieter aus
+# dem Modell-Menue weiter, nur ohne Datei- und Terminal-Zugriff. Die Oberflaeche
+# sagt das auch selbst (Schluessel-Chip oben rechts).
+command -v claude >/dev/null 2>&1 \
+  || echo "ℹ  Das 'claude'-CLI ist nicht im PATH — Dateien und Terminal stehen dann nicht zur Verfügung."
 
 if [ "$OS" = "Linux" ] && [ "$WEB" = "0" ]; then
   # Nicht nur "import gi" prüfen: gi allein ist da, sobald python3-gobject liegt —

@@ -11,13 +11,12 @@
      echten Werte — die Vorgabe hier gilt nur, wenn man die Datei direkt öffnet.
      Muss synchron im <head> stehen: das Menü darf nicht erst voll aufbauen und
      dann Bereiche wieder wegräumen. -->
-<script>window.CONSTRUCT={"lite":false,"user":"Kevin","assistant":"Cody","claude":true,"web_login":true,
-  "settings":{"theme":"matrix",
+<script>window.CONSTRUCT={"user":"","assistant":"Cody","claude":true,"web_login":true,
+  "settings":{"theme":"matrix","names":{"user":"","assistant":"Cody"},
               "tiles":{"skills":true,"kalender":true,"mail":true,"mcp":true},
               "background":{"mode":"matrix","image":"","dim":60}}};
 (function(){
   var C=window.CONSTRUCT, r=document.documentElement;
-  if(C.lite)r.classList.add('lite');
   // Kachel-Klassen VOR dem ersten Zeichnen: sonst baut sich das Menü einmal
   // vollständig auf und räumt einen Wimpernschlag später wieder ab.
   var st=C.settings||{};
@@ -215,7 +214,10 @@
     background:#04240c center/cover no-repeat;display:flex;align-items:center;justify-content:center;
     color:var(--green);font-weight:bold;font-size:21px;overflow:hidden;box-shadow:0 0 10px rgba(var(--accent-rgb),.35);margin-top:16px}
   .av-cody{background-image:url('/static/cody.png')}
+  /* Nutzer-Foto ist optional: fehlt die Datei, steht im Kreis der
+     Anfangsbuchstabe (siehe HAS_AVATAR). */
   .av-kevin{background-image:url('/static/kevin.jpg?v=2');background-size:128%;background-position:50% 34%}
+  html.no-avatar .av-kevin{background-image:none}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
   .msg .who{font-size:11px;letter-spacing:2px;margin-bottom:5px;opacity:.85}
   .msg.user .who{color:var(--user)}.msg.bot .who{color:var(--green)}
@@ -532,18 +534,6 @@
   #lgMsg{margin-top:10px;white-space:pre-wrap}
   #lgMsg.ok{color:var(--green)}#lgMsg.bad{color:#ff5c5c;text-shadow:none}
   .lg-step{border-left:2px solid var(--green-faint);padding-left:12px;margin:12px 0}
-  /* ---------- Lite: die vier auf Kevin zugeschnittenen Bereiche ausblenden ----------
-     Weg statt "deaktiviert": ein ausgegrauter Knopf verspricht eine Funktion,
-     die es in dieser Ausbaustufe nicht gibt. Der Server sperrt die zugehörigen
-     Routen ohnehin (LITE_BLOCKED in app.py) — das hier ist nur die Oberfläche.
-     Chat, Kalender, Ordnerwahl, Mode-Auswahl und die Claude-Anmeldung bleiben
-     ausdrücklich drin: die Kopie soll sich sonst genauso benutzen lassen. */
-  .lite #menu{grid-template-columns:repeat(2,1fr)}
-  .lite .mi[data-v="skills"], .lite .mi[data-v="mail"],
-  .lite .mi[data-v="mcp"],
-  .lite #view-skills, .lite #view-mail,
-  .lite #view-mcp{display:none}
-  .lite .av-kevin{background-image:none}   /* kein fremdes Foto im Chat */
 
   /* ---------- Kachel-Sichtbarkeit (Einstellungen) ----------
      Klassen auf <html>, gesetzt aus den serverseitigen Einstellungen noch im
@@ -595,6 +585,9 @@
   .set-head{display:flex;align-items:center;gap:10px}
   .set-head h4{margin:0;font-size:13px;letter-spacing:1px}
   .set-slider{width:100%;accent-color:var(--green)}
+  .set-in{background:rgba(0,0,0,.35);border:1px solid var(--green-faint);border-radius:3px;
+    color:var(--green);font-family:inherit;font-size:13px;padding:7px 10px;width:230px;max-width:100%}
+  .set-in:focus{outline:none;border-color:var(--green-dim)}
   .set-prev{height:74px;border:1px solid var(--green-faint);border-radius:3px;margin-top:8px;
     background-size:cover;background-position:center;position:relative;overflow:hidden}
   .set-prev span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -736,11 +729,10 @@
 </div>
 <script>
 // ---------- Ausbaustufe ----------
-// LITE = Chat + Kalender, ohne Claude Code im Rücken (siehe config.py).
 // Das Objekt setzt der Server beim Ausliefern; die Vorgabe im <head> greift nur,
 // wenn jemand die Datei direkt im Browser öffnet.
-const CFG=window.CONSTRUCT||{},LITE=!!CFG.lite,
-      ASSISTANT=CFG.assistant||'Cody',USER_NAME=CFG.user||'Kevin';
+const CFG=window.CONSTRUCT||{},
+      ASSISTANT=CFG.assistant||'Cody',USER_NAME=CFG.user||'Du';
 // Ist das claude-CLI da? Davon hängt ab, ob die Claude-Modelle etwas taugen und
 // ob der 🔑-Chip zum Anmelden oder zum Installieren führt. Kommt synchron vom
 // Server (shutil.which), nicht geraten.
@@ -780,6 +772,12 @@ function applyBackground(){
   // hinter einem deckenden Bild waere reine CPU-Verbrennung.
   RAIN_ON = (mode==='matrix') && !FX_OFF;
 }
+// Eigenes Foto vorhanden? Ohne das bleibt der Anfangsbuchstabe stehen,
+// statt ein kaputtes Bild anzudeuten.
+let HAS_AVATAR=true;
+(function(){const i=new Image();
+  i.onerror=()=>{HAS_AVATAR=false;document.documentElement.classList.add('no-avatar');};
+  i.src='/static/kevin.jpg?v=2';})();
 let HAS_CLAUDE=CFG.claude!==false;
 const WEB_LOGIN=CFG.web_login!==false;
 function applyClaudeState(){
@@ -994,9 +992,9 @@ function startEdit(bubble){
 function msgNode(role,html){
   const user=role==='user';
   const m=document.createElement('div');m.className='msg '+(user?'user':'bot');
-  // Ohne Kevins Foto (Lite) steht im Kreis der Anfangsbuchstabe — ein leerer
-  // Kreis sähe aus, als wäre ein Bild kaputt.
-  const initial=user&&LITE?esc(USER_NAME.slice(0,1).toUpperCase()):'';
+  // Der Anfangsbuchstabe steht im Kreis, wenn kein Foto hinterlegt ist —
+  // ein leerer Kreis sähe aus, als wäre ein Bild kaputt.
+  const initial=user&&!HAS_AVATAR?esc(USER_NAME.slice(0,1).toUpperCase()):'';
   m.innerHTML=`<div class="avatar ${user?'av-kevin':'av-cody'}">${initial}</div>`
     +`<div class="msgcol"><div class="who">${esc((user?USER_NAME:ASSISTANT).toUpperCase())}</div>`
     +`<div class="bubble">${html}</div></div>`;
@@ -1494,14 +1492,9 @@ async function renderLlmCfg(){
   });
   if(document.getElementById('ollBox'))renderOllamaBox();
   const intro=document.getElementById('llmintro');
-  if(intro&&LITE)intro.innerHTML='Hier hinterlegst du den API-Key deines Anbieters. Danach steht '
-    +'das Modell unten links im 🧠-Menü zur Auswahl. <b>Achtung:</b> das sind reine Chat-Modelle — '
-    +'für Dateien und Terminal braucht es Claude Code (🔑 oben rechts).';
   box.insertAdjacentHTML('beforeend','<div class="vhint" style="margin-top:10px">🔒 Keys liegen nur auf deinem Server in <code>.llm-config.json</code> (chmod 600) — sie tauchen nie im Browser auf.<br>'
-    +(LITE
-       ? '💬 Die Modelle hier sind reine <b>Chat-Modelle</b>: Dateien, Terminal oder E-Mail können sie nicht — '
-         +'Termine trägst du selbst unter 📅 Kalender ein. '
-       : '💬 Externe Modelle sind reine <b>Chat-Modelle</b>: Dateien, Terminal, Skills, Kalender & E-Mail kann weiterhin nur Claude/Cody. ')
+    +'💬 Externe Modelle sind reine <b>Chat-Modelle</b>: Dateien, Terminal, Skills, '
+    +'Kalender und E-Mail kann weiterhin nur Claude Code. '
     +`Beim Modellwechsel mitten im Gespräch nimmt ${ASSISTANT} den bisherigen Verlauf automatisch mit.</div>`);
 }
 
@@ -1608,7 +1601,7 @@ function showHelp(){sysNote('<b>⌨ Befehle</b><br>'
   +'<code>/llm</code> — KI-Anbieter einrichten (API-Keys, Ollama-URL)<br>'
   +'<code>/mode [auto|plan|bypassPermissions|default]</code> — Modus wechseln<br>'
   +'<code>/folder [name]</code> — Arbeitsordner wechseln<br>'
-  +(LITE?'':'<code>/skills</code> — Skills-Ansicht<br>')
+  +'<code>/skills</code> — Skills-Ansicht<br>'
   +'<code>/login</code> — bei Claude anmelden (wenn der Token abgelaufen ist)<br>'
   +'<code>/help</code> — diese Liste<br><br>'
   +'<span style="opacity:.7">Hinweis: Claudes eingebaute Slash-Befehle funktionieren im Headless-Modus nicht — das hier sind eigene App-Befehle.</span>');}
@@ -2414,12 +2407,14 @@ let setSaveTimer=null;
 async function setSave(patch){
   Object.assign(SETTINGS.tiles, patch.tiles||{});
   Object.assign(SETTINGS.background, patch.background||{});
+  Object.assign(SETTINGS.names=SETTINGS.names||{}, patch.names||{});
   const note=document.getElementById('setSaved');
   try{
     const r=await fetch('/api/settings',{method:'POST',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
     const fresh=await r.json();
     SETTINGS.tiles=fresh.tiles; SETTINGS.background=fresh.background;
+    SETTINGS.names=fresh.names;
     if(note){note.textContent='✓ gespeichert';note.classList.add('on');
       clearTimeout(setSaveTimer);setSaveTimer=setTimeout(()=>note.classList.remove('on'),1600);}
   }catch{
@@ -2436,7 +2431,7 @@ function applyTiles(){
 }
 function renderSettings(){
   const side=document.getElementById('setnav');
-  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Farbwelt','Hintergrund']
+  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Namen','Farbwelt','Hintergrund']
     .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
   const w=document.createElement('div');w.className='set-wrap';
 
@@ -2491,6 +2486,24 @@ function renderSettings(){
       </span></span></div>
   </div></div>
 
+  <div class="set-sec"><h3>🙋 NAMEN</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Wie soll ich dich nennen?</span>
+      <span class="set-d">Steht im Chat über deinen Nachrichten und wird den Modellen
+      mitgegeben. Leer lassen geht auch — dann bleibt es unpersönlich.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="setUser" maxlength="40" placeholder="dein Name">
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Wie heißt der Assistent?</span>
+      <span class="set-d">CONSTRUCT ist der Ort, er ist die Person darin. Wer ihn
+      umbenennt, sollte auch <code>SOUL.md</code> anpassen — dort steht sein Charakter.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="setAsst" maxlength="40" placeholder="Cody">
+      </span></span></div>
+    <div class="set-d" style="margin-top:6px">Wirkt nach dem Neuladen der Seite.</div>
+  </div></div>
+
   <div class="set-sec"><h3>🎨 FARBWELT</h3><div class="set-body">
     <div class="th-grid">${THEMES.map(t=>`
       <div class="th${(SETTINGS.theme||'matrix')===t.k?' on':''}" data-theme-pick="${t.k}">
@@ -2533,6 +2546,14 @@ function renderSettings(){
   w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
     setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
   });
+  const nm=SETTINGS.names||{};
+  const uEl=document.getElementById('setUser'), aEl=document.getElementById('setAsst');
+  uEl.value=nm.user||''; aEl.value=nm.assistant||'';
+  // Beim Verlassen speichern, nicht bei jedem Tastendruck — sonst schreibt
+  // jeder Buchstabe eine Datei.
+  uEl.onchange=()=>setSave({names:{user:uEl.value}});
+  aEl.onchange=()=>setSave({names:{assistant:aEl.value}});
+
   w.querySelectorAll('[data-theme-pick]').forEach(el=>el.onclick=()=>{
     SETTINGS.theme=el.dataset.themePick;
     applyTheme(); setSave({theme:SETTINGS.theme});
@@ -2593,11 +2614,7 @@ function bgPreview(){
 }
 
 // ---------- Menü ----------
-const LITE_VIEWS=['sessions','kalender','einstellungen'];
 function setView(v){
-  // In Lite sind die anderen Bereiche nicht nur versteckt, sondern nicht da:
-  // ihr Inhalt käme von gesperrten Routen. Auch /skills & Co. landen hier.
-  if(LITE&&!LITE_VIEWS.includes(v))return;
   // Abgeschaltete Kacheln sind auch per Tastatur/Slash-Befehl nicht erreichbar.
   if(SETTINGS.tiles[v]===false)return;
   document.querySelectorAll('.mi').forEach(b=>b.classList.toggle('active',b.dataset.v===v));

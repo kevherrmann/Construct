@@ -35,16 +35,10 @@ from fastapi import FastAPI, UploadFile, File, Request, Response
 from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-import config as cfg  # Ausbaustufe (voll/lite) + Namen — siehe config.py
+import config as cfg  # Einstellungen der Installation — siehe config.py
 import cal  # Kalender: gemeinsame events.json (Web-UI + cal.py-CLI + Telegram)
 import llm as llmmod  # Externe Modelle: ChatGPT, Gemini, DeepSeek, Ollama (llm.py)
-# E-Mail gibt es nur in der Vollversion. Der Import steht unter der Abfrage,
-# damit eine abgespeckte Installation die Datei schlicht weglassen kann.
-# Benutzt wird sie ausschließlich in Routen, die LITE_BLOCKED sperrt.
-if cfg.LITE:
-    mailmod = None
-else:
-    import mail as mailmod  # E-Mail: IMAP/SMTP für GMX, Gmail, Outlook (mail.py)
+import mail as mailmod  # E-Mail: IMAP/SMTP für GMX, Gmail, Outlook (mail.py)
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -70,7 +64,7 @@ def _find_workspace() -> str:
 
 WORKSPACE = _find_workspace()
 DEFAULT_CWD = WORKSPACE
-VERSION = "3.8.0 · opus-5" + (" · lite" if cfg.LITE else "")
+VERSION = "3.9.0 · opus-5"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf Hostinger).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -103,22 +97,9 @@ ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", 
 app = FastAPI(title="CONSTRUCT")
 
 
-# Lite lässt genau die vier Bereiche weg, die auf Kevin zugeschnitten sind.
-# Alles Übrige — Chat, Kalender, Ordnerwahl, Modell- und Mode-Auswahl, die
-# Claude-Anmeldung — bleibt: wer die Kopie bekommt, soll sie grundsätzlich
-# genauso benutzen können, inklusive Claude Code, falls er es später
-# installiert. Die Sperre sitzt in der Middleware und nicht in jedem Handler,
-# damit eine später ergänzte Route unter denselben Präfixen nicht versehentlich
-# offen bleibt. Das Frontend blendet dieselben Bereiche aus; hier ist der
-# Riegel, dort die Kosmetik.
-LITE_BLOCKED = ("/api/skill", "/api/mcp", "/api/mail")
-
-
 @app.middleware("http")
 async def basic_auth(request: Request, call_next):
     """HTTP-Basic-Auth vor ALLEM — aber nur wenn ein Passwort konfiguriert ist."""
-    if cfg.LITE and request.url.path.startswith(LITE_BLOCKED):
-        return JSONResponse({"error": "in dieser Version nicht verfügbar"}, status_code=404)
     if AUTH_PASS:
         ok = False
         header = request.headers.get("Authorization", "")
@@ -738,108 +719,22 @@ def version():
         "runtime": "docker" if in_docker else "nativ",
         "home": str(Path.home()),
         "workspace": WORKSPACE,
-        "lite": cfg.LITE,
-        "assistant": cfg.ASSISTANT_NAME,
+        "assistant": cfg.assistant_name(),
         "claude": bool(claude_bin()),
     }
 
 
 # ---------- Einstellungen ----------
-# Was der Nutzer selbst zusammenstellt: welche Kacheln er sieht, wie der
-# Hintergrund aussieht. Serverseitig und nicht im Browser, weil die App
-# vom Desktop-Fenster UND vom Browser aus bedient wird — localStorage wäre
-# pro Browser eine andere Wahrheit. Die Datei gehört zur Installation und
-# steht darum in .gitignore.
-SETTINGS_FILE = BASE_DIR / "settings.json"
-
-# Kacheln, die sich abschalten lassen. "sessions" (der Chat) fehlt hier mit
-# Absicht: eine Oberfläche ohne ihren Hauptzweck wäre nur eine Sackgasse,
-# aus der man sich nicht mehr herausklicken kann.
-OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
-BG_MODES = ("matrix", "image", "plain")
-# Farbwelten. Die Namen sind Schlüssel für data-theme im Frontend; die Farben
-# selbst stehen im CSS, nicht hier — der Server soll nicht mitentscheiden,
-# wie etwas aussieht, nur was gewählt ist.
-THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut")
-
-DEFAULT_SETTINGS = {
-    # Vorgabe bewusst zurückhaltend: wer die App frisch klont, bekommt Chat
-    # und Kalender. Alles Weitere schaltet er sich selbst dazu und weiß dann
-    # auch, was es tut.
-    "theme": "matrix",
-    "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False},
-    # dim = Abdunklung des Hintergrundbildes in Prozent. Grün auf Foto ist
-    # ohne kräftiges Abdunkeln kaum lesbar, darum ein hoher Startwert.
-    "background": {"mode": "matrix", "image": "", "dim": 60},
-}
-
-
-def load_settings() -> dict:
-    out = {"theme": DEFAULT_SETTINGS["theme"],
-           "tiles": dict(DEFAULT_SETTINGS["tiles"]),
-           "background": dict(DEFAULT_SETTINGS["background"])}
-    try:
-        raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return out
-    if not isinstance(raw, dict):
-        return out
-    if raw.get("theme") in THEMES:
-        out["theme"] = raw["theme"]
-    for k, v in (raw.get("tiles") or {}).items():
-        if k in OPTIONAL_TILES:
-            out["tiles"][k] = bool(v)
-    bg = raw.get("background") or {}
-    if bg.get("mode") in BG_MODES:
-        out["background"]["mode"] = bg["mode"]
-    img = str(bg.get("image") or "").strip()
-    # Nur eigene Uploads zulassen: ein freier Pfad hier wäre eine Einladung,
-    # sich per Einstellung beliebige Dateien in die Seite zu laden.
-    if img.startswith("/uploads/") and "//" not in img[1:] and ".." not in img:
-        out["background"]["image"] = img
-    try:
-        dim = int(bg.get("dim"))
-        out["background"]["dim"] = max(0, min(100, dim))
-    except Exception:
-        pass
-    return out
-
-
-def save_settings(d: dict) -> dict:
-    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(SETTINGS_FILE)
-    return d
-
-
+# Speicherung, Vorgaben und Prüfung liegen in config.py — dieselbe Stelle,
+# aus der auch llm.py die Namen liest.
 @app.get("/api/settings")
 def settings_get():
-    return load_settings()
+    return cfg.load_settings()
 
 
 @app.post("/api/settings")
 async def settings_set(req: Request):
-    """Teil-Update: was nicht mitkommt, bleibt wie es war."""
-    body = await req.json()
-    cur = load_settings()
-    if body.get("theme") in THEMES:
-        cur["theme"] = body["theme"]
-    for k, v in (body.get("tiles") or {}).items():
-        if k in OPTIONAL_TILES:
-            cur["tiles"][k] = bool(v)
-    bg = body.get("background") or {}
-    if bg.get("mode") in BG_MODES:
-        cur["background"]["mode"] = bg["mode"]
-    if "image" in bg:
-        img = str(bg.get("image") or "").strip()
-        cur["background"]["image"] = img if (img.startswith("/uploads/")
-                                             and ".." not in img) else ""
-    if "dim" in bg:
-        try:
-            cur["background"]["dim"] = max(0, min(100, int(bg["dim"])))
-        except Exception:
-            pass
-    return save_settings(cur)
+    return cfg.apply_patch(await req.json())
 
 
 # ---------- Kalender ----------
@@ -1022,12 +917,11 @@ def index():
     # bekommt die eingebauten Vorgaben statt der echten Einstellungen — und der
     # Fehler sieht aus wie "die Einstellungen speichern nicht".
     payload = "window.CONSTRUCT=" + json.dumps({
-        "lite": cfg.LITE,
-        "user": cfg.USER_NAME,
-        "assistant": cfg.ASSISTANT_NAME,
+        "user": cfg.user_name(),
+        "assistant": cfg.assistant_name(),
         "claude": bool(claude_bin()),
         "web_login": WEB_LOGIN_OK,
-        "settings": load_settings(),
+        "settings": cfg.load_settings(),
     }, ensure_ascii=False) + ";"
     # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
     # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
