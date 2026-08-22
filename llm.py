@@ -1,5 +1,5 @@
 """
-Externe KI-Anbieter für den Matrix-Chat — ChatGPT (OpenAI), Gemini, DeepSeek,
+Externe KI-Anbieter für CONSTRUCT — ChatGPT (OpenAI), Gemini, DeepSeek,
 Ollama (lokal) und beliebige OpenAI-kompatible APIs ("custom").
 
 Alle Anbieter sprechen das OpenAI-Chat-Completions-Format (Gemini über Googles

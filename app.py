@@ -1,5 +1,5 @@
 """
-Matrix Chat — eine eigene, hübsche Weboberfläche für Claude Code.
+CONSTRUCT — eine eigene, hübsche Weboberfläche für Claude Code.
 Läuft auf Kevins Subscription (OAuth), kein API-Key nötig.
 
 Backend = FastAPI. Spricht im Hintergrund `claude -p` (headless) und streamt
@@ -70,7 +70,7 @@ def _find_workspace() -> str:
 
 WORKSPACE = _find_workspace()
 DEFAULT_CWD = WORKSPACE
-VERSION = "3.7.0 · opus-5" + (" · lite" if cfg.LITE else "")
+VERSION = "3.8.0 · opus-5" + (" · lite" if cfg.LITE else "")
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf Hostinger).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -100,7 +100,7 @@ def load_persona() -> str:
     return "\n\n".join(parts).strip()
 ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", "dontAsk"}
 
-app = FastAPI(title="Matrix Chat")
+app = FastAPI(title="CONSTRUCT")
 
 
 # Lite lässt genau die vier Bereiche weg, die auf Kevin zugeschnitten sind.
