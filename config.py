@@ -33,6 +33,9 @@ DEFAULT_SETTINGS = {
     # Leerer Nutzername = neutrale Anrede. Ein voreingestellter Vorname wäre in
     # einem Repository, das andere klonen, schlicht der falsche Mensch.
     "names": {"user": "", "assistant": "Cody"},
+    # Eigene Bilder statt der mitgelieferten. Leer = Vorgabe (Assistent) bzw.
+    # Anfangsbuchstabe (Nutzer).
+    "avatars": {"user": "", "assistant": ""},
     # Zurückhaltende Vorgabe: wer frisch klont, bekommt Chat und Kalender.
     # Alles Weitere schaltet er sich selbst dazu und weiß dann, was es tut.
     "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False},
@@ -67,6 +70,9 @@ def load_settings() -> dict:
         return out
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
+    av = raw.get("avatars") or {}
+    out["avatars"]["user"] = _clean_image(av.get("user"))
+    out["avatars"]["assistant"] = _clean_image(av.get("assistant"))
     names = raw.get("names") or {}
     out["names"]["user"] = _clean_name(names.get("user"))
     out["names"]["assistant"] = _clean_name(names.get("assistant"),
@@ -90,6 +96,10 @@ def apply_patch(patch: dict) -> dict:
     cur = load_settings()
     if patch.get("theme") in THEMES:
         cur["theme"] = patch["theme"]
+    av = patch.get("avatars") or {}
+    for who in ("user", "assistant"):
+        if who in av:
+            cur["avatars"][who] = _clean_image(av[who])
     names = patch.get("names") or {}
     if "user" in names:
         cur["names"]["user"] = _clean_name(names["user"])
@@ -113,6 +123,43 @@ def apply_patch(patch: dict) -> dict:
     tmp.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(SETTINGS_FILE)
     return cur
+
+
+# ---------- Persona ----------
+# SOUL.md beschreibt den Charakter des Assistenten, USER.md was er über den
+# Nutzer weiß. Beide gehören zur Installation und stehen in .gitignore —
+# sonst würde ein `git pull` die eigene Persona überschreiben. Im Repository
+# liegt nur SOUL.default.md als Vorlage.
+PERSONA_FILES = {
+    "soul": (BASE_DIR / "SOUL.md", BASE_DIR / "SOUL.default.md"),
+    "user": (BASE_DIR / "USER.md", None),
+}
+MAX_PERSONA = 64_000     # großzügig, aber kein unbegrenzter Systemprompt
+
+
+def persona_read(which: str) -> str:
+    live, template = PERSONA_FILES[which]
+    try:
+        return live.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        pass
+    if template is not None:
+        try:
+            txt = template.read_text(encoding="utf-8", errors="replace")
+            live.write_text(txt, encoding="utf-8")   # beim ersten Mal anlegen
+            return txt
+        except Exception:
+            pass
+    return ""
+
+
+def persona_write(which: str, text: str) -> str:
+    live, _ = PERSONA_FILES[which]
+    text = str(text or "")[:MAX_PERSONA]
+    tmp = live.with_suffix(live.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(live)
+    return text
 
 
 # ---------- Namen ----------

@@ -75,15 +75,10 @@ AUTH_PASS = os.environ.get("MATRIX_PASS", "")
 def load_persona() -> str:
     """SOUL.md + USER.md als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
     parts = []
-    for fn in ("SOUL.md", "USER.md"):
-        p = BASE_DIR / fn
-        if p.is_file():
-            try:
-                txt = p.read_text(encoding="utf-8", errors="replace").strip()
-                if txt:
-                    parts.append(txt)
-            except Exception:
-                pass
+    for which in ("soul", "user"):
+        txt = cfg.persona_read(which).strip()
+        if txt:
+            parts.append(txt)
     # Anstehende Termine frisch einspielen -> Cody weiß, was ansteht, und kann erinnern.
     try:
         block = cal.context_block()
@@ -727,6 +722,22 @@ def version():
 # ---------- Einstellungen ----------
 # Speicherung, Vorgaben und Prüfung liegen in config.py — dieselbe Stelle,
 # aus der auch llm.py die Namen liest.
+@app.get("/api/persona")
+def persona_get():
+    """SOUL.md und USER.md im Klartext — die Einstellungsseite bearbeitet sie."""
+    return {k: cfg.persona_read(k) for k in cfg.PERSONA_FILES}
+
+
+@app.post("/api/persona")
+async def persona_set(req: Request):
+    body = await req.json()
+    out = {}
+    for k in cfg.PERSONA_FILES:
+        if k in body:
+            out[k] = cfg.persona_write(k, body[k])
+    return {"ok": True, **out}
+
+
 @app.get("/api/settings")
 def settings_get():
     return cfg.load_settings()

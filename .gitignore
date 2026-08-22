@@ -52,3 +52,6 @@ node_modules/
 # --- Betriebssystem ---
 .DS_Store
 Thumbs.db
+
+# Persona dieser Installation (Vorlage: SOUL.default.md)
+SOUL.md

@@ -213,10 +213,10 @@
   .avatar{flex:0 0 52px;width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
     background:#04240c center/cover no-repeat;display:flex;align-items:center;justify-content:center;
     color:var(--green);font-weight:bold;font-size:21px;overflow:hidden;box-shadow:0 0 10px rgba(var(--accent-rgb),.35);margin-top:16px}
-  .av-cody{background-image:url('/static/cody.png')}
-  /* Nutzer-Foto ist optional: fehlt die Datei, steht im Kreis der
-     Anfangsbuchstabe (siehe HAS_AVATAR). */
-  .av-kevin{background-image:url('/static/kevin.jpg?v=2');background-size:128%;background-position:50% 34%}
+  .av-cody{background-image:var(--av-asst,url('/static/cody.png'))}
+  /* Nutzer-Bild ist optional (⚙ Einstellungen → Namen → Bilder). Ohne eines
+     steht der Anfangsbuchstabe im Kreis — ein leerer Kreis sähe kaputt aus. */
+  .av-kevin{background-image:var(--av-user,none);background-size:cover;background-position:50% 34%}
   html.no-avatar .av-kevin{background-image:none}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
   .msg .who{font-size:11px;letter-spacing:2px;margin-bottom:5px;opacity:.85}
@@ -588,6 +588,18 @@
   .set-in{background:rgba(0,0,0,.35);border:1px solid var(--green-faint);border-radius:3px;
     color:var(--green);font-family:inherit;font-size:13px;padding:7px 10px;width:230px;max-width:100%}
   .set-in:focus{outline:none;border-color:var(--green-dim)}
+  .set-area{width:100%;min-height:300px;background:rgba(0,0,0,.35);color:var(--green);
+    border:1px solid var(--green-faint);border-radius:3px;font-family:inherit;font-size:12.5px;
+    line-height:1.55;padding:10px;resize:vertical}
+  .set-area:focus{outline:none;border-color:var(--green-dim)}
+  .av-pick{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .av-prev{width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
+    background:#04240c center/cover no-repeat;display:flex;align-items:center;
+    justify-content:center;font-weight:bold;font-size:21px;flex:0 0 auto}
+  .set-tabs{display:flex;gap:6px;margin-bottom:10px}
+  .set-tab{font-family:inherit;font-size:12px;letter-spacing:1px;padding:6px 12px;cursor:pointer;
+    background:transparent;color:var(--green-dim);border:1px solid var(--green-faint);border-radius:3px}
+  .set-tab.on{color:var(--green);border-color:var(--green);background:rgba(var(--accent-rgb),.08)}
   .set-prev{height:74px;border:1px solid var(--green-faint);border-radius:3px;margin-top:8px;
     background-size:cover;background-position:center;position:relative;overflow:hidden}
   .set-prev span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -772,12 +784,8 @@ function applyBackground(){
   // hinter einem deckenden Bild waere reine CPU-Verbrennung.
   RAIN_ON = (mode==='matrix') && !FX_OFF;
 }
-// Eigenes Foto vorhanden? Ohne das bleibt der Anfangsbuchstabe stehen,
-// statt ein kaputtes Bild anzudeuten.
-let HAS_AVATAR=true;
-(function(){const i=new Image();
-  i.onerror=()=>{HAS_AVATAR=false;document.documentElement.classList.add('no-avatar');};
-  i.src='/static/kevin.jpg?v=2';})();
+// Eigenes Bild hinterlegt? Sonst steht der Anfangsbuchstabe im Kreis.
+let HAS_AVATAR=!!((CFG.settings&&CFG.settings.avatars||{}).user);
 let HAS_CLAUDE=CFG.claude!==false;
 const WEB_LOGIN=CFG.web_login!==false;
 function applyClaudeState(){
@@ -2431,7 +2439,7 @@ function applyTiles(){
 }
 function renderSettings(){
   const side=document.getElementById('setnav');
-  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Namen','Farbwelt','Hintergrund']
+  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Namen','Charakter','Farbwelt','Hintergrund']
     .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
   const w=document.createElement('div');w.className='set-wrap';
 
@@ -2501,7 +2509,37 @@ function renderSettings(){
       <span style="display:block;margin-top:8px">
         <input class="set-in" id="setAsst" maxlength="40" placeholder="Cody">
       </span></span></div>
-    <div class="set-d" style="margin-top:6px">Wirkt nach dem Neuladen der Seite.</div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Bilder</span>
+      <span class="set-d">Erscheinen im Chat neben den Nachrichten. Ohne eigenes Bild
+      steht bei dir der Anfangsbuchstabe.</span>
+      <span class="av-pick">
+        <span class="av-prev" id="avU"></span>
+        <button class="set-btn" id="avUPick">Deins wählen…</button>
+        <button class="set-btn" id="avUClear">✕</button>
+      </span>
+      <span class="av-pick">
+        <span class="av-prev" id="avA"></span>
+        <button class="set-btn" id="avAPick">Seins wählen…</button>
+        <button class="set-btn" id="avAClear">✕</button>
+      </span></span></div>
+    <div class="set-d" style="margin-top:6px">Namen wirken nach dem Neuladen der Seite.</div>
+  </div></div>
+
+  <div class="set-sec"><h3>📜 CHARAKTER</h3><div class="set-body">
+    <div class="set-d" style="margin-bottom:10px">Beides wird bei <b>jeder</b> Nachricht
+    mitgelesen — auch von fremden Modellen. <b>Charakter</b> beschreibt, wer der Assistent
+    ist; <b>Über dich</b>, was er über dich wissen soll. Reiner Text, Markdown erlaubt.</div>
+    <div class="set-tabs">
+      <button class="set-tab on" data-persona="soul">Charakter (SOUL.md)</button>
+      <button class="set-tab" data-persona="user">Über dich (USER.md)</button>
+    </div>
+    <textarea class="set-area" id="setSoul" spellcheck="false"
+      placeholder="wird geladen…"></textarea>
+    <div style="margin-top:9px;display:flex;gap:9px;align-items:center">
+      <button class="set-btn" id="soulSave">Speichern</button>
+      <span class="set-saved" id="soulNote"></span>
+    </div>
   </div></div>
 
   <div class="set-sec"><h3>🎨 FARBWELT</h3><div class="set-body">
@@ -2546,6 +2584,8 @@ function renderSettings(){
   w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
     setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
   });
+  setupPersona(w);
+  setupAvatars(w);
   const nm=SETTINGS.names||{};
   const uEl=document.getElementById('setUser'), aEl=document.getElementById('setAsst');
   uEl.value=nm.user||''; aEl.value=nm.assistant||'';
@@ -2597,6 +2637,76 @@ function renderSettings(){
   };
   bgPreview();
 }
+// ---------- Charakter (SOUL.md / USER.md) ----------
+let personaCache=null, personaTab='soul';
+async function setupPersona(w){
+  const area=w.querySelector('#setSoul'), note=w.querySelector('#soulNote');
+  if(!personaCache){
+    try{personaCache=await(await fetch('/api/persona')).json();}
+    catch{personaCache={soul:'',user:''};}
+  }
+  const show=()=>{area.value=personaCache[personaTab]||'';};
+  show();
+  w.querySelectorAll('[data-persona]').forEach(b=>b.onclick=()=>{
+    // Ungespeichertes des aktuellen Reiters mitnehmen, sonst ist es beim
+    // Zurückwechseln weg — und der Nutzer merkt es erst zu spaet.
+    personaCache[personaTab]=area.value;
+    personaTab=b.dataset.persona;
+    w.querySelectorAll('[data-persona]').forEach(o=>o.classList.toggle('on',o===b));
+    show();
+  });
+  w.querySelector('#soulSave').onclick=async()=>{
+    personaCache[personaTab]=area.value;
+    note.textContent='…';note.classList.add('on');
+    try{
+      await fetch('/api/persona',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({[personaTab]:area.value})});
+      note.textContent='✓ gespeichert — gilt ab der nächsten Nachricht';
+    }catch{note.textContent='⚠ nicht gespeichert';}
+    setTimeout(()=>note.classList.remove('on'),2600);
+  };
+}
+
+// ---------- Bilder ----------
+function setupAvatars(w){
+  const av=SETTINGS.avatars||(SETTINGS.avatars={user:'',assistant:''});
+  const paint=()=>{
+    const u=w.querySelector('#avU'), a=w.querySelector('#avA');
+    u.style.backgroundImage=av.user?`url("${av.user}")`:'';
+    u.textContent=av.user?'':((SETTINGS.names&&SETTINGS.names.user||'?').slice(0,1).toUpperCase());
+    a.style.backgroundImage=`url("${av.assistant||'/static/cody.png'}")`;
+    a.textContent='';
+  };
+  paint();
+  const pick=(who)=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='image/*';
+    inp.onchange=async e=>{
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      const fd=new FormData();fd.append('file',f);
+      try{
+        const j=await(await fetch('/api/upload',{method:'POST',body:fd})).json();
+        if(!j.url){alert(j.error||'Upload fehlgeschlagen');return;}
+        av[who]=j.url;paint();setSave({avatars:{[who]:j.url}});applyAvatars();
+      }catch{alert('Upload fehlgeschlagen');}
+    };
+    inp.click();
+  };
+  w.querySelector('#avUPick').onclick=()=>pick('user');
+  w.querySelector('#avAPick').onclick=()=>pick('assistant');
+  w.querySelector('#avUClear').onclick=()=>{av.user='';paint();setSave({avatars:{user:''}});applyAvatars();};
+  w.querySelector('#avAClear').onclick=()=>{av.assistant='';paint();setSave({avatars:{assistant:''}});applyAvatars();};
+}
+// Eigene Bilder als CSS-Variablen: die Avatar-Regeln greifen dann ueberall,
+// auch in schon gezeichneten Nachrichten.
+function applyAvatars(){
+  const av=SETTINGS.avatars||{}, r=document.documentElement;
+  r.style.setProperty('--av-user', av.user?`url("${av.user}")`:'none');
+  r.style.setProperty('--av-asst', `url("${av.assistant||'/static/cody.png'}")`);
+  r.classList.toggle('no-avatar', !av.user);
+  HAS_AVATAR = !!av.user;
+}
+
 function bgApply(patch){
   Object.assign(SETTINGS.background, patch);
   applyBackground(); bgPreview();
@@ -2657,6 +2767,7 @@ document.getElementById('stop').onclick=()=>{
 // ---------- Init ----------
 fetch('/api/version').then(r=>r.json()).then(j=>{document.getElementById('build').textContent='build '+j.version;}).catch(()=>{document.getElementById('build').textContent='build ALT/unbekannt';});
 setMode(currentMode);setModel(currentModel);applyClaudeState();
+applyAvatars();      // eigene Bilder, falls hinterlegt
 applyTheme();        // Farbwelt (im <head> schon gesetzt, hier der Regen)
 applyBackground();   // Hintergrund aus den gespeicherten Einstellungen
 // Nicht fest '/workspace': das gibt es nur im Container. /api/folders liefert
