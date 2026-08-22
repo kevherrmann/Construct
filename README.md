@@ -125,28 +125,18 @@ und die App im Container auf `0.0.0.0` binden:
 MATRIX_HOST=0.0.0.0 python3 app.py
 ```
 
-## Eine abgespeckte Kopie weitergeben
-```bash
-./make-lite.sh ~/construct-lite "Marco"
-tar czf construct-lite.tar.gz -C ~ construct-lite
-```
-Kopiert wird eine ausdrückliche **Liste** von Dateien, nicht „alles außer X" —
-sonst landet jede künftig hinzugefügte Datei automatisch in der Weitergabe, und
-irgendwann ist das die mit den Sessions oder Keys. Nicht mitkopiert: alte
-Sessions, `.llm-config.json`, `.oauth-token`, `events.json`, Mail-Konten,
-`parts.db`, Uploads, Telegram, `mail.py`/`parts.py` und `static/kevin.jpg`.
-Das Skript legt eine eigene, neutrale `SOUL.md`/`USER.md` an und schreibt den
-Namen des Nutzers in `.lite` — daher heißt er im Chat richtig, ohne dass etwas
-umkonfiguriert wird.
+## Weitergeben
+`git clone` und `./install.sh` — mehr braucht es nicht. Die `.gitignore` hält
+Keys, Anmeldungen, Sessions, Termine und Postfach-Daten draußen, und unter
+⚙ Einstellungen richtet sich jeder seine Kacheln, Namen, Farben und Modelle
+selbst ein.
 
-Die alten Sessions bleiben übrigens nicht deshalb draußen, weil Lite
-`~/.claude/projects` sperren würde — der Ordner gehört auf dem Zielrechner
-seinem Besitzer. Sie bleiben draußen, weil sie schlicht nicht mitkopiert werden.
-
-Testen, ohne eine Kopie zu bauen: `CONSTRUCT_LITE=1 ./start.sh --web`.
+Früher gab es dafür ein eigenes Skript (`make-lite.sh`) und eine abgespeckte
+Ausbaustufe, die Bereiche serverseitig sperrte. Beides ist mit Repository und
+Einstellungsseite überflüssig geworden und in v3.9 entfallen — zwei
+Mechanismen für dasselbe Ziel sind einer zu viel.
 
 ## ⚠️ Sicherheit
-- Gilt für die **Vollversion**; die Lite-Version startet `claude` gar nicht.
 - Startet `claude` mit `--permission-mode bypassPermissions` → Claude darf Tools/Befehle
   **ohne Rückfrage** ausführen (volle Power, wie im Terminal). Das ist gewollt für „Jarvis",
   heißt aber: **nur lokal/hinter Login betreiben**, niemals offen ins Internet.
