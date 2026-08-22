@@ -5,7 +5,7 @@
 #    ./make-lite.sh ~/construct-lite "Name"
 #
 #  Baut aus diesem Ordner eine weitergebbare Kopie: alles wie hier, aber
-#  ohne Skills/MCP/E-Mail/Teile — und vor allem OHNE Daten.
+#  ohne Skills/MCP/E-Mail — und vor allem OHNE Daten.
 #
 #  Der Empfaenger braucht ein eigenes Anthropic-Konto und Claude Code; die
 #  Kopie bringt keine Anmeldung mit (.oauth-token wird nicht kopiert).
@@ -37,7 +37,7 @@ if [ -n "$(ls -A "$ZIEL" 2>/dev/null)" ]; then
 fi
 
 # ---- Programmcode ----
-# mail.py und parts.py fehlen mit Absicht: app.py importiert sie in Lite nicht.
+# mail.py fehlt mit Absicht: app.py importiert es in Lite nicht.
 CODE=(app.py llm.py cal.py config.py desktop.py
       start.sh start.bat start-mac.command check-desktop.sh install-desktop.sh
       requirements.txt requirements-desktop.txt)
@@ -199,7 +199,7 @@ echo "✅ CONSTRUCT (abgespeckt) liegt in: $ZIEL"
 echo "   Nutzer: ${NAME:-(kein Name gesetzt — steht in .lite)}"
 echo
 echo "   Nicht mitkopiert: Sessions, API-Keys, Termine, E-Mail-Konten,"
-echo "   Teile-Datenbank, Uploads, Telegram, mail.py/parts.py, kevin.jpg,"
+echo "   Uploads, Telegram, mail.py, kevin.jpg,"
 echo "   .oauth-token (die Claude-Anmeldung)."
 echo
 echo "   Weitergeben:  tar czf construct-lite.tar.gz -C $(dirname "$ZIEL") $(basename "$ZIEL")"
