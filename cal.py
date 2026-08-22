@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""
+cal.py — Codys Kalender. Kleine, robuste Termin-Verwaltung.
+
+Eine einzige Wahrheit: events.json (neben dieser Datei) — genau die Datei, die
+auch die Matrix-Weboberfläche anzeigt. Dieses Modul wird von app.py & dem
+Telegram-Bot importiert UND von Cody als CLI benutzt.
+
+CLI (so trägt Cody Termine ein):
+  python3 cal.py add 2026-06-28 15:00 "Zahnarzt" ["Notiz"]
+  python3 cal.py add 2026-06-28 "Geburtstag Oma"     # ohne Uhrzeit = ganztägig
+  python3 cal.py list [2026-06]                       # alle oder ein Monat
+  python3 cal.py upcoming [tage]                      # default 7 Tage
+  python3 cal.py today
+  python3 cal.py rm <id>
+
+Termin-Format (events.json = Liste solcher Objekte):
+  {"id":"a1b2c3d4","date":"2026-06-28","time":"15:00","title":"Zahnarzt",
+   "notes":"","created":"2026-06-27T18:40:00"}
+  time == "" bedeutet ganztägig.
+"""
+import json
+import re
+import sys
+import uuid
+import datetime
+from pathlib import Path
+
+EVENTS_FILE = Path(__file__).parent / "events.json"
+_TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
+_DE_DOW = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+# ---------- Lesen / Schreiben (atomar) ----------
+def load_events():
+    try:
+        data = json.loads(EVENTS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_events(events):
+    """Sortiert (Datum, Uhrzeit) und schreibt atomar, damit die Datei nie halb-kaputt ist."""
+    events = sorted(events, key=lambda e: (e.get("date", ""), e.get("time", "")))
+    tmp = EVENTS_FILE.with_name(EVENTS_FILE.name + ".tmp")
+    tmp.write_text(json.dumps(events, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(EVENTS_FILE)
+    return events
+
+
+def add_event(date, title, time="", notes="", repeat="", prompt=""):
+    ev = {
+        "id": uuid.uuid4().hex[:8],
+        "date": (date or "").strip(),
+        "time": (time or "").strip(),
+        "title": (title or "").strip(),
+        "notes": (notes or "").strip(),
+        "repeat": (repeat or "").strip(),   # "" = einmalig, "yearly" = jährlich (z.B. Geburtstag)
+        "prompt": (prompt or "").strip(),   # geplante Cody-Aufgabe: läuft zur Termin-Zeit (nur Hostinger)
+        "created": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+    events = load_events()
+    events.append(ev)
+    save_events(events)
+    return ev
+
+
+def remove_event(eid):
+    events = load_events()
+    keep = [e for e in events if e.get("id") != eid]
+    save_events(keep)
+    return len(events) - len(keep)
+
+
+# ---------- Abfragen ----------
+def _occurs_on(e, day):
+    """Findet das Event an einem konkreten Tag statt? (berücksichtigt jährliche Wiederholung)"""
+    d = e.get("date", "")
+    if len(d) < 10:
+        return False
+    if e.get("repeat") == "yearly":
+        return d[5:] == day.isoformat()[5:]   # gleicher Monat-Tag, Jahr egal
+    return d == day.isoformat()
+
+
+def events_on(day):
+    """Alle Termine an einem Tag — Wiederholungen auf diesen Tag „materialisiert“ (date = day)."""
+    ds = day.isoformat()
+    out = []
+    for e in load_events():
+        if _occurs_on(e, day):
+            occ = dict(e)
+            occ["date"] = ds
+            out.append(occ)
+    return sorted(out, key=lambda e: e.get("time", ""))
+
+
+def upcoming(days=7, today=None):
+    """Termine von heute bis +days Tage — Wiederholungen auf ihr nächstes Vorkommen aufgelöst."""
+    today = today or datetime.date.today()
+    out = []
+    for i in range(days + 1):
+        out.extend(events_on(today + datetime.timedelta(days=i)))
+    return sorted(out, key=lambda e: (e.get("date", ""), e.get("time", "")))
+
+
+def context_block(days=7, today=None):
+    """Kalender-Block für Codys System-Prompt — frisch bei jeder Anfrage eingespielt.
+
+    Dadurch *weiß* Cody jederzeit, was ansteht, und kann Kevin von sich aus erinnern.
+    """
+    today = today or datetime.date.today()
+    head = f"## Dein Kalender (heute ist {_DE_DOW[today.weekday()]}, {today.isoformat()})"
+    ups = upcoming(days, today)
+    if not ups:
+        return head + f"\nKeine Termine in den nächsten {days} Tagen eingetragen."
+    lines = [head, "Anstehende Termine — erinnere Kevin von dir aus daran, wenn es gerade passt:"]
+    for e in ups:
+        d = datetime.date.fromisoformat(e["date"])
+        delta = (d - today).days
+        if delta == 0:
+            when = "HEUTE"
+        elif delta == 1:
+            when = "morgen"
+        else:
+            when = f"{_DE_DOW[d.weekday()]} {d.strftime('%d.%m.')}"
+        t = (" " + e["time"]) if e.get("time") else ""
+        note = f" — {e['notes']}" if e.get("notes") else ""
+        lines.append(f"- {when}{t}: {e['title']}{note}")
+    return "\n".join(lines)
+
+
+# ---------- CLI ----------
+def _fmt(e):
+    t = e.get("time") or "ganztägig"
+    note = f"  ({e['notes']})" if e.get("notes") else ""
+    rep = "  🔁 jährlich" if e.get("repeat") == "yearly" else ""
+    return f"{e.get('date')}  {t:<9}  {e.get('title', '')}{note}{rep}  [{e.get('id')}]"
+
+
+def _cli(argv):
+    if not argv:
+        print(__doc__.strip())
+        return 0
+    cmd = argv[0].lower()
+
+    if cmd == "add":
+        rest = argv[1:]
+        # --yearly / -y irgendwo in den Argumenten -> jährlich wiederkehrend
+        repeat = "yearly" if any(a in ("--yearly", "-y") for a in rest) else ""
+        rest = [a for a in rest if a not in ("--yearly", "-y")]
+        if len(rest) < 2:
+            print('Nutzung: cal.py add [--yearly] YYYY-MM-DD [HH:MM] "Titel" ["Notiz"]')
+            print('         (bei --yearly ist auch MM-DD ohne Jahr erlaubt)')
+            return 1
+        date = rest[0]
+        if repeat == "yearly" and re.match(r"^\d{2}-\d{2}$", date):
+            date = f"{datetime.date.today().year}-{date}"   # Jahr ist bei jährlich nur Anker
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            print(f"Ungültiges Datum: {date} (erwartet YYYY-MM-DD bzw. MM-DD bei --yearly)")
+            return 1
+        rest = rest[1:]
+        time = ""
+        if rest and _TIME_RE.match(rest[0]):
+            time, rest = rest[0], rest[1:]
+        if not rest:
+            print("Kein Titel angegeben.")
+            return 1
+        title = rest[0]
+        notes = rest[1] if len(rest) > 1 else ""
+        print("✓ eingetragen:", _fmt(add_event(date, title, time, notes, repeat)))
+        return 0
+
+    if cmd == "rm":
+        if len(argv) < 2:
+            print("Welche ID? (siehe cal.py list)")
+            return 1
+        n = remove_event(argv[1])
+        print(f"✓ {n} Termin(e) gelöscht." if n else "Keine passende ID gefunden.")
+        return 0
+
+    if cmd == "list":
+        evs = load_events()
+        if len(argv) > 1:
+            evs = [e for e in evs if e.get("date", "").startswith(argv[1])]
+        if not evs:
+            print("(keine Termine)")
+            return 0
+        for e in sorted(evs, key=lambda e: (e.get("date", ""), e.get("time", ""))):
+            print(_fmt(e))
+        return 0
+
+    if cmd == "today":
+        today = datetime.date.today()
+        evs = events_on(today)
+        if not evs:
+            print(f"Heute ({today.isoformat()}) steht nichts an.")
+            return 0
+        print(f"Heute ({today.isoformat()}):")
+        for e in evs:
+            print("  " + _fmt(e))
+        return 0
+
+    if cmd == "upcoming":
+        days = int(argv[1]) if len(argv) > 1 and argv[1].isdigit() else 7
+        print(context_block(days))
+        return 0
+
+    print(f"Unbekannter Befehl: {cmd}")
+    print(__doc__.strip())
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(_cli(sys.argv[1:]))

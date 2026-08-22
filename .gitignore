@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────
+#  Was NICHT ins Repository gehört.
+#
+#  Zwei Sorten: Geheimnisse (Keys, Anmeldungen) und Laufzeitdaten
+#  (Sessions, Termine, Uploads). Beides gehört zu DIESER
+#  Installation, nicht zum Programm.
+#
+#  Was einmal committet UND gepusht ist, bleibt in der Historie,
+#  auch wenn man die Datei später löscht. Darum steht diese Datei
+#  vor dem ersten `git add`.
+#
+#  ACHTUNG: Kommentare NUR auf eigenen Zeilen. Ein "#" hinter
+#  einem Muster wird Teil des Musters und das Muster damit wirkungslos.
+# ─────────────────────────────────────────────────────────────
+
+# --- Geheimnisse ---
+.llm-config.json
+.mail-accounts.json
+.oauth-token
+.env
+.env.*
+
+# --- Laufzeit- und Nutzerdaten ---
+# USER.md gehört hierher, nicht zum Programm: es beschreibt DIESEN Nutzer
+# (Familie, Geburtstage, Vorlieben), und make-lite.sh legt für jede Kopie
+# eine eigene an. SOUL.md dagegen IST das Programm — Codys Charakter —
+# und bleibt versioniert.
+# Soll die Datei mitgesichert werden: diese eine Zeile löschen.
+USER.md
+events.json
+parts.db
+mail_meta.json
+mail_attach/
+llm_sessions/
+sessions_meta.json
+telegram_state.json
+uploads/
+server.log
+*.log
+
+# --- Ausbaustufe: hängt am Ordner, nicht am Programm ---
+.lite
+
+# --- Erzeugtes / Umgebung ---
+.venv-*/
+__pycache__/
+*.py[cod]
+.webview/
+node_modules/
+
+# --- Betriebssystem ---
+.DS_Store
+Thumbs.db
