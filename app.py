@@ -757,11 +757,16 @@ SETTINGS_FILE = BASE_DIR / "settings.json"
 # aus der man sich nicht mehr herausklicken kann.
 OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
 BG_MODES = ("matrix", "image", "plain")
+# Farbwelten. Die Namen sind Schlüssel für data-theme im Frontend; die Farben
+# selbst stehen im CSS, nicht hier — der Server soll nicht mitentscheiden,
+# wie etwas aussieht, nur was gewählt ist.
+THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut")
 
 DEFAULT_SETTINGS = {
     # Vorgabe bewusst zurückhaltend: wer die App frisch klont, bekommt Chat
     # und Kalender. Alles Weitere schaltet er sich selbst dazu und weiß dann
     # auch, was es tut.
+    "theme": "matrix",
     "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False},
     # dim = Abdunklung des Hintergrundbildes in Prozent. Grün auf Foto ist
     # ohne kräftiges Abdunkeln kaum lesbar, darum ein hoher Startwert.
@@ -770,7 +775,8 @@ DEFAULT_SETTINGS = {
 
 
 def load_settings() -> dict:
-    out = {"tiles": dict(DEFAULT_SETTINGS["tiles"]),
+    out = {"theme": DEFAULT_SETTINGS["theme"],
+           "tiles": dict(DEFAULT_SETTINGS["tiles"]),
            "background": dict(DEFAULT_SETTINGS["background"])}
     try:
         raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
@@ -778,6 +784,8 @@ def load_settings() -> dict:
         return out
     if not isinstance(raw, dict):
         return out
+    if raw.get("theme") in THEMES:
+        out["theme"] = raw["theme"]
     for k, v in (raw.get("tiles") or {}).items():
         if k in OPTIONAL_TILES:
             out["tiles"][k] = bool(v)
@@ -814,6 +822,8 @@ async def settings_set(req: Request):
     """Teil-Update: was nicht mitkommt, bleibt wie es war."""
     body = await req.json()
     cur = load_settings()
+    if body.get("theme") in THEMES:
+        cur["theme"] = body["theme"]
     for k, v in (body.get("tiles") or {}).items():
         if k in OPTIONAL_TILES:
             cur["tiles"][k] = bool(v)
