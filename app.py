@@ -744,6 +744,94 @@ def version():
     }
 
 
+# ---------- Einstellungen ----------
+# Was der Nutzer selbst zusammenstellt: welche Kacheln er sieht, wie der
+# Hintergrund aussieht. Serverseitig und nicht im Browser, weil die App
+# vom Desktop-Fenster UND vom Browser aus bedient wird — localStorage wäre
+# pro Browser eine andere Wahrheit. Die Datei gehört zur Installation und
+# steht darum in .gitignore.
+SETTINGS_FILE = BASE_DIR / "settings.json"
+
+# Kacheln, die sich abschalten lassen. "sessions" (der Chat) fehlt hier mit
+# Absicht: eine Oberfläche ohne ihren Hauptzweck wäre nur eine Sackgasse,
+# aus der man sich nicht mehr herausklicken kann.
+OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
+BG_MODES = ("matrix", "image", "plain")
+
+DEFAULT_SETTINGS = {
+    # Vorgabe bewusst zurückhaltend: wer die App frisch klont, bekommt Chat
+    # und Kalender. Alles Weitere schaltet er sich selbst dazu und weiß dann
+    # auch, was es tut.
+    "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False},
+    # dim = Abdunklung des Hintergrundbildes in Prozent. Grün auf Foto ist
+    # ohne kräftiges Abdunkeln kaum lesbar, darum ein hoher Startwert.
+    "background": {"mode": "matrix", "image": "", "dim": 60},
+}
+
+
+def load_settings() -> dict:
+    out = {"tiles": dict(DEFAULT_SETTINGS["tiles"]),
+           "background": dict(DEFAULT_SETTINGS["background"])}
+    try:
+        raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return out
+    if not isinstance(raw, dict):
+        return out
+    for k, v in (raw.get("tiles") or {}).items():
+        if k in OPTIONAL_TILES:
+            out["tiles"][k] = bool(v)
+    bg = raw.get("background") or {}
+    if bg.get("mode") in BG_MODES:
+        out["background"]["mode"] = bg["mode"]
+    img = str(bg.get("image") or "").strip()
+    # Nur eigene Uploads zulassen: ein freier Pfad hier wäre eine Einladung,
+    # sich per Einstellung beliebige Dateien in die Seite zu laden.
+    if img.startswith("/uploads/") and "//" not in img[1:] and ".." not in img:
+        out["background"]["image"] = img
+    try:
+        dim = int(bg.get("dim"))
+        out["background"]["dim"] = max(0, min(100, dim))
+    except Exception:
+        pass
+    return out
+
+
+def save_settings(d: dict) -> dict:
+    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(SETTINGS_FILE)
+    return d
+
+
+@app.get("/api/settings")
+def settings_get():
+    return load_settings()
+
+
+@app.post("/api/settings")
+async def settings_set(req: Request):
+    """Teil-Update: was nicht mitkommt, bleibt wie es war."""
+    body = await req.json()
+    cur = load_settings()
+    for k, v in (body.get("tiles") or {}).items():
+        if k in OPTIONAL_TILES:
+            cur["tiles"][k] = bool(v)
+    bg = body.get("background") or {}
+    if bg.get("mode") in BG_MODES:
+        cur["background"]["mode"] = bg["mode"]
+    if "image" in bg:
+        img = str(bg.get("image") or "").strip()
+        cur["background"]["image"] = img if (img.startswith("/uploads/")
+                                             and ".." not in img) else ""
+    if "dim" in bg:
+        try:
+            cur["background"]["dim"] = max(0, min(100, int(bg["dim"])))
+        except Exception:
+            pass
+    return save_settings(cur)
+
+
 # ---------- Kalender ----------
 @app.get("/api/events")
 def events_list():
@@ -919,15 +1007,22 @@ def index():
     # Ausbaustufe SYNCHRON mitgeben, nicht per fetch: sonst baut sich die Seite
     # einmal mit Skills/E-Mail/Teile auf und räumt sie einen Wimpernschlag
     # später wieder weg — sichtbares Flackern und ein kurz klickbares Menü.
-    html = re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};",
-                  "window.CONSTRUCT=" + json.dumps({
-                      "lite": cfg.LITE,
-                      "user": cfg.USER_NAME,
-                      "assistant": cfg.ASSISTANT_NAME,
-                      "claude": bool(claude_bin()),
-                      "web_login": WEB_LOGIN_OK,
-                  }, ensure_ascii=False) + ";",
-                  html, count=1)
+    # re.DOTALL ist Pflicht: das Vorgabe-Objekt in index.html geht über mehrere
+    # Zeilen. Ohne das Flag greift die Ersetzung stillschweigend nicht, die Seite
+    # bekommt die eingebauten Vorgaben statt der echten Einstellungen — und der
+    # Fehler sieht aus wie "die Einstellungen speichern nicht".
+    payload = "window.CONSTRUCT=" + json.dumps({
+        "lite": cfg.LITE,
+        "user": cfg.USER_NAME,
+        "assistant": cfg.ASSISTANT_NAME,
+        "claude": bool(claude_bin()),
+        "web_login": WEB_LOGIN_OK,
+        "settings": load_settings(),
+    }, ensure_ascii=False) + ";"
+    # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
+    # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
+    html = re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};", lambda _m: payload,
+                  html, count=1, flags=re.DOTALL)
     # Kein Browser-Cache -> immer aktueller Stand, kein Hard-Refresh nötig
     return HTMLResponse(html, headers={
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",

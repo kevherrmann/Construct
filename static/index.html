@@ -11,8 +11,19 @@
      echten Werte — die Vorgabe hier gilt nur, wenn man die Datei direkt öffnet.
      Muss synchron im <head> stehen: das Menü darf nicht erst voll aufbauen und
      dann Bereiche wieder wegräumen. -->
-<script>window.CONSTRUCT={"lite":false,"user":"Kevin","assistant":"Cody","claude":true,"web_login":true};
-if(window.CONSTRUCT.lite)document.documentElement.classList.add('lite');</script>
+<script>window.CONSTRUCT={"lite":false,"user":"Kevin","assistant":"Cody","claude":true,"web_login":true,
+  "settings":{"tiles":{"skills":true,"kalender":true,"mail":true,"mcp":true},
+              "background":{"mode":"matrix","image":"","dim":60}}};
+(function(){
+  var C=window.CONSTRUCT, r=document.documentElement;
+  if(C.lite)r.classList.add('lite');
+  // Kachel-Klassen VOR dem ersten Zeichnen: sonst baut sich das Menü einmal
+  // vollständig auf und räumt einen Wimpernschlag später wieder ab.
+  var t=(C.settings&&C.settings.tiles)||{};
+  ['skills','kalender','mail','mcp'].forEach(function(k){
+    if(t[k]===false)r.classList.add('no-'+k);
+  });
+})();</script>
 <script>
 /* Notnagel für WebViews ohne persistenten Speicher (pywebview im Private Mode,
    strenge Browser-Einstellungen): dort ist localStorage nicht leer, sondern gar
@@ -489,6 +500,63 @@ if(window.CONSTRUCT.lite)document.documentElement.classList.add('lite');</script
   .lite #view-mcp{display:none}
   .lite .av-kevin{background-image:none}   /* kein fremdes Foto im Chat */
 
+  /* ---------- Kachel-Sichtbarkeit (Einstellungen) ----------
+     Klassen auf <html>, gesetzt aus den serverseitigen Einstellungen noch im
+     <head>. Der Chat hat bewusst keinen Schalter: eine Oberfläche ohne ihren
+     Hauptzweck wäre eine Sackgasse, aus der man nicht zurückfindet. */
+  html.no-skills   .mi[data-v="skills"],   html.no-skills   #view-skills,
+  html.no-kalender .mi[data-v="kalender"], html.no-kalender #view-kalender,
+  html.no-mail     .mi[data-v="mail"],     html.no-mail     #view-mail,
+  html.no-mcp      .mi[data-v="mcp"],      html.no-mcp      #view-mcp{display:none}
+
+  /* ---------- Hintergrund ----------
+     Drei Zustände: Matrix-Regen (Vorgabe), eigenes Bild, oder schlicht dunkel.
+     Das Bild liegt UNTER dem Regen, aber sie schließen sich aus — beides
+     gleichzeitig ist visuelles Rauschen ohne Nutzen. */
+  #bgimg{position:fixed;inset:0;z-index:0;pointer-events:none;display:none;
+    background-size:cover;background-position:center;background-repeat:no-repeat}
+  /* Abdunkeln ist kein Schmuck, sondern Lesbarkeit: Grün auf einem hellen Foto
+     ist unlesbar. Die Stärke stellt der Nutzer selbst ein (--bg-dim). */
+  #bgimg::after{content:"";position:absolute;inset:0;background:#000;opacity:var(--bg-dim,.6)}
+  body.bg-image #bgimg{display:block}
+  body.bg-image #rain, body.bg-plain #rain{display:none}
+
+  /* ---------- Einstellungen ---------- */
+  .set-wrap{padding:6px 2px 40px;max-width:760px}
+  .set-sec{border:1px solid var(--green-faint);border-radius:4px;margin:0 0 16px;
+    background:rgba(0,12,3,.5)}
+  .set-sec > h3{margin:0;padding:11px 14px;font-size:13px;letter-spacing:2px;
+    border-bottom:1px solid var(--green-faint);background:rgba(0,255,65,.05)}
+  .set-body{padding:12px 14px}
+  .set-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;
+    border-bottom:1px dashed rgba(0,255,65,.12)}
+  .set-row:last-child{border-bottom:none}
+  .set-row label{cursor:pointer;display:flex;gap:9px;align-items:flex-start;flex:1}
+  .set-row input[type=checkbox],.set-row input[type=radio]{margin-top:3px;accent-color:var(--green);
+    width:15px;height:15px;flex:0 0 auto;cursor:pointer}
+  .set-t{font-size:14px}
+  .set-d{opacity:.6;font-size:12px;display:block;margin-top:2px;line-height:1.45}
+  .set-fixed{opacity:.5;font-size:11px;letter-spacing:1px;padding-top:4px}
+  .set-btn{font-family:inherit;font-size:12px;letter-spacing:1px;padding:8px 14px;
+    background:transparent;color:var(--green);border:1px solid var(--green-faint);
+    border-radius:3px;cursor:pointer}
+  .set-btn:hover{background:var(--green-faint);box-shadow:0 0 10px rgba(0,255,65,.35)}
+  .set-btn[disabled]{opacity:.35;cursor:not-allowed}
+  .set-btn:hover[disabled]{background:transparent;box-shadow:none}
+  .set-tag{font-size:10px;letter-spacing:1px;border:1px solid var(--green-faint);
+    border-radius:2px;padding:2px 6px;opacity:.85;white-space:nowrap}
+  .set-tag.ok{color:#000;background:var(--green);border-color:var(--green);opacity:1}
+  .set-tag.warn{color:#ffcf5a;border-color:#6b5a20}
+  .set-head{display:flex;align-items:center;gap:10px}
+  .set-head h4{margin:0;font-size:13px;letter-spacing:1px}
+  .set-slider{width:100%;accent-color:var(--green)}
+  .set-prev{height:74px;border:1px solid var(--green-faint);border-radius:3px;margin-top:8px;
+    background-size:cover;background-position:center;position:relative;overflow:hidden}
+  .set-prev span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:12px;letter-spacing:2px;text-shadow:0 0 6px #000}
+  .set-saved{font-size:11px;letter-spacing:1px;opacity:0;transition:opacity .2s}
+  .set-saved.on{opacity:.8}
+
   /* Ohne installiertes Claude Code wirken Ordnerwahl und Berechtigungs-Modus
      auf nichts: die externen Anbieter sind reine Chat-Modelle. Sichtbar lassen
      (sie werden gebraucht, sobald Claude Code da ist), aber abgesetzt — ein
@@ -497,6 +565,7 @@ if(window.CONSTRUCT.lite)document.documentElement.classList.add('lite');</script
 </style>
 </head>
 <body>
+<div id="bgimg"></div>
 <canvas id="rain"></canvas>
 <div id="dropmask">⌬ BILD HIER ABLEGEN ⌬</div>
 <div id="loginmask">
@@ -540,6 +609,7 @@ if(window.CONSTRUCT.lite)document.documentElement.classList.add('lite');</script
       <button class="mi" data-v="kalender">📅<span>Kalender</span></button>
       <button class="mi" data-v="mail">📧<span>E-Mails</span></button>
       <button class="mi" data-v="mcp">🔌<span>MCP</span></button>
+      <button class="mi" data-v="einstellungen">⚙<span>Einstellungen</span></button>
     </nav>
     <div id="panel">
       <div id="view-sessions" class="view">
@@ -556,6 +626,10 @@ if(window.CONSTRUCT.lite)document.documentElement.classList.add('lite');</script
       </div>
       <div id="view-mail" class="view" style="display:none">
         <div id="mailside"></div>
+      </div>
+      <div id="view-einstellungen" class="view" style="display:none">
+        <div class="vhint">Was du siehst und womit du redest — rechts einstellen</div>
+        <div id="setnav"></div>
       </div>
       <div id="view-mcp" class="view" style="display:none">
         <div class="vhint">Konnektoren / MCP-Server — worauf Cody zugreifen kann</div>
@@ -613,6 +687,20 @@ const CFG=window.CONSTRUCT||{},LITE=!!CFG.lite,
 // Ist das claude-CLI da? Davon hängt ab, ob die Claude-Modelle etwas taugen und
 // ob der 🔑-Chip zum Anmelden oder zum Installieren führt. Kommt synchron vom
 // Server (shutil.which), nicht geraten.
+const SETTINGS=CFG.settings||{tiles:{},background:{}};
+function applyBackground(){
+  const bg=SETTINGS.background||{}, mode=bg.mode||'matrix';
+  const el=document.getElementById('bgimg');
+  document.body.classList.toggle('bg-image', mode==='image' && !!bg.image);
+  document.body.classList.toggle('bg-plain', mode==='plain');
+  if(el){
+    el.style.backgroundImage = bg.image ? `url("${bg.image}")` : '';
+    el.style.setProperty('--bg-dim', ((bg.dim==null?60:bg.dim)/100).toFixed(2));
+  }
+  // Der Regen laeuft nur, wenn er auch zu sehen ist — ein Vollbild-Canvas
+  // hinter einem deckenden Bild waere reine CPU-Verbrennung.
+  RAIN_ON = (mode==='matrix') && !FX_OFF;
+}
 let HAS_CLAUDE=CFG.claude!==false;
 const WEB_LOGIN=CFG.web_login!==false;
 function applyClaudeState(){
@@ -680,8 +768,12 @@ const FX_LOW = FX_OFF || _fxPref === 'low'
 // auf 4K ohne GPU: 55ms = 33% CPU, 110ms = 21%, Regen ganz aus = 3,7%.
 const RAIN_MS = FX_LOW ? 110 : 55;
 let _rainLast = 0;
+// Wird von applyBackground() umgelegt, wenn der Nutzer auf Bild oder
+// schlichten Hintergrund wechselt.
+let RAIN_ON = true;
 function rainLoop(t){
   requestAnimationFrame(rainLoop);
+  if (!RAIN_ON) return;
   if (t - _rainLast < RAIN_MS) return;
   _rainLast = t;
   draw();
@@ -2218,17 +2310,188 @@ function renderMailSettings(){
   };
 }
 
+// ---------- Einstellungen ----------
+// Serverseitig gespeichert (settings.json), nicht im localStorage: die App
+// wird mal aus dem Fenster, mal aus dem Browser bedient, und zwei Browser
+// waeren sonst zwei verschiedene Wahrheiten.
+const TILES=[
+  {k:'kalender', i:'📅', t:'Kalender',  d:'Termine eintragen und ansehen. Braucht nichts weiter.'},
+  {k:'skills',   i:'⚡', t:'Skills',    d:'Zeigt die Skills aus deinen Projekten. Nur mit Claude Code sinnvoll.'},
+  {k:'mail',     i:'📧', t:'E-Mails',   d:'Postfach über IMAP/SMTP. Zugangsdaten liegen lokal.'},
+  {k:'mcp',      i:'🔌', t:'MCP',       d:'Zeigt konfigurierte MCP-Server. Nur mit Claude Code sinnvoll.'},
+];
+let setSaveTimer=null;
+async function setSave(patch){
+  Object.assign(SETTINGS.tiles, patch.tiles||{});
+  Object.assign(SETTINGS.background, patch.background||{});
+  const note=document.getElementById('setSaved');
+  try{
+    const r=await fetch('/api/settings',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+    const fresh=await r.json();
+    SETTINGS.tiles=fresh.tiles; SETTINGS.background=fresh.background;
+    if(note){note.textContent='✓ gespeichert';note.classList.add('on');
+      clearTimeout(setSaveTimer);setSaveTimer=setTimeout(()=>note.classList.remove('on'),1600);}
+  }catch{
+    if(note){note.textContent='⚠ nicht gespeichert';note.classList.add('on');}
+  }
+}
+function applyTiles(){
+  const r=document.documentElement;
+  TILES.forEach(x=>r.classList.toggle('no-'+x.k, SETTINGS.tiles[x.k]===false));
+  // Steht man gerade in einer Ansicht, die man soeben abgeschaltet hat,
+  // waere der Bildschirm sonst leer ohne erkennbaren Grund.
+  const cur=document.querySelector('.mi.active')?.dataset.v;
+  if(cur && SETTINGS.tiles[cur]===false) setView('einstellungen');
+}
+function renderSettings(){
+  const side=document.getElementById('setnav');
+  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Hintergrund']
+    .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
+  const w=document.createElement('div');w.className='set-wrap';
+
+  // --- 1) Kacheln ---
+  const tileRows=TILES.map(x=>`<div class="set-row"><label>
+      <input type="checkbox" data-tile="${x.k}" ${SETTINGS.tiles[x.k]!==false?'checked':''}>
+      <span><span class="set-t">${x.i} ${esc(x.t)}</span>
+      <span class="set-d">${esc(x.d)}</span></span></label></div>`).join('');
+
+  // --- 2) Modelle: drei Wege, die man nicht verwechseln darf ---
+  const claudeTag = HAS_CLAUDE
+    ? '<span class="set-tag ok">INSTALLIERT</span>'
+    : '<span class="set-tag warn">NICHT INSTALLIERT</span>';
+
+  w.innerHTML=`
+  <div class="set-sec"><h3>⚙ KACHELN</h3><div class="set-body">
+    <div class="set-row"><label style="cursor:default">
+      <input type="checkbox" checked disabled>
+      <span><span class="set-t">💬 Chats</span>
+      <span class="set-d">Der Hauptzweck der Oberfläche — lässt sich nicht abschalten.</span></span></label>
+      <span class="set-fixed">FEST</span></div>
+    ${tileRows}
+  </div></div>
+
+  <div class="set-sec"><h3>🧠 MODELLE &amp; ANBIETER</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>1 · Claude Code</h4>${claudeTag}</span>
+      <span class="set-d">Läuft über dein <b>Anthropic-Abo</b> (OAuth) oder einen API-Key.
+      Der einzige Weg mit <b>echtem Zugriff</b> auf Dateien und Terminal — hier greifen
+      📂 Ordner und 🛡 Modus. Ein Schlüssel von einem anderen Anbieter funktioniert
+      dafür nicht.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="setClaude">${HAS_CLAUDE?'🔑 Anmeldung':'📋 Anleitung'}</button>
+      </span></span></div>
+
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>2 · Chat-Anbieter</h4><span class="set-tag">NUR CHAT</span></span>
+      <span class="set-d">ChatGPT, Gemini, DeepSeek, lokale Ollama-Modelle oder jede
+      OpenAI-kompatible API. Reine Gesprächspartner: <b>keine</b> Dateien, kein Terminal.
+      Schlüssel bleiben lokal in <code>.llm-config.json</code>.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="setLlm">⚙ Anbieter einrichten…</button>
+      </span></span></div>
+
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>3 · Hermes</h4><span class="set-tag warn">GEPLANT</span></span>
+      <span class="set-d">Werkzeug-Zugriff mit <b>fremden</b> Modellen — der Weg, um Dateien
+      und Terminal ohne Anthropic-Konto zu nutzen, etwa mit lokalen Modellen über Ollama.
+      Vorgeprüft und machbar (ACP über stdio), aber noch nicht angebunden.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" disabled>noch nicht verfügbar</button>
+      </span></span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>🖼 HINTERGRUND</h3><div class="set-body">
+    <div class="set-row"><label><input type="radio" name="bgm" value="matrix">
+      <span><span class="set-t">Matrix-Regen</span>
+      <span class="set-d">Die Vorgabe. Kostet etwas Rechenleistung.</span></span></label></div>
+    <div class="set-row"><label><input type="radio" name="bgm" value="image">
+      <span><span class="set-t">Eigenes Bild</span>
+      <span class="set-d">Ersetzt den Regen. Wird abgedunkelt, damit die Schrift lesbar bleibt.</span></span></label></div>
+    <div class="set-row"><label><input type="radio" name="bgm" value="plain">
+      <span><span class="set-t">Schlicht dunkel</span>
+      <span class="set-d">Nichts im Hintergrund — am sparsamsten.</span></span></label></div>
+    <div id="bgOpts" style="margin-top:12px">
+      <button class="set-btn" id="bgPick">🖼 Bild wählen…</button>
+      <button class="set-btn" id="bgClear">✕ Bild entfernen</button>
+      <div style="margin-top:12px">
+        <label class="set-d" for="bgDim">Abdunkeln: <b id="bgDimV"></b></label>
+        <input type="range" min="0" max="95" id="bgDim" class="set-slider">
+      </div>
+      <div class="set-prev" id="bgPrev"></div>
+    </div>
+    <input type="file" id="bgFile" accept="image/*" style="display:none">
+  </div></div>
+
+  <div style="text-align:right"><span class="set-saved" id="setSaved"></span></div>`;
+
+  chat.innerHTML='';chat.appendChild(w);
+
+  w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
+    setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
+  });
+  document.getElementById('setLlm').onclick=openLlmCfg;
+  document.getElementById('setClaude').onclick=()=>{
+    if(HAS_CLAUDE&&WEB_LOGIN)openLogin(); else {setView('sessions');claudeSetupHint();}
+  };
+
+  const bg=SETTINGS.background;
+  w.querySelectorAll('input[name=bgm]').forEach(r=>{
+    r.checked = (bg.mode||'matrix')===r.value;
+    r.onchange=()=>{ if(r.checked) bgApply({mode:r.value}); };
+  });
+  const dim=document.getElementById('bgDim');
+  dim.value = bg.dim==null?60:bg.dim;
+  const showDim=()=>{document.getElementById('bgDimV').textContent=dim.value+' %';
+    document.getElementById('bgPrev').style.setProperty('--x',dim.value);};
+  showDim();
+  dim.oninput=()=>{showDim();
+    SETTINGS.background.dim=+dim.value;applyBackground();bgPreview();};
+  dim.onchange=()=>bgApply({dim:+dim.value});
+  document.getElementById('bgPick').onclick=()=>document.getElementById('bgFile').click();
+  document.getElementById('bgClear').onclick=()=>bgApply({image:'',mode:'matrix'});
+  document.getElementById('bgFile').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    const fd=new FormData(); fd.append('file',f);
+    try{
+      const r=await fetch('/api/upload',{method:'POST',body:fd});
+      const j=await r.json();
+      if(j.url)bgApply({image:j.url,mode:'image'}); else alert(j.error||'Upload fehlgeschlagen');
+    }catch{alert('Upload fehlgeschlagen');}
+    e.target.value='';
+  };
+  bgPreview();
+}
+function bgApply(patch){
+  Object.assign(SETTINGS.background, patch);
+  applyBackground(); bgPreview();
+  setSave({background:patch});
+  document.querySelectorAll('input[name=bgm]').forEach(r=>{
+    r.checked=(SETTINGS.background.mode||'matrix')===r.value;
+  });
+}
+function bgPreview(){
+  const el=document.getElementById('bgPrev'); if(!el)return;
+  const bg=SETTINGS.background, img=bg.image;
+  el.style.backgroundImage = img?`linear-gradient(rgba(0,0,0,${((bg.dim==null?60:bg.dim)/100).toFixed(2)}),`
+    +`rgba(0,0,0,${((bg.dim==null?60:bg.dim)/100).toFixed(2)})), url("${img}")` : 'none';
+  el.innerHTML = img?'<span>VORSCHAU</span>':'<span style="opacity:.5">kein Bild gewählt</span>';
+}
+
 // ---------- Menü ----------
-const LITE_VIEWS=['sessions','kalender'];
+const LITE_VIEWS=['sessions','kalender','einstellungen'];
 function setView(v){
   // In Lite sind die anderen Bereiche nicht nur versteckt, sondern nicht da:
   // ihr Inhalt käme von gesperrten Routen. Auch /skills & Co. landen hier.
   if(LITE&&!LITE_VIEWS.includes(v))return;
+  // Abgeschaltete Kacheln sind auch per Tastatur/Slash-Befehl nicht erreichbar.
+  if(SETTINGS.tiles[v]===false)return;
   document.querySelectorAll('.mi').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
   document.querySelectorAll('.view').forEach(el=>el.style.display='none');
   document.getElementById('view-'+v).style.display='';
   document.body.classList.toggle('mailmode',v==='mail');   // Scanlines nur außerhalb der Mails
   if(v==='skills')loadSkills();if(v==='kalender')loadKal();if(v==='mcp')loadMcp();if(v==='mail')loadMailView();
+  if(v==='einstellungen')renderSettings();
   // Zurueck zu den Chats: die Unterhaltung wieder einhaengen -- Mail, Kalender
   // ueberschreiben #chat, sonst bliebe deren Ansicht stehen.
   if(v==='sessions'){const c=activeConv();if(c)mountConv(c);}
@@ -2263,6 +2526,7 @@ document.getElementById('stop').onclick=()=>{
 // ---------- Init ----------
 fetch('/api/version').then(r=>r.json()).then(j=>{document.getElementById('build').textContent='build '+j.version;}).catch(()=>{document.getElementById('build').textContent='build ALT/unbekannt';});
 setMode(currentMode);setModel(currentModel);applyClaudeState();
+applyBackground();   // Hintergrund aus den gespeicherten Einstellungen
 // Nicht fest '/workspace': das gibt es nur im Container. /api/folders liefert
 // an erster Stelle den echten Arbeitsordner des Servers (WORKSPACE) — unter
 // Windows und nativ auf dem Desktop ist das ein ganz anderer Pfad, und die

@@ -27,6 +27,7 @@
 # und bleibt versioniert.
 # Soll die Datei mitgesichert werden: diese eine Zeile löschen.
 USER.md
+settings.json
 events.json
 parts.db
 mail_meta.json

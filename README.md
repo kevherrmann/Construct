@@ -27,35 +27,17 @@ ansteuert. Läuft auf deiner **Subscription** (OAuth), **kein API-Key** nötig.
   `/workspace/.ollama`, `ollama serve` als Hintergrundprozess, Auto-Start beim
   App-Start — braucht `zstandard` aus requirements.txt).
 
-- 🔩 **Teile-Beschaffung** (v3.6): Stückliste rein, optimierte Einkaufsliste raus.
-  Die Arbeitsteilung ist der Punkt: **Cody sucht** die Produkte (Recherche über
-  WebFetch/WebSearch — genau der Teil, an dem reine Regex-Suche scheitert),
-  **`parts.py` rechnet** die günstigste Warenkorb-Aufteilung inklusive Versand,
-  Freigrenzen, Mindestbestellwerten und Packungsgrößen. Bei Kleinteilen
-  dominieren die den Gesamtpreis vollständig — ein Teil für 2 € beim siebten
-  Händler kostet real 8 €. Shops werden nicht vorkonfiguriert; Cody legt sie
-  beim Suchen an, die Versandkosten korrigierst du in der Tabelle.
-  Die Suche läuft als **sichtbarer Chat-Lauf**: du siehst, was recherchiert
-  wird, kannst nachfassen („nimm lieber AliExpress") und abbrechen. Cody meldet
-  jeden Fund per `curl` an `/api/parts/offer` zurück. Daten in `parts.db`.
-
-- 🪶 **Lite-Ausbau** (v3.7): dieselbe Oberfläche zum Weitergeben, **ohne
-  Skills, MCP, E-Mail und Teile** — die vier Bereiche, die auf Kevin
-  zugeschnitten sind. Alles Übrige bleibt: Chat, Kalender, Ordnerwahl,
-  Mode-Auswahl und die Claude-Anmeldung. Kein Fork — `config.py` liest die
-  Datei `.lite` neben `app.py`; ausgeblendet wird im Frontend per CSS,
-  gesperrt serverseitig per `LITE_BLOCKED` in der Middleware. Beides mit
-  Absicht: das Ausblenden allein wäre keine Grenze.
-  `./make-lite.sh <ordner> "Name"` baut die weitergebbare Kopie.
-- 🖥 **Windows** (v3.7): `start.bat` als Gegenstück zu `start.sh`. Fehlt das
-  `claude`-CLI, ist das kein Fehlerzustand mehr, sondern einer von drei
-  HUD-Zuständen (🔑 OHNE CLAUDE) — der Chat läuft dann über den Anbieter aus
-  dem 🧠-Menü. Das CLI wird über `shutil.which` aufgelöst statt als blankes
-  `"claude"` an CreateProcess gereicht: npm legt es unter Windows als
-  `claude.cmd` ab, und CreateProcess hängt beim PATH-Suchen nur `.exe` an.
-  Nicht portiert ist der Login-Dialog — der steuert `claude setup-token` über
-  ein PTY (`pty`/`termios`/`fcntl`, Unix-only); unter Windows meldet man sich
-  einmal im Terminal an, die App erkennt das dann selbst.
+- ⚙ **Einstellungen** (v3.8): eine eigene Kachel, in der man einstellt, **welche
+  Kacheln man überhaupt sieht** (Chats bleibt fest — eine Oberfläche ohne ihren
+  Hauptzweck wäre eine Sackgasse), wie der **Hintergrund** aussieht
+  (Matrix-Regen, eigenes Bild oder schlicht dunkel) und wo die **Modelle**
+  herkommen. Letzteres bewusst in drei getrennten Blöcken, weil die
+  Verwechslung teuer ist: *Claude Code* (Anthropic-Konto, echter Datei- und
+  Terminal-Zugriff) — *Chat-Anbieter* (ChatGPT, Gemini, DeepSeek, Ollama; reine
+  Gesprächspartner) — *Hermes* (Werkzeuge mit fremden Modellen, vorgeprüft,
+  noch nicht angebunden). Gespeichert in `settings.json` (nicht im Git, gehört
+  zur Installation) und synchron in die Seite eingesetzt, damit beim Laden
+  keine abgeschaltete Kachel aufblitzt.
 
 ## Start (Desktop, empfohlen)
 ```bash
