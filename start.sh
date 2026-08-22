@@ -5,6 +5,7 @@
 #    ./start.sh            eigenes Fenster (Taskleiste)
 #    ./start.sh --web      nur Server auf http://127.0.0.1:8765
 #    ./start.sh --update   Abhängigkeiten neu installieren
+#    ./start.sh --setup-only  nur einrichten, nicht starten (fuer install.sh)
 #
 #  Legt beim ersten Start ein venv an — pro Plattform ein eigenes
 #  (.venv-Linux-x86_64 / .venv-Darwin-arm64), damit derselbe Ordner
@@ -25,10 +26,14 @@ VENV=".venv-$OS-$(uname -m)-py$PYVER"
 
 UPDATE=0
 WEB=0
+SETUP_ONLY=0
 ARGS=()
 for a in "$@"; do
   case "$a" in
     --update) UPDATE=1 ;;
+    # Nur einrichten, nicht starten — dafuer ruft install.sh das hier auf.
+    # Ohne den Schalter wuerde die Installation am Ende ein Fenster oeffnen.
+    --setup-only) SETUP_ONLY=1; UPDATE=1 ;;
     --web) WEB=1; ARGS+=("$a") ;;
     *) ARGS+=("$a") ;;
   esac
@@ -61,6 +66,11 @@ if [ "$UPDATE" = "1" ] || [ "$(cat "$STAMP" 2>/dev/null || true)" != "$NOW" ]; t
   "$VPY" -m pip install -q -r requirements-desktop.txt \
     || echo "   ⚠  pywebview ließ sich nicht installieren — Fenster-Modus fällt auf den Browser zurück."
   echo "$NOW" > "$STAMP"
+fi
+
+if [ "$SETUP_ONLY" = "1" ]; then
+  echo "» Umgebung steht ($VENV)."
+  exit 0
 fi
 
 # ---- Vorbedingungen prüfen ----
