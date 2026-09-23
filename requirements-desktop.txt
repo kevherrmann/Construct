@@ -1,0 +1,8 @@
+# Nur für den Fenster-Modus (desktop.py). Bewusst getrennt von
+# requirements.txt, damit der Server-Betrieb auf Hostinger nichts davon braucht.
+#
+# Linux zusätzlich als System-Paket (nicht per pip installierbar):
+#   sudo dnf install python3-gobject webkit2gtk4.1        # Fedora / Nobara
+#   sudo apt install python3-gi gir1.2-webkit2-4.1        # Debian / Ubuntu
+# macOS: nichts extra, pywebview zieht sich pyobjc selbst.
+pywebview

@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>CONSTRUCT // Cody</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<!-- Ausbaustufe. Diese Zeile ersetzt app.py beim Ausliefern (index()) durch die
+     echten Werte — die Vorgabe hier gilt nur, wenn man die Datei direkt öffnet.
+     Muss synchron im <head> stehen: das Menü darf nicht erst voll aufbauen und
+     dann Bereiche wieder wegräumen. -->
+<script>window.CONSTRUCT={"user":"","assistant":"Cody","claude":true,"web_login":true,
+  "settings":{"theme":"matrix","names":{"user":"","assistant":"Cody"},
+              "tiles":{"skills":true,"kalender":true,"mail":true,"mcp":true},
+              "background":{"mode":"matrix","image":"","dim":60}}};
+(function(){
+  var C=window.CONSTRUCT, r=document.documentElement;
+  // Kachel-Klassen VOR dem ersten Zeichnen: sonst baut sich das Menü einmal
+  // vollständig auf und räumt einen Wimpernschlag später wieder ab.
+  var st=C.settings||{};
+  // Theme VOR dem ersten Zeichnen: sonst erscheint die Seite kurz in Grün und
+  // wechselt dann die Farbe — sichtbar und unangenehm.
+  if(st.theme && st.theme!=='matrix') r.setAttribute('data-theme', st.theme);
+  var t=st.tiles||{};
+  ['skills','kalender','mail','mcp'].forEach(function(k){
+    if(t[k]===false)r.classList.add('no-'+k);
+  });
+})();</script>
+<script>
+/* Notnagel für WebViews ohne persistenten Speicher (pywebview im Private Mode,
+   strenge Browser-Einstellungen): dort ist localStorage nicht leer, sondern gar
+   nicht vorhanden. Der Zugriff weiter unten läuft auf Top-Level — ohne diesen
+   Fallback wirft er einen ReferenceError, das restliche Script wird nie
+   ausgeführt und KEIN Button reagiert mehr. Lieber Einstellungen vergessen als
+   eine tote Oberfläche. Muss vor allem anderen Script stehen. */
+(function(){
+  var ok = false;
+  try {
+    ok = (typeof localStorage !== 'undefined') && localStorage !== null;
+    if (ok) { localStorage.setItem('__probe','1'); localStorage.removeItem('__probe'); }
+  } catch(e) { ok = false; }          // auch abgeschaltet/Quota voll landet hier
+  if (ok) return;
+
+  var mem = {};
+  var shim = {
+    getItem:    function(k){ return Object.prototype.hasOwnProperty.call(mem,k) ? mem[k] : null; },
+    setItem:    function(k,v){ mem[k] = String(v); },
+    removeItem: function(k){ delete mem[k]; },
+    clear:      function(){ mem = {}; },
+    key:        function(i){ return Object.keys(mem)[i] || null; }
+  };
+  Object.defineProperty(shim, 'length', { get: function(){ return Object.keys(mem).length; } });
+  try { Object.defineProperty(window, 'localStorage', { value: shim, writable: true, configurable: true }); }
+  catch(e) { try { window.localStorage = shim; } catch(e2) {} }
+  console.warn('localStorage nicht verfügbar — Einstellungen gelten nur für diese Sitzung.');
+})();
+</script>
+<!-- marked auf v4 gepinnt: neuere Versionen ignorieren die highlight-Option -->
+<script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  /* ---------- Farbwelten ----------
+     Ein Theme ist NUR ein Satz Variablen — kein Sonderfall im übrigen CSS.
+     Darum sind vorher alle festen Grüntöne hier hereingezogen worden; sonst
+     bliebe bei jedem Themenwechsel ein Rest Matrix-Grün stehen.
+       --accent-rgb  dieselbe Farbe wie --green, aber als Zahlentripel:
+                     rgba() kann keine Hex-Variable mit Deckkraft mischen.
+       --soft/--link untergeordneter Text und Verweise.
+     Die Vorgabe hier ist Matrix; data-theme am <html> überschreibt sie. */
+  :root{
+    --green:#00ff41; --green-dim:#00a82b; --green-faint:#0d3d18;
+    --bg:#000600; --panel:rgba(0,18,4,.82); --user:#9dffb0;
+    --accent-rgb:0,255,65; --soft:#7dd398; --link:#7fffd4;
+    --rain:#00ff41; --rain-fade:rgba(0,6,0,.07);
+  }
+  html[data-theme="bernstein"]{
+    --green:#ffb648; --green-dim:#c07a12; --green-faint:#4a2f0a;
+    --bg:#0a0600; --panel:rgba(24,14,0,.84); --user:#ffe0a8;
+    --accent-rgb:255,182,72; --soft:#d9ab6a; --link:#ffd08a;
+    --rain:#ffb648; --rain-fade:rgba(10,6,0,.07);
+  }
+  html[data-theme="eis"]{
+    --green:#5fd8ff; --green-dim:#1e8fb5; --green-faint:#0d3446;
+    --bg:#00060c; --panel:rgba(0,16,26,.84); --user:#bdeeff;
+    --accent-rgb:95,216,255; --soft:#8fc6de; --link:#a6e8ff;
+    --rain:#5fd8ff; --rain-fade:rgba(0,6,12,.07);
+  }
+  html[data-theme="space"]{
+    --green:#b98bff; --green-dim:#7645c4; --green-faint:#2c1a4d;
+    --bg:#06030f; --panel:rgba(16,8,34,.86); --user:#e0ccff;
+    --accent-rgb:185,139,255; --soft:#a992cf; --link:#d3b6ff;
+    --rain:#b98bff; --rain-fade:rgba(6,3,15,.07);
+  }
+  html[data-theme="asche"]{
+    --green:#d8dee4; --green-dim:#8b949e; --green-faint:#2b3138;
+    --bg:#0c0e11; --panel:rgba(22,25,30,.88); --user:#a9c9ef;
+    --accent-rgb:216,222,228; --soft:#9aa4af; --link:#79b8ff;
+    --rain:#d8dee4; --rain-fade:rgba(12,14,17,.07);
+  }
+  html[data-theme="blut"]{
+    --green:#ff5f57; --green-dim:#b3302a; --green-faint:#481815;
+    --bg:#0b0303; --panel:rgba(28,8,8,.86); --user:#ffb3ae;
+    --accent-rgb:255,95,87; --soft:#cf9490; --link:#ff9c96;
+    --rain:#ff5f57; --rain-fade:rgba(11,3,3,.07);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--green);font-family:'Share Tech Mono',monospace;
+    overflow:hidden;text-shadow:0 0 4px rgba(var(--accent-rgb),.45)}
+  /* pointer-events:none — der Regen ist reine Deko und darf NIE Klicks fangen.
+     Im Browser reicht der z-index, aber im WebKitGTK-Fenster (desktop.py) kann
+     das Stacking kippen; dann liegt das Canvas über der UI und schluckt alles. */
+  /* width/height MUESSEN hier stehen: ein <canvas> ist ein replaced element und
+     nimmt ohne CSS-Groesse seine Bitmap-Aufloesung — mit RAIN_SCALE<1 waere es
+     sonst nur einen Bruchteil gross. inset:0 allein streckt es NICHT. */
+  #rain{position:fixed;inset:0;width:100%;height:100%;z-index:0;opacity:.28;pointer-events:none}
+  body::after{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px)}
+  /* In der Mail-Ansicht: Scanlines aus (Lesbarkeit!) — der Matrix-Regen läuft weiter */
+  body.mailmode::after{content:none}
+  /* Sparmodus: NUR die Scanlines weg, der Regen bleibt. Gemessen auf 4K ohne
+     GPU: Canvas allein 3,6% CPU, Scanlines allein 0,1% — beides zusammen aber
+     96,8%. Das Overlay liegt ueber dem Canvas, also muss der Gradient bei jedem
+     Regen-Frame ueber die volle Flaeche neu gerastert werden. */
+  body.fx-low::after{content:none}
+  body.fx-off::after{content:none}
+  body.fx-off #rain{display:none}
+  #app{position:relative;z-index:10;display:flex;height:100vh}
+
+  /* Sidebar + Menü */
+  #side{width:300px;flex:0 0 300px;border-right:1px solid var(--green-faint);
+    background:var(--panel);display:flex;flex-direction:column;backdrop-filter:blur(2px)}
+  #side h1{font-size:18px;letter-spacing:3px;margin:0;padding:15px 16px 2px;
+    color:var(--green);text-shadow:0 0 10px var(--green)}
+  /* Wer hier Dienst hat. Der Name des Assistenten gehoert unter den des Ortes,
+     nicht an dessen Stelle. */
+  #whoami{padding:0 16px 10px;font-size:10px;letter-spacing:2.5px;
+    color:var(--green-dim);text-shadow:none}
+  #whoami .dot{color:var(--green);animation:blink 1.2s infinite;margin-right:4px}
+  /* Menü als EINE zusammenhängende Segment-Fläche. Ab 6 Einträgen wird eine
+     Reihe zu eng (Labels brechen weg) -> 3er-Raster, wächst nach unten. */
+  #menu{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 10px 12px;
+    border:1px solid var(--green-faint);border-radius:5px;overflow:hidden;
+    background:rgba(0,10,3,.5)}
+  .mi{min-width:0;background:transparent;border:none;
+    border-left:1px solid var(--green-faint);border-top:1px solid var(--green-faint);
+    color:var(--green-dim);cursor:pointer;font-family:inherit;font-size:15px;line-height:1;
+    padding:9px 0 7px;display:flex;flex-direction:column;align-items:center;gap:4px;
+    text-shadow:none;transition:.12s}
+  .mi:nth-child(3n+1){border-left:none}
+  .mi:nth-child(-n+3){border-top:none}
+  .mi span{font-size:8.5px;letter-spacing:.4px;white-space:nowrap;overflow:hidden;max-width:100%}
+  .mi:hover{background:rgba(var(--accent-rgb),.07);color:var(--green)}
+  .mi.active{color:var(--green);background:rgba(var(--accent-rgb),.1);box-shadow:inset 0 -2px 0 var(--green)}
+  #panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
+  .view{padding:8px}
+  .vhint{font-size:11px;color:var(--green-dim);opacity:.8;padding:8px}
+  #newBtn{width:100%;margin:4px 0 10px;padding:10px;background:transparent;color:var(--green);
+    border:1px solid var(--green-dim);cursor:pointer;font-family:inherit;font-size:13px;
+    letter-spacing:2px;text-shadow:inherit;transition:.15s}
+  #newBtn:hover{background:var(--green-faint);box-shadow:0 0 12px rgba(var(--accent-rgb),.4)}
+
+  .folder{display:flex;align-items:center;gap:6px;padding:8px;margin-top:8px;cursor:pointer;
+    font-size:12px;letter-spacing:1px;color:var(--green);border-bottom:1px solid var(--green-faint);
+    text-shadow:0 0 6px rgba(var(--accent-rgb),.4);user-select:none}
+  .folder:hover{background:rgba(var(--accent-rgb),.05)}
+  .folder .fa{width:10px;color:var(--green-dim)}
+  .folder .fn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .folder .fc{font-size:10px;color:var(--green-dim);background:rgba(var(--accent-rgb),.08);padding:1px 6px;border-radius:8px}
+  .sess{padding:8px 10px;margin:2px 0 2px 10px;border:1px solid transparent;border-left:2px solid var(--green-faint);
+    cursor:pointer;font-size:12px;line-height:1.35;color:var(--soft);transition:.12s}
+  .sess:hover{border-left-color:var(--green);background:rgba(var(--accent-rgb),.06);color:var(--green)}
+  .sess.active{border-left-color:var(--green);background:rgba(var(--accent-rgb),.1);color:var(--green)}
+  .sess.running{border-left-color:#ffd24a}
+  .sess.running .t{animation:pulse 1.3s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .sess .t{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sess .d{font-size:10px;color:var(--green-dim);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .sess{display:flex;align-items:center;gap:6px}
+  .sessmain{flex:1;min-width:0;cursor:pointer}
+  .sess.archived{opacity:.5}
+  .sessact{display:flex;gap:2px;flex:0 0 auto;opacity:0;transition:.12s}
+  .sess:hover .sessact{opacity:1}
+  .sx{cursor:pointer;font-size:12.5px;opacity:.65;padding:3px 5px;border-radius:3px;line-height:1}
+  .sx:hover{opacity:1;background:rgba(var(--accent-rgb),.14)}
+  .sx-del:hover{background:rgba(255,60,60,.2);color:#ff6b6b}
+  .archtoggle{font-size:11px;color:var(--green-dim);cursor:pointer;padding:7px 8px;margin-bottom:4px;
+    border-bottom:1px solid var(--green-faint);user-select:none;letter-spacing:.5px}
+  .archtoggle:hover{color:var(--green)}
+  .archtoggle.on{color:var(--green)}
+  .archtoggle span{color:var(--green);opacity:.85;text-decoration:underline}
+  #sessSearch{width:100%;background:rgba(0,8,2,.7);border:1px solid var(--green-faint);color:var(--green);
+    font-family:inherit;font-size:12px;padding:7px 10px;outline:none;margin-bottom:8px;text-shadow:inherit}
+  #sessSearch:focus{border-color:var(--green-dim);box-shadow:0 0 8px rgba(var(--accent-rgb),.25)}
+  #sessSearch::placeholder{color:var(--green-dim);opacity:.6}
+
+  /* Main */
+  #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  #topbar{padding:10px 18px;border-bottom:1px solid var(--green-faint);font-size:12px;
+    color:var(--green-dim);display:flex;justify-content:space-between;align-items:center}
+  #status .dot{color:var(--green);animation:blink 1.2s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  #chat{flex:1;overflow-y:auto;padding:22px 8%;scroll-behavior:smooth}
+  @media(max-width:900px){#chat{padding:18px 16px}#side{position:absolute;z-index:30;height:100%;transform:translateX(-100%);transition:.2s}#side.open{transform:none}#burger{display:block!important}}
+
+  .msg{display:flex;gap:10px;align-items:flex-start;margin:16px 0;animation:fade .25s ease}
+  .msg.user{flex-direction:row-reverse}
+  .msgcol{display:flex;flex-direction:column;max-width:80%;min-width:0}
+  .msg.user .msgcol{align-items:flex-end}
+  .avatar{flex:0 0 52px;width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
+    background:#04240c center/cover no-repeat;display:flex;align-items:center;justify-content:center;
+    color:var(--green);font-weight:bold;font-size:21px;overflow:hidden;box-shadow:0 0 10px rgba(var(--accent-rgb),.35);margin-top:16px}
+  .av-cody{background-image:var(--av-asst,url('/static/cody.png'))}
+  /* Nutzer-Bild ist optional (⚙ Einstellungen → Namen → Bilder). Ohne eines
+     steht der Anfangsbuchstabe im Kreis — ein leerer Kreis sähe kaputt aus. */
+  .av-user{background-image:var(--av-user,none);background-size:cover;background-position:50% 34%}
+  html.no-avatar .av-user{background-image:none}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  .msg .who{font-size:11px;letter-spacing:2px;margin-bottom:5px;opacity:.85}
+  .msg.user .who{color:var(--user)}.msg.bot .who{color:var(--green)}
+  .bubble{border:1px solid var(--green-faint);padding:12px 15px;background:rgba(0,12,3,.6);
+    line-height:1.55;font-size:14.5px;word-wrap:break-word}
+  .msg.user .bubble{border-color:#1f5a30;color:var(--user);background:rgba(4,20,8,.6)}
+  .bubble img{max-width:260px;border:1px solid var(--green-faint);margin:6px 6px 0 0;border-radius:2px}
+  .bubble pre{background:#05140a !important;border:1px solid var(--green-faint);padding:12px;overflow-x:auto;border-radius:3px;position:relative}
+  .copy-btn{position:absolute;top:6px;right:6px;font-family:inherit;font-size:10px;letter-spacing:1px;
+    background:rgba(var(--accent-rgb),.1);color:var(--green-dim);border:1px solid var(--green-faint);
+    padding:2px 8px;border-radius:3px;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2}
+  .bubble pre:hover .copy-btn{opacity:.9}
+  .copy-btn:hover{background:rgba(var(--accent-rgb),.2);color:var(--green)}
+  .copy-btn.done{color:var(--green);border-color:var(--green);opacity:1}
+  .msg.user .bubble{position:relative}
+  .edit-btn{position:absolute;top:-10px;left:-10px;font-size:11px;background:#04130b;color:var(--green-dim);
+    border:1px solid var(--green-faint);border-radius:50%;width:24px;height:24px;line-height:22px;text-align:center;
+    cursor:pointer;opacity:0;transition:opacity .15s;padding:0;z-index:2}
+  .msg.user:hover .edit-btn{opacity:.85}
+  .edit-btn:hover{color:var(--green);opacity:1;box-shadow:0 0 8px rgba(var(--accent-rgb),.4)}
+  #chat.busy .edit-btn{display:none}
+  .editbox{width:100%;box-sizing:border-box;min-width:min(62vw,520px);background:#05140a;color:var(--user);
+    border:1px solid #1f5a30;border-radius:3px;font-family:inherit;font-size:14px;padding:8px;resize:vertical;line-height:1.5}
+  .editbar{display:flex;gap:8px;margin-top:8px;justify-content:flex-end}
+  .editbar button{font-family:inherit;font-size:12px;padding:4px 12px;border-radius:3px;cursor:pointer}
+  .eb-send{background:var(--green);color:#001a06;border:none;font-weight:bold}
+  .eb-cancel{background:transparent;color:var(--green-dim);border:1px solid var(--green-faint)}
+  .bubble code{font-family:'Share Tech Mono',monospace;font-size:13px}
+  .bubble :not(pre)>code{color:#aaffc0;background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
+  .bubble a{color:var(--link);text-decoration:underline;cursor:pointer}
+  .bubble h1,.bubble h2,.bubble h3{color:var(--green);text-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
+  .bubble table{border-collapse:collapse}.bubble td,.bubble th{border:1px solid var(--green-faint);padding:5px 9px}
+  .tool{font-size:11.5px;color:var(--green-dim);margin:6px 0;letter-spacing:1px;opacity:.85}
+  .statline.files{opacity:.9;letter-spacing:0}.statline.files a{margin-right:4px}
+  .statline{font-size:11px;color:var(--green-dim);opacity:.7;margin:8px 0 2px;letter-spacing:1px;
+    border-top:1px dashed var(--green-faint);padding-top:6px;text-shadow:none}
+  .seg{margin:1px 0}
+  .caret{display:inline-block;width:9px;background:var(--green);animation:blink .9s steps(1) infinite;box-shadow:0 0 8px var(--green)}
+  .err{color:#ff5c5c;border:1px solid #5a1f1f;padding:10px;background:rgba(40,0,0,.4);text-shadow:none}
+
+  /* Thinking-Box */
+  .thinkbox{border:1px dashed var(--green-faint);background:rgba(0,20,10,.35);margin:9px 0;border-radius:3px}
+  .tk-head{display:flex;align-items:center;gap:8px;padding:6px 11px;cursor:pointer;user-select:none;
+    color:#2f9d55;font-size:12px;font-style:italic}
+  .tk-head:hover{background:rgba(var(--accent-rgb),.05)}
+  .tk-tg{margin-left:auto;font-style:normal}
+  .tk-body{display:none;padding:8px 12px;border-top:1px dashed var(--green-faint);white-space:pre-wrap;
+    font-size:12.5px;color:#3aa862;font-style:italic;line-height:1.5;max-height:300px;overflow:auto}
+  .thinkbox.open .tk-body{display:block}
+
+  /* Tool-Box */
+  .toolcall{border:1px solid var(--green-faint);background:rgba(0,28,8,.4);margin:9px 0;border-radius:3px;
+    box-shadow:inset 0 0 18px rgba(var(--accent-rgb),.04)}
+  .tc-head{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;user-select:none;color:var(--green-dim);font-size:12.5px}
+  .tc-head:hover{background:rgba(var(--accent-rgb),.06)}
+  .tc-ic{color:var(--green);text-shadow:0 0 6px var(--green)}
+  .tc-name{color:var(--green);letter-spacing:1px;font-weight:bold}
+  .tc-sum{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.7;font-family:'Share Tech Mono',monospace;text-shadow:none}
+  .tc-st{font-size:12px}.tc-tg{color:var(--green-dim);font-size:11px}
+  .tc-body{display:none;border-top:1px solid var(--green-faint);max-height:280px;overflow:auto;padding:9px 11px}
+  .toolcall.open .tc-body{display:block}
+  .tc-lbl{font-size:9.5px;letter-spacing:2px;color:var(--green-dim);opacity:.7;margin-bottom:3px}
+  .tc-olbl{margin-top:9px}
+  .tc-in,.tc-out{white-space:pre-wrap;word-break:break-word;font-family:'Share Tech Mono',monospace;
+    font-size:12px;background:rgba(0,0,0,.32);padding:7px 9px;border-radius:2px;text-shadow:none}
+  .tc-in{color:#7fce99}.tc-out{color:#cfeede;opacity:.95}
+  .toolcall.err-tool{border-color:#5a1f1f}.toolcall.err-tool .tc-st{color:#ff5c5c}
+  /* Diff-Darstellung für Edit/Write */
+  .df-file{font-size:11px;color:var(--green);margin-bottom:5px;letter-spacing:.5px}
+  .df{white-space:pre-wrap;word-break:break-word;font-size:12px;padding:6px 9px;margin:3px 0;
+    border-radius:2px;text-shadow:none;border-left:3px solid transparent}
+  .df-del{background:rgba(255,60,60,.10);color:#ff9b9b;border-left-color:#a33;text-decoration:line-through;text-decoration-color:rgba(255,92,92,.4)}
+  .df-add{background:rgba(var(--accent-rgb),.08);color:#9dffb0;border-left-color:var(--green-dim)}
+
+  /* Skill-Ansicht */
+  .skillhead{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--green-faint);
+    padding-bottom:10px;margin-bottom:6px;color:var(--green);letter-spacing:1px}
+  .backbtn{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;
+    font-family:inherit;font-size:12px;padding:5px 12px;text-shadow:inherit}
+  .backbtn:hover{background:var(--green-faint)}
+
+  /* Composer + Ordner-Leiste */
+  #composer{border-top:1px solid var(--green-faint);padding:10px 18px;background:var(--panel);position:relative}
+  #bars{display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+  .picker{position:relative}
+  .pbar{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--green-dim);
+    border:1px solid var(--green-faint);padding:4px 10px;border-radius:3px;cursor:pointer;user-select:none}
+  .pbar:hover{background:rgba(var(--accent-rgb),.06);color:var(--green)}
+  .pbar .pcar{color:var(--green-dim)}
+  #fbname,#mbname{color:var(--green);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plist{display:none;position:absolute;bottom:100%;left:0;margin-bottom:4px;background:#020e05;border:1px solid var(--green-dim);
+    max-height:280px;overflow:auto;min-width:230px;z-index:40;box-shadow:0 0 18px rgba(var(--accent-rgb),.25)}
+  .plist.show{display:block}
+  .fl-item{padding:8px 12px;font-size:12px;color:var(--soft);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fl-item:hover{background:rgba(var(--accent-rgb),.1);color:var(--green)}
+  .fl-item.sel{color:var(--green);background:rgba(var(--accent-rgb),.08)}
+  /* Gruppen-Überschriften im Modell-Picker (Claude / externe Anbieter) */
+  .fl-head{padding:8px 12px 3px;font-size:9.5px;letter-spacing:2px;color:var(--green-dim);
+    opacity:.85;border-top:1px solid var(--green-faint);pointer-events:none;white-space:nowrap}
+  .fl-head:first-child{border-top:none}
+  #llmlist{min-width:320px;max-height:360px}
+  /* Ollama-Verwaltung im KI-Anbieter-Dialog */
+  .oll-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px dashed var(--green-faint);font-size:12.5px}
+  .oll-name{color:#cfeede;min-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .oll-meta{color:var(--green-dim);font-size:11px;flex:1;min-width:0}
+  .oll-prog{width:130px;height:9px;border:1px solid var(--green-faint);background:rgba(0,0,0,.4);position:relative;flex:0 0 auto}
+  .oll-prog i{position:absolute;inset:0;right:auto;background:var(--green);box-shadow:0 0 7px rgba(var(--accent-rgb),.6);transition:width .4s}
+  .obtn{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;
+    font-family:inherit;font-size:11px;padding:4px 10px;border-radius:3px;letter-spacing:1px;flex:0 0 auto;white-space:nowrap}
+  .obtn:hover{background:var(--green-faint)}
+  .obtn.red{color:#ff5c5c;border-color:#5a1f1f}
+  .obtn.red:hover{background:#2a0606}
+  /* Denk-Marker + Hilfe */
+  .thinkmark{font-size:11px;color:#2f9d55;font-style:italic;opacity:.8;margin:0 0 6px}
+  /* "Denke nach …" mit pulsierenden Punkten */
+  .thinking{display:inline-flex;align-items:flex-end;gap:4px;color:#3aa862;font-style:italic;font-size:14px;
+    letter-spacing:.5px;padding:2px 0;text-shadow:0 0 6px rgba(var(--accent-rgb),.35)}
+  .thinking .td{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;
+    margin-bottom:3px;box-shadow:0 0 7px var(--green);animation:tdot 1.25s ease-in-out infinite}
+  .thinking .td:nth-child(2){animation-delay:.18s}
+  .thinking .td:nth-child(3){animation-delay:.36s}
+  @keyframes tdot{0%,70%,100%{opacity:.25;transform:translateY(0)}35%{opacity:1;transform:translateY(-4px)}}
+  .skillbanner{display:inline-block;margin:8px 0;padding:7px 13px;font-size:13px;color:#001a06;
+    background:linear-gradient(90deg,var(--green),#00c235);border-radius:4px;font-weight:bold;text-shadow:none;
+    box-shadow:0 0 16px rgba(var(--accent-rgb),.55)}
+  .skillbanner .sk-n{font-weight:normal}
+  #queuebar{display:none;font-size:11.5px;color:var(--green-dim);border:1px dashed var(--green-faint);
+    padding:7px 11px;margin-bottom:9px;border-radius:3px;background:rgba(0,20,6,.4)}
+  #queuebar b{color:var(--green)}
+  .qitem{display:flex;justify-content:space-between;gap:8px;margin-top:5px;color:var(--soft)}
+  .qitem span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qx{cursor:pointer;color:#ff5c5c;flex:0 0 auto}
+  .helpbox{border:1px solid var(--green-faint);background:rgba(0,20,6,.5);padding:12px 15px;margin:10px 0;font-size:13px;line-height:1.7}
+  .helpbox b{color:var(--green)}.helpbox code{color:#aaffc0;background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
+  #thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  #thumbs .th{position:relative}#thumbs img{height:54px;border:1px solid var(--green-faint)}
+  #thumbs .doc{display:inline-block;height:54px;line-height:54px;padding:0 10px;border:1px solid var(--green-faint);
+    font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box}
+  .bubble a.att{display:inline-block;margin:6px 6px 0 0;padding:4px 8px;border:1px solid var(--green-faint);border-radius:2px;font-size:12px}
+  #thumbs .x{position:absolute;top:-6px;right:-6px;background:#000;color:#ff5c5c;border:1px solid #5a1f1f;
+    border-radius:50%;width:18px;height:18px;line-height:15px;text-align:center;cursor:pointer;font-size:12px}
+  #inrow{display:flex;gap:10px;align-items:flex-end}
+  #attach{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;font-family:inherit;font-size:18px;padding:6px 12px;height:44px}
+  #attach:hover{background:var(--green-faint)}
+  #inp{flex:1;background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+    font-size:14.5px;padding:11px 13px;resize:none;outline:none;max-height:180px;text-shadow:inherit;line-height:1.4}
+  #inp:focus{box-shadow:0 0 12px rgba(var(--accent-rgb),.35);border-color:var(--green)}
+  #inp::placeholder{color:var(--green-dim);opacity:.6}
+  #send{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+    letter-spacing:2px;padding:0 22px;height:44px;font-size:14px;text-shadow:none;box-shadow:0 0 14px rgba(var(--accent-rgb),.5)}
+  #send:disabled{background:var(--green-faint);color:var(--green-dim);cursor:not-allowed;box-shadow:none}
+  #stop{background:#2a0606;color:#ff5c5c;border:1px solid #ff5c5c;cursor:pointer;font-family:inherit;font-weight:bold;
+    letter-spacing:1px;padding:0 16px;height:44px;font-size:13px;text-shadow:none;box-shadow:0 0 12px rgba(255,60,60,.4)}
+  #stop:hover{background:#3d0808;box-shadow:0 0 16px rgba(255,60,60,.6)}
+  #burger{display:none;background:none;border:none;color:var(--green);font-size:22px;cursor:pointer}
+  .hint{font-size:10px;color:var(--green-dim);opacity:.6;margin-top:6px}
+  #dropmask{position:fixed;inset:0;z-index:60;background:rgba(var(--accent-rgb),.07);border:3px dashed var(--green);
+    display:none;align-items:center;justify-content:center;font-size:22px;letter-spacing:4px;pointer-events:none}
+  #dropmask.show{display:flex}
+
+  /* ── Kalender ── */
+  #calwrap{padding:14px 6px 60px;animation:fade .25s ease}
+  .cal-top{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .cal-top h2{margin:0;flex:1;text-align:center;font-size:21px;letter-spacing:4px;
+    color:var(--green);text-shadow:0 0 14px var(--green)}
+  .cal-nav{background:transparent;border:1px solid var(--green-faint);color:var(--green);cursor:pointer;
+    font-family:inherit;font-size:18px;width:40px;height:40px;text-shadow:inherit;transition:.12s;border-radius:3px}
+  .cal-nav:hover{background:var(--green-faint);box-shadow:0 0 12px rgba(var(--accent-rgb),.45)}
+  .cal-tbtn{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;
+    font-family:inherit;font-size:12px;letter-spacing:2px;padding:0 16px;height:40px;text-shadow:inherit;border-radius:3px}
+  .cal-tbtn:hover{background:var(--green-faint);box-shadow:0 0 10px rgba(var(--accent-rgb),.35)}
+  .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:7px}
+  .cal-dow span{text-align:center;font-size:11px;letter-spacing:3px;color:var(--green-dim);padding:4px 0}
+  .cal-dow span.we{color:#3aa862;opacity:.7}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+  .cal-cell{min-height:96px;border:1px solid var(--green-faint);background:rgba(0,14,4,.5);padding:5px 6px;
+    cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;border-radius:3px;transition:.12s}
+  .cal-cell:hover{border-color:var(--green-dim);background:rgba(var(--accent-rgb),.07);box-shadow:inset 0 0 18px rgba(var(--accent-rgb),.07)}
+  .cal-cell.other{opacity:.34}
+  .cal-cell.today{border-color:var(--green);box-shadow:0 0 16px rgba(var(--accent-rgb),.4),inset 0 0 16px rgba(var(--accent-rgb),.08)}
+  .cal-cell.sel{border-color:var(--green);background:rgba(var(--accent-rgb),.12)}
+  .cal-dnum{font-size:13px;color:var(--green);align-self:flex-end;opacity:.85;line-height:1}
+  .cal-cell.today .cal-dnum{font-weight:bold;text-shadow:0 0 8px var(--green);opacity:1}
+  .cal-chip{font-size:10.5px;line-height:1.35;color:#001a06;background:linear-gradient(90deg,var(--green),#00c235);
+    border-radius:2px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
+  .cal-chip.allday{background:rgba(var(--accent-rgb),.16);color:var(--green);text-shadow:0 0 6px rgba(var(--accent-rgb),.4)}
+  .cal-more{font-size:10px;color:var(--green-dim);letter-spacing:1px}
+  /* Tages-Detail unter dem Grid */
+  .cal-day{margin-top:20px;border:1px solid var(--green-faint);background:rgba(0,12,3,.6);border-radius:3px;
+    padding:15px 17px;box-shadow:inset 0 0 22px rgba(var(--accent-rgb),.04)}
+  .cal-day h3{margin:0 0 12px;font-size:14px;letter-spacing:2px;color:var(--green);text-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
+  .cal-ev{display:flex;align-items:center;gap:11px;padding:8px 11px;margin:7px 0;border:1px solid var(--green-faint);
+    border-left:3px solid var(--green);background:rgba(0,18,6,.5);border-radius:2px}
+  .cal-ev .et{font-size:13px;color:var(--green);min-width:48px;text-shadow:0 0 6px rgba(var(--accent-rgb),.4)}
+  .cal-ev .etitle{flex:1;font-size:13.5px;color:#cfeede;word-break:break-word}
+  .cal-ev .enote{font-size:11.5px;color:var(--green-dim);opacity:.85}
+  .cal-ev .edel{cursor:pointer;color:#ff5c5c;border:1px solid #5a1f1f;background:#1a0404;border-radius:3px;
+    width:26px;height:26px;line-height:22px;text-align:center;flex:0 0 auto;font-size:13px}
+  .cal-ev .edel:hover{background:#3d0808;box-shadow:0 0 10px rgba(255,60,60,.4)}
+  .cal-add{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .cal-add input{background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+    font-size:13.5px;padding:9px 11px;text-shadow:inherit;outline:none;border-radius:2px}
+  .cal-add input:focus{box-shadow:0 0 11px rgba(var(--accent-rgb),.35);border-color:var(--green)}
+  .cal-add input::placeholder{color:var(--green-dim);opacity:.6}
+  .cal-add .ci-time{width:84px}.cal-add .ci-title{flex:1;min-width:150px}
+  .cal-add .ci-rep{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green-dim);cursor:pointer;
+    border:1px solid var(--green-faint);padding:0 11px;border-radius:2px;white-space:nowrap}
+  .cal-add .ci-rep:hover{color:var(--green);background:rgba(var(--accent-rgb),.06)}
+  .cal-add .ci-rep input{accent-color:var(--green);cursor:pointer}
+  .cal-add button{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+    letter-spacing:1px;padding:0 20px;font-size:13px;text-shadow:none;box-shadow:0 0 12px rgba(var(--accent-rgb),.45);border-radius:2px}
+  .cal-add button:hover{box-shadow:0 0 18px rgba(var(--accent-rgb),.6)}
+  /* Sidebar-Kalender */
+  .kal-add{width:100%;margin:4px 0 12px;padding:10px;background:transparent;color:var(--green);
+    border:1px solid var(--green-dim);cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:2px;text-shadow:inherit}
+  .kal-add:hover{background:var(--green-faint);box-shadow:0 0 12px rgba(var(--accent-rgb),.4)}
+  .kal-uh{font-size:10px;letter-spacing:2px;color:var(--green-dim);margin:8px 2px 4px}
+  .kal-up{padding:8px 10px;margin:3px 0;border-left:2px solid var(--green-faint);cursor:pointer;transition:.12s}
+  .kal-up:hover{border-left-color:var(--green);background:rgba(var(--accent-rgb),.06)}
+  .kal-up.is-today{border-left-color:var(--green);background:rgba(var(--accent-rgb),.05)}
+  .kal-up .ku-t{display:block;font-size:12px;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kal-up .ku-d{display:block;font-size:10px;color:var(--green-dim);opacity:.8;margin-top:2px}
+
+  /* ── E-Mail ──
+     Professioneller Lese-Modus: in der Mail-Ansicht sind die CRT-Scanlines aus
+     (body.mailmode, siehe oben), die Flächen blickdicht und ohne Grün-Glow —
+     der Matrix-Regen läuft im Hintergrund einfach weiter. */
+  #mailwrap{padding:12px 4px 60px;animation:fade .25s ease;text-shadow:none}
+  .mail-top{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+  .mail-top h2{margin:0;font-size:19px;letter-spacing:2px;color:var(--green);text-shadow:none}
+  .mside{display:flex;align-items:center;gap:7px;padding:7px 9px;margin:2px 0;font-size:12px;color:var(--soft);cursor:pointer;border-left:2px solid transparent;user-select:none}
+  .mside:hover{background:rgba(var(--accent-rgb),.06);color:var(--green)}
+  .mside.on{border-left-color:var(--green);background:rgba(var(--accent-rgb),.08);color:var(--green)}
+  .mside .mn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 6px rgba(var(--accent-rgb),.5)}
+  .mside .mx{opacity:0;color:#ff5c5c;padding:0 3px;flex:0 0 auto}
+  .mside:hover .mx{opacity:.8}
+  .ml-row{display:flex;gap:10px;align-items:center;padding:9px 12px;margin:5px 0;cursor:pointer;
+    border:1px solid var(--green-faint);border-left:3px solid var(--green-faint);background:#020f06;transition:.12s;border-radius:3px}
+  .ml-row:hover{border-color:var(--green-dim);background:#06180c}
+  .ml-row.unread{border-left-color:var(--green)}
+  .ml-row.unread .ml-from,.ml-row.unread .ml-sub{color:var(--green)}
+  .ml-acc{font-size:10px;border:1px solid;padding:1px 6px;border-radius:2px;flex:0 0 auto;text-shadow:none}
+  .ml-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .ml-from{font-size:13px;color:#cfe3d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-sub{font-size:12px;color:#8fbfa2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-cat{font-size:10px;color:#001a06;background:linear-gradient(90deg,var(--green),#00c235);padding:1px 6px;border-radius:2px;flex:0 0 auto;text-shadow:none}
+  .ml-date{font-size:11px;color:var(--green-dim);flex:0 0 auto;min-width:44px;text-align:right}
+  .ml-del{opacity:0;color:#ff5c5c;flex:0 0 auto;padding:2px 4px;transition:.12s}
+  .ml-row:hover .ml-del{opacity:.85}
+  .ml-chk{flex:0 0 auto;width:15px;height:15px;accent-color:var(--green);cursor:pointer;margin:0}
+  .ml-row.sel{border-color:var(--green-dim);background:#07240f}
+  .mail-search{background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;font-family:inherit;
+    font-size:12.5px;padding:0 10px;height:30px;outline:none;border-radius:3px;flex:1;min-width:160px;max-width:340px;text-shadow:none}
+  .mail-search:focus{box-shadow:0 0 10px rgba(var(--accent-rgb),.3)}
+  .mail-head{border:1px solid var(--green-faint);background:#03120a;padding:13px 16px;margin-bottom:10px;border-radius:3px}
+  .mh-sub{font-size:16.5px;color:#e8f5ec;margin-bottom:7px;text-shadow:none;word-break:break-word;
+    font-family:'Segoe UI',system-ui,sans-serif;font-weight:600}
+  .mh-line{font-size:12px;color:#94c4a6;margin:2px 0;word-break:break-word}
+  .mail-frame{width:100%;height:62vh;border:1px solid var(--green-faint);background:#fff;border-radius:3px}
+  .mail-text{border:1px solid var(--green-faint);background:#04130b;padding:16px 18px;white-space:pre-wrap;
+    font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.65;color:#e2efe6;border-radius:3px;word-break:break-word}
+  .mail-atts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+  .mail-att{font-size:12px;color:var(--link);border:1px solid var(--green-faint);padding:5px 10px;border-radius:3px;text-decoration:none}
+  .mail-att:hover{background:rgba(var(--accent-rgb),.08)}
+  .msel{background:#02100a;border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+    font-size:12px;padding:0 8px;outline:none;border-radius:3px;height:40px;max-width:220px}
+  .mc-form{display:flex;flex-direction:column;gap:4px;max-width:860px}
+  .mc-form label{font-size:10px;letter-spacing:2px;color:var(--green-dim);margin-top:8px}
+  .mc-form input,.mc-form textarea{background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;
+    font-family:'Segoe UI',system-ui,sans-serif;font-size:13.5px;padding:9px 11px;outline:none;border-radius:2px;resize:vertical;text-shadow:none}
+  .mc-form input:focus,.mc-form textarea:focus{box-shadow:0 0 10px rgba(var(--accent-rgb),.3)}
+  .mc-acc{border:1px solid var(--green-faint);background:#03120a;padding:12px 14px;margin:8px 0;border-radius:3px}
+  .mca-head{display:flex;align-items:center;gap:9px;font-size:13px;color:#cfeede;flex-wrap:wrap}
+  .mca-prov{font-size:10px;color:var(--green-dim);border:1px solid var(--green-faint);padding:1px 6px;border-radius:2px}
+  .mca-st{flex:1;font-size:11px;color:var(--green-dim)}
+  .mca-head .mx{color:#ff5c5c;cursor:pointer;opacity:.6}.mca-head .mx:hover{opacity:1}
+  .mca-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+  .mca-row input{flex:1;min-width:180px;background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;
+    font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;padding:8px 10px;outline:none;border-radius:2px;text-shadow:none}
+  .mc-att{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--link);border:1px solid var(--green-faint);
+    padding:4px 9px;border-radius:3px;margin:6px 6px 0 0}
+  .mc-att .x{color:#ff5c5c;cursor:pointer}
+
+  ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--green-faint)}
+
+  /* ── HUD: Limits + Login in der Topbar ── */
+  #topbar{flex-wrap:wrap;gap:6px}
+  #hud{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .chip{font-size:11px;border:1px solid var(--green-faint);padding:3px 9px;border-radius:3px;
+    color:var(--green-dim);letter-spacing:.5px;text-shadow:none;white-space:nowrap;user-select:none}
+  .chip b{color:var(--green)}
+  .chip .bar{display:inline-block;width:46px;height:6px;border:1px solid var(--green-faint);
+    margin:0 5px -1px 5px;position:relative;background:rgba(0,0,0,.4)}
+  .chip .bar i{position:absolute;inset:0;right:auto;background:var(--green);box-shadow:0 0 6px rgba(var(--accent-rgb),.6)}
+  .chip.warn{color:#ffd24a;border-color:#5a4a1f}.chip.warn .bar i{background:#ffd24a;box-shadow:0 0 6px rgba(255,210,74,.6)}
+  .chip.crit{color:#ff5c5c;border-color:#5a1f1f}.chip.crit .bar i{background:#ff5c5c;box-shadow:0 0 6px rgba(255,92,92,.6)}
+  .chip.click{cursor:pointer}.chip.click:hover{background:rgba(var(--accent-rgb),.08);color:var(--green)}
+  .chip.alert{animation:pulse 1.3s ease-in-out infinite}
+
+  /* ── Login-Dialog + KI-Anbieter-Dialog ── */
+  #loginmask,#llmmask{position:fixed;inset:0;z-index:80;background:rgba(0,4,0,.82);display:none;
+    align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+  #loginmask.show,#llmmask.show{display:flex}
+  #loginbox,#llmbox{position:relative;width:min(600px,94vw);max-height:88vh;overflow:auto;background:#020e05;
+    border:1px solid var(--green-dim);box-shadow:0 0 34px rgba(var(--accent-rgb),.3);padding:22px 26px;font-size:13.5px;line-height:1.65}
+  #llmbox{width:min(760px,94vw)}
+  #loginbox h3,#llmbox h3{margin:0 0 10px;letter-spacing:3px;color:var(--green);text-shadow:0 0 10px var(--green)}
+  #loginbox p,#llmbox p{margin:9px 0;color:var(--soft)}
+  #loginbox a,#llmbox a{color:var(--link);word-break:break-all}
+  #loginbox input{width:100%;background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);
+    font-family:inherit;font-size:14px;padding:10px 12px;outline:none;margin:6px 0}
+  #loginbox input:focus{box-shadow:0 0 12px rgba(var(--accent-rgb),.35)}
+  .lg-btn{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+    letter-spacing:2px;padding:11px 20px;font-size:13px;text-shadow:none;box-shadow:0 0 14px rgba(var(--accent-rgb),.5);margin-top:6px}
+  .lg-btn:disabled{background:var(--green-faint);color:var(--green-dim);cursor:wait;box-shadow:none}
+  #lgClose,#lmClose{position:absolute;top:10px;right:12px;background:none;border:none;color:#ff5c5c;font-size:17px;cursor:pointer}
+  #lgMsg{margin-top:10px;white-space:pre-wrap}
+  #lgMsg.ok{color:var(--green)}#lgMsg.bad{color:#ff5c5c;text-shadow:none}
+  .lg-step{border-left:2px solid var(--green-faint);padding-left:12px;margin:12px 0}
+
+  /* ── Update-Karte ──
+     Meldet sich unten rechts, wenn beim Start nach neuen Fassungen von Claude
+     Code und Hermes gesucht wird. Bewusst KEINE Maske über dem Bild: das
+     Update läuft im Hintergrund, der Chat bleibt die ganze Zeit bedienbar. */
+  #updcard{position:fixed;right:18px;bottom:18px;z-index:70;width:min(340px,90vw);display:none;
+    background:#020e05;border:1px solid var(--green-dim);box-shadow:0 0 26px rgba(var(--accent-rgb),.28);
+    padding:12px 14px;font-size:12px;line-height:1.5;animation:fade .35s ease}
+  #updcard.show{display:block}
+  #updcard h4{margin:0;font-size:12px;letter-spacing:2px;color:var(--green);text-shadow:0 0 8px var(--green);
+    display:flex;align-items:center;gap:7px}
+  #updcard h4 .x{margin-left:auto;background:none;border:none;color:var(--green-dim);cursor:pointer;
+    font-size:14px;line-height:1;padding:0 2px}
+  #updcard h4 .x:hover{color:var(--green)}
+  .upd-spin{display:inline-block;animation:updspin 1.1s linear infinite}
+  @keyframes updspin{to{transform:rotate(360deg)}}
+  .upd-row{display:flex;gap:8px;margin-top:8px;color:var(--soft)}
+  .upd-row .n{flex:1}
+  .upd-row .v{color:var(--green-dim);font-size:11px;text-align:right}
+  .upd-row.new .v{color:var(--green);text-shadow:0 0 7px var(--green)}
+  .upd-row.error .v{color:#ff5c5c;text-shadow:none}
+  #updline{margin-top:9px;padding-top:7px;border-top:1px solid var(--green-faint);
+    font-size:11px;color:var(--green-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---------- Kachel-Sichtbarkeit (Einstellungen) ----------
+     Klassen auf <html>, gesetzt aus den serverseitigen Einstellungen noch im
+     <head>. Der Chat hat bewusst keinen Schalter: eine Oberfläche ohne ihren
+     Hauptzweck wäre eine Sackgasse, aus der man nicht zurückfindet. */
+  html.no-skills   .mi[data-v="skills"],   html.no-skills   #view-skills,
+  html.no-kalender .mi[data-v="kalender"], html.no-kalender #view-kalender,
+  html.no-mail     .mi[data-v="mail"],     html.no-mail     #view-mail,
+  html.no-mcp      .mi[data-v="mcp"],      html.no-mcp      #view-mcp{display:none}
+
+  /* ---------- Hintergrund ----------
+     Drei Zustände: Matrix-Regen (Vorgabe), eigenes Bild, oder schlicht dunkel.
+     Das Bild liegt UNTER dem Regen, aber sie schließen sich aus — beides
+     gleichzeitig ist visuelles Rauschen ohne Nutzen. */
+  #bgimg{position:fixed;inset:0;z-index:0;pointer-events:none;display:none;
+    background-size:cover;background-position:center;background-repeat:no-repeat}
+  /* Abdunkeln ist kein Schmuck, sondern Lesbarkeit: Grün auf einem hellen Foto
+     ist unlesbar. Die Stärke stellt der Nutzer selbst ein (--bg-dim). */
+  #bgimg::after{content:"";position:absolute;inset:0;background:#000;opacity:var(--bg-dim,.6)}
+  body.bg-image #bgimg{display:block}
+  body.bg-image #rain, body.bg-plain #rain{display:none}
+
+  /* ---------- Einstellungen ---------- */
+  .set-wrap{padding:6px 2px 40px;max-width:760px}
+  .set-sec{border:1px solid var(--green-faint);border-radius:4px;margin:0 0 16px;
+    background:rgba(0,12,3,.5)}
+  .set-sec > h3{margin:0;padding:11px 14px;font-size:13px;letter-spacing:2px;
+    border-bottom:1px solid var(--green-faint);background:rgba(var(--accent-rgb),.05)}
+  .set-body{padding:12px 14px}
+  .set-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;
+    border-bottom:1px dashed rgba(var(--accent-rgb),.12)}
+  .set-row:last-child{border-bottom:none}
+  .set-row label{cursor:pointer;display:flex;gap:9px;align-items:flex-start;flex:1}
+  .set-row input[type=checkbox],.set-row input[type=radio]{margin-top:3px;accent-color:var(--green);
+    width:15px;height:15px;flex:0 0 auto;cursor:pointer}
+  .set-t{font-size:14px}
+  .set-d{opacity:.6;font-size:12px;display:block;margin-top:2px;line-height:1.45}
+  .set-fixed{opacity:.5;font-size:11px;letter-spacing:1px;padding-top:4px}
+  .set-btn{font-family:inherit;font-size:12px;letter-spacing:1px;padding:8px 14px;
+    background:transparent;color:var(--green);border:1px solid var(--green-faint);
+    border-radius:3px;cursor:pointer}
+  .set-btn:hover{background:var(--green-faint);box-shadow:0 0 10px rgba(var(--accent-rgb),.35)}
+  .set-btn[disabled]{opacity:.35;cursor:not-allowed}
+  .set-btn:hover[disabled]{background:transparent;box-shadow:none}
+  .set-tag{font-size:10px;letter-spacing:1px;border:1px solid var(--green-faint);
+    border-radius:2px;padding:2px 6px;opacity:.85;white-space:nowrap}
+  .set-tag.ok{color:#000;background:var(--green);border-color:var(--green);opacity:1}
+  .set-tag.warn{color:#ffcf5a;border-color:#6b5a20}
+  .set-head{display:flex;align-items:center;gap:10px}
+  .set-head h4{margin:0;font-size:13px;letter-spacing:1px}
+  .set-slider{width:100%;accent-color:var(--green)}
+  .set-in{background:rgba(0,0,0,.35);border:1px solid var(--green-faint);border-radius:3px;
+    color:var(--green);font-family:inherit;font-size:13px;padding:7px 10px;width:230px;max-width:100%}
+  .set-in:focus{outline:none;border-color:var(--green-dim)}
+  .set-area{width:100%;min-height:300px;background:rgba(0,0,0,.35);color:var(--green);
+    border:1px solid var(--green-faint);border-radius:3px;font-family:inherit;font-size:12.5px;
+    line-height:1.55;padding:10px;resize:vertical}
+  .set-area:focus{outline:none;border-color:var(--green-dim)}
+  .av-pick{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .av-prev{width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
+    background:#04240c center/cover no-repeat;display:flex;align-items:center;
+    justify-content:center;font-weight:bold;font-size:21px;flex:0 0 auto}
+  .set-tabs{display:flex;gap:6px;margin-bottom:10px}
+  .set-tab{font-family:inherit;font-size:12px;letter-spacing:1px;padding:6px 12px;cursor:pointer;
+    background:transparent;color:var(--green-dim);border:1px solid var(--green-faint);border-radius:3px}
+  .set-tab.on{color:var(--green);border-color:var(--green);background:rgba(var(--accent-rgb),.08)}
+  .set-prev{height:74px;border:1px solid var(--green-faint);border-radius:3px;margin-top:8px;
+    background-size:cover;background-position:center;position:relative;overflow:hidden}
+  .set-prev span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:12px;letter-spacing:2px;text-shadow:0 0 6px #000}
+  /* Theme-Auswahl als Kärtchen mit echten Farbtupfern: eine Liste mit
+     Namen wie "Bernstein" sagt niemandem, wie das aussieht. */
+  .th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:9px}
+  .th{border:1px solid var(--green-faint);border-radius:4px;padding:9px 10px;cursor:pointer;
+    transition:.12s;background:rgba(var(--accent-rgb),.03)}
+  .th:hover{border-color:var(--green-dim)}
+  .th.on{border-color:var(--green);box-shadow:0 0 10px rgba(var(--accent-rgb),.3)}
+  .th-sw{display:flex;gap:4px;margin-bottom:7px}
+  .th-sw i{width:20px;height:20px;border-radius:3px;display:block;border:1px solid rgba(255,255,255,.08)}
+  .th-n{font-size:13px;letter-spacing:1px}
+  .th-n b{font-size:10px;opacity:.7;letter-spacing:1px;margin-left:5px}
+  .th-d{font-size:11px;opacity:.6;display:block;margin-top:3px;line-height:1.4}
+  .set-saved{font-size:11px;letter-spacing:1px;opacity:0;transition:opacity .2s}
+  .set-saved.on{opacity:.8}
+
+  /* Ohne installiertes Claude Code wirken Ordnerwahl und Berechtigungs-Modus
+     auf nichts: ohne Claude Code laufen fremde Modelle über Hermes, das seinen
+     Arbeitsordner beim Sitzungsstart bekommt. Sichtbar lassen, aber abgesetzt — ein
+     Bedienelement, das stumm nichts tut, ist schlimmer als eines, das fehlt. */
+  .nocl #folderpick, .nocl #modepick{opacity:.4}
+</style>
+</head>
+<body>
+<div id="bgimg"></div>
+<canvas id="rain"></canvas>
+<div id="dropmask">⌬ BILD HIER ABLEGEN ⌬</div>
+<div id="updcard">
+  <h4><span id="updIcon" class="upd-spin">⟳</span><span id="updTitle">WERKZEUGE PRÜFEN</span>
+    <button class="x" id="updClose" title="ausblenden">✕</button></h4>
+  <div id="updRows"></div>
+  <div id="updline"></div>
+</div>
+<div id="loginmask">
+  <div id="loginbox">
+    <button id="lgClose" title="schließen">✕</button>
+    <h3>🔑 CLAUDE LOGIN</h3>
+    <p style="opacity:.85">Meldet Cody bei deiner Claude-Subscription an — direkt hier, ohne Terminal.
+      Es wird ein langlebiger Token erzeugt, der auch nach Ablauf des normalen Logins weiter funktioniert.</p>
+    <div id="lg-step1" class="lg-step">
+      <button id="lgStart" class="lg-btn">LOGIN STARTEN</button>
+    </div>
+    <div id="lg-step2" class="lg-step" style="display:none">
+      <p><b>1.</b> Diesen Link öffnen und mit deinem Claude-Konto anmelden:</p>
+      <p><a id="lgUrl" href="#" target="_blank" rel="noopener">…</a></p>
+      <p><b>2.</b> Den Code, den dir die Seite zeigt, hier einfügen:</p>
+      <input id="lgCode" placeholder="Code hier einfügen" autocomplete="off" spellcheck="false">
+      <button id="lgSend" class="lg-btn">CODE BESTÄTIGEN</button>
+    </div>
+    <div id="lgMsg"></div>
+  </div>
+</div>
+<div id="llmmask">
+  <div id="llmbox">
+    <button id="lmClose" title="schließen">✕</button>
+    <h3>🧠 KI-ANBIETER</h3>
+    <p style="opacity:.85" id="llmintro">Neben Claude Code kannst du hier
+      weitere Anbieter hinterlegen — ChatGPT, Gemini, DeepSeek, lokale Ollama-Modelle
+      oder jede andere OpenAI-kompatible API. Sie laufen über <b>Hermes</b> und können
+      damit ebenfalls Dateien und Terminal. Auswahl danach unten links über 🧠.</p>
+    <div id="llmcfg"></div>
+  </div>
+</div>
+<div id="app">
+  <aside id="side">
+    <!-- Der Ort heisst CONSTRUCT, der Assistent heisst Cody. Beides gleich zu
+         benennen liess die App aussehen, als WAERE sie er. -->
+    <h1>◢◤ CONSTRUCT</h1>
+    <div id="whoami"><span class="dot">●</span> CODY</div>
+    <nav id="menu">
+      <button class="mi active" data-v="sessions">💬<span>Chats</span></button>
+      <button class="mi" data-v="skills">⚡<span>Skills</span></button>
+      <button class="mi" data-v="kalender">📅<span>Kalender</span></button>
+      <button class="mi" data-v="mail">📧<span>E-Mails</span></button>
+      <button class="mi" data-v="mcp">🔌<span>MCP</span></button>
+      <button class="mi" data-v="einstellungen">⚙<span>Einstellungen</span></button>
+    </nav>
+    <div id="panel">
+      <div id="view-sessions" class="view">
+        <button id="newBtn">＋ NEUE SESSION</button>
+        <input id="sessSearch" placeholder="🔎 Sessions durchsuchen…" autocomplete="off">
+        <div id="sessions"></div>
+      </div>
+      <div id="view-skills" class="view" style="display:none">
+        <div class="vhint">Skills aus deinen Projekten — anklicken zum Ansehen</div>
+        <div id="skills"></div>
+      </div>
+      <div id="view-kalender" class="view" style="display:none">
+        <div id="kal"></div>
+      </div>
+      <div id="view-mail" class="view" style="display:none">
+        <div id="mailside"></div>
+      </div>
+      <div id="view-einstellungen" class="view" style="display:none">
+        <div class="vhint">Was du siehst und womit du redest — rechts einstellen</div>
+        <div id="setnav"></div>
+      </div>
+      <div id="view-mcp" class="view" style="display:none">
+        <div class="vhint">Konnektoren / MCP-Server — worauf Cody zugreifen kann</div>
+        <div id="mcp"></div>
+      </div>
+    </div>
+  </aside>
+  <section id="main">
+    <div id="topbar">
+      <button id="burger">☰</button>
+      <span id="status"><span class="dot">●</span> VERBUNDEN <span id="build" style="opacity:.6;margin-left:8px">build …</span><span id="curmodel" style="opacity:.6;margin-left:8px" title="Modell, mit dem in dieser Session zuletzt wirklich geantwortet wurde"></span></span>
+      <span id="hud">
+        <span id="use5" class="chip" title="Auslastung des 5-Stunden-Fensters">5h …</span>
+        <span id="use7" class="chip" title="Auslastung der Woche">7T …</span>
+        <span id="auth" class="chip click" title="Claude-Anmeldung">🔑 …</span>
+      </span>
+      <span id="sid" style="opacity:.5">—</span>
+    </div>
+    <div id="chat"></div>
+    <div id="composer">
+      <div id="queuebar"></div>
+      <div id="bars">
+        <div class="picker" id="folderpick">
+          <div id="folderlist" class="plist"></div>
+          <div id="folderbar" class="pbar">📂 <span id="fbname">workspace</span> <span class="pcar">▾</span></div>
+        </div>
+        <div class="picker" id="modepick">
+          <div id="modelist" class="plist"></div>
+          <div id="modebar" class="pbar"><span id="mbicon">🛡</span> <span id="mbname">Mode</span> <span class="pcar">▾</span></div>
+        </div>
+        <div class="picker">
+          <div id="llmlist" class="plist"></div>
+          <div id="llmbar" class="pbar">🧠 <span id="llmname">Modell</span> <span class="pcar">▾</span></div>
+        </div>
+      </div>
+      <div id="thumbs"></div>
+      <div id="inrow">
+        <button id="stop" title="Cody stoppen" style="display:none">⏹ STOP</button>
+        <button id="attach" title="Bild anhängen">⧉</button>
+        <textarea id="inp" rows="1" placeholder="> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)"></textarea>
+        <button id="send">SENDEN</button>
+      </div>
+      <div class="hint">ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Mode · 🧠 Modell · <code style="color:var(--green)">/help</code> = Befehle</div>
+      <input type="file" id="file" accept="image/*,.pdf,application/pdf" multiple style="display:none">
+    </div>
+  </section>
+</div>
+<script>
+// ---------- Ausbaustufe ----------
+// Das Objekt setzt der Server beim Ausliefern; die Vorgabe im <head> greift nur,
+// wenn jemand die Datei direkt im Browser öffnet.
+const CFG=window.CONSTRUCT||{},
+      ASSISTANT=CFG.assistant||'Cody',USER_NAME=CFG.user||'Du';
+// Ist das claude-CLI da? Davon hängt ab, ob die Claude-Modelle etwas taugen und
+// ob der 🔑-Chip zum Anmelden oder zum Installieren führt. Kommt synchron vom
+// Server (shutil.which), nicht geraten.
+const SETTINGS=CFG.settings||{tiles:{},background:{}};
+// Nur für die Vorschau-Punkte in der Auswahl. Die echten Farben stehen im CSS;
+// hier dieselben Werte doppelt zu halten ist der Preis dafür, dass die Kärtchen
+// ohne einen Satz DOM-Messungen pro Theme auskommen.
+const THEME_SWATCH={
+  matrix:['#000600','#00ff41','#0d3d18'], bernstein:['#0a0600','#ffb648','#4a2f0a'],
+  eis:['#00060c','#5fd8ff','#0d3446'],    space:['#06030f','#b98bff','#2c1a4d'],
+  asche:['#0c0e11','#d8dee4','#2b3138'],  blut:['#0b0303','#ff5f57','#481815'],
+};
+const THEMES=[
+  {k:'matrix',    n:'Matrix',      d:'Grün auf Schwarz. Der Ursprung.'},
+  {k:'bernstein', n:'Bernstein',   d:'Alter Bernstein-Monitor — warm, augenschonend.'},
+  {k:'eis',       n:'Eis',         d:'Kühles Cyan auf Tiefblau.'},
+  {k:'space',     n:'Space',       d:'Violett auf Nachtblau.'},
+  {k:'asche',     n:'Asche',       d:'Neutrales Grau — zurückhaltend, gut zum Lesen.'},
+  {k:'blut',      n:'Blut',        d:'Rot auf Schwarz. Laut.'},
+];
+function applyTheme(){
+  const t=SETTINGS.theme||'matrix';
+  if(t==='matrix')document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme',t);
+  readRainColors();   // der Regen faerbt sich mit
+}
+function applyBackground(){
+  const bg=SETTINGS.background||{}, mode=bg.mode||'matrix';
+  const el=document.getElementById('bgimg');
+  document.body.classList.toggle('bg-image', mode==='image' && !!bg.image);
+  document.body.classList.toggle('bg-plain', mode==='plain');
+  if(el){
+    el.style.backgroundImage = bg.image ? `url("${bg.image}")` : '';
+    el.style.setProperty('--bg-dim', ((bg.dim==null?60:bg.dim)/100).toFixed(2));
+  }
+  // Der Regen laeuft nur, wenn er auch zu sehen ist — ein Vollbild-Canvas
+  // hinter einem deckenden Bild waere reine CPU-Verbrennung.
+  RAIN_ON = (mode==='matrix') && !FX_OFF;
+}
+// Eigenes Bild hinterlegt? Sonst steht der Anfangsbuchstabe im Kreis.
+let HAS_AVATAR=!!((CFG.settings&&CFG.settings.avatars||{}).user);
+let HAS_CLAUDE=CFG.claude!==false;
+const WEB_LOGIN=CFG.web_login!==false;
+function applyClaudeState(){
+  document.documentElement.classList.toggle('nocl',!HAS_CLAUDE);
+  const hint=HAS_CLAUDE?'':' — wirkt nur mit Claude Code. Die Chat-Modelle '
+    +'(ChatGPT, Gemini …) haben keinen Zugriff auf Dateien.';
+  const f=document.getElementById('folderbar'),m=document.getElementById('modebar');
+  if(f)f.title='Arbeitsordner'+hint;
+  if(m)m.title='Berechtigungs-Modus'+hint;
+}
+document.title='CONSTRUCT // '+ASSISTANT;
+document.getElementById('whoami').innerHTML='<span class="dot">●</span> '+ASSISTANT.toUpperCase();
+
+// ---------- Matrix Rain ----------
+const cv=document.getElementById('rain'),cx=cv.getContext('2d');
+let cols,drops;
+// Der Regen ist Deko bei 28% Deckkraft und liegt hinter allem. Er muss deshalb
+// NICHT in voller Bildschirmauflösung rastern: auf 4K sind das 8,3 Mio Pixel,
+// die der Vollbild-fillRect pro Frame neu durchblendet. Bei halber Auflösung
+// ist es ein Viertel davon, hochskaliert sieht man den Unterschied nicht.
+// Steht auf 1 (volle Schaerfe): gemessen kostet der Canvas selbst nur ~3,6% CPU,
+// teuer war die Kombination mit dem Scanline-Overlay. Bei Leistungsproblemen auf
+// schwacher Hardware laesst sich hier auf 0.75/0.5 runtergehen — spart Pixel,
+// macht den Regen aber weicher.
+const RAIN_SCALE = 0.5, CELL = 14;
+let step;
+function rsize(){
+  cv.width  = Math.max(1, Math.round(innerWidth  * RAIN_SCALE));
+  cv.height = Math.max(1, Math.round(innerHeight * RAIN_SCALE));
+  step = CELL * RAIN_SCALE;
+  cols = Math.floor(cv.width / step);
+  drops = Array(cols).fill(1);
+}
+rsize();addEventListener('resize',rsize);
+const glyph="ｱｲｳｴｵｶｷｸ0123456789ABCDEFﾊﾋﾌﾍﾎ$+*=<>";
+function draw(){
+  // Canvas versteht keine CSS-Variablen — die Werte müssen ausgelesen und
+  // gemerkt werden. Bei jedem Frame neu zu fragen waere ein erzwungenes
+  // Neu-Berechnen des Stils, 18-mal pro Sekunde ueber die ganze Seite.
+  cx.fillStyle=RAIN_FADE;cx.fillRect(0,0,cv.width,cv.height);
+  cx.fillStyle=RAIN_COLOR;cx.font=step+"px monospace";
+  for(let i=0;i<cols;i++){
+    cx.fillText(glyph[Math.floor(Math.random()*glyph.length)],i*step,drops[i]*step);
+    if(drops[i]*step>cv.height&&Math.random()>.975)drops[i]=0;drops[i]++;
+  }
+}
+// setInterval taktet blind weiter — auch wenn das Fenster verdeckt oder
+// minimiert ist — und staut Frames auf, wenn ein Zeichenlauf mal länger dauert
+// als der Takt. requestAnimationFrame pausiert automatisch, sobald das Fenster
+// unsichtbar ist, und liefert nie mehr Frames, als der Compositor schafft.
+// Im WebKitGTK-Fenster ohne GPU-Beschleunigung ist der Vollbild-Canvas sonst
+// dauerhafte CPU-Last, die beim Tippen als Verzögerung ankommt.
+// Sparmodus: desktop.py haengt ?fx=low an, wenn es mangels GPU auf
+// Software-Rendering ausweichen musste. Dann fallen die Scanlines weg und der
+// Regen laeuft langsamer. Selbst uebersteuern:
+//   localStorage.setItem('mxfx','full')  -> volle Optik, mehr Last
+//   localStorage.setItem('mxfx','low')   -> sparsam, auch im Browser
+//   localStorage.setItem('mxfx','off')   -> Regen ganz aus (sparsamste Stufe)
+//   localStorage.removeItem('mxfx')      -> wieder automatisch
+const _fxPref = localStorage.getItem('mxfx');
+const FX_OFF = _fxPref === 'off';        // Regen komplett aus (sparsamste Stufe)
+const FX_LOW = FX_OFF || _fxPref === 'low'
+            || (_fxPref !== 'full'
+                && new URLSearchParams(location.search).get('fx') === 'low');
+
+// Bildrate des Regens in ms — der wirksamste Regler fuer die CPU-Last, weil
+// jeder Frame ein Neu-Zusammensetzen aller Ebenen darueber ausloest. Gemessen
+// auf 4K ohne GPU: 55ms = 33% CPU, 110ms = 21%, Regen ganz aus = 3,7%.
+const RAIN_MS = FX_LOW ? 110 : 55;
+let _rainLast = 0;
+// Wird von applyBackground() umgelegt, wenn der Nutzer auf Bild oder
+// schlichten Hintergrund wechselt.
+let RAIN_ON = true;
+// Farben des Regens, aus den Theme-Variablen gelesen. readRainColors() laeuft
+// beim Start und nach jedem Themenwechsel — nicht pro Frame.
+let RAIN_COLOR = '#00ff41', RAIN_FADE = 'rgba(0,6,0,.07)';
+function readRainColors(){
+  const cs = getComputedStyle(document.documentElement);
+  RAIN_COLOR = (cs.getPropertyValue('--rain') || '#00ff41').trim();
+  RAIN_FADE  = (cs.getPropertyValue('--rain-fade') || 'rgba(0,6,0,.07)').trim();
+}
+function rainLoop(t){
+  requestAnimationFrame(rainLoop);
+  if (!RAIN_ON) return;
+  if (t - _rainLast < RAIN_MS) return;
+  _rainLast = t;
+  draw();
+}
+// Sparmodus: ohne GPU-Beschleunigung ist der Vollbild-Canvas auf einem
+// 4K-Schirm der mit Abstand teuerste Teil der Oberfläche — er kostet dann
+// mehr als die halbe CPU eines Kerns und verzögert sichtbar die Texteingabe.
+// desktop.py hängt ?fx=low an, wenn es auf Software-Rendering ausweichen
+// musste. Dauerhaft selbst setzen:  localStorage.setItem('mxfx','low')
+// Wieder anschalten:                localStorage.removeItem('mxfx')
+document.body.classList.toggle('fx-low', FX_LOW);
+document.body.classList.toggle('fx-off', FX_OFF);
+if (!FX_OFF) requestAnimationFrame(rainLoop);
+
+// ---------- State + Helpers ----------
+let pending=[], currentCwd=null, openFolders={}, foldersCache=[];
+const chat=document.getElementById('chat'), inp=document.getElementById('inp'), sidEl=document.getElementById('sid');
+// ---------- Mehrere parallele Unterhaltungen (wie mehrere Terminals) ----------
+// Jede Unterhaltung hat EIGENEN Zustand (sessionId, busy, queue, laufender Stream)
+// und ein EIGENES, erhaltenes Chat-DOM (pane). Wechseln blendet nur um – die
+// laufende Antwort einer anderen Session läuft im Hintergrund einfach weiter.
+const conversations=new Map();   // key -> conv
+let activeKey=null, convSeq=0;
+function makeConv(opts={}){
+  const key='conv'+(++convSeq)+'-'+Date.now().toString(36);
+  const pane=document.createElement('div');pane.className='pane';
+  // model: an DIESE Session gebunden. Neue Sessions erben die zuletzt gewählte
+  // Vorgabe (localStorage), bestehende bekommen ihr echtes Modell beim Öffnen.
+  const conv={key,sessionId:opts.sessionId||null,cwd:opts.cwd||null,
+    model:opts.model!=null?opts.model:defaultModel(),busy:false,queue:[],ctrl:null,pane};
+  conversations.set(key,conv);return conv;
+}
+function activeConv(){return conversations.get(activeKey);}
+function convBySession(sid){if(!sid)return null;for(const c of conversations.values())if(c.sessionId===sid)return c;return null;}
+function mountConv(conv){
+  activeKey=conv.key;chat.innerHTML='';chat.appendChild(conv.pane);
+  setFolder(conv.cwd||'/workspace');
+  syncModelPicker(conv);   // Picker zeigt das Modell DIESER Session
+  sidEl.textContent='▣ '+baseName(conv.cwd||'/workspace');sidEl.title=conv.cwd||'(unbekannt)';
+  updateSendBtn();renderQueue();scroll();
+}
+marked.setOptions({breaks:true,highlight:(c,l)=>{try{return hljs.highlight(c,{language:hljs.getLanguage(l)?l:'plaintext'}).value}catch{return c}}});
+const md=t=>DOMPurify.sanitize(marked.parse(t||''));
+
+// Externe Links gehoeren in den Systembrowser, nicht in dieses Fenster.
+// Die WebView (desktop.py) hat weder Adress- noch Zurueck-Leiste: ein Klick auf
+// einen Chat-Link navigiert das GANZE Fenster dorthin, und es gibt keinen Weg
+// zurueck zur App. Im Browser ist ein neuer Tab ebenfalls richtig, sonst ist
+// der Chat weg. Bewusst ein globaler Handler statt target="_blank" beim
+// Rendern: so sind auch alle nachtraeglich gestreamten Markdown-Links erfasst,
+// ohne md() pro Token durch einen DOM-Umweg zu schicken.
+addEventListener('click', function(e){
+  if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  var t = e.target;
+  var a = (t && t.closest) ? t.closest('a[href]') : null;
+  if (!a) return;
+  var u; try { u = new URL(a.href, location.href); } catch (err) { return; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return;  // mailto:, #anker, blob:
+  if (u.origin === location.origin) return;                       // eigene Seite normal lassen
+  e.preventDefault();
+  var api = window.pywebview && window.pywebview.api;
+  if (api && api.open_url) api.open_url(u.href);   // Fenster -> Systembrowser
+  else window.open(u.href, '_blank', 'noopener');  // Browser -> neuer Tab
+}, true);
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const baseName=p=>(p||'').split('/').filter(Boolean).pop()||p||'?';
+const fmtNum=n=>(n==null)?'?':(n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,'')+'k':String(n));
+function fmtDur(ms){if(ms==null)return '?';const s=ms/1000;if(s<60)return s.toFixed(1)+' s';const m=Math.floor(s/60);return m+' m '+Math.round(s%60)+' s';}
+function scroll(){chat.scrollTop=chat.scrollHeight;}
+// Copy-Button auf jeden Code-Block (<pre>) — praktisch bei Code-Antworten.
+function addCopyBtns(root){
+  if(!root)return;
+  root.querySelectorAll('pre').forEach(pre=>{
+    if(pre.querySelector('.copy-btn'))return;
+    const code=pre.querySelector('code');if(!code)return;
+    const btn=document.createElement('button');btn.type='button';btn.className='copy-btn';btn.textContent='⧉ Kopieren';
+    btn.onclick=e=>{e.stopPropagation();
+      const txt=code.innerText;
+      navigator.clipboard.writeText(txt).then(()=>{
+        btn.textContent='✓ Kopiert';btn.classList.add('done');
+        setTimeout(()=>{btn.textContent='⧉ Kopieren';btn.classList.remove('done');},1500);
+      }).catch(()=>{btn.textContent='✗ Fehler';setTimeout(()=>btn.textContent='⧉ Kopieren',1500);});
+    };
+    pre.appendChild(btn);
+  });
+}
+// Letzte (bzw. jede) eigene Nachricht bearbeiten & neu senden — spart Tokens,
+// wenn man Cody gestoppt hat und den Auftrag nur korrigieren will.
+function attachEdit(bubble,raw){
+  bubble._raw=raw;
+  const b=document.createElement('button');b.type='button';b.className='edit-btn';b.title='Bearbeiten & neu senden';b.textContent='✎';
+  b.onclick=e=>{e.stopPropagation();startEdit(bubble);};
+  bubble.appendChild(b);
+}
+function startEdit(bubble){
+  const conv=activeConv();
+  if(!conv||conv.busy)return;   // während Cody arbeitet: kein Bearbeiten
+  const raw=bubble._raw||'';
+  const prevHtml=bubble.innerHTML;
+  const rebind=()=>{const eb=bubble.querySelector('.edit-btn');if(eb)eb.onclick=e=>{e.stopPropagation();startEdit(bubble);};};
+  const restore=()=>{bubble.innerHTML=prevHtml;rebind();};
+  bubble.innerHTML='';
+  const ta=document.createElement('textarea');ta.className='editbox';ta.value=raw;
+  const bar=document.createElement('div');bar.className='editbar';
+  const cancel=document.createElement('button');cancel.className='eb-cancel';cancel.textContent='Abbrechen';
+  const send=document.createElement('button');send.className='eb-send';send.textContent='↺ Neu senden';
+  bar.append(cancel,send);bubble.append(ta,bar);
+  const fit=()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,300)+'px';};
+  ta.addEventListener('input',fit);fit();ta.focus();ta.setSelectionRange(raw.length,raw.length);
+  const doSend=()=>{
+    const nt=ta.value.trim();if(!nt||conv.busy){restore();return;}
+    const msgEl=bubble.closest('.msg');
+    // Nur wenn dies die LETZTE eigene Nachricht ist, räumen wir die (gestoppte)
+    // Antwort darunter weg — bei älteren Nachrichten bleibt alles stehen.
+    let laterUser=false;
+    if(msgEl){let n=msgEl.nextSibling;while(n){if(n.nodeType===1&&((n.matches&&n.matches('.msg.user'))||(n.querySelector&&n.querySelector('.msg.user')))){laterUser=true;break;}n=n.nextSibling;}}
+    if(msgEl&&!laterUser){let n=msgEl.nextSibling;while(n){const x=n;n=n.nextSibling;x.remove();}msgEl.remove();}
+    else restore();
+    runSend(conv,nt,[],[]);
+  };
+  cancel.onclick=restore;
+  send.onclick=doSend;
+  ta.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.preventDefault();restore();}
+    else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();}
+  });
+}
+function msgNode(role,html){
+  const user=role==='user';
+  const m=document.createElement('div');m.className='msg '+(user?'user':'bot');
+  // Der Anfangsbuchstabe steht im Kreis, wenn kein Foto hinterlegt ist —
+  // ein leerer Kreis sähe aus, als wäre ein Bild kaputt.
+  const initial=user&&!HAS_AVATAR?esc(USER_NAME.slice(0,1).toUpperCase()):'';
+  m.innerHTML=`<div class="avatar ${user?'av-user':'av-cody'}">${initial}</div>`
+    +`<div class="msgcol"><div class="who">${esc((user?USER_NAME:ASSISTANT).toUpperCase())}</div>`
+    +`<div class="bubble">${html}</div></div>`;
+  return m;
+}
+function addMsg(role,html,conv,raw){
+  const pane=(conv&&conv.pane)||(activeConv()&&activeConv().pane)||chat;
+  const m=msgNode(role,html);
+  pane.appendChild(m);
+  const bubble=m.querySelector('.bubble');
+  if(role==='user'&&raw!=null)attachEdit(bubble,raw);
+  addCopyBtns(bubble);
+  if(!conv||conv.key===activeKey)scroll();return bubble;
+}
+function addMsgTo(container,role,html){const m=msgNode(role,html);container.appendChild(m);const bubble=m.querySelector('.bubble');addCopyBtns(bubble);return bubble;}
+// Absolute Workspace-Pfade in Codys Antworten anklickbar machen (Vorschau/Download)
+const PATH_RE=/(^|[\s('"„`>])(\/(?:workspace|home)\/[\w.\-\/]+\.[\w]{1,8})/g;
+function linkifyPaths(el){
+  if(!el)return;
+  const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:n=>
+    n.parentElement&&n.parentElement.closest('a')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  const nodes=[];let n;while(n=walker.nextNode()){if(PATH_RE.test(n.nodeValue))nodes.push(n);PATH_RE.lastIndex=0;}
+  nodes.forEach(node=>{
+    const frag=document.createDocumentFragment();let last=0;const s=node.nodeValue;let m;
+    PATH_RE.lastIndex=0;
+    while((m=PATH_RE.exec(s))){
+      frag.appendChild(document.createTextNode(s.slice(last,m.index)+m[1]));
+      const a=document.createElement('a');a.href='/api/file?path='+encodeURIComponent(m[2]);
+      a.target='_blank';a.rel='noopener';a.textContent=m[2];a.title='Datei ansehen (Rechtsklick → Speichern)';
+      frag.appendChild(a);last=m.index+m[0].length;
+    }
+    frag.appendChild(document.createTextNode(s.slice(last)));
+    node.parentNode.replaceChild(frag,node);
+  });
+}
+
+// ---------- Tool- & Thinking-Boxen ----------
+function toolSummary(name,inp){
+  if(!inp||typeof inp!=='object')return '';
+  const f=inp.command||inp.file_path||inp.path||inp.pattern||inp.url||inp.query||inp.prompt||inp.description;
+  if(f)return String(f).replace(/\s+/g,' ').slice(0,90);
+  const k=Object.keys(inp)[0];return k?`${k}: ${String(inp[k]).slice(0,70)}`:'';
+}
+// Edit/Write als rot/grün-Diff statt rohem JSON — Kontrolle auf einen Blick
+function diffHtml(name,inp){
+  const cap=s=>esc(String(s??'').slice(0,4000))+(String(s??'').length>4000?'\n… (gekürzt)':'');
+  const edits=name==='MultiEdit'&&Array.isArray(inp.edits)?inp.edits
+    :('old_string'in inp||'new_string'in inp)?[inp]:null;
+  if(name==='Write'&&typeof inp.content==='string')
+    return `<div class="df-file">📄 ${esc(inp.file_path||'')}</div><div class="df df-add">${cap(inp.content)}</div>`;
+  if(!edits)return null;
+  let h=`<div class="df-file">📄 ${esc(inp.file_path||'')}</div>`;
+  edits.forEach(e=>{
+    if(e.old_string)h+=`<div class="df df-del">${cap(e.old_string)}</div>`;
+    h+=`<div class="df df-add">${cap(e.new_string)}</div>`;
+  });
+  return h;
+}
+function makeTool(ev){
+  const el=document.createElement('div');el.className='toolcall';
+  el.innerHTML=`<div class="tc-head"><span class="tc-ic">⚙</span><span class="tc-name">${esc(ev.name)}</span>`
+    +`<span class="tc-sum">${esc(toolSummary(ev.name,ev.input))}</span><span class="tc-st">⏳</span><span class="tc-tg">▸</span></div>`
+    +`<div class="tc-body"><div class="tc-lbl">EINGABE</div><div class="tc-in"></div>`
+    +`<div class="tc-lbl tc-olbl" style="display:none">ERGEBNIS</div><div class="tc-out"></div></div>`;
+  const dh=(ev.input&&typeof ev.input==='object')?diffHtml(ev.name,ev.input):null;
+  if(dh)el.querySelector('.tc-in').innerHTML=dh;
+  else el.querySelector('.tc-in').textContent=(ev.input&&typeof ev.input==='object')?JSON.stringify(ev.input,null,2):String(ev.input??'');
+  el.querySelector('.tc-head').onclick=()=>{el.classList.toggle('open');el.querySelector('.tc-tg').textContent=el.classList.contains('open')?'▾':'▸';};
+  return el;
+}
+function skillUseLabel(inp){if(!inp||typeof inp!=='object')return '';return String(inp.command||inp.name||inp.skill||Object.values(inp)[0]||'').slice(0,70);}
+function skillFileName(p){const m=/skills\/([^/]+)\/SKILL\.md$/i.exec(p||'');return m?m[1]:((p||'').split('/').filter(Boolean).pop()||'');}
+function makeSkillBanner(kind,label){const el=document.createElement('div');el.className='skillbanner';
+  el.innerHTML=`🧠 <b>Skill ${kind}</b>${label?': <span class="sk-n">'+esc(label)+'</span>':''}`;return el;}
+function fillTool(el,ev){
+  if(!el)return;
+  el.querySelector('.tc-st').textContent=ev.is_error?'✗':'✓';
+  if(ev.is_error)el.classList.add('err-tool');
+  el.querySelector('.tc-olbl').style.display='';
+  el.querySelector('.tc-out').textContent=(ev.content&&ev.content.trim())?ev.content:'(kein Ergebnis)';
+}
+// ---------- Warteschlange ----------
+function renderQueue(){
+  const q=document.getElementById('queuebar');const conv=activeConv();const ql=conv?conv.queue:[];
+  if(!ql.length){q.style.display='none';q.innerHTML='';return;}
+  q.style.display='block';
+  q.innerHTML='⏳ <b>'+ql.length+'</b> in Warteschlange — läuft automatisch nach der aktuellen Aufgabe (gleiche Session):'
+    +ql.map((m,i)=>`<div class="qitem"><span>${esc(m.text).slice(0,90)||'(Bild)'}</span><span class="qx" data-i="${i}">✕</span></div>`).join('');
+  q.querySelectorAll('.qx').forEach(b=>b.onclick=()=>{ql.splice(+b.dataset.i,1);renderQueue();});
+}
+function updateSendBtn(){const b=document.getElementById('send');const busy=!!(activeConv()&&activeConv().busy);
+  b.textContent=busy?'➤ EINWERFEN':'SENDEN';
+  b.title=busy?'Geht SOFORT an den laufenden Cody (Steering) — er bezieht es in die aktuelle Arbeit ein':'';
+  document.getElementById('stop').style.display=busy?'':'none';
+  chat.classList.toggle('busy',busy);}
+
+// ---------- Send ----------
+// UI-Einstieg: schickt an die GERADE AKTIVE Unterhaltung.
+async function send(){
+  const conv=activeConv();if(!conv)return;
+  const text=inp.value.trim();const images=pending.map(p=>p.path);const urls=pending.map(p=>p.url);
+  if(!text&&!images.length)return;
+  if(text.startsWith('/')&&!images.length){inp.value='';autosize();appCommand(text);return;}
+  inp.value='';autosize();pending=[];renderThumbs();
+  if(conv.busy||conv.nachlauf){
+    // Cody arbeitet gerade (oder sein Prozess wartet im Nachlauf auf eine
+    // Hintergrundaufgabe): Nachricht DIREKT in den laufenden Prozess einwerfen
+    // (Steering). Klappt das nicht (Turn gerade fertig), normale Warteschlange —
+    // im Nachlauf stattdessen ein frischer Lauf per --resume.
+    if(conv.runId){
+      try{
+        const r=await fetch('/api/inject/'+encodeURIComponent(conv.runId),{method:'POST',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,images,urls})});
+        if(r.ok){if(conv.nachlauf){conv.nachlauf=false;conv.busy=true;if(conv.key===activeKey)updateSendBtn();}return;}
+      }catch{}
+    }
+    if(conv.nachlauf){conv.nachlauf=false;}
+    else{conv.queue.push({text,images,urls});renderQueue();return;}
+  }
+  runSend(conv,text,images,urls);
+}
+
+// Startet einen entkoppelten Lauf: POST holt die run_id, dann dockt consumeRun an.
+async function runSend(conv,text,images,urls){
+  conv.busy=true;conv.stopReq=false;if(conv.key===activeKey)updateSendBtn();
+  // cwd beim ersten Senden festschreiben, damit parallele Sessions stabil bleiben.
+  if(!conv.cwd)conv.cwd=currentCwd||'/workspace';
+  const sendCwd=conv.cwd, sendMode=currentMode;
+  let uhtml=md(text);urls.forEach(u=>uhtml+=attHtml(u));
+  addMsg('user',uhtml,conv,text);
+  // Alles, was zu DIESEM Lauf gehört (Bot-Antworten + eingeworfene Nachrichten),
+  // lebt in einem Container — bei Reconnect wird er komplett aus dem Replay neu gebaut.
+  const wrap=document.createElement('div');wrap.className='runwrap';conv.pane.appendChild(wrap);
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,session_id:conv.sessionId,images,cwd:sendCwd,mode:sendMode,model:conv.model||''})});
+    let j={};try{j=await r.json();}catch{}
+    if(!r.ok||!j.run_id)throw new Error(j.error||(r.status===401?'Nicht angemeldet (Passwort?)':'HTTP '+r.status));
+    conv.runId=j.run_id;if(j.session_id)conv.sessionId=j.session_id;
+  }catch(e){
+    wrap.innerHTML='<div class="err">⚠ Konnte Anfrage nicht starten: '+esc(e.message||''+e)+'</div>';
+    finishRun(conv);return;
+  }
+  await consumeRun(conv,wrap);
+}
+
+// Dockt an conv.runId an: spielt erst den Backlog nach, dann live — und reconnectet
+// bei Aussetzern (Reload/Schlaf/Netz). Der Lauf selbst läuft server-seitig weiter.
+// wrap = Container für den GANZEN Lauf (mehrere Bubbles bei eingeworfenen Nachrichten).
+async function consumeRun(conv,wrap){
+  const CARET='<span class="caret">&nbsp;</span>';
+  let finished=false;
+  while(conv.runId&&!finished&&!conv.stopReq){
+    wrap.innerHTML='';   // bei jedem (Re)Connect frisch aus dem Replay aufbauen
+    let blk=null,textEl=null,textAcc='',thinkMarked=false,thinkEl=null,flow=null;const toolEls={};
+    // Ergebnisdateien: was dieser Zug per Write/Edit angefasst hat, kommt am Ende
+    // als Zeile mit Links (ansehen / herunterladen) — man muss nicht im Verlauf
+    // nach dem Pfad suchen.
+    const written=new Map();   // tool-id -> Pfad (nur erfolgreiche zählen)
+    const notePath=ev=>{const fp=ev.input&&(ev.input.file_path||ev.input.path||ev.input.notebook_path);
+      if(ev.id&&fp&&/^(Write|Edit|MultiEdit|NotebookEdit|write|edit)/i.test(ev.name||'')&&!/SKILL\.md$/i.test(fp))written.set(ev.id,{fp,ok:false});};
+    const filesLine=()=>{const fps=[...new Set([...written.values()].filter(w=>w.ok).map(w=>w.fp))];written.clear();if(!fps.length)return;
+      const d=document.createElement('div');d.className='statline files';d.innerHTML='📁 '
+        +fps.map(fp=>`<a href="/api/file?path=${encodeURIComponent(fp)}" target="_blank" rel="noopener" title="${esc(fp)}">${esc(fp.split('/').pop())}</a>`
+          +`<a href="/api/file?path=${encodeURIComponent(fp)}&dl=1" title="herunterladen">⬇</a>`).join(' · ');
+      flow.appendChild(d);};
+    const newThinking=()=>{thinkEl=document.createElement('div');thinkEl.className='thinking';
+      thinkEl.innerHTML='Denke nach<span class="td"></span><span class="td"></span><span class="td"></span>';
+      flow.appendChild(thinkEl);};
+    const newTurn=()=>{const bubble=addMsgTo(wrap,'bot','');flow=document.createElement('div');bubble.appendChild(flow);thinkMarked=false;newThinking();};
+    const killThinking=()=>{if(thinkEl){thinkEl.remove();thinkEl=null;}};
+    const sc=()=>{if(conv.key===activeKey)scroll();};
+    const endBlock=()=>{if(blk==='text'&&textEl){textEl.innerHTML=md(textAcc);linkifyPaths(textEl);addCopyBtns(textEl);}blk=null;textEl=null;textAcc='';};
+    const onText=t=>{killThinking();if(blk!=='text'){endBlock();textEl=document.createElement('div');textEl.className='seg';flow.appendChild(textEl);blk='text';}textAcc+=t;textEl.innerHTML=md(textAcc)+CARET;sc();};
+    const mark=()=>{killThinking();if(thinkMarked)return;thinkMarked=true;const tm=document.createElement('div');tm.className='thinkmark';tm.textContent='💭 nachgedacht';flow.insertBefore(tm,flow.firstChild);};
+    newTurn();
+    const ctrl=new AbortController();conv.streamCtrl=ctrl;let wd;
+    const bump=()=>{clearTimeout(wd);wd=setTimeout(()=>ctrl.abort('idle'),40000);};
+    let dropped=false;
+    try{
+      bump();
+      const res=await fetch('/api/stream/'+encodeURIComponent(conv.runId),{signal:ctrl.signal});
+      if(res.status===404){finished=true;flow.innerHTML='<div class="tool">⚠ Lauf nicht mehr verfügbar (zu alt/aufgeräumt). Schick einfach nochmal.</div>';break;}
+      const reader=res.body.getReader(),dec=new TextDecoder();let buf='';
+      while(true){
+        const {value,done}=await reader.read();if(done)break;
+        bump();
+        buf+=dec.decode(value,{stream:true});let i;
+        while((i=buf.indexOf('\n\n'))>=0){
+          const line=buf.slice(0,i);buf=buf.slice(i+2);
+          if(!line.startsWith('data: '))continue;
+          let ev;try{ev=JSON.parse(line.slice(6))}catch{continue}
+          if(ev.type==='session'){conv.sessionId=ev.session_id;if(conv.key===activeKey)loadSessions();}
+          else if(ev.type==='text')onText(ev.text);
+          else if(ev.type==='user_inject'){endBlock();killThinking();
+            let uh=md(ev.text||'');(ev.urls||[]).forEach(u=>uh+=attHtml(u));
+            addMsgTo(wrap,'user',uh);newTurn();sc();}
+          else if(ev.type==='thinking_marker')mark();
+          else if(ev.type==='tool'){killThinking();endBlock();
+            const fp=(ev.input&&ev.input.file_path)||'';
+            if(/^skill$/i.test(ev.name||'')){flow.appendChild(makeSkillBanner('genutzt',skillUseLabel(ev.input)));}
+            else if(/SKILL\.md$/i.test(fp)){flow.appendChild(makeSkillBanner('gespeichert',skillFileName(fp)));const el=makeTool(ev);if(ev.id)toolEls[ev.id]=el;flow.appendChild(el);}
+            else{const el=makeTool(ev);if(ev.id)toolEls[ev.id]=el;flow.appendChild(el);}
+            notePath(ev);sc();}
+          else if(ev.type==='tool_result'){fillTool(toolEls[ev.id],ev);if(written.has(ev.id))written.get(ev.id).ok=!ev.is_error;sc();}
+          else if(ev.type==='stats'){killThinking();endBlock();const s=document.createElement('div');s.className='statline';
+            s.innerHTML=`⏱ ${esc(fmtDur(ev.duration_ms))} · 🧮 ${esc(fmtNum(ev.out))} Tokens`
+              +(ev.ctx?` · 📚 Kontext ${esc(fmtNum(ev.ctx))}`:'')
+              +(ev.model?` · 🧠 ${esc(ev.model)}`:'');
+            s.title='Dauer · Output-Tokens dieser Antwort · gelesener Kontext (großteils Cache) · Modell';
+            flow.appendChild(s);filesLine();sc();zeigeModell(ev.model);}
+          else if(ev.type==='nachlauf'){killThinking();endBlock();
+            // Zug fertig, aber claude wartet noch auf eigene Hintergrundaufgaben.
+            // Der Prozess bleibt offen, Kevin darf tippen (geht per inject in
+            // denselben Prozess), und was der Hintergrund liefert, kommt als
+            // neue Sprechblase — siehe 'neuer_zug'.
+            conv.nachlauf=true;conv.busy=false;if(conv.key===activeKey)updateSendBtn();
+            const n=document.createElement('div');n.className='tool';
+            n.textContent='⏳ läuft noch im Hintergrund: '+(ev.tasks||[]).join(' · ')+' — ich melde mich, sobald es fertig ist.';
+            flow.appendChild(n);sc();}
+          else if(ev.type==='neuer_zug'){endBlock();killThinking();conv.nachlauf=false;conv.busy=true;if(conv.key===activeKey)updateSendBtn();newTurn();sc();}
+          else if(ev.type==='nachlauf_ende'){conv.nachlauf=false;}
+          else if(ev.type==='done'){killThinking();if(ev.session_id)conv.sessionId=ev.session_id;endBlock();if(!conv.nachlauf)finished=true;}
+          else if(ev.type==='error'){killThinking();endBlock();finished=true;const e=document.createElement('div');e.className='err';e.textContent='⚠ '+ev.message;flow.appendChild(e);}
+        }
+      }
+      endBlock();clearTimeout(wd);
+      if(!finished&&!conv.stopReq)dropped=true;   // Stream zu, aber Lauf nicht fertig -> reconnect
+    }catch(e){
+      clearTimeout(wd);endBlock();
+      if(conv.stopReq)finished=true; else dropped=true;
+    }
+    if(dropped&&!conv.stopReq){
+      if(conv.key===activeKey){const n=document.createElement('div');n.className='tool';n.textContent='… Verbindung verloren – dock wieder an …';flow.appendChild(n);scroll();}
+      await new Promise(r=>setTimeout(r,1000));
+    }
+  }
+  if(conv.stopReq){const s=document.createElement('div');s.className='tool';s.textContent='⏹ Gestoppt.';wrap.appendChild(s);}
+  finishRun(conv);
+}
+
+function finishRun(conv){
+  conv.runId=null;conv.busy=false;conv.nachlauf=false;conv.streamCtrl=null;conv.stopReq=false;
+  conv.fileOffset=null;   // Tail-Position neu syncen — der Lauf wurde ja live gezeigt
+  if(conv.key===activeKey){updateSendBtn();inp.focus();}
+  loadSessions();loadHud();
+  if(conv.queue.length){const nx=conv.queue.shift();if(conv.key===activeKey)renderQueue();runSend(conv,nx.text,nx.images,nx.urls);}
+}
+
+// ---------- Anhänge (Bilder, PDFs) ----------
+const IS_PDF=u=>/\.pdf$/i.test(u||'');
+// Anhang in einer Nachricht: Bild inline, PDF als Link-Chip.
+const attHtml=u=>IS_PDF(u)?`<a class="att" href="${u}" target="_blank">📄 PDF</a>`:`<img src="${u}">`;
+async function uploadFile(f){
+  const fd=new FormData();fd.append('file',f);
+  let j;try{j=await (await fetch('/api/upload',{method:'POST',body:fd})).json();}catch{j={error:'Upload fehlgeschlagen'};}
+  if(!j.path){alert(j.error||'Upload fehlgeschlagen');return;}
+  pending.push({path:j.path,url:j.url,name:j.name||f.name});renderThumbs();
+}
+function renderThumbs(){
+  const t=document.getElementById('thumbs');t.innerHTML='';
+  pending.forEach((p,idx)=>{
+    const d=document.createElement('div');d.className='th';
+    d.innerHTML=(IS_PDF(p.url)?`<span class="doc" title="${esc(p.name||'')}">📄 ${esc(p.name||'PDF')}</span>`:`<img src="${p.url}">`)+`<span class="x">✕</span>`;
+    d.querySelector('.x').onclick=()=>{pending.splice(idx,1);renderThumbs();};t.appendChild(d);
+  });
+}
+document.getElementById('attach').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=e=>{[...e.target.files].forEach(uploadFile);e.target.value='';};
+inp.addEventListener('paste',e=>{for(const it of e.clipboardData.items){if(it.type.startsWith('image/')){uploadFile(it.getAsFile());e.preventDefault();}}});
+const dm=document.getElementById('dropmask');
+addEventListener('dragover',e=>{e.preventDefault();dm.classList.add('show');});
+addEventListener('dragleave',e=>{if(e.relatedTarget===null)dm.classList.remove('show');});
+// Im Desktop-Fenster (WebKitGTK) kommen hereingezogene Dateien hier nur als
+// Name an, nicht lesbar - dort uebernimmt desktop.py den Drop und meldet die
+// Anhaenge ueber __nativeDrop. Im Browser laeuft der normale Upload.
+const NATIVE_DROP=()=>window.pywebview&&window.pywebview.platform==='gtkwebkit2';
+const ATT_EXT=/\.(png|jpe?g|gif|webp|bmp|svg|heic|pdf)$/i;
+window.__nativeDrop=items=>{items.forEach(p=>pending.push({path:p.path,url:p.url,name:p.name}));renderThumbs();};
+addEventListener('drop',e=>{e.preventDefault();dm.classList.remove('show');if(NATIVE_DROP())return;
+  [...e.dataTransfer.files].forEach(f=>(f.type.startsWith('image/')||ATT_EXT.test(f.name))&&uploadFile(f));});
+
+// ---------- Picker: Ordner + Mode ----------
+const MODES=[
+  {v:'bypassPermissions',l:'⚡ Auto',d:'volle Rechte — alles läuft automatisch'},
+  {v:'plan',l:'📋 Plan',d:'nur lesen / planen, ändert nichts'},
+  {v:'default',l:'🛡 Standard',d:'fragt nach (im Web eingeschränkt)'},
+];
+let currentMode=localStorage.getItem('mxmode')||'bypassPermissions';
+// Modell-Auswahl: Claude (voll integriert, mit Tools) + externe Anbieter
+// (reiner Chat, Einrichtung über 🧠 → ⚙ KI-Anbieter). Externe Werte heißen
+// "anbieter:modell", z.B. "openai:gpt-4o" oder "ollama:gemma3:12b".
+// Volle Modell-IDs statt Aliase ('sonnet', 'fable'): ein Alias zeigt immer auf
+// das jeweils neueste Modell seiner Reihe, und man sieht ihm nicht an, welches
+// das gerade IST. Hier steht, was wirklich läuft.
+//
+// Nachmessen, wenn ein neues Modell erscheint — raten hilft hier nicht:
+//   claude -p "ok" --model <name> --output-format json | jq .modelUsage
+// Der Schlüssel darin ist die tatsächlich benutzte ID. Gemessen am 04.09.2026
+// mit Claude Code 2.1.280: fable→claude-fable-5-1, opus→claude-opus-5-5,
+// sonnet→claude-sonnet-5, haiku→claude-haiku-4-5-20251001.
+// Längere IDs zuerst: die Rückführung unten geht über den Präfix, und
+// "claude-opus-5-5" fängt nun einmal mit "claude-opus-5" an.
+const CLAUDE_MODELS=[
+  {v:'',l:'Standard',d:'Konto-Standard von Claude Code'},
+  {v:'claude-opus-5-5',l:'Opus 5.5',d:'neuestes Opus — stark für Coding und komplexe Aufgaben'},
+  {v:'claude-fable-5-1',l:'Fable 5.1',d:'stärkstes Modell — für die härtesten und längsten Aufgaben'},
+  {v:'claude-opus-5',l:'Opus 5',d:'Vorgänger von Opus 5.5'},
+  {v:'claude-sonnet-5',l:'Sonnet 5',d:'schnell, schont das Limit'},
+  {v:'claude-haiku-4-5',l:'Haiku 4.5',d:'am schnellsten — kleine Aufgaben'},
+];
+// Vorgabe für alle neuen Gespräche.
+const DEFAULT_MODEL='claude-opus-5-5';
+// Alte Auswahl aus dem localStorage und Rückmeldungen aus Transkripten kommen
+// als Alias oder mit Zusätzen an (`claude-haiku-4-5-20251001`, `…[1m]`). Ohne
+// diese Zuordnung fiele der Picker bei jeder solchen Angabe stumm auf
+// "Standard" zurück — und zeigte damit genau das Falsche an.
+const MODEL_ALIAS={fable:'claude-fable-5-1',opus:'claude-opus-5-5',
+                   sonnet:'claude-sonnet-5',haiku:'claude-haiku-4-5'};
+const PROV_ICON={openai:'🟢',gemini:'✦',deepseek:'🐋',ollama:'🦙'};
+let llmProviders=[];   // /api/llm/providers — nur konfigurierte liefern Modelle
+async function loadProviders(force){
+  try{llmProviders=await(await fetch('/api/llm/providers'+(force?'?refresh=1':''))).json();}
+  catch{llmProviders=[];}
+  if(!Array.isArray(llmProviders))llmProviders=[];
+  // Ohne installiertes Claude Code wäre der leere Standardwert eine Sackgasse:
+  // die erste Nachricht liefe in "claude nicht gefunden". Sobald ein externer
+  // Anbieter eingerichtet ist, also von selbst dorthin schalten.
+  // (Auch die Vorgabe Opus 5.5 ist ohne CLI eine Sackgasse — daher nicht nur
+  // auf den leeren Wert prüfen, sondern auf "kein externes Modell gewählt".)
+  if(!HAS_CLAUDE&&!(currentModel||'').includes(':')){const e=extModels()[0];if(e)setModel(e.v);}
+  syncModelPicker(activeConv());   // Anzeige ggf. nachziehen (Label statt Roh-Wert)
+}
+function extModels(){const out=[];llmProviders.forEach(p=>{if(!p.configured)return;
+  (p.models||[]).forEach(m=>{
+    // tools: true = sicher werkzeugfähig, null = unbekannt (nicht in der
+    // Datenbank). Unbekannte bekommen ein Fragezeichen statt zu verschwinden.
+    const cap=(p.tools||{})[m];
+    out.push({v:p.id+':'+m,l:m,d:p.label,prov:p.id,cap:cap});
+  });});return out;}
+// Oben in der Statuszeile: womit zuletzt WIRKLICH geantwortet wurde. Nicht die
+// Auswahl — die kann "Standard" sein oder ein Alias, der sich mit dem nächsten
+// Modell still verschiebt. Leer, solange in dieser Session nichts lief; das ist
+// ehrlicher als eine Angabe, die niemand geprüft hat.
+function zeigeModell(id){
+  const el=document.getElementById('curmodel');if(!el)return;
+  const m=id?modelInfo(id):null;
+  el.textContent=id?('· '+((m&&m.l)||id.replace(/^claude-/,''))):'';
+}
+function modelInfo(v){
+  const c=CLAUDE_MODELS.find(x=>x.v===v);if(c)return c;
+  const e=extModels().find(x=>x.v===v);if(e)return e;
+  // Claude-Modell, aber in anderer Schreibweise: Alias, Datumsstempel oder
+  // Kontext-Zusatz. Auf den Listeneintrag zurückführen statt aufzugeben.
+  if(v&&!v.includes(':')){
+    const roh=v.replace(/\[.*\]$/,'');
+    // Längster passender Präfix gewinnt, sonst würde "claude-opus-5-5[1m]"
+    // bei "claude-opus-5" hängenbleiben.
+    const treffer=MODEL_ALIAS[roh]||CLAUDE_MODELS.slice(1).filter(x=>roh.startsWith(x.v))
+                                     .sort((a,b)=>b.v.length-a.v.length)[0]?.v;
+    if(treffer){const m=CLAUDE_MODELS.find(x=>x.v===treffer);if(m)return m;}
+    // Ein Claude-Modell, das nicht (mehr) zur Auswahl steht — etwa eine alte
+    // Session auf claude-opus-4-8. Mit der rohen ID anzeigen: "Standard" wäre
+    // hier schlicht gelogen.
+    if(roh.startsWith('claude-'))return {v,l:roh.replace(/^claude-/,''),d:'nicht mehr in der Auswahl'};
+  }
+  // unbekannt, aber extern (Anbieterliste evtl. noch nicht geladen) -> trotzdem anzeigen
+  if(v&&v.includes(':'))return {v,l:v.split(':').slice(1).join(':'),d:v.split(':')[0],prov:v.split(':')[0]};
+  return null;
+}
+// Noch nie etwas gewählt -> Opus 5.5. Ein bewusst gewähltes "Standard" ist ''
+// und muss "Standard" bleiben — deshalb auf null prüfen statt auf falsy.
+function storedModel(){const v=localStorage.getItem('mxmodel');return v===null?DEFAULT_MODEL:v;}
+let currentModel=storedModel();
+const fbar=document.getElementById('folderbar'),flist=document.getElementById('folderlist');
+const mbar=document.getElementById('modebar'),mlist=document.getElementById('modelist');
+const lbar=document.getElementById('llmbar'),llist=document.getElementById('llmlist');
+async function loadFolders(){try{foldersCache=await (await fetch('/api/folders')).json();}catch{foldersCache=[];}}
+function setFolder(path){currentCwd=path||null;const n=document.getElementById('fbname');n.textContent=baseName(path);n.title=path||'';}
+function setMode(v){let m=MODES.find(x=>x.v===v);if(!m){m=MODES[0];v=m.v;}currentMode=v;localStorage.setItem('mxmode',v);
+  document.getElementById('mbicon').textContent=m.l.split(' ')[0];document.getElementById('mbname').textContent=m.l.split(' ').slice(1).join(' ');}
+function defaultModel(){return storedModel();}
+// Nutzer wählt ein Modell: gilt für die AKTIVE Session + wird Vorgabe für neue.
+function setModel(v){let m=modelInfo(v);if(!m){m=CLAUDE_MODELS[0];v='';}currentModel=v;
+  const c=activeConv();if(c)c.model=v;
+  localStorage.setItem('mxmodel',v);
+  document.getElementById('llmname').textContent=(m.prov?(PROV_ICON[m.prov]||'🌐')+' ':'')+m.l;}
+// Picker nur ANZEIGEN passend zur Session (ohne Vorgabe zu überschreiben).
+function syncModelPicker(conv){const v=(conv&&conv.model!=null)?conv.model:'';
+  const m=modelInfo(v)||CLAUDE_MODELS[0];currentModel=m.v;
+  document.getElementById('llmname').textContent=(m.prov?(PROV_ICON[m.prov]||'🌐')+' ':'')+m.l;}
+function closeLists(){flist.classList.remove('show');mlist.classList.remove('show');llist.classList.remove('show');}
+fbar.onclick=e=>{e.stopPropagation();const open=flist.classList.contains('show');closeLists();if(open)return;
+  flist.innerHTML='';foldersCache.forEach(p=>{const d=document.createElement('div');d.className='fl-item'+(p===currentCwd?' sel':'');
+    d.textContent='📂 '+baseName(p);d.title=p;d.onclick=()=>{setFolder(p);closeLists();};flist.appendChild(d);});flist.classList.add('show');};
+mbar.onclick=e=>{e.stopPropagation();const open=mlist.classList.contains('show');closeLists();if(open)return;
+  mlist.innerHTML='';MODES.forEach(m=>{const d=document.createElement('div');d.className='fl-item'+(m.v===currentMode?' sel':'');
+    d.innerHTML=`${m.l} <span style="opacity:.55">— ${m.d}</span>`;d.onclick=()=>{setMode(m.v);closeLists();};mlist.appendChild(d);});mlist.classList.add('show');};
+lbar.onclick=e=>{e.stopPropagation();const open=llist.classList.contains('show');closeLists();if(open)return;
+  llist.innerHTML='';
+  const head=t=>{const h=document.createElement('div');h.className='fl-head';h.textContent=t;llist.appendChild(h);};
+  const item=(m,icon)=>{const d=document.createElement('div');d.className='fl-item'+(m.v===currentModel?' sel':'');
+    d.innerHTML=`${icon} ${esc(m.l)} <span style="opacity:.55">— ${esc(m.d)}</span>`;
+    d.onclick=()=>{setModel(m.v);closeLists();};llist.appendChild(d);};
+  head('CLAUDE · VOLLER ZUGRIFF (TOOLS, DATEIEN)'+(HAS_CLAUDE?'':' — NICHT INSTALLIERT'));
+  CLAUDE_MODELS.forEach(m=>item(m,'🧠'));
+  llmProviders.filter(p=>p.configured).forEach(p=>{
+    head(`${PROV_ICON[p.id]||'🌐'} ${p.label.toUpperCase()} · ÜBER HERMES`);
+    const ms=p.models||[];
+    if(!ms.length){const d=document.createElement('div');d.className='fl-item';d.style.opacity=.5;
+      d.textContent=p.error?('⚠ '+p.error):'(keine Modelle gefunden)';llist.appendChild(d);}
+    ms.forEach(mid=>{
+      const cap=(p.tools||{})[mid];
+      item({v:p.id+':'+mid, l:mid+(cap===true?' ⚡':cap==null?' ⚡?':''),
+            d:p.label+(cap===true?' · mit Werkzeugen':cap==null?' · Werkzeuge unbestätigt':'')},
+           PROV_ICON[p.id]||'🌐');
+    });
+  });
+  head('');
+  const cfg=document.createElement('div');cfg.className='fl-item';
+  cfg.innerHTML='⚙ <b>KI-Anbieter einrichten…</b> <span style="opacity:.55">— ChatGPT, Gemini, DeepSeek, Ollama</span>';
+  cfg.onclick=()=>{closeLists();openLlmCfg();};llist.appendChild(cfg);
+  llist.classList.add('show');};
+document.addEventListener('click',closeLists);
+
+// ---------- HUD: Limits + Anmeldung ----------
+function usageChip(el,label,u){
+  if(!u||u.percent==null){el.textContent=label+' —';el.title='keine Daten';el.className='chip';return;}
+  const p=Math.round(u.percent);
+  el.className='chip'+(p>=85?' crit':(p>=60?' warn':''));
+  el.innerHTML=`${label} <span class="bar"><i style="width:${Math.min(100,p)}%"></i></span><b>${p}%</b>`;
+  if(u.resets_at){const d=new Date(u.resets_at);
+    el.title=`Reset: ${d.toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'})} Uhr`;}
+}
+async function loadHud(){
+  const a=document.getElementById('auth');
+  try{
+    const st=await (await fetch('/api/auth/status')).json();
+    HAS_CLAUDE=st.cli!==false;
+    if(!HAS_CLAUDE){
+      // Kein installiertes Claude Code ist kein Fehler, sondern ein Zustand:
+      // wer nur über einen externen Anbieter chattet, soll hier keinen Alarm sehen.
+      a.className='chip click';a.textContent='🔑 OHNE CLAUDE';
+      a.title='Claude Code ist nicht installiert — der Chat läuft über den Anbieter '
+        +'aus dem 🧠-Menü. Klicken für die Anleitung.';
+    }
+    else if(st.ok){a.className='chip click';a.innerHTML='🔑 <b>OK</b>';
+      a.title='Angemeldet'+(st.web_token?' (Web-Login-Token)':st.env_token?' (Server-Token)':' (claudec-Login)')+' — klicken zum Neu-Anmelden';}
+    else{a.className='chip click crit alert';a.textContent='🔑 LOGIN NÖTIG';a.title='Anmeldung abgelaufen — klicken zum Einloggen';}
+  }catch{a.className='chip click crit';a.textContent='🔑 ?';}
+  applyClaudeState();
+  if(!HAS_CLAUDE){   // die Limit-Chips zeigen Anthropic-Kontingente — ohne Konto sinnlos
+    ['use5','use7'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+    return;
+  }
+  try{
+    const u=await (await fetch('/api/usage')).json();
+    const u5=document.getElementById('use5'),u7=document.getElementById('use7');
+    if(u.limit_hit){const t=new Date(u.limit_hit*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+      u5.className='chip crit alert';u5.textContent=`⛔ Limit — bis ${t}`;u5.title='Nutzungs-Limit erreicht, Reset um '+t+' Uhr';}
+    else if(u.available)usageChip(u5,'5h',u.five_hour);
+    else{u5.className='chip';u5.textContent='5h —';u5.title='Limits nicht abrufbar: '+(u.reason||'?');}
+    if(u.available)usageChip(u7,'7T',u.seven_day);
+    else{u7.className='chip';u7.textContent='7T —';u7.title='Limits nicht abrufbar: '+(u.reason||'?');}
+  }catch{}
+}
+setInterval(loadHud,5*60*1000);
+
+// ---------- Login-Dialog (claude setup-token über die Web-UI) ----------
+const lmask=document.getElementById('loginmask'),lgMsg=document.getElementById('lgMsg');
+function openLogin(){lmask.classList.add('show');lgMsg.textContent='';lgMsg.className='';
+  document.getElementById('lg-step1').style.display='';document.getElementById('lg-step2').style.display='none';
+  document.getElementById('lgStart').disabled=false;document.getElementById('lgCode').value='';}
+function closeLogin(){lmask.classList.remove('show');}
+// Der 🔑-Chip führt dahin, wo der Nutzer gerade steht: installieren, im
+// Terminal anmelden (Windows kann den PTY-Login nicht) oder Web-Login.
+function claudeSetupHint(){
+  sysNote('<b>🔑 Claude Code</b><br>'
+    +(HAS_CLAUDE?'Claude Code ist installiert.':
+       'Claude Code ist auf diesem Rechner <b>nicht installiert</b>. Ohne das läuft der '
+       +'Chat über den Anbieter aus dem 🧠-Menü (ChatGPT, Gemini …) — das reicht '
+       +'zum Reden, aber nicht für Dateien und Terminal.<br><br>'
+       +'Nachinstallieren (braucht Node.js):<br>'
+       +'<code>npm install -g @anthropic-ai/claude-code</code><br><br>')
+    +(WEB_LOGIN
+       ?'Anmelden geht danach direkt hier über diesen Knopf.'
+       :'Anmelden danach <b>einmal im Terminal</b>: <code>claude</code> eingeben und dem '
+        +'Login folgen. CONSTRUCT erkennt die Anmeldung anschließend von selbst — '
+        +'der Login-Dialog in der Oberfläche braucht ein Pseudo-Terminal, das es '
+        +'unter Windows nicht gibt.')
+    +'<br><br><span style="opacity:.7">Dafür braucht es ein Anthropic-Konto (Abo oder API-Guthaben).</span>');
+}
+document.getElementById('auth').onclick=()=>{
+  if(HAS_CLAUDE&&WEB_LOGIN)openLogin(); else claudeSetupHint();
+};
+document.getElementById('lgClose').onclick=closeLogin;
+lmask.addEventListener('click',e=>{if(e.target===lmask)closeLogin();});
+document.getElementById('lgStart').onclick=async()=>{
+  const btn=document.getElementById('lgStart');btn.disabled=true;
+  lgMsg.className='';lgMsg.textContent='⟲ starte Login … (kann ein paar Sekunden dauern)';
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST'});const j=await r.json();
+    if(!r.ok||!j.url)throw new Error(j.error||('HTTP '+r.status));
+    const a=document.getElementById('lgUrl');a.href=j.url;a.textContent=j.url;
+    document.getElementById('lg-step1').style.display='none';
+    document.getElementById('lg-step2').style.display='';
+    lgMsg.textContent='';document.getElementById('lgCode').focus();
+  }catch(e){lgMsg.className='bad';lgMsg.textContent='⚠ '+e.message;btn.disabled=false;}
+};
+async function submitLoginCode(){
+  const code=document.getElementById('lgCode').value.trim();if(!code)return;
+  const btn=document.getElementById('lgSend');btn.disabled=true;
+  lgMsg.className='';lgMsg.textContent='⟲ prüfe Code …';
+  try{
+    const r=await fetch('/api/auth/code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    lgMsg.className='ok';lgMsg.textContent='✅ Angemeldet! CONSTRUCT läuft jetzt mit einem langlebigen Token — kein Terminal-Login mehr nötig.';
+    document.getElementById('lg-step2').style.display='none';
+    loadHud();setTimeout(closeLogin,2500);
+  }catch(e){lgMsg.className='bad';lgMsg.textContent='⚠ '+e.message;btn.disabled=false;}
+}
+document.getElementById('lgSend').onclick=submitLoginCode;
+document.getElementById('lgCode').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitLoginCode();}});
+
+// ---------- KI-Anbieter-Dialog (ChatGPT, Gemini, DeepSeek, Ollama) ----------
+const lmmask=document.getElementById('llmmask');
+function openLlmCfg(){lmmask.classList.add('show');renderLlmCfg();}
+document.getElementById('lmClose').onclick=()=>{lmmask.classList.remove('show');clearTimeout(ollTimer);};
+lmmask.addEventListener('click',e=>{if(e.target===lmmask){lmmask.classList.remove('show');clearTimeout(ollTimer);}});
+async function renderLlmCfg(){
+  const box=document.getElementById('llmcfg');
+  box.innerHTML='<div class="vhint">⟲ lade Anbieter …</div>';
+  try{llmProviders=await(await fetch('/api/llm/providers')).json();}catch{}
+  if(!Array.isArray(llmProviders))llmProviders=[];
+  box.innerHTML='';
+  llmProviders.forEach(p=>{
+    const div=document.createElement('div');div.className='mc-acc';
+    const st=p.configured?(p.error?('⚠ '+p.error):('✓ aktiv — '+(p.models||[]).length+' Modelle')):'— nicht eingerichtet';
+    div.innerHTML=`<div class="mca-head"><span class="mdot" style="background:${p.configured?(p.error?'#ff5c5c':'var(--green)'):'#444'}"></span>`
+      +`<b>${PROV_ICON[p.id]||'🌐'} ${esc(p.label)}</b><span class="mca-st">${esc(st)}</span></div>`
+      +`<div class="vhint" style="padding:4px 0 0">${esc(p.hint||'')}</div>`;
+    const row=document.createElement('div');row.className='mca-row';
+    let keyIn=null,urlIn=null;
+    if(p.needs_key){
+      keyIn=document.createElement('input');keyIn.type='password';keyIn.autocomplete='new-password';
+      keyIn.placeholder=p.key_set?'••••••••  (gespeichert — nur zum Ändern neu eingeben)':'API-Key';
+      row.appendChild(keyIn);
+    }
+    if(p.id==='ollama'){
+      urlIn=document.createElement('input');
+      urlIn.placeholder='URL (Standard: '+p.default_base+')';
+      urlIn.value=(p.base_url&&p.base_url!==p.default_base)?p.base_url:'';
+      row.appendChild(urlIn);
+    }
+    const save=document.createElement('button');save.className='cal-tbtn';
+    save.textContent=p.configured?'SPEICHERN & TESTEN':'AKTIVIEREN';
+    const msg=document.createElement('span');msg.className='vhint';msg.style.flex='1';
+    save.onclick=async()=>{
+      save.disabled=true;msg.textContent='⟲ speichere & teste …';
+      const body={id:p.id,enabled:true};
+      if(keyIn&&keyIn.value.trim())body.api_key=keyIn.value.trim();
+      if(urlIn)body.base_url=urlIn.value.trim();
+      try{
+        const r=await fetch('/api/llm/providers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+        msg.textContent=j.ok?('✅ verbunden — '+j.models+' Modelle'):('⚠ '+(j.error||'?')+' (gespeichert — Standard-Modelle aktiv)');
+        await loadProviders(true);setTimeout(renderLlmCfg,1200);
+      }catch(e){save.disabled=false;msg.textContent='⚠ '+(e.message||e);}
+    };
+    row.appendChild(save);
+    if(p.configured){
+      const off=document.createElement('button');off.className='cal-tbtn';off.textContent='✕ AUS';
+      off.style.color='#ff5c5c';off.style.borderColor='#5a1f1f';off.title='Anbieter deaktivieren (Key bleibt gespeichert)';
+      off.onclick=async()=>{
+        await fetch('/api/llm/providers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id,enabled:false})});
+        await loadProviders(true);renderLlmCfg();
+      };
+      row.appendChild(off);
+    }
+    row.appendChild(msg);
+    div.appendChild(row);
+    if(p.id==='ollama'){   // immer zeigen — enthält notfalls den Install-Button
+      const ob=document.createElement('div');ob.id='ollBox';
+      ob.innerHTML='<div class="vhint">⟲ prüfe Ollama …</div>';
+      div.appendChild(ob);
+    }
+    box.appendChild(div);
+  });
+  if(document.getElementById('ollBox'))renderOllamaBox();
+  const intro=document.getElementById('llmintro');
+  box.insertAdjacentHTML('beforeend','<div class="vhint" style="margin-top:10px">🔒 Keys liegen nur auf deinem Server in <code>.llm-config.json</code> (chmod 600) — sie tauchen nie im Browser auf.<br>'
+    +'⚡ Fremde Modelle laufen über <b>Hermes</b> und können damit Dateien und Terminal. '
+    +'Skills, Kalender und E-Mail bleiben Claude Code vorbehalten. '
+    +`Beim Modellwechsel mitten im Gespräch nimmt ${ASSISTANT} den bisherigen Verlauf automatisch mit.</div>`);
+}
+
+// ---------- Ollama-Modelle verwalten (Liste, Download mit Fortschritt, Löschen) ----------
+let ollTimer=null,ollDoneSeen=new Set();
+const fmtGB=n=>n>=1e9?(n/1e9).toFixed(1).replace('.',',')+' GB':Math.round((n||0)/1e6)+' MB';
+async function ollPull(model){
+  try{
+    const r=await fetch('/api/ollama/pull',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model})});
+    if(!r.ok){const j=await r.json().catch(()=>({}));alert(j.error||'Download konnte nicht starten');}
+  }catch(e){alert('Download konnte nicht starten: '+(e.message||e));}
+  renderOllamaBox();
+}
+async function renderOllamaBox(){
+  clearTimeout(ollTimer);
+  if(!lmmask.classList.contains('show')||!document.getElementById('ollBox'))return;
+  let d={};try{d=await(await fetch('/api/ollama/models')).json();}catch{return;}
+  const bx=document.getElementById('ollBox');
+  if(!bx||!lmmask.classList.contains('show'))return;   // Dialog inzwischen zu
+  const inst=d.installed||[],pulls=d.pulls||{},cat=d.catalog||[];
+  const have=new Set(inst.map(m=>m.name));
+  // Ollama läuft (noch) nicht -> Installieren/Starten direkt aus dem Dialog
+  if(!d.reachable){
+    let h='';
+    const ins=d.install;
+    if(ins&&!ins.done){
+      const pct=ins.total?Math.round(ins.completed/ins.total*100):0;
+      h+=`<div class="oll-row"><span class="oll-name">⚙ Ollama</span>`
+        +(ins.total?`<span class="oll-prog"><i style="width:${pct}%"></i></span>`:'')
+        +`<span class="oll-meta">${esc(ins.status||'…')}${ins.total?' · '+pct+'% · '+fmtGB(ins.completed)+' / '+fmtGB(ins.total):''}</span></div>`;
+      ollTimer=setTimeout(renderOllamaBox,1200);
+    }else{
+      if(ins&&ins.error)h+=`<div class="vhint" style="color:#ff9b9b;padding:6px 0">⚠ ${esc(ins.error).slice(0,300)}</div>`;
+      else if(d.error)h+=`<div class="vhint" style="color:#ff9b9b;padding:6px 0">${esc(d.error).slice(0,200)}</div>`;
+      h+=`<div class="mca-row"><button class="obtn" id="ollInstall" style="padding:9px 16px">${d.bin?'▶ OLLAMA STARTEN':'⬇ OLLAMA INSTALLIEREN &amp; STARTEN'}</button>`
+        +`<span class="vhint" style="flex:1;margin:0">${d.bin
+          ?'Ollama ist installiert, läuft aber gerade nicht — ein Klick startet es.'
+          :'Cody lädt das offizielle Linux-Paket (~1–2 GB), entpackt es nach <code>/workspace/.ollama</code> und startet es — ganz ohne Terminal. Startet nach einem Neustart automatisch mit.'}</span></div>`;
+    }
+    bx.innerHTML=h;
+    const bi=document.getElementById('ollInstall');
+    if(bi)bi.onclick=async()=>{bi.disabled=true;bi.textContent='⟲ …';
+      await fetch('/api/ollama/install',{method:'POST'}).catch(()=>{});renderOllamaBox();};
+    return;
+  }
+  // Install gerade eben fertig geworden -> Picker + Dialog einmalig nachladen
+  if(d.install&&d.install.done&&!d.install.error&&d.install.status&&!ollDoneSeen.has('__install__')){
+    ollDoneSeen.add('__install__');await loadProviders(true);renderLlmCfg();return;}
+  // frisch fertig gewordene Downloads -> Modell-Picker einmalig nachladen
+  Object.entries(pulls).forEach(([m,s])=>{if(s.done&&!s.error&&!ollDoneSeen.has(m)){ollDoneSeen.add(m);loadProviders(true);}});
+  // Eingabe im Freitextfeld über die Poll-Neuzeichnung retten
+  const oldFree=document.getElementById('ollFree');
+  const keepVal=oldFree?oldFree.value:'',keepFocus=oldFree&&document.activeElement===oldFree;
+  let h='';
+  if(d.error)h+=`<div class="vhint" style="color:#ff9b9b;padding:6px 0">${esc(d.error)}</div>`;
+  h+=`<div class="kal-uh" style="margin-top:10px">INSTALLIERTE MODELLE (${inst.length})</div>`;
+  if(!inst.length&&!d.error)h+='<div class="vhint" style="padding:2px 0">Noch keine Modelle installiert — unten eins aussuchen und ⬇ klicken.</div>';
+  inst.forEach(m=>{h+=`<div class="oll-row"><span class="oll-name">🦙 ${esc(m.name)}</span>`
+    +`<span class="oll-meta">${fmtGB(m.size)}${m.param?' · '+esc(m.param):''}${m.quant?' · '+esc(m.quant):''}</span>`
+    +`<button class="obtn red" data-odel="${esc(m.name)}" title="Modell von der Platte löschen">🗑 LÖSCHEN</button></div>`;});
+  Object.entries(pulls).forEach(([m,s])=>{
+    if(s.done&&s.error)h+=`<div class="oll-row"><span class="oll-name">⬇ ${esc(m)}</span>`
+      +`<span class="oll-meta" style="color:#ff9b9b">⚠ ${esc(s.error).slice(0,160)}</span></div>`;
+    else if(!s.done){const pct=s.total?Math.round(s.completed/s.total*100):0;
+      h+=`<div class="oll-row"><span class="oll-name">⬇ ${esc(m)}</span>`
+      +`<span class="oll-prog"><i style="width:${pct}%"></i></span>`
+      +`<span class="oll-meta">${s.total?pct+'% · '+fmtGB(s.completed)+' / '+fmtGB(s.total):esc(s.status||'…')}</span>`
+      +`<button class="obtn red" data-ocancel="${esc(m)}" title="Download abbrechen">✕</button></div>`;}
+    else h+=`<div class="oll-row"><span class="oll-name">✅ ${esc(m)}</span><span class="oll-meta">fertig geladen — steht im 🧠-Menü bereit</span></div>`;
+  });
+  const offer=cat.filter(c=>!have.has(c.name)&&!pulls[c.name]);
+  if(offer.length){
+    h+='<div class="kal-uh" style="margin-top:12px">BELIEBTE MODELLE ZUM LADEN</div>';
+    offer.forEach(c=>{h+=`<div class="oll-row"><span class="oll-name">${esc(c.name)}</span>`
+      +`<span class="oll-meta">${esc(c.desc)}</span>`
+      +`<button class="obtn" data-opull="${esc(c.name)}">⬇ ${esc(c.size)}</button></div>`;});
+  }
+  h+=`<div class="mca-row"><input id="ollFree" placeholder="anderes Modell von ollama.com/library — z.B. qwen3:32b" autocomplete="off">`
+    +`<button class="obtn" id="ollFreeGo" style="padding:8px 14px">⬇ LADEN</button></div>`;
+  bx.innerHTML=h;
+  bx.querySelectorAll('[data-opull]').forEach(b=>b.onclick=()=>ollPull(b.dataset.opull));
+  bx.querySelectorAll('[data-ocancel]').forEach(b=>b.onclick=async()=>{
+    await fetch('/api/ollama/pull_cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:b.dataset.ocancel})});
+    renderOllamaBox();});
+  bx.querySelectorAll('[data-odel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Modell „'+b.dataset.odel+'“ wirklich von der Platte löschen?\n\n(Kann jederzeit neu geladen werden.)'))return;
+    const r=await fetch('/api/ollama/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:b.dataset.odel})});
+    if(!r.ok){const j=await r.json().catch(()=>({}));alert(j.error||'Löschen fehlgeschlagen');}
+    loadProviders(true);renderOllamaBox();});
+  const fi=document.getElementById('ollFree'),fg=document.getElementById('ollFreeGo');
+  fi.value=keepVal;
+  if(keepFocus){fi.focus();fi.setSelectionRange(keepVal.length,keepVal.length);}
+  fg.onclick=()=>{if(fi.value.trim())ollPull(fi.value.trim());};
+  fi.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fg.click();}});
+  // solange etwas lädt: Fortschritt weiter pollen (Download läuft server-seitig)
+  if(Object.values(pulls).some(s=>!s.done))ollTimer=setTimeout(renderOllamaBox,1200);
+}
+
+// ---------- Slash-Befehle (App-Ebene) ----------
+function sysNote(html){const m=document.createElement('div');m.className='msg bot';m.innerHTML=`<div class="bubble helpbox">${html}</div>`;chat.appendChild(m);scroll();}
+function showHelp(){sysNote('<b>⌨ Befehle</b><br>'
+  +'<code>/new</code> — neue Session<br><code>/clear</code> — Ansicht leeren<br>'
+  +'<code>/model [name]</code> — Modell wechseln (Claude, GPT, Gemini, DeepSeek, Ollama …)<br>'
+  +'<code>/llm</code> — KI-Anbieter einrichten (API-Keys, Ollama-URL)<br>'
+  +'<code>/mode [auto|plan|bypassPermissions|default]</code> — Modus wechseln<br>'
+  +'<code>/folder [name]</code> — Arbeitsordner wechseln<br>'
+  +'<code>/skills</code> — Skills-Ansicht<br>'
+  +'<code>/login</code> — bei Claude anmelden (wenn der Token abgelaufen ist)<br>'
+  +'<code>/help</code> — diese Liste<br><br>'
+  +'<span style="opacity:.7">Hinweis: Claudes eingebaute Slash-Befehle funktionieren im Headless-Modus nicht — das hier sind eigene App-Befehle.</span>');}
+function appCommand(raw){
+  const parts=raw.slice(1).trim().split(/\s+/);const cmd=(parts[0]||'').toLowerCase();const arg=parts.slice(1).join(' ');
+  if(cmd===''||cmd==='help')return showHelp();
+  if(cmd==='new')return newSession();
+  if(cmd==='clear'){const c=activeConv();if(c)c.pane.innerHTML='';return;}
+  if(cmd==='skills')return setView('skills');
+  if(cmd==='login')return (HAS_CLAUDE&&WEB_LOGIN)?openLogin():claudeSetupHint();
+  if(cmd==='llm'||cmd==='anbieter')return openLlmCfg();
+  if(cmd==='model'){if(!arg)return lbar.click();const a=arg.toLowerCase();
+    const all=CLAUDE_MODELS.concat(extModels());
+    const m=all.find(x=>(x.v||'standard').toLowerCase()===a||x.l.toLowerCase()===a)
+      ||all.find(x=>x.v.toLowerCase().endsWith(':'+a))
+      ||all.find(x=>x.l.toLowerCase().startsWith(a)||x.v.toLowerCase().includes(a));
+    return m?(setModel(m.v),sysNote('Modell → <b>'+esc(m.l)+'</b>'+(m.prov?' <span style="opacity:.6">('+esc(m.d)+' · nur Chat)</span>':'')))
+      :sysNote('Unbekanntes Modell. Claude: '+CLAUDE_MODELS.map(x=>'<code>'+(x.v||'standard')+'</code>').join(', ')
+        +(extModels().length?'<br>Extern: '+extModels().slice(0,12).map(x=>'<code>'+esc(x.v)+'</code>').join(', ')+(extModels().length>12?' …':''):'<br>Externe Anbieter: erst über <code>/llm</code> einrichten.'));}
+  if(cmd==='mode'){if(!arg)return mbar.click();const m=MODES.find(x=>x.v.toLowerCase()===arg.toLowerCase()||x.l.toLowerCase().includes(arg.toLowerCase()));
+    return m?(setMode(m.v),sysNote('Mode → <b>'+esc(m.l)+'</b>')):sysNote('Unbekannter Mode. Verfügbar: '+MODES.map(x=>'<code>'+x.v+'</code>').join(', '));}
+  if(cmd==='folder'){if(!arg)return fbar.click();const p=foldersCache.find(x=>baseName(x).toLowerCase()===arg.toLowerCase());
+    return p?(setFolder(p),sysNote('Ordner → <b>'+esc(baseName(p))+'</b>')):sysNote('Ordner nicht gefunden: '+esc(arg));}
+  sysNote('Unbekannter Befehl <code>/'+esc(cmd)+'</code> — <code>/help</code> zeigt alle.');
+}
+
+// ---------- Sessions ----------
+let showArchived=false, showAgents=false, runningRuns={}, sessCache=[], sessQuery='';
+async function loadSessions(){
+  try{
+    sessCache=await (await fetch('/api/sessions')).json();
+    try{const rs=await (await fetch('/api/runs')).json();runningRuns={};rs.forEach(r=>{if(r.session_id)runningRuns[r.session_id]=r.run_id;});}catch{}
+    renderSessions();
+  }catch(e){}
+}
+function renderSessions(){
+    const list=sessCache;
+    const el=document.getElementById('sessions');el.innerHTML='';
+    // Archiv-Umschalter
+    const archCount=list.filter(s=>s.archived).length;
+    const tg=document.createElement('div');tg.className='archtoggle'+(showArchived?' on':'');
+    tg.innerHTML=`🗄 Archiv (${archCount}) · <span>${showArchived?'ausblenden':'anzeigen'}</span>`;
+    tg.onclick=()=>{showArchived=!showArchived;renderSessions();};
+    el.appendChild(tg);
+    // Sitzungen der Firma: jeder Agentenzug in FACTORIA legt eine eigene an,
+    // und die erschlagen die eigenen Gespräche rein zahlenmäßig. Standardmäßig
+    // aus, aber nachsehen können muss man — der Schalter erscheint nur, wenn
+    // es überhaupt welche gibt.
+    const agentCount=list.filter(s=>s.agent).length;
+    if(agentCount){
+      const at=document.createElement('div');at.className='archtoggle'+(showAgents?' on':'');
+      at.innerHTML=`🏢 Firma (${agentCount}) · <span>${showAgents?'ausblenden':'anzeigen'}</span>`;
+      at.onclick=()=>{showAgents=!showAgents;renderSessions();};
+      el.appendChild(at);
+    }
+    let visible=list.filter(s=>showArchived?true:!s.archived);
+    if(!showAgents)visible=visible.filter(s=>!s.agent);
+    if(sessQuery)visible=visible.filter(s=>((s.title||'')+' '+(s.cwd||'')).toLowerCase().includes(sessQuery));
+    const groups={};visible.forEach(s=>{const k=s.cwd||'(unbekannt)';(groups[k]=groups[k]||[]).push(s);});
+    const folders=Object.keys(groups).sort((a,b)=>groups[b][0].mtime-groups[a][0].mtime);
+    if(!folders.length){const e=document.createElement('div');e.className='vhint';
+      e.textContent=sessQuery?'Nichts gefunden.':(showArchived?'Keine Sessions.':'Keine aktiven Sessions.');el.appendChild(e);return;}
+    folders.forEach(folder=>{
+      const items=groups[folder],open=sessQuery?true:openFolders[folder]!==false;   // bei Suche alles aufklappen
+      const hdr=document.createElement('div');hdr.className='folder';
+      hdr.innerHTML=`<span class="fa">${open?'▾':'▸'}</span><span class="fn" title="${esc(folder)}">▣ ${esc(baseName(folder))}</span><span class="fc">${items.length}</span>`;
+      hdr.onclick=()=>{openFolders[folder]=!open;renderSessions();};el.appendChild(hdr);
+      if(open)items.forEach(s=>{
+        const ac=activeConv();const rc=convBySession(s.id);const running=!!(rc&&rc.busy)||!!runningRuns[s.id];
+        const d=document.createElement('div');d.className='sess'+((ac&&s.id===ac.sessionId)?' active':'')+(running?' running':'')+(s.archived?' archived':'');
+        const dt=new Date(s.mtime*1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+          +(s.provider?' · '+(PROV_ICON[s.provider]||'🌐')+' '+esc(s.model||s.provider):'');
+        d.innerHTML=`<div class="sessmain"><span class="t">${running?'⚡ ':''}${s.archived?'🗄 ':''}${s.agent?'🏢 ':''}${s.renamed?'✏ ':''}${esc(s.title)}</span><span class="d">${dt}</span></div>`
+          +`<div class="sessact"><span class="sx" data-a="ren" title="umbenennen">✏</span>`
+          +`<span class="sx" data-a="arch" title="${s.archived?'aus Archiv holen':'archivieren'}">${s.archived?'⤴':'🗄'}</span>`
+          +`<span class="sx sx-del" data-a="del" title="löschen">🗑</span></div>`;
+        d.title=s.cwd||'';
+        d.querySelector('.sessmain').onclick=()=>openSession(s);
+        d.querySelector('[data-a=ren]').onclick=e=>{e.stopPropagation();renameSession(s);};
+        d.querySelector('[data-a=arch]').onclick=e=>{e.stopPropagation();archiveSession(s,!s.archived);};
+        d.querySelector('[data-a=del]').onclick=e=>{e.stopPropagation();deleteSession(s);};
+        el.appendChild(d);
+      });
+    });
+}
+document.getElementById('sessSearch').addEventListener('input',e=>{sessQuery=e.target.value.trim().toLowerCase();renderSessions();});
+async function renameSession(s){
+  const name=prompt('Name für diese Session (leer = automatischer Titel):',s.renamed?s.title:'');
+  if(name===null)return;
+  try{await fetch('/api/sessions/'+encodeURIComponent(s.id)+'/rename',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});}catch{}
+  loadSessions();
+}
+async function archiveSession(s,val){
+  try{await fetch('/api/sessions/'+encodeURIComponent(s.id)+'/archive',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:val})});}catch{}
+  loadSessions();
+}
+async function deleteSession(s){
+  if(!confirm('Session endgültig löschen?\n\n„'+(s.title||s.id)+'"\n\nDas kann nicht rückgängig gemacht werden.'))return;
+  try{await fetch('/api/sessions/'+encodeURIComponent(s.project)+'/'+encodeURIComponent(s.id),{method:'DELETE'});}catch{}
+  // Falls die gelöschte Session gerade offen ist -> frische Session zeigen
+  const cv=convBySession(s.id);
+  if(cv&&cv.key===activeKey)newSession();
+  loadSessions();
+}
+async function openSession(s){
+  document.getElementById('side').classList.remove('open');
+  // Läuft diese Session schon (offen / gerade am Antworten)? Dann nur wieder
+  // einblenden – Stream + Verlauf bleiben unangetastet (kein Neuladen!).
+  const existing=convBySession(s.id);
+  if(existing){mountConv(existing);loadSessions();return;}
+  // Läuft serverseitig noch ein Lauf für diese Session (z.B. nach Reload)?
+  // Dann Verlauf laden UND live wieder andocken (Backlog-Replay + weiter live).
+  if(runningRuns[s.id]){
+    const conv=makeConv({sessionId:s.id,cwd:s.cwd||'/workspace'});
+    conv.runId=runningRuns[s.id];conv.busy=true;
+    mountConv(conv);
+    conv.pane.innerHTML='<div class="tool">⟲ Lade Verlauf …</div>';
+    let j={};try{j=await (await fetch(`/api/sessions/${encodeURIComponent(s.project)}/${encodeURIComponent(s.id)}`)).json();}catch{}
+    if(j.model){conv.model=j.model;if(conv.key===activeKey){syncModelPicker(conv);zeigeModell(j.model);}}
+    conv.pane.innerHTML='';
+    conv.fileOffset=null;   // nach dem Lauf synchronisiert der Live-Tail neu
+    (j.messages||[]).forEach(m=>{const u=m.role==='user';const b=addMsg(u?'user':'bot',md(m.text),conv,u?m.text:null);if(!u)linkifyPaths(b);});
+    const wrap=document.createElement('div');wrap.className='runwrap';conv.pane.appendChild(wrap);
+    if(conv.key===activeKey){updateSendBtn();scroll();}
+    consumeRun(conv,wrap);
+    loadSessions();return;
+  }
+  const conv=makeConv({sessionId:s.id,cwd:s.cwd||'/workspace'});
+  mountConv(conv);
+  conv.pane.innerHTML='<div class="tool">⟲ Lade Verlauf …</div>';
+  let j={};try{j=await (await fetch(`/api/sessions/${encodeURIComponent(s.project)}/${encodeURIComponent(s.id)}`)).json();}catch{}
+  if(j.model){conv.model=j.model;if(conv.key===activeKey){syncModelPicker(conv);zeigeModell(j.model);}}
+  conv.pane.innerHTML='';
+  conv.fileOffset=j.offset;   // ab hier übernimmt der Live-Tail (pollTail)
+  (j.messages||[]).forEach(m=>{const u=m.role==='user';const b=addMsg(u?'user':'bot',md(m.text),conv,u?m.text:null);if(!u)linkifyPaths(b);});
+  if(!j.messages||!j.messages.length)conv.pane.innerHTML='<div class="tool">(leere Session)</div>';
+  if(conv.key===activeKey)scroll();
+  loadSessions();
+}
+
+// ---------- Live-Tail: fremd-laufende Sessions ohne F5 mitverfolgen ----------
+// Läuft die geöffnete Session woanders (Terminal, Telegram, anderer Browser),
+// wächst ihre .jsonl-Datei — wir holen alle 3 s das Neue ab und hängen es an.
+// Eigene Läufe streamen weiter live über SSE (dann pausiert der Tail).
+async function pollTail(){
+  const conv=activeConv();
+  if(!conv||conv.busy||conv.nachlauf||!conv.sessionId||document.hidden)return;   // im Nachlauf streamt SSE noch
+  const sid=conv.sessionId;
+  try{
+    const j=await (await fetch('/api/session_tail/'+encodeURIComponent(sid)
+      +'?offset='+(conv.fileOffset==null?-1:conv.fileOffset))).json();
+    if(j.offset==null)return;
+    // Situation kann sich während des fetch geändert haben -> nichts anfassen
+    if(conv!==activeConv()||conv.busy||conv.sessionId!==sid)return;
+    const firstSync=conv.fileOffset==null;
+    conv.fileOffset=j.offset;
+    if(firstSync)return;   // nur Position merken, Verlauf steht ja schon da
+    (j.messages||[]).forEach(m=>{const u=m.role==='user';const b=addMsg(u?'user':'bot',md(m.text),conv,u?m.text:null);if(!u)linkifyPaths(b);});
+  }catch{}
+}
+setInterval(pollTail,3000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollTail();});
+function newSession(){
+  const conv=makeConv({cwd:null});
+  mountConv(conv);
+  conv.pane.innerHTML='<div class="tool" style="text-align:center;margin-top:40px">⌁ Neue Session — Ordner unten wählbar, dann schreib los ⌁</div>';
+  inp.focus();loadSessions();
+}
+document.getElementById('newBtn').onclick=newSession;
+
+// ---------- Skills ----------
+async function loadSkills(){
+  const el=document.getElementById('skills');el.innerHTML='<div class="vhint">⟲ lade…</div>';
+  let g={};try{g=await (await fetch('/api/skills')).json();}catch{}
+  el.innerHTML='';const projs=Object.keys(g);
+  if(!projs.length){el.innerHTML='<div class="vhint">keine Skills gefunden</div>';return;}
+  projs.forEach(proj=>{
+    const open=openFolders['sk:'+proj]!==false;
+    const hdr=document.createElement('div');hdr.className='folder';
+    hdr.innerHTML=`<span class="fa">${open?'▾':'▸'}</span><span class="fn">▣ ${esc(proj)}</span><span class="fc">${g[proj].length}</span>`;
+    hdr.onclick=()=>{openFolders['sk:'+proj]=!open;loadSkills();};el.appendChild(hdr);
+    if(open)g[proj].forEach(sk=>{
+      const d=document.createElement('div');d.className='sess';
+      d.innerHTML=`<span class="t">⚡ ${esc(sk.name)}</span><span class="d">${esc(sk.desc||'')}</span>`;
+      d.onclick=()=>openSkill(sk);el.appendChild(d);
+    });
+  });
+}
+async function openSkill(sk){
+  chat.innerHTML='<div class="tool">⟲ …</div>';
+  let j={};try{j=await (await fetch('/api/skill?path='+encodeURIComponent(sk.path))).json();}catch{}
+  chat.innerHTML='';
+  const head=document.createElement('div');head.className='skillhead';
+  head.innerHTML=`<span>📄 ${esc(sk.name)}</span>`;
+  const back=document.createElement('button');back.className='backbtn';back.textContent='← zurück';back.onclick=newSession;
+  head.appendChild(back);chat.appendChild(head);
+  const m=document.createElement('div');m.className='msg bot';
+  const content=j.content||'(leer / nicht lesbar)';
+  const rendered=sk.kind==='py'?md('```python\n'+content+'\n```'):md(content);
+  m.innerHTML=`<div class="bubble">${rendered}</div>`;addCopyBtns(m);chat.appendChild(m);scroll();
+}
+
+// ---------- Kalender ----------
+// Termine leben in events.json (Backend). Cody schreibt per cal.py rein, die UI
+// per /api/events. Der große Monats-Grid landet im Hauptbereich (#chat), die
+// "Anstehend"-Liste in der Sidebar — wie bei der Skills-Ansicht.
+const DE_MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const DE_DOW=['Mo','Di','Mi','Do','Fr','Sa','So'];
+let calYear, calMonth, calSelDay=null, calEvents=[];
+const pad2=n=>String(n).padStart(2,'0');
+const ymd=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;          // m = 0-basiert
+const todayYMD=()=>{const n=new Date();return ymd(n.getFullYear(),n.getMonth(),n.getDate());};
+async function fetchEvents(){try{calEvents=await(await fetch('/api/events')).json();}catch{calEvents=[];}}
+// Findet e am Tag ds statt? Jährliche (Geburtstage) matchen über Monat-Tag, Jahr egal.
+function occursOn(e,ds){return e.repeat==='yearly'?(e.date.slice(5)===ds.slice(5)):(e.date===ds);}
+function eventsOn(ds){return calEvents.filter(e=>occursOn(e,ds)).sort((a,b)=>(a.time||'~').localeCompare(b.time||'~'));}
+// Nächstes Vorkommen ab fromStr (für die "Anstehend"-Liste): jährliche aufs nächste Jahr rollen.
+function occDate(e,fromStr){
+  if(e.repeat!=='yearly')return e.date;
+  const md=e.date.slice(5), y=+fromStr.slice(0,4);
+  let cand=y+'-'+md;
+  return cand<fromStr?((y+1)+'-'+md):cand;
+}
+
+async function loadKal(){
+  if(calYear===undefined){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();}
+  await fetchEvents();
+  renderCalMain();
+  renderCalSide();
+}
+
+function renderCalMain(){
+  const wrap=document.createElement('div');wrap.id='calwrap';
+  const top=document.createElement('div');top.className='cal-top';
+  top.innerHTML=`<button class="cal-nav" id="calPrev" title="Vorheriger Monat">‹</button>`
+    +`<h2>${DE_MONTHS[calMonth]} ${calYear}</h2>`
+    +`<button class="cal-tbtn" id="calToday">HEUTE</button>`
+    +`<button class="cal-nav" id="calNext" title="Nächster Monat">›</button>`;
+  wrap.appendChild(top);
+  const dow=document.createElement('div');dow.className='cal-dow';
+  dow.innerHTML=DE_DOW.map((d,i)=>`<span class="${i>=5?'we':''}">${d}</span>`).join('');
+  wrap.appendChild(dow);
+  const grid=document.createElement('div');grid.className='cal-grid';
+  const first=new Date(calYear,calMonth,1);
+  const startDow=(first.getDay()+6)%7;                       // Montag = 0
+  const start=new Date(calYear,calMonth,1-startDow);
+  const tStr=todayYMD();
+  for(let i=0;i<42;i++){
+    const dt=new Date(start);dt.setDate(start.getDate()+i);
+    const ds=ymd(dt.getFullYear(),dt.getMonth(),dt.getDate());
+    const cell=document.createElement('div');
+    cell.className='cal-cell'+(dt.getMonth()!==calMonth?' other':'')+(ds===tStr?' today':'')+(ds===calSelDay?' sel':'');
+    const evs=eventsOn(ds);
+    let chips='';
+    evs.slice(0,3).forEach(e=>{chips+=`<div class="cal-chip${e.time?'':' allday'}">${e.prompt?'🤖 ':''}${e.time?esc(e.time)+' ':''}${esc(e.title)}</div>`;});
+    if(evs.length>3)chips+=`<div class="cal-more">+${evs.length-3} mehr</div>`;
+    cell.innerHTML=`<span class="cal-dnum">${dt.getDate()}</span>${chips}`;
+    cell.onclick=()=>{calSelDay=ds;renderCalMain();};
+    grid.appendChild(cell);
+  }
+  wrap.appendChild(grid);
+  const dp=document.createElement('div');dp.id='calDayPanel';wrap.appendChild(dp);
+  chat.innerHTML='';chat.appendChild(wrap);
+  document.getElementById('calPrev').onclick=()=>{if(--calMonth<0){calMonth=11;calYear--;}renderCalMain();};
+  document.getElementById('calNext').onclick=()=>{if(++calMonth>11){calMonth=0;calYear++;}renderCalMain();};
+  document.getElementById('calToday').onclick=()=>{const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();calSelDay=todayYMD();renderCalMain();};
+  if(calSelDay)renderDayPanel(calSelDay);
+}
+
+function renderDayPanel(ds){
+  const host=document.getElementById('calDayPanel');if(!host)return;
+  const [y,m,d]=ds.split('-').map(Number);
+  const head=new Date(y,m-1,d).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const evs=eventsOn(ds);
+  const evHtml=evs.length?evs.map(e=>`<div class="cal-ev">`
+      +`<span class="et">${e.time?esc(e.time):(e.repeat==='yearly'?'🔁':'⬤')}</span>`
+      +`<span class="etitle">${e.prompt?'🤖 ':''}${esc(e.title)}${e.notes?` <span class="enote">— ${esc(e.notes)}</span>`:''}`
+      +`${e.prompt?` <span class="enote" title="läuft zur Termin-Zeit automatisch (Hostinger), Ergebnis per Telegram">— Aufgabe: ${esc(e.prompt.slice(0,120))}</span>`:''}</span>`
+      +`<span class="edel" data-id="${esc(e.id)}" title="löschen">✕</span></div>`).join('')
+    :'<div class="vhint" style="padding:2px 0 6px">Keine Termine an diesem Tag.</div>';
+  host.innerHTML=`<div class="cal-day"><h3>📅 ${esc(head)}</h3>${evHtml}`
+    +`<div class="cal-add">`
+    +`<input class="ci-time" id="caTime" placeholder="HH:MM" maxlength="5" inputmode="numeric">`
+    +`<input class="ci-title" id="caTitle" placeholder="Termin eintragen (z.B. Zahnarzt)">`
+    +`<label class="ci-rep" title="jedes Jahr wiederholen (z.B. Geburtstag)"><input type="checkbox" id="caRep"> 🔁 jährlich</label>`
+    +`<button id="caAdd">＋ Eintragen</button></div>`
+    +`<div class="cal-add"><input class="ci-title" id="caPrompt" `
+    +`placeholder="🤖 ${ASSISTANT}-Aufgabe zur Termin-Zeit (optional) — Ergebnis kommt per Telegram">`
+    +`</div></div>`;
+  host.querySelectorAll('.edel').forEach(b=>b.onclick=()=>delEvent(b.dataset.id));
+  const add=()=>{
+    const time=document.getElementById('caTime').value.trim();
+    const title=document.getElementById('caTitle').value.trim();
+    const pel=document.getElementById('caPrompt');const prompt=pel?pel.value.trim():'';
+    if(!title){document.getElementById('caTitle').focus();return;}
+    if(prompt&&!time){document.getElementById('caTime').focus();return;}   // Aufgabe braucht Uhrzeit
+    addEvent({date:ds,time,title,prompt,repeat:document.getElementById('caRep').checked?'yearly':''});
+  };
+  document.getElementById('caAdd').onclick=add;
+  document.getElementById('caTitle').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();add();}});
+}
+
+async function addEvent(ev){
+  try{await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});}catch{}
+  await fetchEvents();renderCalMain();renderCalSide();
+}
+async function delEvent(id){
+  try{await fetch('/api/events/'+encodeURIComponent(id),{method:'DELETE'});}catch{}
+  await fetchEvents();renderCalMain();renderCalSide();
+}
+
+function renderCalSide(){
+  const el=document.getElementById('kal');if(!el)return;
+  const tStr=todayYMD();
+  // jedes Event auf sein nächstes Vorkommen abbilden, dann chronologisch sortieren
+  const up=calEvents.map(e=>({e,d:occDate(e,tStr)})).filter(x=>x.d>=tStr)
+    .sort((a,b)=>(a.d+(a.e.time||'~')).localeCompare(b.d+(b.e.time||'~'))).slice(0,15);
+  let html='<button class="kal-add" id="kalAdd">＋ TERMIN</button><div class="kal-uh">ANSTEHEND</div>';
+  if(!up.length)html+='<div class="vhint">Keine anstehenden Termine.</div>';
+  else up.forEach(({e,d})=>{
+    const [yy,mm,dd2]=d.split('-').map(Number);
+    const dd=new Date(yy,mm-1,dd2).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+    html+=`<div class="kal-up${d===tStr?' is-today':''}" data-d="${d}">`
+      +`<span class="ku-t">${e.repeat==='yearly'?'🔁 ':''}${e.prompt?'🤖 ':''}${e.time?esc(e.time)+' · ':''}${esc(e.title)}</span>`
+      +`<span class="ku-d">${d===tStr?'heute':dd}</span></div>`;
+  });
+  el.innerHTML=html;
+  document.getElementById('kalAdd').onclick=()=>{const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();
+    calSelDay=todayYMD();renderCalMain();setTimeout(()=>{const t=document.getElementById('caTitle');if(t)t.focus();},30);};
+  el.querySelectorAll('.kal-up').forEach(it=>it.onclick=()=>{const ds=it.dataset.d;
+    const [yy,mm]=ds.split('-').map(Number);calYear=yy;calMonth=mm-1;calSelDay=ds;renderCalMain();});
+}
+async function loadMcp(){
+  const el=document.getElementById('mcp');el.innerHTML='<div class="vhint">⟲ prüfe Konnektoren…</div>';
+  let d={};try{d=await(await fetch('/api/mcp')).json();}catch(e){}
+  el.innerHTML='';
+  const s=d.servers||[];
+  if(!s.length){el.innerHTML='<div class="vhint">keine MCP-Server konfiguriert'+(d.error?(' ('+esc(d.error)+')'):'')+'</div>';return;}
+  s.forEach(m=>{
+    const icon=m.ok?'🟢':(m.needs_auth?'🔑':'🔴');
+    const div=document.createElement('div');div.className='sess';
+    div.innerHTML=`<span class="t">${icon} ${esc(m.name)}</span><span class="d">${esc(m.status)}</span>`;
+    div.title=m.url;el.appendChild(div);
+  });
+  const h=document.createElement('div');h.className='vhint';h.style.lineHeight='1.6';h.style.marginTop='10px';
+  h.innerHTML='🟢 aktiv · 🔑 braucht Login · 🔴 Problem<br><br>Freischalten: im Terminal <code>claudec</code> → <code>/mcp</code>, oder auf <b>claude.ai → Connectors</b>.';
+  el.appendChild(h);
+}
+
+// ---------- E-Mails ----------
+// Konten + IMAP/SMTP laufen im Backend (mail.py). Kategorien sind rein lokal
+// (nur hier im Chat) — Löschen passiert dagegen ECHT auf dem Server (Papierkorb).
+let mailAccounts=[],mailCats=[],mailMsgs=[],mailErrors={},mailFilter={acc:'',cat:'',q:''},mailAtt=[],mailLoaded=false,msPollTimer=null;
+let mailSel=new Set();                 // Auswahl für Sammel-Löschen: "konto|uid"
+const mailKey=m=>m.account+'|'+m.uid;
+// mailPage = wo der Nutzer in der Mail-Ansicht gerade IST. Der Hintergrund-Abruf
+// (loadMailList) darf NUR die Liste neu zeichnen, wenn die Liste auch offen ist —
+// sonst reißt er Kevin die Einstellungs-/Schreiben-Seite unterm Tippen weg.
+let mailPage='list';
+const MAIL_COLORS=['var(--green)','var(--link)','#ffd24a','#7fb2ff','#ff9bd2','#c9ff7f'];
+const accColor=em=>{const i=mailAccounts.findIndex(a=>a.email===em);return MAIL_COLORS[(i<0?0:i)%MAIL_COLORS.length];};
+const accName=em=>(em||'').split('@')[0];
+const cssId=s=>(s||'').replace(/[^a-z0-9]/gi,'-');
+const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' kB':n+' B';
+function fmtMailDate(ts){if(!ts)return '';const d=new Date(ts*1000),now=new Date();
+  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const s=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  return d.getFullYear()===now.getFullYear()?s:s+String(d.getFullYear()).slice(2);}
+async function mailState(){
+  try{mailAccounts=(await(await fetch('/api/mail/accounts')).json()).accounts||[];}catch{mailAccounts=[];}
+  try{mailCats=(await(await fetch('/api/mail/categories')).json()).categories||[];}catch{mailCats=[];}
+}
+function renderMailLoading(){mailPage='list';chat.innerHTML='<div class="tool" style="text-align:center;margin-top:40px">⟲ Rufe Postfächer ab … es werden ALLE Mails geladen — bei großen Postfächern kann das eine Minute dauern.</div>';}
+let mailWantSettings=false;   // gesetzt von ⚙ Einstellungen → "Konten verwalten"
+async function loadMailView(){
+  await mailState();renderMailSide();
+  if(mailWantSettings||!mailAccounts.some(a=>a.configured)){mailWantSettings=false;renderMailSettings();return;}
+  renderMailLoading();await loadMailList(false);
+}
+async function loadMailList(force){
+  // limit=9999 = praktisch alle. (Bewusst nicht 0: der alte Server-Code würde
+  // 0 auf 1 Mail kappen — 9999 heißt dort einfach 200, also kein Schaden.)
+  try{const r=await fetch('/api/mail/list?limit=9999'+(force?'&force=1':''));const j=await r.json();
+    if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    mailMsgs=j.messages||[];mailErrors=j.errors||{};mailLoaded=true;}
+  catch(e){mailMsgs=[];mailErrors={'Abruf':String(e.message||e)};}
+  renderMailSide();
+  if(mailPage==='list')renderMailList();   // andere Unterseite offen? Nicht drüberbügeln!
+}
+function mailVisible(){
+  // Kategorisierte Mails verschwinden aus dem Posteingang und leben nur noch in
+  // ihrer Kategorie. Ausnahme: bei aktiver Suche wird ÜBERALL gesucht.
+  const q=(mailFilter.q||'').trim().toLowerCase();
+  return mailMsgs.filter(m=>(!mailFilter.acc||m.account===mailFilter.acc)
+    &&(mailFilter.cat?m.category===mailFilter.cat:(q?true:!m.category))
+    &&(!q||((m.from_name||'')+' '+(m.from_addr||'')+' '+(m.subject||'')+' '+(m.category||'')+' '+m.account).toLowerCase().includes(q)));}
+async function backToInbox(){
+  if(mailAccounts.some(a=>a.configured)&&!mailLoaded){renderMailLoading();await loadMailList(false);}
+  else{renderMailSide();renderMailList();}
+}
+
+function renderMailSide(){
+  const el=document.getElementById('mailside');if(!el)return;
+  let h='<button class="kal-add" id="mailNew">✉ NEUE E-MAIL</button>';
+  h+='<div class="kal-uh">KONTEN</div>';
+  h+=`<div class="mside${!mailFilter.acc?' on':''}" data-acc="">📥 <span class="mn">Alle Postfächer</span>`
+    +(mailMsgs.filter(m=>!m.seen).length?`<span class="fc">${mailMsgs.filter(m=>!m.seen).length}</span>`:'')+'</div>';
+  mailAccounts.forEach(a=>{
+    const unread=mailMsgs.filter(m=>m.account===a.email&&!m.seen).length;
+    const err=mailErrors[a.email];
+    h+=`<div class="mside${mailFilter.acc===a.email?' on':''}" data-acc="${esc(a.email)}" title="${esc(err||a.email)}">`
+      +`<span class="mdot" style="background:${a.configured?(err?'#ff5c5c':accColor(a.email)):'#444'};box-shadow:0 0 6px ${a.configured&&!err?accColor(a.email):'transparent'}"></span>`
+      +`<span class="mn">${esc(accName(a.email))}${err?' ⚠':''}</span>`
+      +(unread?`<span class="fc">${unread}</span>`:'')+`</div>`;
+  });
+  h+='<div class="kal-uh">KATEGORIEN <span id="catAdd" style="cursor:pointer;color:var(--green)" title="Neue Kategorie anlegen">＋</span></div>';
+  const uncat=mailMsgs.filter(m=>!m.category).length;
+  h+=`<div class="mside${!mailFilter.cat?' on':''}" data-cat="" title="Alles ohne Kategorie">▤ <span class="mn">Posteingang</span>`
+    +(uncat?`<span class="fc">${uncat}</span>`:'')+'</div>';
+  mailCats.forEach(c=>{
+    const n=mailMsgs.filter(m=>m.category===c).length;
+    h+=`<div class="mside${mailFilter.cat===c?' on':''}" data-cat="${esc(c)}"><span class="mn">${esc(c)}</span>`
+      +(n?`<span class="fc">${n}</span>`:'')+`<span class="mx" data-delcat="${esc(c)}" title="Kategorie löschen">✕</span></div>`;
+  });
+  h+='<button class="kal-add" id="mailCfg" style="margin-top:14px">⚙ KONTEN VERWALTEN</button>';
+  el.innerHTML=h;
+  el.querySelectorAll('[data-acc]').forEach(d=>d.onclick=()=>{mailFilter.acc=d.dataset.acc;renderMailSide();renderMailList();});
+  el.querySelectorAll('[data-cat]').forEach(d=>d.onclick=()=>{mailFilter.cat=d.dataset.cat;renderMailSide();renderMailList();});
+  el.querySelectorAll('.mx').forEach(x=>x.onclick=async e=>{e.stopPropagation();
+    if(!confirm('Kategorie „'+x.dataset.delcat+'“ löschen? (Die E-Mails bleiben natürlich erhalten.)'))return;
+    await fetch('/api/mail/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remove:x.dataset.delcat})});
+    if(mailFilter.cat===x.dataset.delcat)mailFilter.cat='';
+    await mailState();mailMsgs.forEach(m=>{if(m.category===x.dataset.delcat)m.category='';});renderMailSide();renderMailList();});
+  document.getElementById('catAdd').onclick=async()=>{const n=prompt('Name der neuen Kategorie:');if(!n||!n.trim())return;
+    await fetch('/api/mail/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({add:n.trim()})});
+    await mailState();renderMailSide();};
+  document.getElementById('mailNew').onclick=()=>renderCompose({});
+  document.getElementById('mailCfg').onclick=renderMailSettings;
+}
+
+function renderMailList(){
+  if(document.querySelector('#menu .mi.active')?.dataset.v!=='mail')return;
+  mailPage='list';
+  const wrap=document.createElement('div');wrap.id='mailwrap';
+  let filt='';
+  if(mailFilter.acc||mailFilter.cat)
+    filt=`<span class="chip click" id="mailFiltOff" title="Filter aufheben">✕ ${esc(mailFilter.acc?accName(mailFilter.acc):'')}${mailFilter.acc&&mailFilter.cat?' · ':''}${esc(mailFilter.cat)}</span>`;
+  let h=`<div class="mail-top"><h2>📧 E-MAILS</h2>${filt}<span style="flex:1"></span>`
+    +`<button class="cal-tbtn" id="mailRefresh">⟲ AKTUALISIEREN</button></div>`
+    +`<div class="mail-top" style="margin-bottom:10px">`
+    +`<input class="mail-search" id="mailSearch" placeholder="🔎 Suchen … (Absender, Betreff)" value="${esc(mailFilter.q||'')}">`
+    +`<span class="vhint" id="mailCount" style="margin:0;flex:0 0 auto"></span>`
+    +`<button class="cal-tbtn" id="mailSelAll">☑ ALLE MARKIEREN</button>`
+    +`<select class="msel" id="mailCatSel" title="Markierte einer Kategorie zuweisen" style="display:none">`
+    +['<option value="__none__">🏷 KATEGORIE …</option>']
+      .concat(mailCats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`))
+      .concat(['<option value="">✕ Kategorie entfernen</option>']).join('')
+    +`</select>`
+    +`<button class="cal-tbtn" id="mailDelSel" style="color:#ff5c5c;border-color:#5a1f1f;display:none"></button></div>`;
+  Object.entries(mailErrors).forEach(([a,e])=>h+=`<div class="err" style="margin:6px 0">⚠ <b>${esc(a)}</b>: ${esc(e)}</div>`);
+  wrap.innerHTML=h;
+  const rows=document.createElement('div');rows.id='mlRows';wrap.appendChild(rows);
+  chat.innerHTML='';chat.appendChild(wrap);chat.scrollTop=0;
+  const updateBar=list=>{
+    list=list||mailVisible();
+    const db=document.getElementById('mailDelSel'),sa=document.getElementById('mailSelAll'),cs=document.getElementById('mailCatSel');
+    if(!db||!sa)return;
+    db.style.display=mailSel.size?'':'none';db.textContent=`🗑 LÖSCHEN (${mailSel.size})`;
+    if(cs){cs.style.display=mailSel.size?'':'none';cs.value='__none__';}
+    const all=list.length&&list.every(m=>mailSel.has(mailKey(m)));
+    sa.textContent=all?'☒ KEINE MARKIEREN':'☑ ALLE MARKIEREN';
+    const mc=document.getElementById('mailCount');
+    if(mc)mc.textContent=list.length?list.length+' Mails':'';
+  };
+  const buildRow=m=>{
+    const k=mailKey(m),on=mailSel.has(k);
+    const r=document.createElement('div');r.className='ml-row'+(m.seen?'':' unread')+(on?' sel':'');
+    r.innerHTML=`<input type="checkbox" class="ml-chk" title="markieren"${on?' checked':''}>`
+      +`<span class="ml-acc" style="border-color:${accColor(m.account)};color:${accColor(m.account)}">${esc(accName(m.account))}</span>`
+      +`<div class="ml-main"><span class="ml-from">${m.seen?'':'● '}${esc(m.from_name||m.from_addr||'?')}</span>`
+      +`<span class="ml-sub">${esc(m.subject||'(kein Betreff)')}</span></div>`
+      +(m.category?`<span class="ml-cat">${esc(m.category)}</span>`:'')
+      +`<span class="ml-date">${fmtMailDate(m.ts)}</span><span class="ml-del" title="löschen (auch auf dem Server)">🗑</span>`;
+    const cb=r.querySelector('.ml-chk');
+    cb.onclick=e=>{e.stopPropagation();
+      if(cb.checked)mailSel.add(k);else mailSel.delete(k);
+      r.classList.toggle('sel',cb.checked);updateBar();};
+    r.querySelector('.ml-del').onclick=e=>{e.stopPropagation();delMail(m);};
+    r.onclick=()=>openMail(m);
+    return r;
+  };
+  const CHUNK=400;   // DOM klein halten — tausende Zeilen auf einmal ruckeln
+  const drawRows=()=>{
+    const list=mailVisible();
+    rows.innerHTML='';
+    if(!list.length){const d=document.createElement('div');d.className='vhint';
+      d.textContent=mailLoaded?('Keine E-Mails'+(mailFilter.acc||mailFilter.cat||mailFilter.q?' (Filter aktiv).':'.')):'Noch nichts geladen.';rows.appendChild(d);}
+    let shown=0;
+    const more=document.createElement('button');more.className='cal-tbtn';
+    more.style.cssText='display:block;margin:12px auto';
+    const addChunk=()=>{
+      const frag=document.createDocumentFragment();
+      const end=Math.min(shown+CHUNK,list.length);
+      for(;shown<end;shown++)frag.appendChild(buildRow(list[shown]));
+      rows.insertBefore(frag,more.parentNode===rows?more:null);
+      if(shown>=list.length){if(more.parentNode)more.remove();}
+      else{more.textContent=`▼ WEITERE ${Math.min(CHUNK,list.length-shown)} ANZEIGEN (${shown} von ${list.length})`;
+        if(more.parentNode!==rows)rows.appendChild(more);}
+    };
+    more.onclick=addChunk;
+    addChunk();
+    updateBar(list);
+  };
+  drawRows();
+  document.getElementById('mailRefresh').onclick=async()=>{renderMailLoading();await loadMailList(true);};
+  const fo=document.getElementById('mailFiltOff');
+  if(fo)fo.onclick=()=>{mailFilter.acc='';mailFilter.cat='';renderMailSide();renderMailList();};
+  const si=document.getElementById('mailSearch');
+  si.oninput=()=>{mailFilter.q=si.value;drawRows();};
+  document.getElementById('mailSelAll').onclick=()=>{
+    const list=mailVisible();
+    const all=list.length&&list.every(m=>mailSel.has(mailKey(m)));
+    list.forEach(m=>all?mailSel.delete(mailKey(m)):mailSel.add(mailKey(m)));
+    drawRows();
+  };
+  document.getElementById('mailDelSel').onclick=delSelected;
+  document.getElementById('mailCatSel').onchange=e=>{
+    const v=e.target.value;
+    if(v==='__none__')return;
+    catSelected(v);
+  };
+}
+
+async function catSelected(cat){
+  const sel=mailMsgs.filter(m=>mailSel.has(mailKey(m)));
+  const keys=sel.map(m=>m.key).filter(Boolean);
+  if(!keys.length){renderMailList();return;}
+  const label=cat?('„'+cat+'“'):'keiner Kategorie';
+  const cs=document.getElementById('mailCatSel');
+  if(cs){cs.disabled=true;}
+  try{
+    const r=await fetch('/api/mail/categorize_many',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({keys,category:cat})});
+    if(r.status===404){
+      // altes Backend ohne categorize_many → einzeln zuweisen
+      for(const k of keys)
+        await fetch('/api/mail/categorize',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({key:k,category:cat})});
+    }else if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||('HTTP '+r.status));}
+  }catch(e){alert('Kategorisieren fehlgeschlagen: '+(e.message||e));renderMailList();return;}
+  sel.forEach(m=>m.category=cat);
+  mailSel=new Set();          // Auswahl nach Zuweisung aufheben
+  renderMailSide();renderMailList();
+}
+
+async function delSelected(){
+  const items=mailMsgs.filter(m=>mailSel.has(mailKey(m)))
+    .map(m=>({account:m.account,uid:m.uid,folder:m.folder||'INBOX'}));
+  if(!items.length)return;
+  if(!confirm(items.length+' E-Mail(s) wirklich löschen?\n\nSie werden auch auf den Mail-Servern in den Papierkorb verschoben.'))return;
+  const db=document.getElementById('mailDelSel');
+  if(db){db.disabled=true;db.textContent='🗑 LÖSCHE …';}
+  let j={};
+  try{
+    const r=await fetch('/api/mail/delete_many',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items})});
+    if(r.status===404){
+      // Server läuft noch mit altem Code (kennt delete_many nicht) → einzeln löschen
+      j={errors:{}};
+      for(let i=0;i<items.length;i++){
+        if(db)db.textContent=`🗑 LÖSCHE … ${i+1}/${items.length}`;
+        const r1=await fetch('/api/mail/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(items[i])});
+        if(!r1.ok){const e1=await r1.json().catch(()=>({}));j.errors[items[i].account]=e1.error||('HTTP '+r1.status);}
+      }
+    }else{
+      j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    }
+  }catch(e){alert('Löschen fehlgeschlagen: '+(e.message||e));renderMailList();return;}
+  // Bei Teilfehlern bleiben die Mails der betroffenen Konten in Liste & Auswahl
+  const gone=new Set(items.map(i=>i.account+'|'+i.uid));
+  const failed=Object.keys(j.errors||{});
+  failed.forEach(acc=>items.forEach(i=>{if(i.account===acc)gone.delete(i.account+'|'+i.uid);}));
+  mailMsgs=mailMsgs.filter(m=>!gone.has(mailKey(m)));
+  mailSel=new Set([...mailSel].filter(k=>!gone.has(k)));
+  if(failed.length)alert('Teilweise fehlgeschlagen:\n'+failed.map(a=>a+': '+j.errors[a]).join('\n'));
+  renderMailSide();renderMailList();
+}
+
+async function delMail(m){
+  if(!confirm('E-Mail wirklich löschen?\n\n„'+(m.subject||'(kein Betreff)')+'“\n\nSie wird auch auf dem Mail-Server in den Papierkorb verschoben.'))return;
+  try{
+    const r=await fetch('/api/mail/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({account:m.account,uid:m.uid,folder:m.folder||'INBOX'})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+  }catch(e){alert('Löschen fehlgeschlagen: '+(e.message||e));return;}
+  mailMsgs=mailMsgs.filter(x=>!(x.account===m.account&&x.uid===m.uid));
+  mailSel.delete(mailKey(m));
+  renderMailSide();renderMailList();
+}
+
+async function openMail(m){
+  mailPage='msg';
+  chat.innerHTML='<div class="tool">⟲ Lade E-Mail …</div>';
+  let d={};
+  try{
+    const r=await fetch(`/api/mail/msg?account=${encodeURIComponent(m.account)}&uid=${encodeURIComponent(m.uid)}&folder=${encodeURIComponent(m.folder||'INBOX')}`);
+    d=await r.json();if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+  }catch(e){chat.innerHTML='<div class="err" style="margin:20px">⚠ '+esc(e.message||''+e)+'</div>';return;}
+  m.seen=true;renderMailSide();
+  const wrap=document.createElement('div');wrap.id='mailwrap';
+  const catOpts=['<option value="">— Kategorie —</option>']
+    .concat(mailCats.map(c=>`<option${(m.category===c)?' selected':''}>${esc(c)}</option>`)).join('');
+  wrap.innerHTML=`<div class="mail-top"><button class="backbtn" id="mBack">← Posteingang</button>`
+    +`<button class="cal-tbtn" id="mReply">↩ ANTWORTEN</button>`
+    +`<button class="cal-tbtn" id="mFwd">↪ WEITERLEITEN</button>`
+    +`<select id="mCat" class="msel" title="Kategorie (nur lokal, nicht beim Anbieter)">${catOpts}</select>`
+    +`<button class="cal-tbtn" id="mUnread" title="als ungelesen markieren">✉ UNGELESEN</button>`
+    +`<button class="cal-tbtn" id="mDel" style="color:#ff5c5c;border-color:#5a1f1f" title="löschen (auch auf dem Server)">🗑</button></div>`
+    +`<div class="mail-head"><div class="mh-sub">${esc(d.subject||'(kein Betreff)')}</div>`
+    +`<div class="mh-line">Von: <b>${esc(d.from_name?d.from_name+' <'+d.from_addr+'>':d.from_addr||'?')}</b></div>`
+    +`<div class="mh-line">An: ${esc(d.to||'—')}${d.cc?' · Cc: '+esc(d.cc):''}</div>`
+    +`<div class="mh-line">${d.ts?esc(new Date(d.ts*1000).toLocaleString('de-DE')):''} · Konto: ${esc(m.account)}</div></div>`;
+  if((d.attachments||[]).length){
+    const ad=document.createElement('div');ad.className='mail-atts';
+    ad.innerHTML=d.attachments.map(a=>`<a class="mail-att" href="/api/mail/att?account=${encodeURIComponent(m.account)}&uid=${encodeURIComponent(m.uid)}&folder=${encodeURIComponent(m.folder||'INBOX')}&idx=${a.idx}">📎 ${esc(a.name)} <span style="opacity:.6">(${fmtSize(a.size||0)})</span></a>`).join('');
+    wrap.appendChild(ad);
+  }
+  if(d.html){
+    const f=document.createElement('iframe');f.className='mail-frame';
+    f.setAttribute('sandbox','allow-popups allow-popups-to-escape-sandbox');   // keine Skripte!
+    f.srcdoc='<base target="_blank"><style>body{font-family:sans-serif;margin:12px;word-break:break-word}</style>'+d.html;
+    wrap.appendChild(f);
+  }else{
+    const t=document.createElement('div');t.className='mail-text';t.textContent=d.text||'(kein Inhalt)';wrap.appendChild(t);
+  }
+  chat.innerHTML='';chat.appendChild(wrap);chat.scrollTop=0;
+  document.getElementById('mBack').onclick=backToInbox;
+  document.getElementById('mDel').onclick=()=>delMail(m);
+  document.getElementById('mUnread').onclick=async()=>{
+    await fetch('/api/mail/flag',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({account:m.account,uid:m.uid,folder:m.folder||'INBOX',seen:false})});
+    m.seen=false;backToInbox();};
+  document.getElementById('mCat').onchange=async e=>{
+    const cat=e.target.value;
+    await fetch('/api/mail/categorize',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:d.key,category:cat})});
+    m.category=cat;renderMailSide();};
+  const quote=(d.text||'').split('\n').map(l=>'> '+l).join('\n');
+  const when=d.ts?new Date(d.ts*1000).toLocaleString('de-DE'):'';
+  document.getElementById('mReply').onclick=()=>renderCompose({
+    from:m.account,to:d.from_addr,reply:d.message_id,
+    subject:(/^re:/i.test(d.subject||'')?d.subject:'Re: '+(d.subject||'')),
+    body:'\n\nAm '+when+' schrieb '+(d.from_name||d.from_addr)+':\n'+quote});
+  document.getElementById('mFwd').onclick=()=>renderCompose({
+    from:m.account,subject:(/^(fwd|wg):/i.test(d.subject||'')?d.subject:'Fwd: '+(d.subject||'')),
+    body:'\n\n---------- Weitergeleitete Nachricht ----------\nVon: '+(d.from_name||'')+' <'+(d.from_addr||'')+'>\nDatum: '+when
+      +'\nBetreff: '+(d.subject||'')+'\n\n'+(d.text||'(HTML-Mail — Inhalt bitte manuell übernehmen)')});
+}
+
+function renderCompose(pre){
+  mailPage='compose';mailAtt=[];
+  const froms=mailAccounts.filter(a=>a.configured);
+  if(!froms.length){renderMailSettings();return;}
+  const wrap=document.createElement('div');wrap.id='mailwrap';
+  wrap.innerHTML=`<div class="mail-top"><button class="backbtn" id="mBack">← zurück</button><h2 style="font-size:16px">✉ ${pre.reply?'ANTWORT':'NEUE E-MAIL'}</h2></div>`
+    +`<div class="mc-form">`
+    +`<label>VON</label><select id="mcFrom" class="msel" style="max-width:320px">${froms.map(a=>`<option${pre.from===a.email?' selected':''}>${esc(a.email)}</option>`).join('')}</select>`
+    +`<label>AN</label><input id="mcTo" value="${esc(pre.to||'')}" placeholder="empfaenger@beispiel.de (mehrere mit Komma)">`
+    +`<label>CC</label><input id="mcCc" placeholder="(optional)">`
+    +`<label>BETREFF</label><input id="mcSub" value="${esc(pre.subject||'')}">`
+    +`<label>NACHRICHT</label><textarea id="mcBody" rows="12"></textarea>`
+    +`<div id="mcAtts"></div>`
+    +`<div style="display:flex;gap:8px;margin-top:10px;align-items:center">`
+    +`<button class="cal-tbtn" id="mcAttach">📎 ANHANG</button>`
+    +`<button class="lg-btn" id="mcSend" style="margin:0">➤ SENDEN</button>`
+    +`<span id="mcMsg" class="vhint"></span></div></div>`;
+  chat.innerHTML='';chat.appendChild(wrap);chat.scrollTop=0;
+  document.getElementById('mcBody').value=pre.body||'';
+  document.getElementById('mBack').onclick=backToInbox;
+  const renderAtts=()=>{
+    const el=document.getElementById('mcAtts');
+    el.innerHTML=mailAtt.map((a,i)=>`<span class="mc-att">📎 ${esc(a.name)} <span style="opacity:.6">(${fmtSize(a.size||0)})</span><span class="x" data-i="${i}">✕</span></span>`).join('');
+    el.querySelectorAll('.x').forEach(x=>x.onclick=()=>{mailAtt.splice(+x.dataset.i,1);renderAtts();});
+  };
+  document.getElementById('mcAttach').onclick=()=>{
+    const fi=document.createElement('input');fi.type='file';fi.multiple=true;
+    fi.onchange=async()=>{
+      for(const f of fi.files){
+        if(f.size>25*1024*1024){alert(f.name+' ist zu groß (max. 25 MB)');continue;}
+        const fd=new FormData();fd.append('file',f);
+        try{const j=await(await fetch('/api/mail/attach',{method:'POST',body:fd})).json();
+          if(j.path)mailAtt.push(j);else alert(j.error||'Upload fehlgeschlagen');}catch{}
+      }
+      renderAtts();
+    };
+    fi.click();
+  };
+  document.getElementById('mcSend').onclick=async()=>{
+    const msg=document.getElementById('mcMsg'),btn=document.getElementById('mcSend');
+    const b={account:document.getElementById('mcFrom').value,
+      to:document.getElementById('mcTo').value.trim(),
+      cc:document.getElementById('mcCc').value.trim(),
+      subject:document.getElementById('mcSub').value.trim(),
+      body:document.getElementById('mcBody').value,
+      attachments:mailAtt.map(a=>({path:a.path,name:a.name})),
+      reply:pre.reply||''};
+    if(!b.to){msg.textContent='⚠ Empfänger fehlt';document.getElementById('mcTo').focus();return;}
+    btn.disabled=true;msg.textContent='⟲ sende …';
+    try{
+      const r=await fetch('/api/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+      const j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+      msg.innerHTML='<span style="color:var(--green)">✅ gesendet!</span>';
+      setTimeout(backToInbox,900);
+    }catch(e){btn.disabled=false;msg.textContent='⚠ '+(e.message||e);}
+  };
+}
+
+function renderMailSettings(){
+  mailPage='settings';clearInterval(msPollTimer);
+  const wrap=document.createElement('div');wrap.id='mailwrap';
+  let h=`<div class="mail-top"><button class="backbtn" id="mBack">← Posteingang</button><h2 style="font-size:16px">⚙ E-MAIL-KONTEN</h2></div>`;
+  mailAccounts.forEach(a=>{
+    h+=`<div class="mc-acc"><div class="mca-head">`
+      +`<span class="mdot" style="background:${a.configured?accColor(a.email):'#444'}"></span>`
+      +`<b>${esc(a.email)}</b><span class="mca-prov">${esc(a.provider)}</span>`
+      +`<span class="mca-st">${a.configured?'✓ eingerichtet':'— noch nicht eingerichtet'}</span>`
+      +`<span class="mx" data-rm="${esc(a.email)}" title="Konto aus der Liste entfernen">✕</span></div>`
+      +`<div class="vhint" style="padding:6px 0 0">${esc(a.hint||'')}</div>`;
+    if(a.auth==='oauth'){
+      h+=`<div class="mca-row"><button class="cal-tbtn" data-ms="${esc(a.email)}">🔑 MICROSOFT-LOGIN</button>`
+        +`<button class="cal-tbtn" data-test="${esc(a.email)}">TEST</button>`
+        +`<span id="st-${cssId(a.email)}" class="vhint" style="flex:1"></span></div>`;
+    }else{
+      h+=`<div class="mca-row"><input type="password" data-pw="${esc(a.email)}" autocomplete="new-password" `
+        +`placeholder="${a.configured?'••••••••  (gespeichert — nur zum Ändern neu eingeben)':'Passwort / App-Passwort'}">`
+        +`<button class="cal-tbtn" data-save="${esc(a.email)}">SPEICHERN</button>`
+        +`<button class="cal-tbtn" data-test="${esc(a.email)}">TEST</button>`
+        +`<span id="st-${cssId(a.email)}" class="vhint"></span></div>`;
+    }
+    h+=`</div>`;
+  });
+  h+=`<div class="mc-acc"><b style="color:var(--green)">＋ Konto hinzufügen</b>`
+    +`<div class="mca-row"><input id="naEmail" placeholder="neue@adresse.de">`
+    +`<input id="naPw" type="password" placeholder="Passwort (bei Outlook/Hotmail leer lassen)">`
+    +`<button class="cal-tbtn" id="naAdd">HINZUFÜGEN</button><span id="naMsg" class="vhint"></span></div></div>`;
+  h+=`<div class="vhint" style="margin-top:10px">🔒 Zugangsdaten liegen nur auf deinem Server in <code>.mail-accounts.json</code> (chmod 600) — sie tauchen nie im Browser auf.<br>`
+    +`🏷 Kategorien existieren nur hier im Chat — auf den Mail-Servern ändert sich dadurch nichts. Gelöschte Mails wandern dagegen echt in den Server-Papierkorb.</div>`;
+  wrap.innerHTML=h;chat.innerHTML='';chat.appendChild(wrap);chat.scrollTop=0;
+  document.getElementById('mBack').onclick=backToInbox;
+  const setSt=(em,txt,ok)=>{const s=document.getElementById('st-'+cssId(em));if(s){s.innerHTML=txt;s.style.color=ok?'var(--green)':'';}};
+  wrap.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{
+    const em=b.dataset.save;const pw=wrap.querySelector(`[data-pw="${CSS.escape(em)}"]`).value;
+    if(!pw){setSt(em,'⚠ Passwort eingeben');return;}
+    setSt(em,'⟲ speichere …');
+    const r=await fetch('/api/mail/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
+    const j=await r.json();
+    if(!r.ok){setSt(em,'⚠ '+esc(j.error||r.status));return;}
+    setSt(em,'✓ gespeichert — jetzt TEST klicken',true);await mailState();
+  });
+  wrap.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{
+    const em=b.dataset.test;setSt(em,'⟲ teste Login + Posteingang …');
+    try{
+      const r=await fetch('/api/mail/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em})});
+      const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+      setSt(em,'✅ funktioniert — '+j.inbox+' Mails im Posteingang',true);mailLoaded=false;
+    }catch(e){setSt(em,'⚠ '+esc(e.message||''+e));}
+  });
+  wrap.querySelectorAll('[data-ms]').forEach(b=>b.onclick=async()=>{
+    const em=b.dataset.ms;setSt(em,'⟲ starte Microsoft-Login …');
+    try{
+      const r=await fetch('/api/mail/ms_login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em})});
+      const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+      setSt(em,`1. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--link)">${esc(j.url)}</a> öffnen &nbsp;·&nbsp; `
+        +`2. Code <b style="color:var(--green);letter-spacing:2px">${esc(j.code)}</b> eingeben &nbsp;·&nbsp; ⟲ warte auf Bestätigung …`);
+      clearInterval(msPollTimer);
+      msPollTimer=setInterval(async()=>{
+        try{
+          const p=await(await fetch('/api/mail/ms_poll?email='+encodeURIComponent(em))).json();
+          if(p.ok){clearInterval(msPollTimer);setSt(em,'✅ verbunden!',true);mailLoaded=false;await mailState();renderMailSettings();}
+          else if(p.error){clearInterval(msPollTimer);setSt(em,'⚠ '+esc(p.error));}
+        }catch{}
+      },5000);
+    }catch(e){setSt(em,'⚠ '+esc(e.message||''+e));}
+  });
+  wrap.querySelectorAll('[data-rm]').forEach(x=>x.onclick=async()=>{
+    const em=x.dataset.rm;
+    if(!confirm('Konto „'+em+'“ aus CONSTRUCT entfernen?\n\n(Das Postfach selbst bleibt natürlich bestehen — es wird nur hier nicht mehr abgerufen.)'))return;
+    await fetch('/api/mail/accounts/'+encodeURIComponent(em),{method:'DELETE'});
+    mailMsgs=mailMsgs.filter(m=>m.account!==em);await mailState();renderMailSide();renderMailSettings();
+  });
+  document.getElementById('naAdd').onclick=async()=>{
+    const em=document.getElementById('naEmail').value.trim(),pw=document.getElementById('naPw').value;
+    const msg=document.getElementById('naMsg');
+    if(!em){msg.textContent='⚠ Adresse fehlt';return;}
+    const r=await fetch('/api/mail/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
+    const j=await r.json();
+    if(!r.ok){msg.textContent='⚠ '+(j.error||r.status);return;}
+    await mailState();renderMailSettings();
+  };
+}
+
+// ---------- Einstellungen ----------
+// Serverseitig gespeichert (settings.json), nicht im localStorage: die App
+// wird mal aus dem Fenster, mal aus dem Browser bedient, und zwei Browser
+// waeren sonst zwei verschiedene Wahrheiten.
+const TILES=[
+  {k:'kalender', i:'📅', t:'Kalender',  d:'Termine eintragen und ansehen. Braucht nichts weiter.'},
+  {k:'skills',   i:'⚡', t:'Skills',    d:'Zeigt die Skills aus deinen Projekten. Nur mit Claude Code sinnvoll.'},
+  {k:'mail',     i:'📧', t:'E-Mails',   d:'Postfach über IMAP/SMTP. Zugangsdaten liegen lokal.'},
+  {k:'mcp',      i:'🔌', t:'MCP',       d:'Zeigt konfigurierte MCP-Server. Nur mit Claude Code sinnvoll.'},
+];
+let setSaveTimer=null;
+async function setSave(patch){
+  Object.assign(SETTINGS.tiles, patch.tiles||{});
+  Object.assign(SETTINGS.background, patch.background||{});
+  Object.assign(SETTINGS.names=SETTINGS.names||{}, patch.names||{});
+  Object.assign(SETTINGS.updates=SETTINGS.updates||{}, patch.updates||{});
+  const note=document.getElementById('setSaved');
+  try{
+    const r=await fetch('/api/settings',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+    const fresh=await r.json();
+    SETTINGS.tiles=fresh.tiles; SETTINGS.background=fresh.background;
+    SETTINGS.names=fresh.names; SETTINGS.updates=fresh.updates;
+    if(note){note.textContent='✓ gespeichert';note.classList.add('on');
+      clearTimeout(setSaveTimer);setSaveTimer=setTimeout(()=>note.classList.remove('on'),1600);}
+  }catch{
+    if(note){note.textContent='⚠ nicht gespeichert';note.classList.add('on');}
+  }
+}
+function applyTiles(){
+  const r=document.documentElement;
+  TILES.forEach(x=>r.classList.toggle('no-'+x.k, SETTINGS.tiles[x.k]===false));
+  // Steht man gerade in einer Ansicht, die man soeben abgeschaltet hat,
+  // waere der Bildschirm sonst leer ohne erkennbaren Grund.
+  const cur=document.querySelector('.mi.active')?.dataset.v;
+  if(cur && SETTINGS.tiles[cur]===false) setView('einstellungen');
+}
+function renderSettings(){
+  const side=document.getElementById('setnav');
+  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Namen','Charakter','Farbwelt','Hintergrund']
+    .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
+  const w=document.createElement('div');w.className='set-wrap';
+
+  // --- 1) Kacheln ---
+  const tileRows=TILES.map(x=>`<div class="set-row"><label>
+      <input type="checkbox" data-tile="${x.k}" ${SETTINGS.tiles[x.k]!==false?'checked':''}>
+      <span><span class="set-t">${x.i} ${esc(x.t)}</span>
+      <span class="set-d">${esc(x.d)}</span></span></label></div>`).join('');
+
+  // --- 2) Modelle: drei Wege, die man nicht verwechseln darf ---
+  const claudeTag = HAS_CLAUDE
+    ? '<span class="set-tag ok">INSTALLIERT</span>'
+    : '<span class="set-tag warn">NICHT INSTALLIERT</span>';
+
+  w.innerHTML=`
+  <div class="set-sec"><h3>⚙ KACHELN</h3><div class="set-body">
+    <div class="set-row"><label style="cursor:default">
+      <input type="checkbox" checked disabled>
+      <span><span class="set-t">💬 Chats</span>
+      <span class="set-d">Der Hauptzweck der Oberfläche — lässt sich nicht abschalten.</span></span></label>
+      <span class="set-fixed">FEST</span></div>
+    ${tileRows}
+  </div></div>
+
+  <div class="set-sec"><h3>🧠 MODELLE &amp; ANBIETER</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>1 · Claude Code</h4>${claudeTag}</span>
+      <span class="set-d">Läuft über dein <b>Anthropic-Abo</b> (OAuth) oder einen API-Key.
+      Der einzige Weg mit <b>echtem Zugriff</b> auf Dateien und Terminal — hier greifen
+      📂 Ordner und 🛡 Modus. Ein Schlüssel von einem anderen Anbieter funktioniert
+      dafür nicht.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="setClaude">${HAS_CLAUDE?'🔑 Anmeldung':'📋 Anleitung'}</button>
+        <button class="set-btn" id="cInstall" style="display:none">Installieren</button>
+        <span class="set-saved" id="cNote"></span>
+      </span>
+      <pre id="cLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
+        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
+      </span></div>
+
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>2 · Fremde Anbieter</h4><span class="set-tag">ÜBER HERMES</span></span>
+      <span class="set-d">ChatGPT, Gemini, DeepSeek, lokale Ollama-Modelle oder jede
+      OpenAI-kompatible API. Diese Modelle laufen über <b>Hermes</b> (Punkt 3) und können
+      damit ebenfalls Dateien und Terminal. Schlüssel bleiben lokal in
+      <code>.llm-config.json</code>.<br>
+      Angezeigt werden nur Modelle, die <b>Werkzeug-Aufrufe beherrschen</b> — ohne die
+      würde der Agent seine Befehle als Fließtext ausgeben, statt sie auszuführen.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="setLlm">⚙ Anbieter einrichten…</button>
+      </span></span></div>
+
+    <div class="set-row"><span style="flex:1">
+      <span class="set-head"><h4>3 · Hermes</h4><span id="hTag" class="set-tag">…</span></span>
+      <span class="set-d">Fährt die <b>Chat-Anbieter von oben mit Werkzeugen</b> — Dateien
+      und Terminal ohne Anthropic-Konto, auch mit lokalen Modellen über Ollama.
+      Ohne Hermes lassen sich fremde Modelle nicht nutzen.</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="hInstall">Installieren</button>
+        <span class="set-saved" id="hNote"></span>
+      </span>
+      <pre id="hLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
+        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
+      </span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>📧 E-MAIL-KONTEN</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-d">Postfächer anlegen, Passwort ändern, Verbindung testen — die Konten
+      werden in der E-Mail-Ansicht verwaltet (dort auch links unten über „Konten verwalten“).</span>
+      <span style="display:block;margin-top:9px">
+        <button class="set-btn" id="setMail" ${SETTINGS.tiles.mail===false?'disabled title="Kachel E-Mails ist abgeschaltet"':''}>⚙ Konten verwalten…</button>
+      </span></span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>🔄 AKTUALISIERUNG</h3><div class="set-body">
+    <div class="set-row"><label>
+      <input type="checkbox" id="updAuto" ${SETTINGS.updates?.auto!==false?'checked':''}>
+      <span><span class="set-t">Beim Start nach Updates suchen</span>
+      <span class="set-d">Holt neue Fassungen von <b>Claude Code</b> und <b>Hermes</b>, sobald
+      CONSTRUCT hochfährt — im Hintergrund, der Chat bleibt bedienbar. Ohne das bleiben beide
+      auf dem Stand von damals: ihre eigene Selbstaktualisierung ist ab Werk abgeschaltet.</span></span></label></div>
+
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Wie oft höchstens</span>
+      <span class="set-d">Verhindert, dass fünf Neustarts an einem Nachmittag fünf Netzrunden auslösen.</span>
+      <span style="display:block;margin-top:9px">
+        <select id="updIv" class="set-btn" style="padding:7px 9px">
+          <option value="0">bei jedem Start</option>
+          <option value="6">höchstens alle 6 Stunden</option>
+          <option value="24">höchstens einmal am Tag</option>
+          <option value="168">höchstens einmal die Woche</option>
+        </select>
+        <button class="set-btn" id="updNow">Jetzt suchen</button>
+        <span class="set-saved" id="updNote"></span>
+      </span>
+      <pre id="updLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
+        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
+      </span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>🙋 NAMEN</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Wie soll ich dich nennen?</span>
+      <span class="set-d">Steht im Chat über deinen Nachrichten und wird den Modellen
+      mitgegeben. Leer lassen geht auch — dann bleibt es unpersönlich.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="setUser" maxlength="40" placeholder="dein Name">
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Wie heißt der Assistent?</span>
+      <span class="set-d">CONSTRUCT ist der Ort, er ist die Person darin. Wer ihn
+      umbenennt, sollte auch <code>SOUL.md</code> anpassen — dort steht sein Charakter.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="setAsst" maxlength="40" placeholder="Cody">
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Bilder</span>
+      <span class="set-d">Erscheinen im Chat neben den Nachrichten. Ohne eigenes Bild
+      steht bei dir der Anfangsbuchstabe.</span>
+      <span class="av-pick">
+        <span class="av-prev" id="avU"></span>
+        <button class="set-btn" id="avUPick">Deins wählen…</button>
+        <button class="set-btn" id="avUClear">✕</button>
+      </span>
+      <span class="av-pick">
+        <span class="av-prev" id="avA"></span>
+        <button class="set-btn" id="avAPick">Seins wählen…</button>
+        <button class="set-btn" id="avAClear">✕</button>
+      </span></span></div>
+    <div class="set-d" style="margin-top:6px">Namen wirken nach dem Neuladen der Seite.</div>
+  </div></div>
+
+  <div class="set-sec"><h3>📜 CHARAKTER</h3><div class="set-body">
+    <div class="set-d" style="margin-bottom:10px">Beides wird bei <b>jeder</b> Nachricht
+    mitgelesen — auch von fremden Modellen. <b>Charakter</b> beschreibt, wer der Assistent
+    ist; <b>Über dich</b>, was er über dich wissen soll. Reiner Text, Markdown erlaubt.</div>
+    <div class="set-tabs">
+      <button class="set-tab on" data-persona="soul">Charakter (SOUL.md)</button>
+      <button class="set-tab" data-persona="user">Über dich (USER.md)</button>
+    </div>
+    <textarea class="set-area" id="setSoul" spellcheck="false"
+      placeholder="wird geladen…"></textarea>
+    <div style="margin-top:9px;display:flex;gap:9px;align-items:center">
+      <button class="set-btn" id="soulSave">Speichern</button>
+      <span class="set-saved" id="soulNote"></span>
+    </div>
+  </div></div>
+
+  <div class="set-sec"><h3>🎨 FARBWELT</h3><div class="set-body">
+    <div class="th-grid">${THEMES.map(t=>`
+      <div class="th${(SETTINGS.theme||'matrix')===t.k?' on':''}" data-theme-pick="${t.k}">
+        <span class="th-sw">
+          <i style="background:${THEME_SWATCH[t.k][0]}"></i>
+          <i style="background:${THEME_SWATCH[t.k][1]}"></i>
+          <i style="background:${THEME_SWATCH[t.k][2]}"></i>
+        </span>
+        <span class="th-n">${esc(t.n)}${(SETTINGS.theme||'matrix')===t.k?'<b>AKTIV</b>':''}</span>
+        <span class="th-d">${esc(t.d)}</span>
+      </div>`).join('')}</div>
+  </div></div>
+
+  <div class="set-sec"><h3>🖼 HINTERGRUND</h3><div class="set-body">
+    <div class="set-row"><label><input type="radio" name="bgm" value="matrix">
+      <span><span class="set-t">Matrix-Regen</span>
+      <span class="set-d">Die Vorgabe. Kostet etwas Rechenleistung.</span></span></label></div>
+    <div class="set-row"><label><input type="radio" name="bgm" value="image">
+      <span><span class="set-t">Eigenes Bild</span>
+      <span class="set-d">Ersetzt den Regen. Wird abgedunkelt, damit die Schrift lesbar bleibt.</span></span></label></div>
+    <div class="set-row"><label><input type="radio" name="bgm" value="plain">
+      <span><span class="set-t">Schlicht dunkel</span>
+      <span class="set-d">Nichts im Hintergrund — am sparsamsten.</span></span></label></div>
+    <div id="bgOpts" style="margin-top:12px">
+      <button class="set-btn" id="bgPick">🖼 Bild wählen…</button>
+      <button class="set-btn" id="bgClear">✕ Bild entfernen</button>
+      <div style="margin-top:12px">
+        <label class="set-d" for="bgDim">Abdunkeln: <b id="bgDimV"></b></label>
+        <input type="range" min="0" max="95" id="bgDim" class="set-slider">
+      </div>
+      <div class="set-prev" id="bgPrev"></div>
+    </div>
+    <input type="file" id="bgFile" accept="image/*" style="display:none">
+  </div></div>
+
+  <div style="text-align:right"><span class="set-saved" id="setSaved"></span></div>`;
+
+  chat.innerHTML='';chat.appendChild(w);
+
+  w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
+    setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
+  });
+  setupEngines(w);
+  setupUpdates(w);
+  setupPersona(w);
+  setupAvatars(w);
+  const nm=SETTINGS.names||{};
+  const uEl=document.getElementById('setUser'), aEl=document.getElementById('setAsst');
+  uEl.value=nm.user||''; aEl.value=nm.assistant||'';
+  // Beim Verlassen speichern, nicht bei jedem Tastendruck — sonst schreibt
+  // jeder Buchstabe eine Datei.
+  uEl.onchange=()=>setSave({names:{user:uEl.value}});
+  aEl.onchange=()=>setSave({names:{assistant:aEl.value}});
+
+  w.querySelectorAll('[data-theme-pick]').forEach(el=>el.onclick=()=>{
+    SETTINGS.theme=el.dataset.themePick;
+    applyTheme(); setSave({theme:SETTINGS.theme});
+    w.querySelectorAll('[data-theme-pick]').forEach(o=>{
+      const on=o.dataset.themePick===SETTINGS.theme;
+      o.classList.toggle('on',on);
+      const n=o.querySelector('.th-n b'); if(!on&&n)n.remove();
+      if(on&&!o.querySelector('.th-n b'))
+        o.querySelector('.th-n').insertAdjacentHTML('beforeend','<b>AKTIV</b>');
+    });
+  });
+  document.getElementById('setLlm').onclick=openLlmCfg;
+  document.getElementById('setMail').onclick=()=>{mailWantSettings=true;setView('mail');};
+  document.getElementById('setClaude').onclick=()=>{
+    if(HAS_CLAUDE&&WEB_LOGIN)openLogin(); else {setView('sessions');claudeSetupHint();}
+  };
+
+  const bg=SETTINGS.background;
+  w.querySelectorAll('input[name=bgm]').forEach(r=>{
+    r.checked = (bg.mode||'matrix')===r.value;
+    r.onchange=()=>{ if(r.checked) bgApply({mode:r.value}); };
+  });
+  const dim=document.getElementById('bgDim');
+  dim.value = bg.dim==null?60:bg.dim;
+  const showDim=()=>{document.getElementById('bgDimV').textContent=dim.value+' %';
+    document.getElementById('bgPrev').style.setProperty('--x',dim.value);};
+  showDim();
+  dim.oninput=()=>{showDim();
+    SETTINGS.background.dim=+dim.value;applyBackground();bgPreview();};
+  dim.onchange=()=>bgApply({dim:+dim.value});
+  document.getElementById('bgPick').onclick=()=>document.getElementById('bgFile').click();
+  document.getElementById('bgClear').onclick=()=>bgApply({image:'',mode:'matrix'});
+  document.getElementById('bgFile').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    const fd=new FormData(); fd.append('file',f);
+    try{
+      const r=await fetch('/api/upload',{method:'POST',body:fd});
+      const j=await r.json();
+      if(j.url)bgApply({image:j.url,mode:'image'}); else alert(j.error||'Upload fehlgeschlagen');
+    }catch{alert('Upload fehlgeschlagen');}
+    e.target.value='';
+  };
+  bgPreview();
+}
+// ---------- Werkzeug-Maschinen einrichten ----------
+// Zwei Wege zu Werkzeugen: Claude Code (Anthropic-Konto) und Hermes (alles
+// andere). Beide lassen sich hier installieren, statt den Nutzer ins Terminal
+// zu schicken — dasselbe Muster wie beim Ollama-Download: anstossen, pollen.
+let engInfo=null, engTimer=null;
+async function setupEngines(w){
+  const paint=async()=>{
+    try{engInfo=await(await fetch('/api/engines')).json();}catch{return;}
+    const h=engInfo.hermes||{}, c=engInfo.claude||{};
+    const tag=w.querySelector('#hTag'), btn=w.querySelector('#hInstall');
+    if(tag){
+      tag.className='set-tag'+(h.installed?' ok':' warn');
+      tag.textContent=h.installed?'INSTALLIERT':'NICHT INSTALLIERT';
+      tag.title=h.installed?(h.version||'')+'\n'+(h.home||''):'';
+    }
+    if(btn){
+      btn.style.display=h.installed?'none':'';
+      if(!h.posix){btn.disabled=true;btn.textContent='nur Linux / macOS';}
+    }
+    const cb=w.querySelector('#cInstall');
+    if(cb){
+      cb.style.display=c.installed?'none':'';
+      if(!c.npm){cb.disabled=true;cb.textContent='braucht Node.js (nodejs.org)';}
+    }
+  };
+  await paint();
+
+  // Ein Installationslauf, zwei Maschinen — derselbe Ablauf, andere Route.
+  const drive=(which,btnId,logId,noteId)=>{
+    const btn=w.querySelector('#'+btnId), log=w.querySelector('#'+logId),
+          note=w.querySelector('#'+noteId);
+    if(!btn)return;
+    btn.onclick=async()=>{
+      btn.disabled=true;btn.textContent='läuft…';
+      log.style.display='';log.textContent='';
+      note.textContent='';note.classList.add('on');
+      try{await fetch(`/api/engines/${which}/install`,{method:'POST'});}catch{}
+      clearInterval(engTimer);
+      engTimer=setInterval(async()=>{
+        let st;try{st=await(await fetch(`/api/engines/${which}/install`)).json();}catch{return;}
+        log.textContent=(st.log||[]).join('\n');log.scrollTop=log.scrollHeight;
+        if(st.done){
+          clearInterval(engTimer);
+          btn.disabled=false;btn.textContent='Installieren';
+          note.textContent=st.error?('⚠ '+st.error):'✓ fertig';
+          await paint();
+          if(!st.error&&which==='claude'){HAS_CLAUDE=true;applyClaudeState();}
+          // Modell-Liste neu holen: mit Hermes stehen jetzt andere Wege offen.
+          loadProviders(true);
+        }
+      },1200);
+    };
+  };
+  drive('hermes','hInstall','hLog','hNote');
+  drive('claude','cInstall','cLog','cNote');
+}
+
+// ---------- Aktualisierung (Einstellungen) ----------
+// Dieselbe Quelle wie die Karte unten rechts, nur ausfuehrlicher: hier steht
+// das ganze Protokoll, und der Lauf laesst sich von Hand anstossen.
+let updSetTimer=null;
+function setupUpdates(w){
+  const auto=w.querySelector('#updAuto'), iv=w.querySelector('#updIv'),
+        btn=w.querySelector('#updNow'), note=w.querySelector('#updNote'),
+        log=w.querySelector('#updLog');
+  if(!auto)return;
+  const cur=SETTINGS.updates||{};
+  iv.value=String(cur.interval_h??6);
+  auto.onchange=()=>setSave({updates:{auto:auto.checked}});
+  iv.onchange=()=>setSave({updates:{interval_h:+iv.value}});
+
+  const poll=()=>{
+    clearInterval(updSetTimer);
+    updSetTimer=setInterval(async()=>{
+      let st;try{st=await(await fetch('/api/updates')).json();}catch{return;}
+      log.style.display='';log.textContent=(st.log||[]).join('\n');log.scrollTop=log.scrollHeight;
+      updRender(st);
+      if(st.done){
+        clearInterval(updSetTimer);
+        btn.disabled=false;btn.textContent='Jetzt suchen';
+        const bad=Object.values(st.steps||{}).some(s=>s.state==='error');
+        note.textContent=bad?'⚠ mit Fehlern beendet':(st.changed?'✓ aktualisiert':'✓ alles aktuell');
+        note.classList.add('on');
+      }
+    },1200);
+  };
+
+  btn.onclick=async()=>{
+    btn.disabled=true;btn.textContent='läuft…';
+    note.textContent='';note.classList.add('on');
+    log.style.display='';log.textContent='';
+    updHidden=false;                     // die Karte darf wieder auftauchen
+    let r={};
+    try{r=await(await fetch('/api/updates/run',{method:'POST'})).json();}catch{}
+    if(r.ok===false){
+      btn.disabled=false;btn.textContent='Jetzt suchen';
+      note.textContent='⚠ '+(r.error||'nicht gestartet');
+      return;
+    }
+    poll();
+  };
+  // Laeuft gerade schon einer (etwa der vom Start), gleich mitzeigen.
+  fetch('/api/updates').then(r=>r.json()).then(st=>{
+    if(st.log&&st.log.length){log.style.display='';log.textContent=st.log.join('\n');}
+    if(st.running){btn.disabled=true;btn.textContent='läuft…';poll();}
+    else if(st.last_check){
+      const min=Math.round((Date.now()/1000-st.last_check)/60);
+      note.textContent=min<1?'zuletzt gerade eben geprüft'
+        :(min<60?`zuletzt vor ${min} min geprüft`:`zuletzt vor ${Math.round(min/60)} h geprüft`);
+      note.classList.add('on');
+    }
+  }).catch(()=>{});
+}
+
+// ---------- Charakter (SOUL.md / USER.md) ----------
+let personaCache=null, personaTab='soul';
+async function setupPersona(w){
+  const area=w.querySelector('#setSoul'), note=w.querySelector('#soulNote');
+  if(!personaCache){
+    try{personaCache=await(await fetch('/api/persona')).json();}
+    catch{personaCache={soul:'',user:''};}
+  }
+  const show=()=>{area.value=personaCache[personaTab]||'';};
+  show();
+  w.querySelectorAll('[data-persona]').forEach(b=>b.onclick=()=>{
+    // Ungespeichertes des aktuellen Reiters mitnehmen, sonst ist es beim
+    // Zurückwechseln weg — und der Nutzer merkt es erst zu spaet.
+    personaCache[personaTab]=area.value;
+    personaTab=b.dataset.persona;
+    w.querySelectorAll('[data-persona]').forEach(o=>o.classList.toggle('on',o===b));
+    show();
+  });
+  w.querySelector('#soulSave').onclick=async()=>{
+    personaCache[personaTab]=area.value;
+    note.textContent='…';note.classList.add('on');
+    try{
+      await fetch('/api/persona',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({[personaTab]:area.value})});
+      note.textContent='✓ gespeichert — gilt ab der nächsten Nachricht';
+    }catch{note.textContent='⚠ nicht gespeichert';}
+    setTimeout(()=>note.classList.remove('on'),2600);
+  };
+}
+
+// ---------- Bilder ----------
+function setupAvatars(w){
+  const av=SETTINGS.avatars||(SETTINGS.avatars={user:'',assistant:''});
+  const paint=()=>{
+    const u=w.querySelector('#avU'), a=w.querySelector('#avA');
+    u.style.backgroundImage=av.user?`url("${av.user}")`:'';
+    u.textContent=av.user?'':((SETTINGS.names&&SETTINGS.names.user||'?').slice(0,1).toUpperCase());
+    a.style.backgroundImage=`url("${av.assistant||'/static/cody.png'}")`;
+    a.textContent='';
+  };
+  paint();
+  const pick=(who)=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='image/*';
+    inp.onchange=async e=>{
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      const fd=new FormData();fd.append('file',f);
+      try{
+        const j=await(await fetch('/api/upload',{method:'POST',body:fd})).json();
+        if(!j.url){alert(j.error||'Upload fehlgeschlagen');return;}
+        av[who]=j.url;paint();setSave({avatars:{[who]:j.url}});applyAvatars();
+      }catch{alert('Upload fehlgeschlagen');}
+    };
+    inp.click();
+  };
+  w.querySelector('#avUPick').onclick=()=>pick('user');
+  w.querySelector('#avAPick').onclick=()=>pick('assistant');
+  w.querySelector('#avUClear').onclick=()=>{av.user='';paint();setSave({avatars:{user:''}});applyAvatars();};
+  w.querySelector('#avAClear').onclick=()=>{av.assistant='';paint();setSave({avatars:{assistant:''}});applyAvatars();};
+}
+// Eigene Bilder als CSS-Variablen: die Avatar-Regeln greifen dann ueberall,
+// auch in schon gezeichneten Nachrichten.
+function applyAvatars(){
+  const av=SETTINGS.avatars||{}, r=document.documentElement;
+  r.style.setProperty('--av-user', av.user?`url("${av.user}")`:'none');
+  r.style.setProperty('--av-asst', `url("${av.assistant||'/static/cody.png'}")`);
+  r.classList.toggle('no-avatar', !av.user);
+  HAS_AVATAR = !!av.user;
+}
+
+function bgApply(patch){
+  Object.assign(SETTINGS.background, patch);
+  applyBackground(); bgPreview();
+  setSave({background:patch});
+  document.querySelectorAll('input[name=bgm]').forEach(r=>{
+    r.checked=(SETTINGS.background.mode||'matrix')===r.value;
+  });
+}
+function bgPreview(){
+  const el=document.getElementById('bgPrev'); if(!el)return;
+  const bg=SETTINGS.background, img=bg.image;
+  el.style.backgroundImage = img?`linear-gradient(rgba(0,0,0,${((bg.dim==null?60:bg.dim)/100).toFixed(2)}),`
+    +`rgba(0,0,0,${((bg.dim==null?60:bg.dim)/100).toFixed(2)})), url("${img}")` : 'none';
+  el.innerHTML = img?'<span>VORSCHAU</span>':'<span style="opacity:.5">kein Bild gewählt</span>';
+}
+
+// ---------- Menü ----------
+function setView(v){
+  // Abgeschaltete Kacheln sind auch per Tastatur/Slash-Befehl nicht erreichbar.
+  if(SETTINGS.tiles[v]===false)return;
+  document.querySelectorAll('.mi').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  document.querySelectorAll('.view').forEach(el=>el.style.display='none');
+  document.getElementById('view-'+v).style.display='';
+  document.body.classList.toggle('mailmode',v==='mail');   // Scanlines nur außerhalb der Mails
+  if(v==='skills')loadSkills();if(v==='kalender')loadKal();if(v==='mcp')loadMcp();if(v==='mail')loadMailView();
+  if(v==='einstellungen')renderSettings();
+  // Zurueck zu den Chats: die Unterhaltung wieder einhaengen -- Mail, Kalender
+  // ueberschreiben #chat, sonst bliebe deren Ansicht stehen.
+  if(v==='sessions'){const c=activeConv();if(c)mountConv(c);}
+}
+document.querySelectorAll('.mi').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+document.getElementById('burger').onclick=()=>document.getElementById('side').classList.toggle('open');
+
+// ---------- Eingabe ----------
+function autosize(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,180)+'px';}
+// Nicht direkt an 'input' hängen: die Folge "height='auto' schreiben ->
+// scrollHeight lesen" erzwingt ein sofortiges Neu-Layout der GANZEN Seite, und
+// das bei jedem einzelnen Tastendruck. Zusammen mit Vollbild-Canvas und
+// Scanlines-Overlay ist das der spürbare Tipp-Lag. Pro Frame einmal reicht;
+// die expliziten autosize()-Aufrufe (nach dem Absenden) bleiben synchron.
+let _asPending = false;
+inp.addEventListener('input',()=>{
+  if (_asPending) return;
+  _asPending = true;
+  requestAnimationFrame(()=>{ _asPending = false; autosize(); });
+});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+document.getElementById('send').onclick=send;
+document.getElementById('stop').onclick=()=>{
+  const c=activeConv();
+  if(c&&c.runId){
+    c.stopReq=true;c.queue.length=0;renderQueue();
+    fetch('/api/stop/'+encodeURIComponent(c.runId),{method:'POST'}).catch(()=>{});
+    if(c.streamCtrl)c.streamCtrl.abort('user');
+  }
+};
+
+// ---------- Werkzeuge aktuell halten ----------
+// Der Server sucht beim Start selbst nach neuen Fassungen von Claude Code und
+// Hermes (updates.py). Hier wird das nur sichtbar gemacht: eine Karte unten
+// rechts, die sich von allein wieder verabschiedet, wenn nichts war.
+const UPD_NAMES={claude:'Claude Code',hermes:'Hermes'};
+const UPD_ICON={run:'<span class="upd-spin">⟳</span>',ok:'✓',new:'✓',error:'⚠',skip:'–',idle:'·'};
+let updTimer=null,updHidden=false,updLive=false,updFadeTimer=null;
+// Kurz nach dem Laden schneller nachfragen: der Start-Lauf braucht einen
+// Moment, bis er ueberhaupt als "laeuft" in Erscheinung tritt.
+const updEager=Date.now()+25000;
+
+function updStepText(k,s){
+  if(s.state==='new')return s.msg||'aktualisiert';
+  if(s.state==='ok')return 'aktuell'+(s.to?' · '+s.to:'');
+  if(s.state==='error')return s.msg||'Fehler';
+  if(s.state==='skip')return s.msg||'übersprungen';
+  if(s.state==='run')return 'prüfe …';
+  return '';
+}
+
+function updRender(st){
+  const card=document.getElementById('updcard');
+  if(st.running)updLive=true;
+  // Nur melden, was gerade passiert — eine laengst abgeschlossene Pruefung
+  // soll nicht bei jedem Neuladen der Seite wieder auftauchen.
+  if(updHidden||!(st.running||(updLive&&st.done))){card.classList.remove('show');return;}
+  const steps=st.steps||{};
+  const shown=Object.keys(UPD_NAMES).filter(k=>steps[k]&&steps[k].state!=='idle');
+  document.getElementById('updRows').innerHTML=shown.map(k=>{
+    const s=steps[k];
+    return `<div class="upd-row ${s.state}"><span>${UPD_ICON[s.state]||'·'}</span>
+      <span class="n">${UPD_NAMES[k]}</span><span class="v">${esc(updStepText(k,s))}</span></div>`;
+  }).join('')||'<div class="upd-row"><span class="n">suche …</span></div>';
+
+  const bad=shown.some(k=>steps[k].state==='error');
+  document.getElementById('updIcon').outerHTML=
+    `<span id="updIcon"${st.running?' class="upd-spin"':''}>${st.running?'⟳':(bad?'⚠':'✓')}</span>`;
+  document.getElementById('updTitle').textContent=
+    st.running?'WERKZEUGE PRÜFEN':(bad?'UPDATE FEHLGESCHLAGEN':(st.changed?'AKTUALISIERT':'ALLES AKTUELL'));
+  const last=(st.log||[]).slice(-1)[0]||'';
+  document.getElementById('updline').textContent=
+    st.done&&st.changed?'wirkt ab dem nächsten Chat':last;
+  card.classList.add('show');
+
+  // Gute Nachricht = kurze Nachricht. Neuerungen und Fehler bleiben stehen,
+  // damit sie nicht ungesehen vorbeiziehen.
+  clearTimeout(updFadeTimer);
+  if(st.done&&!st.changed&&!bad)
+    updFadeTimer=setTimeout(()=>card.classList.remove('show'),3500);
+}
+
+async function updPoll(){
+  let st;
+  try{st=await(await fetch('/api/updates')).json();}catch{updSchedule(8000);return;}
+  updRender(st);
+  updSchedule(st.running?1200:(Date.now()<updEager?1500:60000));
+}
+function updSchedule(ms){clearTimeout(updTimer);updTimer=setTimeout(updPoll,ms);}
+document.getElementById('updClose').onclick=()=>{
+  updHidden=true;document.getElementById('updcard').classList.remove('show');};
+
+// ---------- Init ----------
+fetch('/api/version').then(r=>r.json()).then(j=>{document.getElementById('build').textContent='build '+j.version;}).catch(()=>{document.getElementById('build').textContent='build ALT/unbekannt';});
+setMode(currentMode);setModel(currentModel);applyClaudeState();
+applyAvatars();      // eigene Bilder, falls hinterlegt
+applyTheme();        // Farbwelt (im <head> schon gesetzt, hier der Regen)
+applyBackground();   // Hintergrund aus den gespeicherten Einstellungen
+// Nicht fest '/workspace': das gibt es nur im Container. /api/folders liefert
+// an erster Stelle den echten Arbeitsordner des Servers (WORKSPACE) — unter
+// Windows und nativ auf dem Desktop ist das ein ganz anderer Pfad, und die
+// Anzeige log bisher, weil der Server still auf seinen Standard zurückfiel.
+loadFolders().then(()=>setFolder(foldersCache[0]||''));
+loadProviders();   // externe Anbieter/Modelle für den 🧠-Picker
+newSession();loadSessions();loadHud();
+updPoll();         // zeigt den Update-Lauf, den der Server beim Start angestoßen hat
+</script>
+</body>
+</html>

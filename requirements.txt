@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+zstandard
+pyserial
+pypdf
+pillow
+pillow-heif
