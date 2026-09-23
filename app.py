@@ -259,9 +259,14 @@ class LoginFlow:
         return m.group(0) if m else None
 
     def send_code(self, code: str):
+        os.write(self.master, code.strip().encode())
+
+    def send_enter(self):
         # "\r" (Enter-Taste), nicht "\n": die Code-Maske neuerer CLIs (>=2.1.x)
-        # ignoriert Ctrl-J und wartet sonst ewig -> "Login fehlgeschlagen"
-        os.write(self.master, (code.strip() + "\r").encode())
+        # ignoriert Ctrl-J. Und EXTRA schicken, nicht an den Code gehängt: kommt
+        # beides in einem Rutsch, hält die CLI es für einen Paste und schluckt das
+        # Enter -> Code wird nie abgeschickt, nach 30 s "Login fehlgeschlagen".
+        os.write(self.master, b"\r")
 
     def alive(self) -> bool:
         return bool(self.proc) and self.proc.poll() is None
@@ -328,6 +333,8 @@ async def auth_code(req: Request):
         return JSONResponse({"error": "Kein Login aktiv — bitte neu starten."}, status_code=400)
     seen = len(flow.text())
     flow.send_code(code)
+    await asyncio.sleep(0.5)         # Paste erst "ankommen" lassen, dann Enter
+    flow.send_enter()
     for _ in range(120):             # bis ~30 s auf Erfolg warten
         await asyncio.sleep(0.25)
         tok = flow.token()

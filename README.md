@@ -74,6 +74,12 @@ cd matrix-chat
 Unter **Windows**: Doppelklick auf `start.bat` (gleiche Schalter, `--web` /
 `--update`). Gebraucht wird Python von python.org mit „Add Python to PATH".
 
+**Selbst-Update:** Beim Start holt `selfupdate.py` per git die neueste Fassung
+von GitHub (nur Fast-Forward). Übersprungen wird es, wenn Programmdateien lokal
+geändert sind, eigene Commits vorliegen oder kein Netz da ist; Nutzerdaten
+(`USER.md`, `settings.json`, …) fasst git nicht an. Abschalten:
+`"updates": {"construct": false}` in `settings.json` oder `CONSTRUCT_NO_UPDATE=1`.
+
 **Veraltete Instanz:** Läuft auf dem Port schon ein Server, hängt sich das
 Fenster normalerweise dran. Ist dieser Server aber **älter als der Code auf der
 Platte**, wird er beendet und neu gestartet — sonst lädt der Browser die neue

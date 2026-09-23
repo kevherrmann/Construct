@@ -82,12 +82,11 @@ else
     git -C "$DIR" pull --ff-only || y "   (nicht aktualisiert)"
   else
     step "CONSTRUCT holen nach $DIR"
-    # SSH zuerst: das Repository ist privat, und wer Zugriff hat, hat meist
-    # einen Schlüssel hinterlegt. HTTPS als Rückfall fragt nach Zugangsdaten.
-    git clone "$REPO_SSH" "$DIR" 2>/dev/null || git clone "$REPO_HTTPS" "$DIR" || {
-      r "!! Klonen fehlgeschlagen."
-      y "   Das Repository ist privat — du brauchst Zugriff darauf."
-      y "   SSH-Schlüssel prüfen mit:  ssh -T git@github.com"
+    # HTTPS zuerst: das Repository ist öffentlich, dafür braucht es weder
+    # Schlüssel noch Zugangsdaten. SSH nur noch als Rückfall.
+    GIT_TERMINAL_PROMPT=0 git clone "$REPO_HTTPS" "$DIR" \
+      || git clone "$REPO_SSH" "$DIR" || {
+      r "!! Klonen fehlgeschlagen — Internetverbindung prüfen."
       exit 1; }
   fi
   cd "$DIR"

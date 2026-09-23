@@ -39,6 +39,18 @@ for a in "$@"; do
   esac
 done
 
+# ---- CONSTRUCT selbst aktualisieren (git, nur Fast-Forward) ----
+# Vor dem venv: bringt das Update eine neue requirements.txt mit, wird sie
+# unten gleich installiert. Exit 10 = aktualisiert -> einmal neu starten, weil
+# auch dieses Skript zu den neuen Dateien gehören kann.
+if [ "$SETUP_ONLY" = "0" ] && [ -z "${CONSTRUCT_UPDATED:-}" ]; then
+  RC=0; "$PY" selfupdate.py || RC=$?
+  if [ "$RC" = "10" ]; then
+    export CONSTRUCT_UPDATED=1
+    exec ./start.sh "$@"
+  fi
+fi
+
 # ---- venv anlegen ----
 if [ ! -d "$VENV" ]; then
   echo "» lege Python-Umgebung an ($VENV) …"

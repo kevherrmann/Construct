@@ -41,6 +41,20 @@ for %%a in (%*) do (
   if /i "%%a"=="--update" (set "UPDATE=1") else (set "ARGS=!ARGS! %%a")
 )
 
+rem ---- CONSTRUCT selbst aktualisieren (git, nur Fast-Forward) ----
+rem  Exit 10 = aktualisiert -> neu starten. Das MUSS in einem Klammerblock
+rem  stehen: cmd liest .bat-Dateien zeilenweise per Byte-Position nach, und
+rem  nach dem Update ist diese Datei womoeglich eine andere. Ein Block wird
+rem  vorab komplett eingelesen, der Neustart kommt also sicher an.
+if not defined CONSTRUCT_UPDATED (
+  %PY% selfupdate.py
+  if errorlevel 10 (
+    set "CONSTRUCT_UPDATED=1"
+    "%~f0" %*
+    exit /b
+  )
+)
+
 rem ---- Umgebung anlegen ----
 if not exist "%VENV%\Scripts\python.exe" (
   echo ^> lege Python-Umgebung an ^(%VENV%^) ...

@@ -48,7 +48,8 @@ DEFAULT_SETTINGS = {
     "background": {"mode": "matrix", "image": "", "dim": 60},
     # Claude Code und Hermes beim Start aktuell halten (updates.py).
     # interval_h = Mindestabstand zwischen zwei Prüfungen, 0 = jeder Start.
-    "updates": {"auto": True, "interval_h": 6},
+    # construct: CONSTRUCT selbst per git beim Start (selfupdate.py).
+    "updates": {"auto": True, "interval_h": 6, "construct": True},
 }
 
 
@@ -100,6 +101,8 @@ def load_settings() -> dict:
     up = raw.get("updates") or {}
     if "auto" in up:
         out["updates"]["auto"] = bool(up["auto"])
+    if "construct" in up:
+        out["updates"]["construct"] = bool(up["construct"])
     try:
         out["updates"]["interval_h"] = max(0, min(720, int(up.get("interval_h"))))
     except Exception:
@@ -141,6 +144,8 @@ def apply_patch(patch: dict) -> dict:
     up = patch.get("updates") or {}
     if "auto" in up:
         cur["updates"]["auto"] = bool(up["auto"])
+    if "construct" in up:
+        cur["updates"]["construct"] = bool(up["construct"])
     if "interval_h" in up:
         try:
             cur["updates"]["interval_h"] = max(0, min(720, int(up["interval_h"])))

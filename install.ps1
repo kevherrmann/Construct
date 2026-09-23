@@ -72,13 +72,12 @@ if ((Test-Path 'app.py') -and (Test-Path 'start.bat')) {
     git -C $dir pull --ff-only | Out-Null
   } else {
     Info "CONSTRUCT holen nach $dir"
-    # SSH zuerst: das Repository ist privat, und wer Zugriff hat, hat meist
-    # einen Schluessel. HTTPS als Rueckfall fragt nach Zugangsdaten.
-    git clone $RepoSsh $dir 2>$null
-    if ($LASTEXITCODE -ne 0) { git clone $RepoHttps $dir }
+    # HTTPS zuerst: das Repository ist oeffentlich, dafuer braucht es weder
+    # Schluessel noch Zugangsdaten. SSH nur noch als Rueckfall.
+    git clone $RepoHttps $dir
+    if ($LASTEXITCODE -ne 0) { git clone $RepoSsh $dir 2>$null }
     if ($LASTEXITCODE -ne 0) {
-      Fail 'Klonen fehlgeschlagen.'
-      Warn 'Das Repository ist privat — du brauchst Zugriff darauf.'
+      Fail 'Klonen fehlgeschlagen — Internetverbindung pruefen.'
       Read-Host 'Enter zum Beenden'; exit 1
     }
   }
