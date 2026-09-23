@@ -26,6 +26,16 @@ ansteuert. Läuft auf deiner **Subscription** (OAuth), **kein API-Key** nötig.
   nicht, installiert Cody es per Klick selbst (offizielles Linux-Paket nach
   `/workspace/.ollama`, `ollama serve` als Hintergrundprozess, Auto-Start beim
   App-Start — braucht `zstandard` aus requirements.txt).
+- 🌱 **Bonsai (lokal)**: PrismMLs Bonsai-Modelle (eigenes 2-Bit-Format, das
+  Ollama nicht kennt) über den `llama-server` des
+  [Bonsai-Demos](https://github.com/PrismML-Eng/Bonsai-demo) — als eigener
+  Anbieter neben Ollama, ebenfalls mit Werkzeugen über Hermes. Der Server
+  liegt **nur bei Bedarf im VRAM**: Start beim ersten Prompt, Stopp nach
+  10 Min Leerlauf (oder per Knopf im ⚙-Dialog) und beim Beenden von CONSTRUCT.
+  Ablage über `BONSAI_DIR` (Standard `~/projects/Bonsai-demo`), Kontext
+  `BONSAI_CTX` (Standard 65536 — Hermes verlangt mindestens 64K), KV-Cache
+  `BONSAI_KV` (Standard `q4_0`, damit 64K auf 8 GB VRAM passen). Details in
+  `bonsai.py`.
 
 - ⚙ **Einstellungen** (v3.8): eine eigene Kachel, in der man einstellt, **welche
   Kacheln man überhaupt sieht** (Chats bleibt fest — eine Oberfläche ohne ihren

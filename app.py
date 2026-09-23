@@ -39,6 +39,7 @@ import config as cfg  # Einstellungen der Installation — siehe config.py
 import cal  # Kalender: gemeinsame events.json (Web-UI + cal.py-CLI + Telegram)
 import llm as llmmod  # Anbieter, Schlüssel, Modell-Listen (llm.py)
 import hermes as hermesmod  # Werkzeug-Zugriff mit fremden Modellen über ACP
+import bonsai as bonsaimod  # lokaler llama-server, nur bei Bedarf im VRAM
 import mail as mailmod  # E-Mail: IMAP/SMTP für GMX, Gmail, Outlook (mail.py)
 import attach  # Anhänge: Bilder normalisieren, PDF-Textauszug (attach.py)
 import updates as updmod  # hält Claude Code und Hermes aktuell (updates.py)
@@ -632,6 +633,19 @@ async def llm_providers_save(req: Request):
         return {"ok": True, "models": 0, "error": ""}
     models, err = await asyncio.to_thread(llmmod.list_remote_models, pid, True)
     return {"ok": not err, "models": len(models), "error": err}
+
+
+# ---------- Bonsai: läuft der lokale Server gerade (= VRAM belegt)? ----------
+@app.get("/api/bonsai/status")
+def bonsai_status():
+    return bonsaimod.status()
+
+
+@app.post("/api/bonsai/stop")
+def bonsai_stop():
+    """VRAM sofort freigeben, ohne auf den Leerlauf-Wächter zu warten."""
+    bonsaimod.stop()
+    return bonsaimod.status()
 
 
 # ---------- Ollama: lokale Modelle ansehen / laden / löschen ----------
@@ -1851,7 +1865,16 @@ async def run_hermes(run, sess, prompt, allow_writes: bool):
     """
     run.hermes = sess
     t0 = time.time()
+    is_bonsai = llmmod.split_model(run.model)[0] == "bonsai"
     try:
+        if is_bonsai:
+            # Der Server liegt erst im VRAM, wenn jemand ihn braucht — jetzt.
+            # Das Laden dauert Sekunden; ohne Hinweis sähe es nach Hängen aus.
+            if not bonsaimod.running():
+                run.emit({"type": "text", "text": "_⏳ Bonsai wird in den VRAM geladen …_\n\n"})
+            err = await asyncio.to_thread(bonsaimod.ensure_running)
+            if err:
+                raise hermesmod.AcpError(err)
         result = await sess.run(prompt, run.emit, allow_writes=allow_writes,
                                 images=run.images)
         # Ohne "done" bleibt die Oberfläche im Laufzustand und merkt sich die
@@ -1881,6 +1904,8 @@ async def run_hermes(run, sess, prompt, allow_writes: bool):
         print(f"[hermes] fehler: {type(e).__name__}: {e}", flush=True)
         run.emit({"type": "error", "message": f"Server-Fehler: {type(e).__name__}: {e}"})
     finally:
+        if is_bonsai:
+            bonsaimod.touch()   # Leerlauf zählt ab Ende des Laufs, nicht ab Start
         sess.kill()
         run.stdin_closed = True
         run.finish()
@@ -2151,6 +2176,11 @@ async def scheduler_loop():
         except Exception as e:
             print(f"[sched] fehler: {type(e).__name__}: {e}", flush=True)
         await asyncio.sleep(60)
+
+
+@app.on_event("shutdown")
+async def _stop_bonsai():
+    bonsaimod.stop()   # sonst hielte der Server die GPU, obwohl CONSTRUCT weg ist
 
 
 @app.on_event("startup")

@@ -27,6 +27,7 @@ import time
 import urllib.request
 from pathlib import Path
 
+import bonsai as bonsaimod
 import llm as llmmod
 
 BASE_DIR = Path(__file__).parent
@@ -98,6 +99,18 @@ def child_env() -> dict:
         if key:
             env[var] = key
     return env
+
+
+def acp_model_id(model: str) -> str:
+    """CONSTRUCT-Wert "anbieter:modell" → Hermes-Modell-ID.
+
+    Die eingebauten Anbieter (openai, ollama …) heißen bei Hermes genauso;
+    Bonsai kennt es nur als selbst eingetragenen Endpunkt "custom:bonsai".
+    """
+    pid, m = llmmod.split_model(model)
+    if pid == "bonsai":
+        return bonsaimod.acp_model_id(m)
+    return model
 
 
 # ---------- Installation (nur auf Klick) ----------
@@ -218,6 +231,12 @@ class AcpSession:
         if not hermes_bin():
             raise AcpError("Hermes ist nicht installiert. Unter ⚙ Einstellungen → "
                            "„Modelle & Anbieter“ lässt es sich einrichten.")
+        if llmmod.split_model(self.model)[0] == "bonsai":
+            # Hermes muss den Endpunkt kennen, bevor set_model ihn wählen kann.
+            err = await asyncio.to_thread(bonsaimod.ensure_hermes_provider,
+                                          hermes_bin(), child_env())
+            if err:
+                raise AcpError(err)
         self._q = asyncio.Queue()
         self.proc = await asyncio.create_subprocess_exec(
             hermes_bin(), "acp", "--accept-hooks",
@@ -370,7 +389,8 @@ class AcpSession:
             # stillschweigend wäre es eine Falle, deshalb steht es dann im Chat.
             try:
                 await self.call("session/set_model",
-                                {"sessionId": self.session_id, "modelId": self.model},
+                                {"sessionId": self.session_id,
+                                 "modelId": acp_model_id(self.model)},
                                 timeout=60)
             except Exception as e:
                 emit({"type": "text", "text":

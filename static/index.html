@@ -1356,7 +1356,7 @@ const DEFAULT_MODEL='claude-opus-5-5';
 // "Standard" zurück — und zeigte damit genau das Falsche an.
 const MODEL_ALIAS={fable:'claude-fable-5-1',opus:'claude-opus-5-5',
                    sonnet:'claude-sonnet-5',haiku:'claude-haiku-4-5'};
-const PROV_ICON={openai:'🟢',gemini:'✦',deepseek:'🐋',ollama:'🦙'};
+const PROV_ICON={openai:'🟢',gemini:'✦',deepseek:'🐋',ollama:'🦙',bonsai:'🌱'};
 let llmProviders=[];   // /api/llm/providers — nur konfigurierte liefern Modelle
 async function loadProviders(force){
   try{llmProviders=await(await fetch('/api/llm/providers'+(force?'?refresh=1':''))).json();}
@@ -1624,14 +1624,30 @@ async function renderLlmCfg(){
       ob.innerHTML='<div class="vhint">⟲ prüfe Ollama …</div>';
       div.appendChild(ob);
     }
+    if(p.id==='bonsai'){   // liegt der Server gerade im VRAM? + Knopf zum Freigeben
+      const bb=document.createElement('div');bb.id='bonsaiBox';
+      div.appendChild(bb);
+    }
     box.appendChild(div);
   });
   if(document.getElementById('ollBox'))renderOllamaBox();
+  if(document.getElementById('bonsaiBox'))renderBonsaiBox();
   const intro=document.getElementById('llmintro');
   box.insertAdjacentHTML('beforeend','<div class="vhint" style="margin-top:10px">🔒 Keys liegen nur auf deinem Server in <code>.llm-config.json</code> (chmod 600) — sie tauchen nie im Browser auf.<br>'
     +'⚡ Fremde Modelle laufen über <b>Hermes</b> und können damit Dateien und Terminal. '
     +'Skills, Kalender und E-Mail bleiben Claude Code vorbehalten. '
     +`Beim Modellwechsel mitten im Gespräch nimmt ${ASSISTANT} den bisherigen Verlauf automatisch mit.</div>`);
+}
+
+// ---------- Bonsai: Server-Zustand (VRAM belegt?) ----------
+async function renderBonsaiBox(){
+  const bb=document.getElementById('bonsaiBox');if(!bb)return;
+  let st={};try{st=await(await fetch('/api/bonsai/status')).json();}catch{return;}
+  if(!st.available){bb.innerHTML='<div class="vhint">⚠ Bonsai-Demo nicht gefunden — <code>setup.sh</code> im Bonsai-Ordner ausführen oder <code>BONSAI_DIR</code> setzen.</div>';return;}
+  bb.innerHTML=`<div class="mca-row" style="align-items:center"><span class="vhint" style="flex:1">${st.running?'🟢 läuft — Modell im VRAM (stoppt nach '+st.idle_min+' Min Leerlauf von selbst)':'⚪ aus — VRAM frei, startet beim ersten Prompt'}</span>`
+    +(st.running?'<button class="cal-tbtn" id="bonsaiStop">⏹ JETZT STOPPEN</button>':'')+'</div>';
+  const b=document.getElementById('bonsaiStop');
+  if(b)b.onclick=async()=>{b.disabled=true;await fetch('/api/bonsai/stop',{method:'POST'}).catch(()=>{});renderBonsaiBox();};
 }
 
 // ---------- Ollama-Modelle verwalten (Liste, Download mit Fortschritt, Löschen) ----------
