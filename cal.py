@@ -9,6 +9,7 @@ Telegram-Bot importiert UND von Cody als CLI benutzt.
 CLI (so trägt Cody Termine ein):
   python3 cal.py add 2026-06-28 15:00 "Zahnarzt" ["Notiz"]
   python3 cal.py add 2026-06-28 "Geburtstag Oma"     # ohne Uhrzeit = ganztägig
+  python3 cal.py add --yearly 06-28 "Geburtstag Oma"  # jährlich wiederkehrend
   python3 cal.py list [2026-06]                       # alle oder ein Monat
   python3 cal.py upcoming [tage]                      # default 7 Tage
   python3 cal.py today
@@ -147,25 +148,13 @@ def context_block(days=7, today=None):
 
 
 def _cli_help(en: bool) -> str:
-    """Wie Cody Termine selbst verwaltet — mit dem Pfad dieser Installation."""
+    """Eine Zeile mit dem Pfad dieser Installation. Details liefert das CLI
+    selbst (ohne Argumente) — die stehen nicht in JEDEM Prompt."""
     py = "python" if os.name == "nt" else "python3"
-    me = str(Path(__file__).resolve())
-    c = f'{py} "{me}"'
+    c = f'{py} "{Path(__file__).resolve()}"'
     if en:
-        return ("\n\nManage events yourself with this CLI (the interface shows them right away):\n"
-                f'- add: `{c} add YYYY-MM-DD [HH:MM] "Title" ["Note"]` — without a time = all day; '
-                "`--yearly` repeats every year (then MM-DD is enough)\n"
-                f"- look up: `{c} upcoming [days]`, `{c} today`, `{c} list [YYYY-MM]`\n"
-                f"- delete: `{c} rm <id>` (id from `list`)\n"
-                "Convert relative dates (\"tomorrow\", \"next Friday\") to a date yourself, "
-                "and briefly confirm what you did.")
-    return ("\n\nTermine verwaltest du selbst mit diesem CLI (die Oberfläche zeigt sie sofort an):\n"
-            f'- eintragen: `{c} add JJJJ-MM-TT [HH:MM] "Titel" ["Notiz"]` — ohne Uhrzeit = ganztägig; '
-            "`--yearly` wiederholt jährlich (dann reicht MM-TT)\n"
-            f"- nachsehen: `{c} upcoming [tage]`, `{c} today`, `{c} list [JJJJ-MM]`\n"
-            f"- löschen: `{c} rm <id>` (ID aus `list`)\n"
-            "Relative Angaben („morgen“, „nächsten Freitag“) rechnest du selbst aufs Datum um "
-            "und bestätigst kurz, was du gemacht hast.")
+        return f"\n\nManage events: `{c}` (add / upcoming / today / list / rm — run without arguments for help)."
+    return f"\n\nTermine verwalten: `{c}` (add / upcoming / today / list / rm — ohne Argumente = Hilfe)."
 
 
 # ---------- CLI ----------
