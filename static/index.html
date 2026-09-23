@@ -11,7 +11,7 @@
      echten Werte — die Vorgabe hier gilt nur, wenn man die Datei direkt öffnet.
      Muss synchron im <head> stehen: das Menü darf nicht erst voll aufbauen und
      dann Bereiche wieder wegräumen. -->
-<script>window.CONSTRUCT={"user":"","assistant":"Cody","claude":true,"web_login":true,
+<script>window.CONSTRUCT={"user":"","assistant":"Cody","claude":true,"web_login":true,"lang":"en",
   "settings":{"theme":"matrix","names":{"user":"","assistant":"Cody"},
               "tiles":{"skills":true,"kalender":true,"mail":true,"mcp":true},
               "background":{"mode":"matrix","image":"","dim":60}}};
@@ -28,6 +28,10 @@
     if(t[k]===false)r.classList.add('no-'+k);
   });
 })();</script>
+<!-- Zweisprachigkeit: Deutsch ist der Quelltext, i18n.js tauscht bei "en" beim
+     Zeichnen aus. Muss direkt nach window.CONSTRUCT stehen (liest die Sprache
+     daraus) und vor allem anderen, damit nichts erst auf Deutsch aufblitzt. -->
+<script src="/static/i18n.js"></script>
 <script>
 /* Notnagel für WebViews ohne persistenten Speicher (pywebview im Private Mode,
    strenge Browser-Einstellungen): dort ist localStorage nicht leer, sondern gar
@@ -778,7 +782,8 @@
 // Das Objekt setzt der Server beim Ausliefern; die Vorgabe im <head> greift nur,
 // wenn jemand die Datei direkt im Browser öffnet.
 const CFG=window.CONSTRUCT||{},
-      ASSISTANT=CFG.assistant||'Cody',USER_NAME=CFG.user||'Du';
+      WORKSPACE_DIR=CFG.workspace||'',
+      ASSISTANT=CFG.assistant||'Cody',USER_NAME=CFG.user||T('Du');
 // Ist das claude-CLI da? Davon hängt ab, ob die Claude-Modelle etwas taugen und
 // ob der 🔑-Chip zum Anmelden oder zum Installieren führt. Kommt synchron vom
 // Server (shutil.which), nicht geraten.
@@ -940,9 +945,9 @@ function activeConv(){return conversations.get(activeKey);}
 function convBySession(sid){if(!sid)return null;for(const c of conversations.values())if(c.sessionId===sid)return c;return null;}
 function mountConv(conv){
   activeKey=conv.key;chat.innerHTML='';chat.appendChild(conv.pane);
-  setFolder(conv.cwd||'/workspace');
+  setFolder(conv.cwd||WORKSPACE_DIR);
   syncModelPicker(conv);   // Picker zeigt das Modell DIESER Session
-  sidEl.textContent='▣ '+baseName(conv.cwd||'/workspace');sidEl.title=conv.cwd||'(unbekannt)';
+  sidEl.textContent='▣ '+baseName(conv.cwd||WORKSPACE_DIR);sidEl.title=conv.cwd||'(unbekannt)';
   updateSendBtn();renderQueue();scroll();
 }
 marked.setOptions({breaks:true,highlight:(c,l)=>{try{return hljs.highlight(c,{language:hljs.getLanguage(l)?l:'plaintext'}).value}catch{return c}}});
@@ -1053,7 +1058,7 @@ function addMsg(role,html,conv,raw){
 }
 function addMsgTo(container,role,html){const m=msgNode(role,html);container.appendChild(m);const bubble=m.querySelector('.bubble');addCopyBtns(bubble);return bubble;}
 // Absolute Workspace-Pfade in Codys Antworten anklickbar machen (Vorschau/Download)
-const PATH_RE=/(^|[\s('"„`>])(\/(?:workspace|home)\/[\w.\-\/]+\.[\w]{1,8})/g;
+const PATH_RE=/(^|[\s('"„`>])(\/(?:home|Users)\/[\w.\-\/]+\.[\w]{1,8})/g;
 function linkifyPaths(el){
   if(!el)return;
   const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:n=>
@@ -1163,7 +1168,7 @@ async function send(){
 async function runSend(conv,text,images,urls){
   conv.busy=true;conv.stopReq=false;if(conv.key===activeKey)updateSendBtn();
   // cwd beim ersten Senden festschreiben, damit parallele Sessions stabil bleiben.
-  if(!conv.cwd)conv.cwd=currentCwd||'/workspace';
+  if(!conv.cwd)conv.cwd=currentCwd||WORKSPACE_DIR;
   const sendCwd=conv.cwd, sendMode=currentMode;
   let uhtml=md(text);urls.forEach(u=>uhtml+=attHtml(u));
   addMsg('user',uhtml,conv,text);
@@ -1469,7 +1474,7 @@ function usageChip(el,label,u){
   el.className='chip'+(p>=85?' crit':(p>=60?' warn':''));
   el.innerHTML=`${label} <span class="bar"><i style="width:${Math.min(100,p)}%"></i></span><b>${p}%</b>`;
   if(u.resets_at){const d=new Date(u.resets_at);
-    el.title=`Reset: ${d.toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'})} Uhr`;}
+    el.title=`Reset: ${d.toLocaleString(I18N.locale,{weekday:'short',hour:'2-digit',minute:'2-digit'})} Uhr`;}
 }
 async function loadHud(){
   const a=document.getElementById('auth');
@@ -1495,7 +1500,7 @@ async function loadHud(){
   try{
     const u=await (await fetch('/api/usage')).json();
     const u5=document.getElementById('use5'),u7=document.getElementById('use7');
-    if(u.limit_hit){const t=new Date(u.limit_hit*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    if(u.limit_hit){const t=new Date(u.limit_hit*1000).toLocaleTimeString(I18N.locale,{hour:'2-digit',minute:'2-digit'});
       u5.className='chip crit alert';u5.textContent=`⛔ Limit — bis ${t}`;u5.title='Nutzungs-Limit erreicht, Reset um '+t+' Uhr';}
     else if(u.available)usageChip(u5,'5h',u.five_hour);
     else{u5.className='chip';u5.textContent='5h —';u5.title='Limits nicht abrufbar: '+(u.reason||'?');}
@@ -1515,18 +1520,18 @@ function closeLogin(){lmask.classList.remove('show');}
 // Terminal anmelden (Windows kann den PTY-Login nicht) oder Web-Login.
 function claudeSetupHint(){
   sysNote('<b>🔑 Claude Code</b><br>'
-    +(HAS_CLAUDE?'Claude Code ist installiert.':
-       'Claude Code ist auf diesem Rechner <b>nicht installiert</b>. Ohne das läuft der '
+    +(HAS_CLAUDE?T('Claude Code ist installiert.'):
+       T('Claude Code ist auf diesem Rechner <b>nicht installiert</b>. Ohne das läuft der '
        +'Chat über den Anbieter aus dem 🧠-Menü (ChatGPT, Gemini …) — das reicht '
-       +'zum Reden, aber nicht für Dateien und Terminal.<br><br>'
-       +'Nachinstallieren (braucht Node.js):<br>'
+       +'zum Reden, aber nicht für Dateien und Terminal.')+'<br><br>'
+       +T('Nachinstallieren (braucht Node.js):')+'<br>'
        +'<code>npm install -g @anthropic-ai/claude-code</code><br><br>')
     +(WEB_LOGIN
-       ?'Anmelden geht danach direkt hier über diesen Knopf.'
-       :'Anmelden danach <b>einmal im Terminal</b>: <code>claude</code> eingeben und dem '
+       ?T('Anmelden geht danach direkt hier über diesen Knopf.')
+       :T('Anmelden danach <b>einmal im Terminal</b>: <code>claude</code> eingeben und dem '
         +'Login folgen. CONSTRUCT erkennt die Anmeldung anschließend von selbst — '
         +'der Login-Dialog in der Oberfläche braucht ein Pseudo-Terminal, das es '
-        +'unter Windows nicht gibt.')
+        +'unter Windows nicht gibt.'))
     +'<br><br><span style="opacity:.7">Dafür braucht es ein Anthropic-Konto (Abo oder API-Guthaben).</span>');
 }
 document.getElementById('auth').onclick=()=>{
@@ -1634,9 +1639,9 @@ async function renderLlmCfg(){
   if(document.getElementById('bonsaiBox'))renderBonsaiBox();
   const intro=document.getElementById('llmintro');
   box.insertAdjacentHTML('beforeend','<div class="vhint" style="margin-top:10px">🔒 Keys liegen nur auf deinem Server in <code>.llm-config.json</code> (chmod 600) — sie tauchen nie im Browser auf.<br>'
-    +'⚡ Fremde Modelle laufen über <b>Hermes</b> und können damit Dateien und Terminal. '
+    +T('⚡ Fremde Modelle laufen über <b>Hermes</b> und können damit Dateien und Terminal. '
     +'Skills, Kalender und E-Mail bleiben Claude Code vorbehalten. '
-    +`Beim Modellwechsel mitten im Gespräch nimmt ${ASSISTANT} den bisherigen Verlauf automatisch mit.</div>`);
+    +'Beim Modellwechsel mitten im Gespräch nimmt {a} den bisherigen Verlauf automatisch mit.',{a:esc(ASSISTANT)})+'</div>');
 }
 
 // ---------- Bonsai: Server-Zustand (VRAM belegt?) ----------
@@ -1684,7 +1689,7 @@ async function renderOllamaBox(){
       h+=`<div class="mca-row"><button class="obtn" id="ollInstall" style="padding:9px 16px">${d.bin?'▶ OLLAMA STARTEN':'⬇ OLLAMA INSTALLIEREN &amp; STARTEN'}</button>`
         +`<span class="vhint" style="flex:1;margin:0">${d.bin
           ?'Ollama ist installiert, läuft aber gerade nicht — ein Klick startet es.'
-          :'Cody lädt das offizielle Linux-Paket (~1–2 GB), entpackt es nach <code>/workspace/.ollama</code> und startet es — ganz ohne Terminal. Startet nach einem Neustart automatisch mit.'}</span></div>`;
+          :'Cody lädt das offizielle Linux-Paket (~1–2 GB), entpackt es nach <code>~/.cody-ollama</code> und startet es — ganz ohne Terminal. Startet nach einem Neustart automatisch mit.'}</span></div>`;
     }
     bx.innerHTML=h;
     const bi=document.getElementById('ollInstall');
@@ -1824,7 +1829,7 @@ function renderSessions(){
       if(open)items.forEach(s=>{
         const ac=activeConv();const rc=convBySession(s.id);const running=!!(rc&&rc.busy)||!!runningRuns[s.id];
         const d=document.createElement('div');d.className='sess'+((ac&&s.id===ac.sessionId)?' active':'')+(running?' running':'')+(s.archived?' archived':'');
-        const dt=new Date(s.mtime*1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+        const dt=new Date(s.mtime*1000).toLocaleString(I18N.locale,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
           +(s.provider?' · '+(PROV_ICON[s.provider]||'🌐')+' '+esc(s.model||s.provider):'');
         d.innerHTML=`<div class="sessmain"><span class="t">${running?'⚡ ':''}${s.archived?'🗄 ':''}${s.agent?'🏢 ':''}${s.renamed?'✏ ':''}${esc(s.title)}</span><span class="d">${dt}</span></div>`
           +`<div class="sessact"><span class="sx" data-a="ren" title="umbenennen">✏</span>`
@@ -1869,7 +1874,7 @@ async function openSession(s){
   // Läuft serverseitig noch ein Lauf für diese Session (z.B. nach Reload)?
   // Dann Verlauf laden UND live wieder andocken (Backlog-Replay + weiter live).
   if(runningRuns[s.id]){
-    const conv=makeConv({sessionId:s.id,cwd:s.cwd||'/workspace'});
+    const conv=makeConv({sessionId:s.id,cwd:s.cwd||WORKSPACE_DIR});
     conv.runId=runningRuns[s.id];conv.busy=true;
     mountConv(conv);
     conv.pane.innerHTML='<div class="tool">⟲ Lade Verlauf …</div>';
@@ -1883,7 +1888,7 @@ async function openSession(s){
     consumeRun(conv,wrap);
     loadSessions();return;
   }
-  const conv=makeConv({sessionId:s.id,cwd:s.cwd||'/workspace'});
+  const conv=makeConv({sessionId:s.id,cwd:s.cwd||WORKSPACE_DIR});
   mountConv(conv);
   conv.pane.innerHTML='<div class="tool">⟲ Lade Verlauf …</div>';
   let j={};try{j=await (await fetch(`/api/sessions/${encodeURIComponent(s.project)}/${encodeURIComponent(s.id)}`)).json();}catch{}
@@ -1962,8 +1967,10 @@ async function openSkill(sk){
 // Termine leben in events.json (Backend). Cody schreibt per cal.py rein, die UI
 // per /api/events. Der große Monats-Grid landet im Hauptbereich (#chat), die
 // "Anstehend"-Liste in der Sidebar — wie bei der Skills-Ansicht.
-const DE_MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-const DE_DOW=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const DE_MONTHS=I18N.lang==='en'
+  ?['January','February','March','April','May','June','July','August','September','October','November','December']
+  :['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const DE_DOW=I18N.lang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Mo','Di','Mi','Do','Fr','Sa','So'];
 let calYear, calMonth, calSelDay=null, calEvents=[];
 const pad2=n=>String(n).padStart(2,'0');
 const ymd=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;          // m = 0-basiert
@@ -2028,12 +2035,12 @@ function renderCalMain(){
 function renderDayPanel(ds){
   const host=document.getElementById('calDayPanel');if(!host)return;
   const [y,m,d]=ds.split('-').map(Number);
-  const head=new Date(y,m-1,d).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const head=new Date(y,m-1,d).toLocaleDateString(I18N.locale,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const evs=eventsOn(ds);
   const evHtml=evs.length?evs.map(e=>`<div class="cal-ev">`
       +`<span class="et">${e.time?esc(e.time):(e.repeat==='yearly'?'🔁':'⬤')}</span>`
       +`<span class="etitle">${e.prompt?'🤖 ':''}${esc(e.title)}${e.notes?` <span class="enote">— ${esc(e.notes)}</span>`:''}`
-      +`${e.prompt?` <span class="enote" title="läuft zur Termin-Zeit automatisch (Hostinger), Ergebnis per Telegram">— Aufgabe: ${esc(e.prompt.slice(0,120))}</span>`:''}</span>`
+      +`${e.prompt?` <span class="enote" title="läuft zur Termin-Zeit automatisch, Ergebnis per Telegram">— Aufgabe: ${esc(e.prompt.slice(0,120))}</span>`:''}</span>`
       +`<span class="edel" data-id="${esc(e.id)}" title="löschen">✕</span></div>`).join('')
     :'<div class="vhint" style="padding:2px 0 6px">Keine Termine an diesem Tag.</div>';
   host.innerHTML=`<div class="cal-day"><h3>📅 ${esc(head)}</h3>${evHtml}`
@@ -2077,7 +2084,7 @@ function renderCalSide(){
   if(!up.length)html+='<div class="vhint">Keine anstehenden Termine.</div>';
   else up.forEach(({e,d})=>{
     const [yy,mm,dd2]=d.split('-').map(Number);
-    const dd=new Date(yy,mm-1,dd2).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+    const dd=new Date(yy,mm-1,dd2).toLocaleDateString(I18N.locale,{weekday:'short',day:'2-digit',month:'2-digit'});
     html+=`<div class="kal-up${d===tStr?' is-today':''}" data-d="${d}">`
       +`<span class="ku-t">${e.repeat==='yearly'?'🔁 ':''}${e.prompt?'🤖 ':''}${e.time?esc(e.time)+' · ':''}${esc(e.title)}</span>`
       +`<span class="ku-d">${d===tStr?'heute':dd}</span></div>`;
@@ -2121,8 +2128,8 @@ const accName=em=>(em||'').split('@')[0];
 const cssId=s=>(s||'').replace(/[^a-z0-9]/gi,'-');
 const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' kB':n+' B';
 function fmtMailDate(ts){if(!ts)return '';const d=new Date(ts*1000),now=new Date();
-  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-  const s=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString(I18N.locale,{hour:'2-digit',minute:'2-digit'});
+  const s=d.toLocaleDateString(I18N.locale,{day:'2-digit',month:'2-digit'});
   return d.getFullYear()===now.getFullYear()?s:s+String(d.getFullYear()).slice(2);}
 async function mailState(){
   try{mailAccounts=(await(await fetch('/api/mail/accounts')).json()).accounts||[];}catch{mailAccounts=[];}
@@ -2378,7 +2385,7 @@ async function openMail(m){
     +`<div class="mail-head"><div class="mh-sub">${esc(d.subject||'(kein Betreff)')}</div>`
     +`<div class="mh-line">Von: <b>${esc(d.from_name?d.from_name+' <'+d.from_addr+'>':d.from_addr||'?')}</b></div>`
     +`<div class="mh-line">An: ${esc(d.to||'—')}${d.cc?' · Cc: '+esc(d.cc):''}</div>`
-    +`<div class="mh-line">${d.ts?esc(new Date(d.ts*1000).toLocaleString('de-DE')):''} · Konto: ${esc(m.account)}</div></div>`;
+    +`<div class="mh-line">${d.ts?esc(new Date(d.ts*1000).toLocaleString(I18N.locale)):''} · Konto: ${esc(m.account)}</div></div>`;
   if((d.attachments||[]).length){
     const ad=document.createElement('div');ad.className='mail-atts';
     ad.innerHTML=d.attachments.map(a=>`<a class="mail-att" href="/api/mail/att?account=${encodeURIComponent(m.account)}&uid=${encodeURIComponent(m.uid)}&folder=${encodeURIComponent(m.folder||'INBOX')}&idx=${a.idx}">📎 ${esc(a.name)} <span style="opacity:.6">(${fmtSize(a.size||0)})</span></a>`).join('');
@@ -2405,7 +2412,7 @@ async function openMail(m){
       body:JSON.stringify({key:d.key,category:cat})});
     m.category=cat;renderMailSide();};
   const quote=(d.text||'').split('\n').map(l=>'> '+l).join('\n');
-  const when=d.ts?new Date(d.ts*1000).toLocaleString('de-DE'):'';
+  const when=d.ts?new Date(d.ts*1000).toLocaleString(I18N.locale):'';
   document.getElementById('mReply').onclick=()=>renderCompose({
     from:m.account,to:d.from_addr,reply:d.message_id,
     subject:(/^re:/i.test(d.subject||'')?d.subject:'Re: '+(d.subject||'')),
@@ -2597,7 +2604,7 @@ function applyTiles(){
 }
 function renderSettings(){
   const side=document.getElementById('setnav');
-  if(side)side.innerHTML=['Kacheln','Modelle & Anbieter','Namen','Charakter','Farbwelt','Hintergrund']
+  if(side)side.innerHTML=['Sprache','Kacheln','Modelle & Anbieter','Telegram','Namen','Charakter','Farbwelt','Hintergrund']
     .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
   const w=document.createElement('div');w.className='set-wrap';
 
@@ -2613,6 +2620,17 @@ function renderSettings(){
     : '<span class="set-tag warn">NICHT INSTALLIERT</span>';
 
   w.innerHTML=`
+  <div class="set-sec"><h3>🌐 SPRACHE</h3><div class="set-body">
+    <div class="set-row"><span style="flex:1">
+      <span class="set-d">Sprache der Oberfläche und des Assistenten. Die Seite lädt danach neu.</span>
+      <span style="display:block;margin-top:9px">
+        <select id="setLang" class="set-btn" style="padding:7px 9px" translate="no">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </span></span></div>
+  </div></div>
+
   <div class="set-sec"><h3>⚙ KACHELN</h3><div class="set-body">
     <div class="set-row"><label style="cursor:default">
       <input type="checkbox" checked disabled>
@@ -2673,6 +2691,60 @@ function renderSettings(){
       <span style="display:block;margin-top:9px">
         <button class="set-btn" id="setMail" ${SETTINGS.tiles.mail===false?'disabled title="Kachel E-Mails ist abgeschaltet"':''}>⚙ Konten verwalten…</button>
       </span></span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>✈ TELEGRAM</h3><div class="set-body">
+    <div class="set-d" style="margin-bottom:10px">${T('Sprich mit {a} von unterwegs — per Text oder Sprachnachricht. Dazu Erinnerungen an Termine, eine Meldung, wenn ein langer Lauf fertig ist, und geplante Aufgaben aus dem Kalender. Läuft nur, solange CONSTRUCT läuft.',{a:esc(ASSISTANT)})}</div>
+    <div class="set-row"><label>
+      <input type="checkbox" id="tgOn">
+      <span><span class="set-t">Telegram-Bot aktiv</span>
+      <span class="set-d" id="tgStatus">…</span></span></label></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Bot-Token</span>
+      <span class="set-d">In Telegram bei <b>@BotFather</b>: <code>/newbot</code> → Namen vergeben → Token kopieren.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="tgToken" type="password" autocomplete="off" spellcheck="false" style="width:100%;max-width:420px">
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Deine Chat-ID</span>
+      <span class="set-d">Nur diese ID darf mit dem Bot reden. Unbekannt? Bot aktivieren und ihm irgendetwas schreiben — dann erscheint sie hier.</span>
+      <span style="display:block;margin-top:8px">
+        <input class="set-in" id="tgChat" inputmode="numeric" spellcheck="false" style="width:180px">
+        <span id="tgCand"></span>
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Modell und Modus</span>
+      <span class="set-d">Womit der Bot antwortet. „Plan“ liest nur und ändert nichts — die sichere Wahl, wenn das Handy mal in fremde Hände gerät.</span>
+      <span style="display:block;margin-top:8px">
+        <select id="tgModel" class="set-btn" style="padding:7px 9px"></select>
+        <select id="tgMode" class="set-btn" style="padding:7px 9px">
+          <option value="bypassPermissions">⚡ Auto</option>
+          <option value="plan">📋 Plan</option>
+        </select>
+      </span></span></div>
+    <div class="set-row"><label>
+      <input type="checkbox" id="tgRem">
+      <span><span class="set-t">Erinnerungen an Termine</span>
+      <span class="set-d">Morgens eine Übersicht über den Tag, vor terminierten Einträgen ein Ping.</span></span></label>
+      <span style="display:block;margin:8px 0 0 30px">
+        <select id="tgHour" class="set-btn" style="padding:7px 9px"></select>
+        <select id="tgLead" class="set-btn" style="padding:7px 9px">
+          <option value="0">kein Ping vorher</option>
+          <option value="10">10 Min vorher</option>
+          <option value="15">15 Min vorher</option>
+          <option value="30">30 Min vorher</option>
+          <option value="60">60 Min vorher</option>
+        </select>
+      </span></div>
+    <div class="set-row"><label>
+      <input type="checkbox" id="tgNotify">
+      <span><span class="set-t">Melden, wenn ein langer Lauf fertig ist</span>
+      <span class="set-d">Nur wenn gerade niemand im Fenster zuschaut.</span></span></label></div>
+    <div style="margin-top:9px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+      <button class="set-btn" id="tgSave">Speichern</button>
+      <button class="set-btn" id="tgTest">Test-Nachricht</button>
+      <span class="set-saved" id="tgNote"></span>
+    </div>
   </div></div>
 
   <div class="set-sec"><h3>🔄 AKTUALISIERUNG</h3><div class="set-body">
@@ -2789,11 +2861,17 @@ function renderSettings(){
 
   chat.innerHTML='';chat.appendChild(w);
 
+  const langSel=document.getElementById('setLang');
+  langSel.value=I18N.lang;
+  // Neu laden statt live umschalten: Texte stecken auch in schon gebauten
+  // Ansichten und im Server-Prompt — ein frischer Start ist die ehrliche Lösung.
+  langSel.onchange=async()=>{await setSave({lang:langSel.value});location.reload();};
   w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
     setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
   });
   setupEngines(w);
   setupUpdates(w);
+  setupTelegram(w);
   setupPersona(w);
   setupAvatars(w);
   const nm=SETTINGS.names||{};
@@ -2909,6 +2987,72 @@ async function setupEngines(w){
 // Dieselbe Quelle wie die Karte unten rechts, nur ausfuehrlicher: hier steht
 // das ganze Protokoll, und der Lauf laesst sich von Hand anstossen.
 let updSetTimer=null;
+// ---------- Telegram ----------
+// Der Token geht nur einmal zum Server und kommt nie zurück: das Feld zeigt
+// danach nur "gespeichert". Der Status wird abgefragt, solange die Seite offen
+// ist — so taucht die Chat-ID auf, sobald man dem Bot schreibt.
+let tgTimer=null;
+function setupTelegram(w){
+  const $=id=>w.querySelector('#'+id);
+  const on=$('tgOn'),tok=$('tgToken'),chat=$('tgChat'),model=$('tgModel'),mode=$('tgMode'),
+        rem=$('tgRem'),hour=$('tgHour'),lead=$('tgLead'),notify=$('tgNotify'),
+        stEl=$('tgStatus'),cand=$('tgCand'),note=$('tgNote');
+  if(!on)return;
+  model.innerHTML=CLAUDE_MODELS.map(m=>`<option value="${m.v}">${esc(m.l)}</option>`).join('');
+  hour.innerHTML=Array.from({length:24},(_,h)=>`<option value="${h}">${T('Übersicht um {h} Uhr',{h:String(h).padStart(2,'0')+':00'})}</option>`).join('');
+  const showStatus=c=>{
+    const s=c.status||{};
+    const txt={
+      off: c.has_token?T('aus'):T('noch nicht eingerichtet'),
+      starting: T('startet …'),
+      running: T('läuft')+(s.bot?' — @'+s.bot:'')+(c.chat_id?'':' · '+T('wartet auf deine Chat-ID')),
+      conflict: T('⚠ Derselbe Bot wird schon woanders abgefragt (anderer Rechner oder Server). Dort stoppen oder einen eigenen Bot anlegen.'),
+      error: '⚠ '+(s.error||T('Fehler')),
+    }[s.state]||s.state;
+    stEl.textContent=txt;
+    cand.innerHTML='';
+    if(s.candidate&&!c.chat_id){
+      cand.innerHTML=` <span class="set-d" style="display:inline">${esc(T('Nachricht von {n} ({id})',{n:s.candidate.name,id:s.candidate.id}))}</span> `
+        +`<button class="set-btn" id="tgTake">${T('Übernehmen')}</button>`;
+      cand.querySelector('#tgTake').onclick=()=>{chat.value=s.candidate.id;save();};
+    }
+  };
+  const fill=c=>{
+    on.checked=!!c.enabled;chat.value=c.chat_id||'';model.value=c.model||'';mode.value=c.mode;
+    rem.checked=!!c.reminders;hour.value=String(c.reminder_hour);lead.value=String(c.reminder_lead);
+    notify.checked=!!c.notify;
+    tok.value='';tok.placeholder=c.has_token?T('•••••••• (gespeichert — nur zum Ändern neu eingeben)'):'123456789:AA…';
+    if(c.from_env){tok.disabled=true;tok.placeholder=T('aus der Umgebung (TELEGRAM_TOKEN)');}
+    showStatus(c);
+  };
+  const flash=(t)=>{note.textContent=t;note.classList.add('on');};
+  async function save(){
+    const body={enabled:on.checked,chat_id:chat.value.trim(),model:model.value,mode:mode.value,
+      reminders:rem.checked,reminder_hour:+hour.value,reminder_lead:+lead.value,notify:notify.checked};
+    if(tok.value.trim())body.token=tok.value.trim();
+    flash(T('⟲ speichere …'));
+    try{
+      const r=await fetch('/api/telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const j=await r.json();
+      if(!r.ok){flash('⚠ '+(j.error||r.status));return;}
+      fill(j);flash(T('✓ gespeichert'));
+    }catch(e){flash('⚠ '+(e.message||e));}
+  }
+  $('tgSave').onclick=save;
+  on.onchange=save;
+  $('tgTest').onclick=async()=>{
+    flash(T('⟲ sende …'));
+    try{const r=await fetch('/api/telegram/test',{method:'POST'});const j=await r.json();
+      flash(r.ok?T('✅ gesendet!'):'⚠ '+(j.error||r.status));}catch(e){flash('⚠ '+(e.message||e));}
+  };
+  fetch('/api/telegram').then(r=>r.json()).then(fill).catch(()=>{});
+  clearInterval(tgTimer);
+  tgTimer=setInterval(async()=>{
+    if(!document.body.contains(stEl)){clearInterval(tgTimer);return;}
+    try{showStatus(await(await fetch('/api/telegram')).json());}catch{}
+  },3000);
+}
+
 function setupUpdates(w){
   const auto=w.querySelector('#updAuto'), iv=w.querySelector('#updIv'),
         btn=w.querySelector('#updNow'), note=w.querySelector('#updNote'),
@@ -3156,7 +3300,7 @@ setMode(currentMode);setModel(currentModel);applyClaudeState();
 applyAvatars();      // eigene Bilder, falls hinterlegt
 applyTheme();        // Farbwelt (im <head> schon gesetzt, hier der Regen)
 applyBackground();   // Hintergrund aus den gespeicherten Einstellungen
-// Nicht fest '/workspace': das gibt es nur im Container. /api/folders liefert
+// Kein fest verdrahteter Pfad: /api/folders liefert
 // an erster Stelle den echten Arbeitsordner des Servers (WORKSPACE) — unter
 // Windows und nativ auf dem Desktop ist das ein ganz anderer Pfad, und die
 // Anzeige log bisher, weil der Server still auf seinen Standard zurückfiel.

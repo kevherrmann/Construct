@@ -13,7 +13,6 @@ import os
 import re
 import secrets
 import shutil
-import socket
 import subprocess
 import threading
 import time
@@ -21,15 +20,6 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
-
-# Hostinger routet IPv6 ins Leere -> urllib hängt ~20s pro Request (siehe
-# telegram_bot.py). getaddrinfo auf IPv4 beschränken; lokal schadet das nicht.
-_orig_getaddrinfo = socket.getaddrinfo
-def _getaddrinfo_ipv4(host, *args, **kwargs):
-    res = _orig_getaddrinfo(host, *args, **kwargs)
-    v4 = [r for r in res if r[0] == socket.AF_INET]
-    return v4 or res
-socket.getaddrinfo = _getaddrinfo_ipv4
 
 from fastapi import FastAPI, UploadFile, File, Request, Response
 from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, FileResponse
@@ -43,6 +33,7 @@ import bonsai as bonsaimod  # lokaler llama-server, nur bei Bedarf im VRAM
 import mail as mailmod  # E-Mail: IMAP/SMTP für GMX, Gmail, Outlook (mail.py)
 import attach  # Anhänge: Bilder normalisieren, PDF-Textauszug (attach.py)
 import updates as updmod  # hält Claude Code und Hermes aktuell (updates.py)
+import telegram_bot as tgmod  # Cody über Telegram, eingerichtet unter ⚙
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -50,16 +41,14 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
 def _find_workspace() -> str:
-    """Ordner mit Kevins Projekten — Grundlage der Ordner-Auswahl im Chat.
+    """Ordner mit den Projekten des Nutzers — Grundlage der Ordner-Auswahl im Chat.
 
-    Im Container ist das /workspace, nativ auf dem Desktop z.B. ~/projects.
-    CODY_WORKSPACE sticht immer, damit man es pro Rechner setzen kann.
+    Meist ~/projects bzw. ~/Projekte. CODY_WORKSPACE sticht immer, damit man
+    es pro Rechner setzen kann.
     """
     env = os.environ.get("CODY_WORKSPACE", "").strip()
     if env and os.path.isdir(env):
         return env
-    if os.path.isdir("/workspace"):
-        return "/workspace"
     for cand in (Path.home() / "projects", Path.home() / "Projekte"):
         if cand.is_dir():
             return str(cand)
@@ -74,7 +63,7 @@ DEFAULT_CWD = WORKSPACE
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
 VERSION = "4.0.0"
 
-# Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf Hostinger).
+# Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
 AUTH_USER = os.environ.get("MATRIX_USER", "Cody")
 AUTH_PASS = os.environ.get("MATRIX_PASS", "")
@@ -87,6 +76,10 @@ def load_persona() -> str:
         txt = cfg.persona_read(which).strip()
         if txt:
             parts.append(txt)
+    # Die Persona-Vorlage legt die Sprache fest, eine eigene SOUL.md aber
+    # womöglich nicht — dann entscheidet die Einstellung.
+    parts.append(cfg.L("Antworte auf Deutsch, außer der Nutzer schreibt in einer anderen Sprache.",
+                       "Reply in English unless the user writes in another language."))
     # Anstehende Termine frisch einspielen -> Cody weiß, was ansteht, und kann erinnern.
     try:
         block = cal.context_block()
@@ -188,7 +181,7 @@ def auth_status():
         "can_web_login": WEB_LOGIN_OK,
         "ok": cli and (web or envtok or (cred["exists"] and not cred["expired"])),
         "web_token": web,            # per Web-Login erzeugter Langzeit-Token
-        "env_token": envtok,         # z.B. .cody-env auf Hostinger
+        "env_token": envtok,         # CLAUDE_CODE_OAUTH_TOKEN aus der Umgebung
         "credentials": cred,         # Interactive-Login (claudec)
     }
 
@@ -474,7 +467,7 @@ def friendly_claude_error(msg: str) -> str:
 
 @app.get("/api/folders")
 def folders():
-    """Projektordner unter /workspace (für die Ordner-Auswahl im Chat)."""
+    """Projektordner unter WORKSPACE (für die Ordner-Auswahl im Chat)."""
     out = [WORKSPACE]
     try:
         for name in sorted(os.listdir(WORKSPACE), key=str.lower):
@@ -551,7 +544,7 @@ def skills():
 def skill_file(path: str):
     rp = os.path.realpath(path)
     roots = [os.path.realpath(WORKSPACE), os.path.realpath(str(GLOBAL_SKILLS_DIR))]
-    # os.sep anhängen -> /workspace2 zählt nicht als "unter /workspace"
+    # os.sep anhängen -> ~/projects2 zählt nicht als "unter ~/projects"
     if not any(rp == r or rp.startswith(r + os.sep) for r in roots) or not os.path.isfile(rp):
         return JSONResponse({"error": "not allowed"}, status_code=403)
     try:
@@ -904,6 +897,43 @@ async def settings_set(req: Request):
     return cfg.apply_patch(await req.json())
 
 
+# ---------- Telegram (Einrichtung unter ⚙) ----------
+@app.get("/api/telegram")
+def telegram_get():
+    return tgmod.public_conf()
+
+
+@app.post("/api/telegram")
+async def telegram_set(req: Request):
+    """Speichern und den Bot neu starten. Ein neuer Token wird vorher geprüft —
+    ein Tippfehler soll hier auffallen, nicht erst als stummer Bot."""
+    body = await req.json()
+    tok = (body.get("token") or "").strip()
+    if tok:
+        try:
+            await asyncio.to_thread(tgmod.check_token, tok)
+        except Exception as e:
+            return JSONResponse({"error": cfg.L("Token ungültig: ", "Invalid token: ") + str(e)},
+                                status_code=400)
+    else:
+        body.pop("token", None)      # leer = unverändert lassen
+    tgmod.save_conf(body)
+    tgmod.restart()
+    return tgmod.public_conf()
+
+
+@app.post("/api/telegram/test")
+async def telegram_test():
+    ok = await asyncio.to_thread(tgmod.send_owner, cfg.L(
+        f"👋 Hallo von {cfg.assistant_name()} — Telegram ist eingerichtet.",
+        f"👋 Hi from {cfg.assistant_name()} — Telegram is set up."))
+    if not ok:
+        return JSONResponse({"error": cfg.L("Senden fehlgeschlagen — Token und Chat-ID prüfen.",
+                                            "Sending failed — check token and chat ID.")},
+                            status_code=400)
+    return {"ok": True}
+
+
 # ---------- Kalender ----------
 @app.get("/api/events")
 def events_list():
@@ -1088,8 +1118,17 @@ def index():
         "assistant": cfg.assistant_name(),
         "claude": bool(claude_bin()),
         "web_login": WEB_LOGIN_OK,
+        "lang": cfg.lang(),
+        "workspace": WORKSPACE,
         "settings": cfg.load_settings(),
     }, ensure_ascii=False) + ";"
+    # Wörterbuch mit Stempel: index.html kommt nie aus dem Cache, das Script
+    # schon — ohne ?v= sähe man nach einem Update die alten Übersetzungen.
+    try:
+        v = int((STATIC_DIR / "i18n.js").stat().st_mtime)
+    except OSError:
+        v = 0
+    html = html.replace('src="/static/i18n.js"', f'src="/static/i18n.js?v={v}"', 1)
     # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
     # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
     html = re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};", lambda _m: payload,
@@ -1502,42 +1541,31 @@ def gc_runs():
 
 
 # ---------- Telegram-Benachrichtigung (wenn ein langer Lauf unbeobachtet fertig wird) ----------
-TG_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
-TG_CHAT = os.environ.get("CODY_CHAT_ID", "").strip()   # eigene Chat-ID, siehe README
+# Eingerichtet wird Telegram unter ⚙ Einstellungen (telegram_bot.py).
 NOTIFY_MIN_SECS = int(os.environ.get("CODY_NOTIFY_MIN_SECS", "90"))
-
-
-def tg_send(text: str):
-    if not TG_TOKEN or not TG_CHAT:
-        return
-    try:
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data=json.dumps({"chat_id": int(TG_CHAT), "text": text[:3900]}).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        urllib.request.urlopen(req, timeout=15).read()
-    except Exception as e:
-        print(f"[tg] senden fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
 
 
 def maybe_notify(run):
     """Nach Lauf-Ende: Telegram-Ping, wenn (a) geplante Aufgabe oder (b) der Lauf
     lange lief UND gerade niemand im Browser zuschaut (run.subs leer)."""
-    if not TG_TOKEN:
+    conf = tgmod.load_conf()
+    if not (conf["enabled"] and conf["token"] and conf["chat_id"]):
+        return
+    if not run.notify_always and not conf["notify"]:
         return
     dur = time.time() - run.started
     if not run.notify_always and (dur < NOTIFY_MIN_SECS or run.subs):
         return
     mins, secs = divmod(int(dur), 60)
     tail = run.last_text.strip()[-600:]
-    head = "🤖 Geplante Aufgabe erledigt" if run.notify_always else "✅ Cody ist fertig"
+    head = (cfg.L("🤖 Geplante Aufgabe erledigt", "🤖 Scheduled task done") if run.notify_always
+            else cfg.L(f"✅ {cfg.assistant_name()} ist fertig", f"✅ {cfg.assistant_name()} is done"))
     msg = f"{head} ({mins} m {secs} s, {os.path.basename(run.cwd or '?')})"
     if run.notify_always and run.task_title:
         msg += f" — {run.task_title}"
     if tail:
         msg += f":\n\n{tail}"
-    threading.Thread(target=tg_send, args=(msg,), daemon=True).start()
+    threading.Thread(target=tgmod.send_owner, args=(msg,), daemon=True).start()
 
 
 def stdin_message(prompt: str) -> bytes:
@@ -1563,12 +1591,17 @@ def pdf_note(pdfs) -> str:
     for p in pdfs:
         txt = Path(str(p) + ".txt")
         if txt.is_file():
-            lines.append(f"[Vom Nutzer hochgeladene PDF: {p} — Textauszug: {txt}]")
+            lines.append(cfg.L(f"[Vom Nutzer hochgeladene PDF: {p} — Textauszug: {txt}]",
+                               f"[PDF uploaded by the user: {p} — text extract: {txt}]"))
         else:
-            lines.append(f"[Vom Nutzer hochgeladene PDF: {p} — kein Text extrahierbar, "
-                         "vermutlich gescannt]")
-    lines.append("(Lies zuerst den Textauszug mit dem Read-Tool; die PDF selbst nur, "
-                 "wenn Layout oder Bilder wichtig sind.)")
+            lines.append(cfg.L(f"[Vom Nutzer hochgeladene PDF: {p} — kein Text extrahierbar, "
+                               "vermutlich gescannt]",
+                               f"[PDF uploaded by the user: {p} — no extractable text, "
+                               "probably scanned]"))
+    lines.append(cfg.L("(Lies zuerst den Textauszug mit dem Read-Tool; die PDF selbst nur, "
+                       "wenn Layout oder Bilder wichtig sind.)",
+                       "(Read the text extract with the Read tool first; open the PDF itself "
+                       "only if layout or images matter.)"))
     return "\n".join(lines)
 
 
@@ -1578,9 +1611,11 @@ def build_prompt(text: str, images) -> str:
     imgs = [p for p in (images or []) if not is_pdf(p)]
     pdfs = [p for p in (images or []) if is_pdf(p)]
     if imgs:
-        img_lines = "\n".join(f"[Vom Nutzer hochgeladenes Bild: {p}]" for p in imgs)
+        img_lines = "\n".join(cfg.L(f"[Vom Nutzer hochgeladenes Bild: {p}]",
+                                     f"[Image uploaded by the user: {p}]") for p in imgs)
         prompt = (f"{prompt}\n\n{img_lines}\n"
-                  "(Bitte sieh dir die Bild-Datei(en) mit dem Read-Tool an.)").strip()
+                  + cfg.L("(Bitte sieh dir die Bild-Datei(en) mit dem Read-Tool an.)",
+                          "(Please look at the image file(s) with the Read tool.)")).strip()
     if pdfs:
         prompt = f"{prompt}\n\n{pdf_note(pdfs)}".strip()
     return prompt
@@ -1942,17 +1977,20 @@ def carry_over_block(session_id: str) -> str:
         herkunft = "Claude Code"
     if not msgs:
         return ""
-    lines = [f"[Kontext: Dieses Gespräch lief bisher mit {herkunft}; "
-             f"{cfg.user_name()} wechselt jetzt das Modell. Bisheriger Verlauf:]"]
+    lines = [cfg.L(f"[Kontext: Dieses Gespräch lief bisher mit {herkunft}; "
+                   f"{cfg.user_name()} wechselt jetzt das Modell. Bisheriger Verlauf:]",
+                   f"[Context: this conversation has so far run on {herkunft}; "
+                   f"{cfg.user_name()} is now switching models. History so far:]")]
     total = 0
     for m in msgs[-30:]:
         t = str(m.get("text") or m.get("content") or "")
         total += len(t)
         if total > 40000:
             break
-        who = cfg.user_name() if m.get("role") == "user" else "Assistent"
+        who = cfg.user_name() if m.get("role") == "user" else cfg.L("Assistent", "Assistant")
         lines.append(f"{who}: {t}")
-    lines.append("[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]")
+    lines.append(cfg.L("[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]",
+                       "[End of history — now reply to the following new message.]"))
     return "\n\n".join(lines)
 
 
@@ -2124,7 +2162,7 @@ def stop_run(run_id: str):
 
 
 # ---------- Geplante Aufgaben (Kalender-Termine mit Cody-Prompt) ----------
-# Läuft nur, wenn Telegram konfiguriert ist (= auf Hostinger, der 24/7 an ist).
+# Läuft nur, wenn Telegram eingerichtet ist — und nur, solange CONSTRUCT läuft.
 # Zur Termin-Zeit startet ein normaler Run; das Ergebnis kommt per Telegram.
 TASK_STATE = BASE_DIR / "tasks_state.json"
 
@@ -2165,19 +2203,28 @@ def _due_tasks():
 
 
 async def scheduler_loop():
-    print("[sched] Aufgaben-Scheduler aktiv (Telegram konfiguriert)", flush=True)
+    # Läuft immer mit, arbeitet aber nur, solange Telegram eingerichtet ist:
+    # das Ergebnis einer geplanten Aufgabe kommt per Telegram an.
     while True:
         try:
+            if not tgmod.enabled():
+                await asyncio.sleep(60)
+                continue
             for ev, key in list(_due_tasks()):
                 _mark_task_done(key)   # SOFORT markieren -> nie doppelt starten
                 title = ev.get("title") or "(ohne Titel)"
                 print(f"[sched] starte Aufgabe: {title}", flush=True)
-                prompt = (
-                    f"[Geplante Aufgabe aus Kevins Kalender — Termin: „{title}“, "
-                    f"{ev.get('date')} {ev.get('time') or ''}. Kevin sieht deine Antwort "
-                    f"als Telegram-Nachricht. Fasse dich entsprechend.]\n\n{ev['prompt']}"
-                )
-                run = start_run(prompt, DEFAULT_CWD, "bypassPermissions")
+                who = cfg.user_name()
+                prompt = cfg.L(
+                    f"[Geplante Aufgabe aus dem Kalender — Termin: „{title}“, "
+                    f"{ev.get('date')} {ev.get('time') or ''}. {who} sieht deine Antwort "
+                    f"als Telegram-Nachricht. Fasse dich entsprechend.]",
+                    f"[Scheduled task from the calendar — event: “{title}”, "
+                    f"{ev.get('date')} {ev.get('time') or ''}. {who} will read your reply "
+                    f"as a Telegram message. Keep it short accordingly.]",
+                ) + f"\n\n{ev['prompt']}"
+                tconf = tgmod.load_conf()
+                run = start_run(prompt, DEFAULT_CWD, tconf["mode"], tconf["model"])
                 run.notify_always = True
                 run.task_title = title
         except Exception as e:
@@ -2188,12 +2235,15 @@ async def scheduler_loop():
 @app.on_event("shutdown")
 async def _stop_bonsai():
     bonsaimod.stop()   # sonst hielte der Server die GPU, obwohl CONSTRUCT weg ist
+    tgmod.stop()
 
 
 @app.on_event("startup")
 async def _start_scheduler():
-    if TG_TOKEN:
-        asyncio.create_task(scheduler_loop())
+    asyncio.create_task(scheduler_loop())
+    tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
+               persona=load_persona, workspace=WORKSPACE)
+    tgmod.restart()
     # Früher installiertes Ollama nach Container-Neustart wieder hochfahren
     asyncio.get_running_loop().run_in_executor(None, llmmod.ollama_autostart)
     # Claude Code / Hermes aktuell halten. Der Aufruf kehrt sofort zurück —

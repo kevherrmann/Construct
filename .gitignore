@@ -17,6 +17,7 @@
 .llm-config.json
 .mail-accounts.json
 .oauth-token
+.telegram.json
 .env
 .env.*
 
@@ -35,6 +36,7 @@ mail_attach/
 llm_sessions/
 sessions_meta.json
 telegram_state.json
+tasks_state.json
 uploads/
 server.log
 *.log

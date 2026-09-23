@@ -549,8 +549,7 @@ def ollama_pulls() -> dict:
 # Wenn Ollama nicht läuft, kann Cody es komplett selbst besorgen: offizielles
 # Linux-Paket laden, nach OLLAMA_DIR entpacken und `ollama serve` als eigenen
 # Hintergrundprozess starten (kein Root nötig; Modelle landen in models/).
-# OLLAMA_DIR liegt auf /workspace (persistent, überlebt Container-Neustarts).
-OLLAMA_DIR = Path("/workspace/.ollama") if os.path.isdir("/workspace") else (Path.home() / ".cody-ollama")
+OLLAMA_DIR = Path.home() / ".cody-ollama"
 _OLLAMA_PKG_BASE = ("https://ollama.com/download/ollama-linux-"
                     + ("arm64" if platform.machine() in ("aarch64", "arm64") else "amd64"))
 
@@ -754,13 +753,17 @@ def history_block(sid: str, max_n=30, max_chars=40000) -> str:
     s = load_session(sid)
     if not s or not s.get("messages"):
         return ""
-    lines = [f"[Kontext: Dieses Gespräch lief bisher mit {s.get('provider')}:{s.get('model')} "
-             f"(externes Chat-Modell); {cfg.user_name()} wechselt jetzt zu dir. "
-             "Bisheriger Verlauf:]"]
+    lines = [cfg.L(f"[Kontext: Dieses Gespräch lief bisher mit {s.get('provider')}:{s.get('model')} "
+                   f"(externes Chat-Modell); {cfg.user_name()} wechselt jetzt zu dir. "
+                   "Bisheriger Verlauf:]",
+                   f"[Context: this conversation has so far run on {s.get('provider')}:"
+                   f"{s.get('model')} (external chat model); {cfg.user_name()} is now "
+                   "switching to you. History so far:]")]
     for m in recent_messages(s, max_n, max_chars):
-        who = cfg.user_name() if m["role"] == "user" else "Assistent"
+        who = cfg.user_name() if m["role"] == "user" else cfg.L("Assistent", "Assistant")
         lines.append(f"{who}: {m['content']}")
-    lines.append("[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]")
+    lines.append(cfg.L("[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]",
+                       "[End of history — now reply to the following new message.]"))
     return "\n\n".join(lines)
 
 

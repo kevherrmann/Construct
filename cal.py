@@ -20,6 +20,7 @@ Termin-Format (events.json = Liste solcher Objekte):
   time == "" bedeutet ganztägig.
 """
 import json
+import os
 import re
 import sys
 import uuid
@@ -29,6 +30,7 @@ from pathlib import Path
 EVENTS_FILE = Path(__file__).parent / "events.json"
 _TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 _DE_DOW = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+_EN_DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 # ---------- Lesen / Schreiben (atomar) ----------
@@ -57,7 +59,7 @@ def add_event(date, title, time="", notes="", repeat="", prompt=""):
         "title": (title or "").strip(),
         "notes": (notes or "").strip(),
         "repeat": (repeat or "").strip(),   # "" = einmalig, "yearly" = jährlich (z.B. Geburtstag)
-        "prompt": (prompt or "").strip(),   # geplante Cody-Aufgabe: läuft zur Termin-Zeit (nur Hostinger)
+        "prompt": (prompt or "").strip(),   # geplante Cody-Aufgabe: läuft zur Termin-Zeit (Ergebnis per Telegram)
         "created": datetime.datetime.now().isoformat(timespec="seconds"),
     }
     events = load_events()
@@ -108,27 +110,62 @@ def upcoming(days=7, today=None):
 def context_block(days=7, today=None):
     """Kalender-Block für Codys System-Prompt — frisch bei jeder Anfrage eingespielt.
 
-    Dadurch *weiß* Cody jederzeit, was ansteht, und kann Kevin von sich aus erinnern.
+    Dadurch *weiß* Cody jederzeit, was ansteht, und kann von sich aus erinnern.
+    Dazu die Anleitung fürs Eintragen samt ECHTEM Pfad dieser Datei: fest in
+    der Persona stünde er nur für einen Rechner richtig.
     """
     today = today or datetime.date.today()
-    head = f"## Dein Kalender (heute ist {_DE_DOW[today.weekday()]}, {today.isoformat()})"
+    try:
+        import config
+        en = config.lang() == "en"
+    except Exception:
+        en = False
+    dow = _EN_DOW if en else _DE_DOW
+    if en:
+        head = f"## Your calendar (today is {dow[today.weekday()]}, {today.isoformat()})"
+    else:
+        head = f"## Dein Kalender (heute ist {dow[today.weekday()]}, {today.isoformat()})"
     ups = upcoming(days, today)
     if not ups:
-        return head + f"\nKeine Termine in den nächsten {days} Tagen eingetragen."
-    lines = [head, "Anstehende Termine — erinnere Kevin von dir aus daran, wenn es gerade passt:"]
+        return head + (f"\nNo events in the next {days} days." if en
+                       else f"\nKeine Termine in den nächsten {days} Tagen eingetragen.") + _cli_help(en)
+    lines = [head, "Upcoming events — remind the user of them yourself when it fits:" if en
+             else "Anstehende Termine — erinnere den Nutzer von dir aus daran, wenn es gerade passt:"]
     for e in ups:
         d = datetime.date.fromisoformat(e["date"])
         delta = (d - today).days
         if delta == 0:
-            when = "HEUTE"
+            when = "TODAY" if en else "HEUTE"
         elif delta == 1:
-            when = "morgen"
+            when = "tomorrow" if en else "morgen"
         else:
-            when = f"{_DE_DOW[d.weekday()]} {d.strftime('%d.%m.')}"
+            when = f"{dow[d.weekday()]} {d.isoformat() if en else d.strftime('%d.%m.')}"
         t = (" " + e["time"]) if e.get("time") else ""
         note = f" — {e['notes']}" if e.get("notes") else ""
         lines.append(f"- {when}{t}: {e['title']}{note}")
-    return "\n".join(lines)
+    return "\n".join(lines) + _cli_help(en)
+
+
+def _cli_help(en: bool) -> str:
+    """Wie Cody Termine selbst verwaltet — mit dem Pfad dieser Installation."""
+    py = "python" if os.name == "nt" else "python3"
+    me = str(Path(__file__).resolve())
+    c = f'{py} "{me}"'
+    if en:
+        return ("\n\nManage events yourself with this CLI (the interface shows them right away):\n"
+                f'- add: `{c} add YYYY-MM-DD [HH:MM] "Title" ["Note"]` — without a time = all day; '
+                "`--yearly` repeats every year (then MM-DD is enough)\n"
+                f"- look up: `{c} upcoming [days]`, `{c} today`, `{c} list [YYYY-MM]`\n"
+                f"- delete: `{c} rm <id>` (id from `list`)\n"
+                "Convert relative dates (\"tomorrow\", \"next Friday\") to a date yourself, "
+                "and briefly confirm what you did.")
+    return ("\n\nTermine verwaltest du selbst mit diesem CLI (die Oberfläche zeigt sie sofort an):\n"
+            f'- eintragen: `{c} add JJJJ-MM-TT [HH:MM] "Titel" ["Notiz"]` — ohne Uhrzeit = ganztägig; '
+            "`--yearly` wiederholt jährlich (dann reicht MM-TT)\n"
+            f"- nachsehen: `{c} upcoming [tage]`, `{c} today`, `{c} list [JJJJ-MM]`\n"
+            f"- löschen: `{c} rm <id>` (ID aus `list`)\n"
+            "Relative Angaben („morgen“, „nächsten Freitag“) rechnest du selbst aufs Datum um "
+            "und bestätigst kurz, was du gemacht hast.")
 
 
 # ---------- CLI ----------

@@ -1,5 +1,5 @@
 # Nur für den Fenster-Modus (desktop.py). Bewusst getrennt von
-# requirements.txt, damit der Server-Betrieb auf Hostinger nichts davon braucht.
+# requirements.txt, damit ein reiner Server-Betrieb (--web) nichts davon braucht.
 #
 # Linux zusätzlich als System-Paket (nicht per pip installierbar):
 #   sudo dnf install python3-gobject webkit2gtk4.1        # Fedora / Nobara

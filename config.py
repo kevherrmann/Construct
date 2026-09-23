@@ -27,9 +27,13 @@ BG_MODES = ("matrix", "image", "plain")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
 THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut")
+# Sprache der Oberfläche UND des Assistenten. Englisch als Vorgabe: das
+# Repository ist öffentlich, Deutsch schaltet man sich im ⚙-Dialog um.
+LANGS = ("en", "de")
 
 DEFAULT_SETTINGS = {
     "theme": "matrix",
+    "lang": "en",
     # Leerer Nutzername = neutrale Anrede. Ein voreingestellter Vorname wäre in
     # einem Repository, das andere klonen, schlicht der falsche Mensch.
     "names": {"user": "", "assistant": "Cody"},
@@ -78,6 +82,8 @@ def load_settings() -> dict:
         return out
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
+    if raw.get("lang") in LANGS:
+        out["lang"] = raw["lang"]
     h = raw.get("hermes") or {}
     out["hermes"]["home"] = str(h.get("home") or "").strip()[:400]
     av = raw.get("avatars") or {}
@@ -115,6 +121,8 @@ def apply_patch(patch: dict) -> dict:
     cur = load_settings()
     if patch.get("theme") in THEMES:
         cur["theme"] = patch["theme"]
+    if patch.get("lang") in LANGS:
+        cur["lang"] = patch["lang"]
     h = patch.get("hermes") or {}
     if "home" in h:
         cur["hermes"]["home"] = str(h.get("home") or "").strip()[:400]
@@ -166,6 +174,10 @@ PERSONA_FILES = {
     "soul": (BASE_DIR / "SOUL.md", BASE_DIR / "SOUL.default.md"),
     "user": (BASE_DIR / "USER.md", None),
 }
+# Englische Vorlage daneben: wer mit "en" startet, bekommt einen Cody, der
+# Englisch spricht. Gilt nur fürs ERSTE Anlegen — eine vorhandene SOUL.md
+# gehört dem Nutzer und wird beim Sprachwechsel nicht überschrieben.
+SOUL_TEMPLATE_EN = BASE_DIR / "SOUL.default.en.md"
 MAX_PERSONA = 64_000     # großzügig, aber kein unbegrenzter Systemprompt
 
 
@@ -176,6 +188,8 @@ def persona_read(which: str) -> str:
     except FileNotFoundError:
         pass
     if template is not None:
+        if which == "soul" and lang() == "en" and SOUL_TEMPLATE_EN.is_file():
+            template = SOUL_TEMPLATE_EN
         try:
             txt = template.read_text(encoding="utf-8", errors="replace")
             live.write_text(txt, encoding="utf-8")   # beim ersten Mal anlegen
@@ -194,13 +208,26 @@ def persona_write(which: str, text: str) -> str:
     return text
 
 
+# ---------- Sprache ----------
+def lang() -> str:
+    # Umgebungsvariable sticht die Datei — wie bei den Namen unten.
+    env = os.environ.get("CONSTRUCT_LANG", "").strip().lower()
+    return env if env in LANGS else load_settings().get("lang", "en")
+
+
+def L(de: str, en: str) -> str:
+    """Text in der eingestellten Sprache — für alles, was ans Modell geht.
+    Ein deutscher Hinweis im Prompt zieht die Antwort sonst ins Deutsche."""
+    return en if lang() == "en" else de
+
+
 # ---------- Namen ----------
 # Umgebungsvariablen stechen die Datei: praktisch für Server-Installationen,
 # die ohne Oberfläche eingerichtet werden.
 def user_name() -> str:
     """Wie der Assistent den Nutzer anspricht."""
     return (os.environ.get("CONSTRUCT_USER", "").strip()
-            or load_settings()["names"]["user"] or "der Nutzer")
+            or load_settings()["names"]["user"] or L("der Nutzer", "the user"))
 
 
 def assistant_name() -> str:

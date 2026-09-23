@@ -565,16 +565,20 @@ def _history_fallback(sid: str) -> str:
     msgs = session_messages(sid)
     if not msgs:
         return ""
-    lines = ["[Kontext: Die bisherige Sitzung ließ sich technisch nicht "
-             "fortsetzen; dies ist ihr Verlauf:]"]
+    lines = [cfg.L("[Kontext: Die bisherige Sitzung ließ sich technisch nicht "
+                   "fortsetzen; dies ist ihr Verlauf:]",
+                   "[Context: the previous session could not be resumed for technical "
+                   "reasons; this is its history:]")]
     total = 0
     for m in msgs[-30:]:
         t = str(m.get("text") or "")
         total += len(t)
         if total > 40000:
             break
-        lines.append(("Nutzer: " if m.get("role") == "user" else "Assistent: ") + t)
-    lines.append("[Ende des Verlaufs — antworte auf die folgende neue Nachricht.]")
+        lines.append((cfg.L("Nutzer: ", "User: ") if m.get("role") == "user"
+                      else cfg.L("Assistent: ", "Assistant: ")) + t)
+    lines.append(cfg.L("[Ende des Verlaufs — antworte auf die folgende neue Nachricht.]",
+                       "[End of history — reply to the following new message.]"))
     return "\n\n".join(lines)
 
 

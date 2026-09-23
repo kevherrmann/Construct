@@ -12,7 +12,7 @@ Aufruf normalerweise über ./start.sh (kümmert sich um venv + Abhängigkeiten):
     ./start.sh              Fenster
     ./start.sh --web        nur Server, kein Fenster (Autostart/Server)
 
-Läuft auf Port 8765 schon eine Instanz (z.B. der alte Docker-Container), wird
+Läuft auf Port 8765 schon eine Instanz, wird
 KEIN zweiter Server gestartet — das Fenster hängt sich an die laufende an.
 """
 import os
@@ -216,8 +216,7 @@ def start_server() -> bool:
             return False
         sys.exit(
             f"!! Port {PORT} ist belegt, aber das ist nicht CONSTRUCT.\n"
-            f"   Alten Docker-Container stoppen:  docker rm -f matrixchat\n"
-            f"   Oder anderen Port nehmen:        MATRIX_PORT=8766 ./start.sh"
+            f"   Anderen Port nehmen:  MATRIX_PORT=8766 ./start.sh"
         )
 
     threading.Thread(target=serve, daemon=True).start()
