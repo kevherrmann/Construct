@@ -280,7 +280,12 @@ class LoginFlow:
         return m.group(0) if m else None
 
     def token(self):
-        m = re.search(r"sk-ant-oat[0-9A-Za-z_-]{20,}", self.text())
+        # Escapes hier durch Leerzeichen ersetzen, nicht löschen: die CLI setzt
+        # Wortabstände per Cursor-Sprung (\x1b[1C) — gelöscht klebte der
+        # Folgetext ("Store…") am Token -> 401 "OAuth access token is invalid".
+        with self.lock:
+            raw = self.buf.decode("utf-8", "replace")
+        m = re.search(r"sk-ant-oat[0-9A-Za-z_-]{20,}", ANSI_RE.sub(" ", raw))
         return m.group(0) if m else None
 
     def send_code(self, code: str):
