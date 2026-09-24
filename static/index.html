@@ -23,6 +23,8 @@
   // Theme VOR dem ersten Zeichnen: sonst erscheint die Seite kurz in Grün und
   // wechselt dann die Farbe — sichtbar und unangenehm.
   if(st.theme && st.theme!=='matrix') r.setAttribute('data-theme', st.theme);
+  // Seitenleisten-Breite ebenfalls vorab — sonst springt sie nach dem Laden.
+  try{var sw=+localStorage.getItem('sideW');if(sw>=220&&sw<=900)r.style.setProperty('--side-w',sw+'px');}catch(e){}
   var t=st.tiles||{};
   ['skills','kalender','mail','mcp'].forEach(function(k){
     if(t[k]===false)r.classList.add('no-'+k);
@@ -79,6 +81,18 @@
     --bg:#000600; --panel:rgba(0,18,4,.82); --user:#9dffb0;
     --accent-rgb:0,255,65; --soft:#7dd398; --link:#7fffd4;
     --rain:#00ff41; --rain-fade:rgba(0,6,0,.07);
+    /* Flächen und Schrift abseits der Akzentfarbe. Die dunklen Themes teilen
+       sich diese Werte; nur die hellen setzen sie neu.
+         --text       heller Fließtext (Mails, Termine, Tool-Ausgaben)
+         --field      Eingabefelder      --popup   Dialoge, Auswahllisten
+         --box        Karten, Blasen     --deep    satte Flächen (Mail, Avatar)
+         --codebg     Code-Blöcke — bleiben auch hell dunkel (atom-one-dark)
+         --on-accent  Schrift AUF der Akzentfarbe (Knöpfe, Chips) */
+    --text:#cfeede; --field:rgba(0,8,2,.7); --popup:#020e05;
+    --box:rgba(0,12,3,.55); --box-user:rgba(4,20,8,.6); --user-line:#1f5a30;
+    --deep:#04130b; --deep-hi:#07240f; --codebg:#05140a;
+    --on-accent:#001a06; --accent2:#00c235; --code:#aaffc0;
+    --shade:rgba(0,0,0,.35); --mask:rgba(0,4,0,.82);
   }
   html[data-theme="bernstein"]{
     --green:#ffb648; --green-dim:#c07a12; --green-faint:#4a2f0a;
@@ -110,6 +124,40 @@
     --accent-rgb:255,95,87; --soft:#cf9490; --link:#ff9c96;
     --rain:#ff5f57; --rain-fade:rgba(11,3,3,.07);
   }
+  /* ---------- Helle Themes ----------
+     Papier: dunkles Waldgrün auf warmem Off-White.
+     Nebel:  Tintenblau auf kühlem Hellgrau.
+     Leuchten (text-shadow) und Scanlines sind für Schwarz gebaut — auf Hell
+     sieht beides nur unscharf und schmutzig aus, darum fallen sie hier weg. */
+  html[data-theme="papier"]{
+    --green:#1d6b45; --green-dim:#5f8a73; --green-faint:#d3dfd6;
+    --bg:#f5f2ea; --panel:rgba(252,250,244,.92); --user:#34506b;
+    --accent-rgb:29,107,69; --soft:#46584d; --link:#1b6aa8;
+    --rain:#1d6b45; --rain-fade:rgba(245,242,234,.14);
+    --text:#1f2a24; --field:#fffdf8; --popup:#fffdf8;
+    --box:rgba(255,255,255,.72); --box-user:rgba(228,238,231,.85); --user-line:#b7ccbd;
+    --deep:#fbf9f3; --deep-hi:#eaf1ea; --codebg:#20272a;
+    --on-accent:#ffffff; --accent2:#2e8a5c; --code:#a2401a;
+    --shade:rgba(40,50,40,.06); --mask:rgba(50,48,40,.35);
+  }
+  html[data-theme="nebel"]{
+    --green:#2757b8; --green-dim:#6d7f9c; --green-faint:#d5dce8;
+    --bg:#eef1f6; --panel:rgba(250,251,253,.93); --user:#6a3fa0;
+    --accent-rgb:39,87,184; --soft:#4b5870; --link:#1f6fd1;
+    --rain:#2757b8; --rain-fade:rgba(238,241,246,.14);
+    --text:#1c2433; --field:#ffffff; --popup:#ffffff;
+    --box:rgba(255,255,255,.75); --box-user:rgba(232,236,248,.9); --user-line:#c3cce0;
+    --deep:#f8f9fc; --deep-hi:#e7ecf6; --codebg:#232834;
+    --on-accent:#ffffff; --accent2:#3b72d9; --code:#b0306a;
+    --shade:rgba(30,40,70,.06); --mask:rgba(30,36,50,.35);
+  }
+  html:is([data-theme="papier"],[data-theme="nebel"]){color-scheme:light}
+  html:is([data-theme="papier"],[data-theme="nebel"]) *{text-shadow:none!important}
+  html:is([data-theme="papier"],[data-theme="nebel"]) body::after{content:none}
+  html:is([data-theme="papier"],[data-theme="nebel"]) #rain{opacity:.12}
+  html:is([data-theme="papier"],[data-theme="nebel"]) .cal-ev .edel{background:#fff1f1;border-color:#efc2c2;color:#c62828}
+  html:is([data-theme="papier"],[data-theme="nebel"]) .cal-ev .edel:hover{background:#ffe0e0}
+  html:is([data-theme="papier"],[data-theme="nebel"]) .bubble pre code{color:#e6e6e6}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--green);font-family:'Share Tech Mono',monospace;
@@ -135,7 +183,7 @@
   #app{position:relative;z-index:10;display:flex;height:100vh}
 
   /* Sidebar + Menü */
-  #side{width:300px;flex:0 0 300px;border-right:1px solid var(--green-faint);
+  #side{width:var(--side-w,300px);flex:0 0 var(--side-w,300px);border-right:1px solid var(--green-faint);
     background:var(--panel);display:flex;flex-direction:column;backdrop-filter:blur(2px)}
   #side h1{font-size:18px;letter-spacing:3px;margin:0;padding:15px 16px 2px;
     color:var(--green);text-shadow:0 0 10px var(--green)}
@@ -148,7 +196,7 @@
      Reihe zu eng (Labels brechen weg) -> 3er-Raster, wächst nach unten. */
   #menu{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 10px 12px;
     border:1px solid var(--green-faint);border-radius:5px;overflow:hidden;
-    background:rgba(0,10,3,.5)}
+    background:var(--box)}
   .mi{min-width:0;background:transparent;border:none;
     border-left:1px solid var(--green-faint);border-top:1px solid var(--green-faint);
     color:var(--green-dim);cursor:pointer;font-family:inherit;font-size:15px;line-height:1;
@@ -196,26 +244,34 @@
   .archtoggle:hover{color:var(--green)}
   .archtoggle.on{color:var(--green)}
   .archtoggle span{color:var(--green);opacity:.85;text-decoration:underline}
-  #sessSearch{width:100%;background:rgba(0,8,2,.7);border:1px solid var(--green-faint);color:var(--green);
+  #sessSearch{width:100%;background:var(--field);border:1px solid var(--green-faint);color:var(--green);
     font-family:inherit;font-size:12px;padding:7px 10px;outline:none;margin-bottom:8px;text-shadow:inherit}
   #sessSearch:focus{border-color:var(--green-dim);box-shadow:0 0 8px rgba(var(--accent-rgb),.25)}
   #sessSearch::placeholder{color:var(--green-dim);opacity:.6}
 
   /* Main */
   #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  /* Griff zum Verbreitern der Seitenleiste. Liegt mit negativem Rand halb ueber
+     der Kante: 7px Trefferflaeche, ohne dass zwischen Leiste und Chat eine
+     Luecke entsteht. Doppelklick = zurueck auf 300px. */
+  #sideGrip{flex:0 0 7px;margin:0 -4px 0 -3px;cursor:col-resize;position:relative;z-index:20;touch-action:none}
+  #sideGrip::after{content:"";position:absolute;inset:0 3px 0 3px;transition:.12s}
+  #sideGrip:hover::after,#sideGrip.drag::after{background:var(--green-dim);box-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
+  body.side-drag{cursor:col-resize;user-select:none}
+  body.side-drag iframe{pointer-events:none}
   #topbar{padding:10px 18px;border-bottom:1px solid var(--green-faint);font-size:12px;
     color:var(--green-dim);display:flex;justify-content:space-between;align-items:center}
   #status .dot{color:var(--green);animation:blink 1.2s infinite}
   @keyframes blink{50%{opacity:.25}}
   #chat{flex:1;overflow-y:auto;padding:22px 8%;scroll-behavior:smooth}
-  @media(max-width:900px){#chat{padding:18px 16px}#side{position:absolute;z-index:30;height:100%;transform:translateX(-100%);transition:.2s}#side.open{transform:none}#burger{display:block!important}}
+  @media(max-width:900px){#sideGrip{display:none}#chat{padding:18px 16px}#side{position:absolute;z-index:30;height:100%;transform:translateX(-100%);transition:.2s}#side.open{transform:none}#burger{display:block!important}}
 
   .msg{display:flex;gap:10px;align-items:flex-start;margin:16px 0;animation:fade .25s ease}
   .msg.user{flex-direction:row-reverse}
   .msgcol{display:flex;flex-direction:column;max-width:80%;min-width:0}
   .msg.user .msgcol{align-items:flex-end}
   .avatar{flex:0 0 52px;width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
-    background:#04240c center/cover no-repeat;display:flex;align-items:center;justify-content:center;
+    background:var(--deep) center/cover no-repeat;display:flex;align-items:center;justify-content:center;
     color:var(--green);font-weight:bold;font-size:21px;overflow:hidden;box-shadow:0 0 10px rgba(var(--accent-rgb),.35);margin-top:16px}
   .av-cody{background-image:var(--av-asst,url('/static/cody.png'))}
   /* Nutzer-Bild ist optional (⚙ Einstellungen → Namen → Bilder). Ohne eines
@@ -225,11 +281,11 @@
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
   .msg .who{font-size:11px;letter-spacing:2px;margin-bottom:5px;opacity:.85}
   .msg.user .who{color:var(--user)}.msg.bot .who{color:var(--green)}
-  .bubble{border:1px solid var(--green-faint);padding:12px 15px;background:rgba(0,12,3,.6);
+  .bubble{border:1px solid var(--green-faint);padding:12px 15px;background:var(--box);
     line-height:1.55;font-size:14.5px;word-wrap:break-word}
-  .msg.user .bubble{border-color:#1f5a30;color:var(--user);background:rgba(4,20,8,.6)}
+  .msg.user .bubble{border-color:var(--user-line);color:var(--user);background:var(--box-user)}
   .bubble img{max-width:260px;border:1px solid var(--green-faint);margin:6px 6px 0 0;border-radius:2px}
-  .bubble pre{background:#05140a !important;border:1px solid var(--green-faint);padding:12px;overflow-x:auto;border-radius:3px;position:relative}
+  .bubble pre{background:var(--codebg) !important;border:1px solid var(--green-faint);padding:12px;overflow-x:auto;border-radius:3px;position:relative}
   .copy-btn{position:absolute;top:6px;right:6px;font-family:inherit;font-size:10px;letter-spacing:1px;
     background:rgba(var(--accent-rgb),.1);color:var(--green-dim);border:1px solid var(--green-faint);
     padding:2px 8px;border-radius:3px;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2}
@@ -237,20 +293,20 @@
   .copy-btn:hover{background:rgba(var(--accent-rgb),.2);color:var(--green)}
   .copy-btn.done{color:var(--green);border-color:var(--green);opacity:1}
   .msg.user .bubble{position:relative}
-  .edit-btn{position:absolute;top:-10px;left:-10px;font-size:11px;background:#04130b;color:var(--green-dim);
+  .edit-btn{position:absolute;top:-10px;left:-10px;font-size:11px;background:var(--deep);color:var(--green-dim);
     border:1px solid var(--green-faint);border-radius:50%;width:24px;height:24px;line-height:22px;text-align:center;
     cursor:pointer;opacity:0;transition:opacity .15s;padding:0;z-index:2}
   .msg.user:hover .edit-btn{opacity:.85}
   .edit-btn:hover{color:var(--green);opacity:1;box-shadow:0 0 8px rgba(var(--accent-rgb),.4)}
   #chat.busy .edit-btn{display:none}
-  .editbox{width:100%;box-sizing:border-box;min-width:min(62vw,520px);background:#05140a;color:var(--user);
-    border:1px solid #1f5a30;border-radius:3px;font-family:inherit;font-size:14px;padding:8px;resize:vertical;line-height:1.5}
+  .editbox{width:100%;box-sizing:border-box;min-width:min(62vw,520px);background:var(--deep);color:var(--user);
+    border:1px solid var(--user-line);border-radius:3px;font-family:inherit;font-size:14px;padding:8px;resize:vertical;line-height:1.5}
   .editbar{display:flex;gap:8px;margin-top:8px;justify-content:flex-end}
   .editbar button{font-family:inherit;font-size:12px;padding:4px 12px;border-radius:3px;cursor:pointer}
-  .eb-send{background:var(--green);color:#001a06;border:none;font-weight:bold}
+  .eb-send{background:var(--green);color:var(--on-accent);border:none;font-weight:bold}
   .eb-cancel{background:transparent;color:var(--green-dim);border:1px solid var(--green-faint)}
   .bubble code{font-family:'Share Tech Mono',monospace;font-size:13px}
-  .bubble :not(pre)>code{color:#aaffc0;background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
+  .bubble :not(pre)>code{color:var(--code);background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
   .bubble a{color:var(--link);text-decoration:underline;cursor:pointer}
   .bubble h1,.bubble h2,.bubble h3{color:var(--green);text-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
   .bubble table{border-collapse:collapse}.bubble td,.bubble th{border:1px solid var(--green-faint);padding:5px 9px}
@@ -263,7 +319,7 @@
   .err{color:#ff5c5c;border:1px solid #5a1f1f;padding:10px;background:rgba(40,0,0,.4);text-shadow:none}
 
   /* Thinking-Box */
-  .thinkbox{border:1px dashed var(--green-faint);background:rgba(0,20,10,.35);margin:9px 0;border-radius:3px}
+  .thinkbox{border:1px dashed var(--green-faint);background:var(--box);margin:9px 0;border-radius:3px}
   .tk-head{display:flex;align-items:center;gap:8px;padding:6px 11px;cursor:pointer;user-select:none;
     color:#2f9d55;font-size:12px;font-style:italic}
   .tk-head:hover{background:rgba(var(--accent-rgb),.05)}
@@ -273,7 +329,7 @@
   .thinkbox.open .tk-body{display:block}
 
   /* Tool-Box */
-  .toolcall{border:1px solid var(--green-faint);background:rgba(0,28,8,.4);margin:9px 0;border-radius:3px;
+  .toolcall{border:1px solid var(--green-faint);background:var(--box);margin:9px 0;border-radius:3px;
     box-shadow:inset 0 0 18px rgba(var(--accent-rgb),.04)}
   .tc-head{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;user-select:none;color:var(--green-dim);font-size:12.5px}
   .tc-head:hover{background:rgba(var(--accent-rgb),.06)}
@@ -286,8 +342,8 @@
   .tc-lbl{font-size:9.5px;letter-spacing:2px;color:var(--green-dim);opacity:.7;margin-bottom:3px}
   .tc-olbl{margin-top:9px}
   .tc-in,.tc-out{white-space:pre-wrap;word-break:break-word;font-family:'Share Tech Mono',monospace;
-    font-size:12px;background:rgba(0,0,0,.32);padding:7px 9px;border-radius:2px;text-shadow:none}
-  .tc-in{color:#7fce99}.tc-out{color:#cfeede;opacity:.95}
+    font-size:12px;background:var(--shade);padding:7px 9px;border-radius:2px;text-shadow:none}
+  .tc-in{color:var(--soft)}.tc-out{color:var(--text);opacity:.95}
   .toolcall.err-tool{border-color:#5a1f1f}.toolcall.err-tool .tc-st{color:#ff5c5c}
   /* Diff-Darstellung für Edit/Write */
   .df-file{font-size:11px;color:var(--green);margin-bottom:5px;letter-spacing:.5px}
@@ -312,7 +368,7 @@
   .pbar:hover{background:rgba(var(--accent-rgb),.06);color:var(--green)}
   .pbar .pcar{color:var(--green-dim)}
   #fbname,#mbname{color:var(--green);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .plist{display:none;position:absolute;bottom:100%;left:0;margin-bottom:4px;background:#020e05;border:1px solid var(--green-dim);
+  .plist{display:none;position:absolute;bottom:100%;left:0;margin-bottom:4px;background:var(--popup);border:1px solid var(--green-dim);
     max-height:280px;overflow:auto;min-width:230px;z-index:40;box-shadow:0 0 18px rgba(var(--accent-rgb),.25)}
   .plist.show{display:block}
   .fl-item{padding:8px 12px;font-size:12px;color:var(--soft);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -325,9 +381,9 @@
   #llmlist{min-width:320px;max-height:360px}
   /* Ollama-Verwaltung im KI-Anbieter-Dialog */
   .oll-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px dashed var(--green-faint);font-size:12.5px}
-  .oll-name{color:#cfeede;min-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .oll-name{color:var(--text);min-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .oll-meta{color:var(--green-dim);font-size:11px;flex:1;min-width:0}
-  .oll-prog{width:130px;height:9px;border:1px solid var(--green-faint);background:rgba(0,0,0,.4);position:relative;flex:0 0 auto}
+  .oll-prog{width:130px;height:9px;border:1px solid var(--green-faint);background:var(--shade);position:relative;flex:0 0 auto}
   .oll-prog i{position:absolute;inset:0;right:auto;background:var(--green);box-shadow:0 0 7px rgba(var(--accent-rgb),.6);transition:width .4s}
   .obtn{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;
     font-family:inherit;font-size:11px;padding:4px 10px;border-radius:3px;letter-spacing:1px;flex:0 0 auto;white-space:nowrap}
@@ -344,18 +400,18 @@
   .thinking .td:nth-child(2){animation-delay:.18s}
   .thinking .td:nth-child(3){animation-delay:.36s}
   @keyframes tdot{0%,70%,100%{opacity:.25;transform:translateY(0)}35%{opacity:1;transform:translateY(-4px)}}
-  .skillbanner{display:inline-block;margin:8px 0;padding:7px 13px;font-size:13px;color:#001a06;
-    background:linear-gradient(90deg,var(--green),#00c235);border-radius:4px;font-weight:bold;text-shadow:none;
+  .skillbanner{display:inline-block;margin:8px 0;padding:7px 13px;font-size:13px;color:var(--on-accent);
+    background:linear-gradient(90deg,var(--green),var(--accent2));border-radius:4px;font-weight:bold;text-shadow:none;
     box-shadow:0 0 16px rgba(var(--accent-rgb),.55)}
   .skillbanner .sk-n{font-weight:normal}
   #queuebar{display:none;font-size:11.5px;color:var(--green-dim);border:1px dashed var(--green-faint);
-    padding:7px 11px;margin-bottom:9px;border-radius:3px;background:rgba(0,20,6,.4)}
+    padding:7px 11px;margin-bottom:9px;border-radius:3px;background:var(--box)}
   #queuebar b{color:var(--green)}
   .qitem{display:flex;justify-content:space-between;gap:8px;margin-top:5px;color:var(--soft)}
   .qitem span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .qx{cursor:pointer;color:#ff5c5c;flex:0 0 auto}
-  .helpbox{border:1px solid var(--green-faint);background:rgba(0,20,6,.5);padding:12px 15px;margin:10px 0;font-size:13px;line-height:1.7}
-  .helpbox b{color:var(--green)}.helpbox code{color:#aaffc0;background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
+  .helpbox{border:1px solid var(--green-faint);background:var(--box);padding:12px 15px;margin:10px 0;font-size:13px;line-height:1.7}
+  .helpbox b{color:var(--green)}.helpbox code{color:var(--code);background:rgba(var(--accent-rgb),.08);padding:1px 5px;border-radius:3px}
   #thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
   #thumbs .th{position:relative}#thumbs img{height:54px;border:1px solid var(--green-faint)}
   #thumbs .doc{display:inline-block;height:54px;line-height:54px;padding:0 10px;border:1px solid var(--green-faint);
@@ -366,11 +422,11 @@
   #inrow{display:flex;gap:10px;align-items:flex-end}
   #attach{background:transparent;border:1px solid var(--green-dim);color:var(--green);cursor:pointer;font-family:inherit;font-size:18px;padding:6px 12px;height:44px}
   #attach:hover{background:var(--green-faint)}
-  #inp{flex:1;background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+  #inp{flex:1;background:var(--field);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
     font-size:14.5px;padding:11px 13px;resize:none;outline:none;max-height:180px;text-shadow:inherit;line-height:1.4}
   #inp:focus{box-shadow:0 0 12px rgba(var(--accent-rgb),.35);border-color:var(--green)}
   #inp::placeholder{color:var(--green-dim);opacity:.6}
-  #send{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+  #send{background:var(--green);color:var(--on-accent);border:none;cursor:pointer;font-family:inherit;font-weight:bold;
     letter-spacing:2px;padding:0 22px;height:44px;font-size:14px;text-shadow:none;box-shadow:0 0 14px rgba(var(--accent-rgb),.5)}
   #send:disabled{background:var(--green-faint);color:var(--green-dim);cursor:not-allowed;box-shadow:none}
   #stop{background:#2a0606;color:#ff5c5c;border:1px solid #ff5c5c;cursor:pointer;font-family:inherit;font-weight:bold;
@@ -397,7 +453,7 @@
   .cal-dow span{text-align:center;font-size:11px;letter-spacing:3px;color:var(--green-dim);padding:4px 0}
   .cal-dow span.we{color:#3aa862;opacity:.7}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
-  .cal-cell{min-height:96px;border:1px solid var(--green-faint);background:rgba(0,14,4,.5);padding:5px 6px;
+  .cal-cell{min-height:96px;border:1px solid var(--green-faint);background:var(--box);padding:5px 6px;
     cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;border-radius:3px;transition:.12s}
   .cal-cell:hover{border-color:var(--green-dim);background:rgba(var(--accent-rgb),.07);box-shadow:inset 0 0 18px rgba(var(--accent-rgb),.07)}
   .cal-cell.other{opacity:.34}
@@ -405,24 +461,34 @@
   .cal-cell.sel{border-color:var(--green);background:rgba(var(--accent-rgb),.12)}
   .cal-dnum{font-size:13px;color:var(--green);align-self:flex-end;opacity:.85;line-height:1}
   .cal-cell.today .cal-dnum{font-weight:bold;text-shadow:0 0 8px var(--green);opacity:1}
-  .cal-chip{font-size:10.5px;line-height:1.35;color:#001a06;background:linear-gradient(90deg,var(--green),#00c235);
+  .cal-chip{font-size:10.5px;line-height:1.35;color:var(--on-accent);background:linear-gradient(90deg,var(--green),var(--accent2));
     border-radius:2px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
   .cal-chip.allday{background:rgba(var(--accent-rgb),.16);color:var(--green);text-shadow:0 0 6px rgba(var(--accent-rgb),.4)}
   .cal-more{font-size:10px;color:var(--green-dim);letter-spacing:1px}
+  /* Tagebuch: bewusst gedaempft — Termine sind Plan, das hier ist Rueckblick */
+  .cal-act{margin-top:auto;font-size:10px;line-height:1.35;color:var(--soft);border:1px dashed var(--green-faint);
+    border-radius:2px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
+  .cal-acth{margin:16px 0 6px;font-size:11px;letter-spacing:2px;color:var(--green-dim)}
+  .cal-proj{padding:7px 11px;margin:6px 0;border:1px dashed var(--green-faint);border-radius:2px}
+  .cal-proj .cp-h{font-size:13px;color:var(--green);display:flex;gap:10px;align-items:baseline}
+  .cal-proj .cp-n{margin-left:auto;font-size:10.5px;color:var(--green-dim)}
+  .cal-proj .cp-s{font-size:12px;color:var(--soft);padding:3px 0 0 14px;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-proj .cp-s:hover{color:var(--green)}
   /* Tages-Detail unter dem Grid */
-  .cal-day{margin-top:20px;border:1px solid var(--green-faint);background:rgba(0,12,3,.6);border-radius:3px;
+  .cal-day{margin-top:20px;border:1px solid var(--green-faint);background:var(--box);border-radius:3px;
     padding:15px 17px;box-shadow:inset 0 0 22px rgba(var(--accent-rgb),.04)}
   .cal-day h3{margin:0 0 12px;font-size:14px;letter-spacing:2px;color:var(--green);text-shadow:0 0 8px rgba(var(--accent-rgb),.5)}
   .cal-ev{display:flex;align-items:center;gap:11px;padding:8px 11px;margin:7px 0;border:1px solid var(--green-faint);
-    border-left:3px solid var(--green);background:rgba(0,18,6,.5);border-radius:2px}
+    border-left:3px solid var(--green);background:var(--box);border-radius:2px}
   .cal-ev .et{font-size:13px;color:var(--green);min-width:48px;text-shadow:0 0 6px rgba(var(--accent-rgb),.4)}
-  .cal-ev .etitle{flex:1;font-size:13.5px;color:#cfeede;word-break:break-word}
+  .cal-ev .etitle{flex:1;font-size:13.5px;color:var(--text);word-break:break-word}
   .cal-ev .enote{font-size:11.5px;color:var(--green-dim);opacity:.85}
   .cal-ev .edel{cursor:pointer;color:#ff5c5c;border:1px solid #5a1f1f;background:#1a0404;border-radius:3px;
     width:26px;height:26px;line-height:22px;text-align:center;flex:0 0 auto;font-size:13px}
   .cal-ev .edel:hover{background:#3d0808;box-shadow:0 0 10px rgba(255,60,60,.4)}
   .cal-add{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-  .cal-add input{background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+  .cal-add input{background:var(--field);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
     font-size:13.5px;padding:9px 11px;text-shadow:inherit;outline:none;border-radius:2px}
   .cal-add input:focus{box-shadow:0 0 11px rgba(var(--accent-rgb),.35);border-color:var(--green)}
   .cal-add input::placeholder{color:var(--green-dim);opacity:.6}
@@ -431,7 +497,7 @@
     border:1px solid var(--green-faint);padding:0 11px;border-radius:2px;white-space:nowrap}
   .cal-add .ci-rep:hover{color:var(--green);background:rgba(var(--accent-rgb),.06)}
   .cal-add .ci-rep input{accent-color:var(--green);cursor:pointer}
-  .cal-add button{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+  .cal-add button{background:var(--green);color:var(--on-accent);border:none;cursor:pointer;font-family:inherit;font-weight:bold;
     letter-spacing:1px;padding:0 20px;font-size:13px;text-shadow:none;box-shadow:0 0 12px rgba(var(--accent-rgb),.45);border-radius:2px}
   .cal-add button:hover{box-shadow:0 0 18px rgba(var(--accent-rgb),.6)}
   /* Sidebar-Kalender */
@@ -460,47 +526,47 @@
   .mside .mx{opacity:0;color:#ff5c5c;padding:0 3px;flex:0 0 auto}
   .mside:hover .mx{opacity:.8}
   .ml-row{display:flex;gap:10px;align-items:center;padding:9px 12px;margin:5px 0;cursor:pointer;
-    border:1px solid var(--green-faint);border-left:3px solid var(--green-faint);background:#020f06;transition:.12s;border-radius:3px}
-  .ml-row:hover{border-color:var(--green-dim);background:#06180c}
+    border:1px solid var(--green-faint);border-left:3px solid var(--green-faint);background:var(--deep);transition:.12s;border-radius:3px}
+  .ml-row:hover{border-color:var(--green-dim);background:var(--deep-hi)}
   .ml-row.unread{border-left-color:var(--green)}
   .ml-row.unread .ml-from,.ml-row.unread .ml-sub{color:var(--green)}
   .ml-acc{font-size:10px;border:1px solid;padding:1px 6px;border-radius:2px;flex:0 0 auto;text-shadow:none}
   .ml-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-  .ml-from{font-size:13px;color:#cfe3d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ml-sub{font-size:12px;color:#8fbfa2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ml-cat{font-size:10px;color:#001a06;background:linear-gradient(90deg,var(--green),#00c235);padding:1px 6px;border-radius:2px;flex:0 0 auto;text-shadow:none}
+  .ml-from{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-sub{font-size:12px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-cat{font-size:10px;color:var(--on-accent);background:linear-gradient(90deg,var(--green),var(--accent2));padding:1px 6px;border-radius:2px;flex:0 0 auto;text-shadow:none}
   .ml-date{font-size:11px;color:var(--green-dim);flex:0 0 auto;min-width:44px;text-align:right}
   .ml-del{opacity:0;color:#ff5c5c;flex:0 0 auto;padding:2px 4px;transition:.12s}
   .ml-row:hover .ml-del{opacity:.85}
   .ml-chk{flex:0 0 auto;width:15px;height:15px;accent-color:var(--green);cursor:pointer;margin:0}
-  .ml-row.sel{border-color:var(--green-dim);background:#07240f}
-  .mail-search{background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;font-family:inherit;
+  .ml-row.sel{border-color:var(--green-dim);background:var(--deep-hi)}
+  .mail-search{background:var(--field);border:1px solid var(--green-dim);color:var(--text);font-family:inherit;
     font-size:12.5px;padding:0 10px;height:30px;outline:none;border-radius:3px;flex:1;min-width:160px;max-width:340px;text-shadow:none}
   .mail-search:focus{box-shadow:0 0 10px rgba(var(--accent-rgb),.3)}
-  .mail-head{border:1px solid var(--green-faint);background:#03120a;padding:13px 16px;margin-bottom:10px;border-radius:3px}
-  .mh-sub{font-size:16.5px;color:#e8f5ec;margin-bottom:7px;text-shadow:none;word-break:break-word;
+  .mail-head{border:1px solid var(--green-faint);background:var(--deep);padding:13px 16px;margin-bottom:10px;border-radius:3px}
+  .mh-sub{font-size:16.5px;color:var(--text);margin-bottom:7px;text-shadow:none;word-break:break-word;
     font-family:'Segoe UI',system-ui,sans-serif;font-weight:600}
   .mh-line{font-size:12px;color:#94c4a6;margin:2px 0;word-break:break-word}
   .mail-frame{width:100%;height:62vh;border:1px solid var(--green-faint);background:#fff;border-radius:3px}
-  .mail-text{border:1px solid var(--green-faint);background:#04130b;padding:16px 18px;white-space:pre-wrap;
-    font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.65;color:#e2efe6;border-radius:3px;word-break:break-word}
+  .mail-text{border:1px solid var(--green-faint);background:var(--deep);padding:16px 18px;white-space:pre-wrap;
+    font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.65;color:var(--text);border-radius:3px;word-break:break-word}
   .mail-atts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
   .mail-att{font-size:12px;color:var(--link);border:1px solid var(--green-faint);padding:5px 10px;border-radius:3px;text-decoration:none}
   .mail-att:hover{background:rgba(var(--accent-rgb),.08)}
-  .msel{background:#02100a;border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
+  .msel{background:var(--field);border:1px solid var(--green-dim);color:var(--green);font-family:inherit;
     font-size:12px;padding:0 8px;outline:none;border-radius:3px;height:40px;max-width:220px}
   .mc-form{display:flex;flex-direction:column;gap:4px;max-width:860px}
   .mc-form label{font-size:10px;letter-spacing:2px;color:var(--green-dim);margin-top:8px}
-  .mc-form input,.mc-form textarea{background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;
+  .mc-form input,.mc-form textarea{background:var(--field);border:1px solid var(--green-dim);color:var(--text);
     font-family:'Segoe UI',system-ui,sans-serif;font-size:13.5px;padding:9px 11px;outline:none;border-radius:2px;resize:vertical;text-shadow:none}
   .mc-form input:focus,.mc-form textarea:focus{box-shadow:0 0 10px rgba(var(--accent-rgb),.3)}
-  .mc-acc{border:1px solid var(--green-faint);background:#03120a;padding:12px 14px;margin:8px 0;border-radius:3px}
-  .mca-head{display:flex;align-items:center;gap:9px;font-size:13px;color:#cfeede;flex-wrap:wrap}
+  .mc-acc{border:1px solid var(--green-faint);background:var(--deep);padding:12px 14px;margin:8px 0;border-radius:3px}
+  .mca-head{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text);flex-wrap:wrap}
   .mca-prov{font-size:10px;color:var(--green-dim);border:1px solid var(--green-faint);padding:1px 6px;border-radius:2px}
   .mca-st{flex:1;font-size:11px;color:var(--green-dim)}
   .mca-head .mx{color:#ff5c5c;cursor:pointer;opacity:.6}.mca-head .mx:hover{opacity:1}
   .mca-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
-  .mca-row input{flex:1;min-width:180px;background:#02100a;border:1px solid var(--green-dim);color:#dcebe1;
+  .mca-row input{flex:1;min-width:180px;background:var(--field);border:1px solid var(--green-dim);color:var(--text);
     font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;padding:8px 10px;outline:none;border-radius:2px;text-shadow:none}
   .mc-att{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--link);border:1px solid var(--green-faint);
     padding:4px 9px;border-radius:3px;margin:6px 6px 0 0}
@@ -515,7 +581,7 @@
     color:var(--green-dim);letter-spacing:.5px;text-shadow:none;white-space:nowrap;user-select:none}
   .chip b{color:var(--green)}
   .chip .bar{display:inline-block;width:46px;height:6px;border:1px solid var(--green-faint);
-    margin:0 5px -1px 5px;position:relative;background:rgba(0,0,0,.4)}
+    margin:0 5px -1px 5px;position:relative;background:var(--shade)}
   .chip .bar i{position:absolute;inset:0;right:auto;background:var(--green);box-shadow:0 0 6px rgba(var(--accent-rgb),.6)}
   .chip.warn{color:#ffd24a;border-color:#5a4a1f}.chip.warn .bar i{background:#ffd24a;box-shadow:0 0 6px rgba(255,210,74,.6)}
   .chip.crit{color:#ff5c5c;border-color:#5a1f1f}.chip.crit .bar i{background:#ff5c5c;box-shadow:0 0 6px rgba(255,92,92,.6)}
@@ -523,19 +589,19 @@
   .chip.alert{animation:pulse 1.3s ease-in-out infinite}
 
   /* ── Login-Dialog + KI-Anbieter-Dialog ── */
-  #loginmask,#llmmask{position:fixed;inset:0;z-index:80;background:rgba(0,4,0,.82);display:none;
+  #loginmask,#llmmask{position:fixed;inset:0;z-index:80;background:var(--mask);display:none;
     align-items:center;justify-content:center;backdrop-filter:blur(2px)}
   #loginmask.show,#llmmask.show{display:flex}
-  #loginbox,#llmbox{position:relative;width:min(600px,94vw);max-height:88vh;overflow:auto;background:#020e05;
+  #loginbox,#llmbox{position:relative;width:min(600px,94vw);max-height:88vh;overflow:auto;background:var(--popup);
     border:1px solid var(--green-dim);box-shadow:0 0 34px rgba(var(--accent-rgb),.3);padding:22px 26px;font-size:13.5px;line-height:1.65}
   #llmbox{width:min(760px,94vw)}
   #loginbox h3,#llmbox h3{margin:0 0 10px;letter-spacing:3px;color:var(--green);text-shadow:0 0 10px var(--green)}
   #loginbox p,#llmbox p{margin:9px 0;color:var(--soft)}
   #loginbox a,#llmbox a{color:var(--link);word-break:break-all}
-  #loginbox input{width:100%;background:rgba(0,8,2,.7);border:1px solid var(--green-dim);color:var(--green);
+  #loginbox input{width:100%;background:var(--field);border:1px solid var(--green-dim);color:var(--green);
     font-family:inherit;font-size:14px;padding:10px 12px;outline:none;margin:6px 0}
   #loginbox input:focus{box-shadow:0 0 12px rgba(var(--accent-rgb),.35)}
-  .lg-btn{background:var(--green);color:#001a06;border:none;cursor:pointer;font-family:inherit;font-weight:bold;
+  .lg-btn{background:var(--green);color:var(--on-accent);border:none;cursor:pointer;font-family:inherit;font-weight:bold;
     letter-spacing:2px;padding:11px 20px;font-size:13px;text-shadow:none;box-shadow:0 0 14px rgba(var(--accent-rgb),.5);margin-top:6px}
   .lg-btn:disabled{background:var(--green-faint);color:var(--green-dim);cursor:wait;box-shadow:none}
   #lgClose,#lmClose{position:absolute;top:10px;right:12px;background:none;border:none;color:#ff5c5c;font-size:17px;cursor:pointer}
@@ -548,7 +614,7 @@
      Code und Hermes gesucht wird. Bewusst KEINE Maske über dem Bild: das
      Update läuft im Hintergrund, der Chat bleibt die ganze Zeit bedienbar. */
   #updcard{position:fixed;right:18px;bottom:18px;z-index:70;width:min(340px,90vw);display:none;
-    background:#020e05;border:1px solid var(--green-dim);box-shadow:0 0 26px rgba(var(--accent-rgb),.28);
+    background:var(--popup);border:1px solid var(--green-dim);box-shadow:0 0 26px rgba(var(--accent-rgb),.28);
     padding:12px 14px;font-size:12px;line-height:1.5;animation:fade .35s ease}
   #updcard.show{display:block}
   #updcard h4{margin:0;font-size:12px;letter-spacing:2px;color:var(--green);text-shadow:0 0 8px var(--green);
@@ -590,7 +656,7 @@
   /* ---------- Einstellungen ---------- */
   .set-wrap{padding:6px 2px 40px;max-width:760px}
   .set-sec{border:1px solid var(--green-faint);border-radius:4px;margin:0 0 16px;
-    background:rgba(0,12,3,.5)}
+    background:var(--box)}
   .set-sec > h3{margin:0;padding:11px 14px;font-size:13px;letter-spacing:2px;
     border-bottom:1px solid var(--green-faint);background:rgba(var(--accent-rgb),.05)}
   .set-body{padding:12px 14px}
@@ -611,21 +677,21 @@
   .set-btn:hover[disabled]{background:transparent;box-shadow:none}
   .set-tag{font-size:10px;letter-spacing:1px;border:1px solid var(--green-faint);
     border-radius:2px;padding:2px 6px;opacity:.85;white-space:nowrap}
-  .set-tag.ok{color:#000;background:var(--green);border-color:var(--green);opacity:1}
+  .set-tag.ok{color:var(--on-accent);background:var(--green);border-color:var(--green);opacity:1}
   .set-tag.warn{color:#ffcf5a;border-color:#6b5a20}
   .set-head{display:flex;align-items:center;gap:10px}
   .set-head h4{margin:0;font-size:13px;letter-spacing:1px}
   .set-slider{width:100%;accent-color:var(--green)}
-  .set-in{background:rgba(0,0,0,.35);border:1px solid var(--green-faint);border-radius:3px;
+  .set-in{background:var(--shade);border:1px solid var(--green-faint);border-radius:3px;
     color:var(--green);font-family:inherit;font-size:13px;padding:7px 10px;width:230px;max-width:100%}
   .set-in:focus{outline:none;border-color:var(--green-dim)}
-  .set-area{width:100%;min-height:300px;background:rgba(0,0,0,.35);color:var(--green);
+  .set-area{width:100%;min-height:300px;background:var(--shade);color:var(--green);
     border:1px solid var(--green-faint);border-radius:3px;font-family:inherit;font-size:12.5px;
     line-height:1.55;padding:10px;resize:vertical}
   .set-area:focus{outline:none;border-color:var(--green-dim)}
   .av-pick{display:flex;align-items:center;gap:12px;margin-top:8px}
   .av-prev{width:52px;height:52px;border-radius:50%;border:1px solid var(--green-faint);
-    background:#04240c center/cover no-repeat;display:flex;align-items:center;
+    background:var(--deep) center/cover no-repeat;display:flex;align-items:center;
     justify-content:center;font-weight:bold;font-size:21px;flex:0 0 auto}
   .set-tabs{display:flex;gap:6px;margin-bottom:10px}
   .set-tab{font-family:inherit;font-size:12px;letter-spacing:1px;padding:6px 12px;cursor:pointer;
@@ -737,6 +803,7 @@
       </div>
     </div>
   </aside>
+  <div id="sideGrip" title="Ziehen = Breite ändern · Doppelklick = Standard"></div>
   <section id="main">
     <div id="topbar">
       <button id="burger">☰</button>
@@ -795,6 +862,7 @@ const THEME_SWATCH={
   matrix:['#000600','#00ff41','#0d3d18'], bernstein:['#0a0600','#ffb648','#4a2f0a'],
   eis:['#00060c','#5fd8ff','#0d3446'],    space:['#06030f','#b98bff','#2c1a4d'],
   asche:['#0c0e11','#d8dee4','#2b3138'],  blut:['#0b0303','#ff5f57','#481815'],
+  papier:['#f5f2ea','#1d6b45','#d3dfd6'], nebel:['#eef1f6','#2757b8','#d5dce8'],
 };
 const THEMES=[
   {k:'matrix',    n:'Matrix',      d:'Grün auf Schwarz. Der Ursprung.'},
@@ -803,6 +871,8 @@ const THEMES=[
   {k:'space',     n:'Space',       d:'Violett auf Nachtblau.'},
   {k:'asche',     n:'Asche',       d:'Neutrales Grau — zurückhaltend, gut zum Lesen.'},
   {k:'blut',      n:'Blut',        d:'Rot auf Schwarz. Laut.'},
+  {k:'papier',    n:'Papier',      d:'Hell: Waldgrün auf warmem Papierweiß.'},
+  {k:'nebel',     n:'Nebel',       d:'Hell: Tintenblau auf kühlem Grau.'},
 ];
 function applyTheme(){
   const t=SETTINGS.theme||'matrix';
@@ -1972,6 +2042,9 @@ const DE_MONTHS=I18N.lang==='en'
   :['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const DE_DOW=I18N.lang==='en'?['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:['Mo','Di','Mi','Do','Fr','Sa','So'];
 let calYear, calMonth, calSelDay=null, calEvents=[];
+// Tagebuch: woran an welchem Tag gearbeitet wurde (/api/activity, aus den
+// Transkripten abgeleitet — nichts davon steht in events.json).
+let calAct={}, calActRange='';
 const pad2=n=>String(n).padStart(2,'0');
 const ymd=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;          // m = 0-basiert
 const todayYMD=()=>{const n=new Date();return ymd(n.getFullYear(),n.getMonth(),n.getDate());};
@@ -1989,12 +2062,27 @@ function occDate(e,fromStr){
 
 async function loadKal(){
   if(calYear===undefined){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();}
+  calActRange='';   // beim Öffnen frisch holen: heute kann Neues dazugekommen sein
   await fetchEvents();
   renderCalMain();
   renderCalSide();
 }
 
+// Sichtbarer Bereich des Grids (6 Wochen ab dem Montag vor dem 1.).
+function calGridStart(){const f=new Date(calYear,calMonth,1);return new Date(calYear,calMonth,1-(f.getDay()+6)%7);}
+async function fetchActivity(){
+  const s=calGridStart(), e=new Date(s);e.setDate(s.getDate()+41);
+  const a=ymd(s.getFullYear(),s.getMonth(),s.getDate()), b=ymd(e.getFullYear(),e.getMonth(),e.getDate());
+  if(calActRange===a+'|'+b)return false;
+  const key=calActRange=a+'|'+b;
+  let d={};try{d=await(await fetch(`/api/activity?start=${a}&end=${b}`)).json();}catch{}
+  if(key!==calActRange)return false;   // inzwischen weitergeblättert
+  calAct=d;return true;
+}
 function renderCalMain(){
+  // Tagebuch nachladen und dann EINMAL neu zeichnen — das Grid steht sofort,
+  // die Projekt-Chips kommen einen Wimpernschlag später dazu.
+  fetchActivity().then(changed=>{if(changed&&document.getElementById('calwrap'))renderCalMain();});
   const wrap=document.createElement('div');wrap.id='calwrap';
   const top=document.createElement('div');top.className='cal-top';
   top.innerHTML=`<button class="cal-nav" id="calPrev" title="Vorheriger Monat">‹</button>`
@@ -2019,6 +2107,9 @@ function renderCalMain(){
     let chips='';
     evs.slice(0,3).forEach(e=>{chips+=`<div class="cal-chip${e.time?'':' allday'}">${e.prompt?'🤖 ':''}${e.time?esc(e.time)+' ':''}${esc(e.title)}</div>`;});
     if(evs.length>3)chips+=`<div class="cal-more">+${evs.length-3} mehr</div>`;
+    const act=calAct[ds]||[];
+    if(act.length)chips+=`<div class="cal-act" title="${esc(act.map(p=>baseName(p.cwd)).join(', '))}">`
+      +`🗂 ${esc(baseName(act[0].cwd))}${act.length>1?` +${act.length-1}`:''}</div>`;
     cell.innerHTML=`<span class="cal-dnum">${dt.getDate()}</span>${chips}`;
     cell.onclick=()=>{calSelDay=ds;renderCalMain();};
     grid.appendChild(cell);
@@ -2043,7 +2134,12 @@ function renderDayPanel(ds){
       +`${e.prompt?` <span class="enote" title="läuft zur Termin-Zeit automatisch, Ergebnis per Telegram">— Aufgabe: ${esc(e.prompt.slice(0,120))}</span>`:''}</span>`
       +`<span class="edel" data-id="${esc(e.id)}" title="löschen">✕</span></div>`).join('')
     :'<div class="vhint" style="padding:2px 0 6px">Keine Termine an diesem Tag.</div>';
-  host.innerHTML=`<div class="cal-day"><h3>📅 ${esc(head)}</h3>${evHtml}`
+  const act=calAct[ds]||[];
+  const actHtml=act.length?`<div class="cal-acth">🗂 WORAN GEARBEITET</div>`+act.map((p,pi)=>`<div class="cal-proj">`
+      +`<div class="cp-h" title="${esc(p.cwd)}">📂 ${esc(baseName(p.cwd))}<span class="cp-n">${p.n} ${p.n===1?'Eingabe':'Eingaben'}</span></div>`
+      +p.sessions.map((s,si)=>`<div class="cp-s" data-p="${pi}" data-s="${si}" title="Session öffnen">↳ ${esc(s.title)}</div>`).join('')
+      +`</div>`).join(''):'';
+  host.innerHTML=`<div class="cal-day"><h3>📅 ${esc(head)}</h3>${evHtml}${actHtml}`
     +`<div class="cal-add">`
     +`<input class="ci-time" id="caTime" placeholder="HH:MM" maxlength="5" inputmode="numeric">`
     +`<input class="ci-title" id="caTitle" placeholder="Termin eintragen (z.B. Zahnarzt)">`
@@ -2053,6 +2149,7 @@ function renderDayPanel(ds){
     +`placeholder="🤖 ${ASSISTANT}-Aufgabe zur Termin-Zeit (optional) — Ergebnis kommt per Telegram">`
     +`</div></div>`;
   host.querySelectorAll('.edel').forEach(b=>b.onclick=()=>delEvent(b.dataset.id));
+  host.querySelectorAll('.cp-s').forEach(b=>b.onclick=()=>openSession(act[+b.dataset.p].sessions[+b.dataset.s]));
   const add=()=>{
     const time=document.getElementById('caTime').value.trim();
     const title=document.getElementById('caTitle').value.trim();
@@ -2653,7 +2750,7 @@ function renderSettings(){
         <span class="set-saved" id="cNote"></span>
       </span>
       <pre id="cLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
-        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        font-size:11px;line-height:1.4;background:var(--shade);padding:8px;
         border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
       </span></div>
 
@@ -2679,7 +2776,7 @@ function renderSettings(){
         <span class="set-saved" id="hNote"></span>
       </span>
       <pre id="hLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
-        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        font-size:11px;line-height:1.4;background:var(--shade);padding:8px;
         border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
       </span></div>
   </div></div>
@@ -2769,7 +2866,7 @@ function renderSettings(){
         <span class="set-saved" id="updNote"></span>
       </span>
       <pre id="updLog" style="display:none;margin-top:9px;max-height:170px;overflow:auto;
-        font-size:11px;line-height:1.4;background:rgba(0,0,0,.35);padding:8px;
+        font-size:11px;line-height:1.4;background:var(--shade);padding:8px;
         border:1px solid var(--green-faint);border-radius:3px;white-space:pre-wrap"></pre>
       </span></div>
   </div></div>
@@ -3298,6 +3395,25 @@ document.getElementById('updClose').onclick=()=>{
 fetch('/api/version').then(r=>r.json()).then(j=>{document.getElementById('build').textContent='build '+j.version;}).catch(()=>{document.getElementById('build').textContent='build ALT/unbekannt';});
 setMode(currentMode);setModel(currentModel);applyClaudeState();
 applyAvatars();      // eigene Bilder, falls hinterlegt
+// Seitenleiste in der Breite ziehen. Pointer-Capture statt mousemove am
+// document: so geht der Zug auch nicht verloren, wenn die Maus über den Chat
+// oder aus dem Fenster rutscht.
+(function(){
+  const g=document.getElementById('sideGrip'), side=document.getElementById('side'), r=document.documentElement;
+  const setW=w=>{w=Math.round(Math.max(220,Math.min(w,Math.min(900,innerWidth*.6))));
+    r.style.setProperty('--side-w',w+'px');return w;};
+  g.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;e.preventDefault();
+    g.setPointerCapture(e.pointerId);g.classList.add('drag');document.body.classList.add('side-drag');
+    const x0=e.clientX, w0=side.getBoundingClientRect().width;
+    const move=ev=>setW(w0+ev.clientX-x0);
+    const up=ev=>{g.removeEventListener('pointermove',move);g.removeEventListener('pointerup',up);g.removeEventListener('pointercancel',up);
+      g.classList.remove('drag');document.body.classList.remove('side-drag');
+      try{localStorage.setItem('sideW',String(Math.round(side.getBoundingClientRect().width)));}catch{}};
+    g.addEventListener('pointermove',move);g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up);
+  });
+  g.addEventListener('dblclick',()=>{r.style.removeProperty('--side-w');try{localStorage.removeItem('sideW');}catch{}});
+})();
 applyTheme();        // Farbwelt (im <head> schon gesetzt, hier der Regen)
 applyBackground();   // Hintergrund aus den gespeicherten Einstellungen
 // Kein fest verdrahteter Pfad: /api/folders liefert

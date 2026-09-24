@@ -14,6 +14,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -155,15 +156,46 @@ def claude_env() -> dict:
     return env
 
 
-def _cred_info() -> dict:
-    """Kurzlebiger Interactive-Login aus ~/.claude/.credentials.json (falls da)."""
+def _read_creds() -> tuple:
+    """Interactive-Login der CLI: (claudeAiOauth-Dict, Quelle "file"/"keychain").
+
+    Linux/Windows: ~/.claude/.credentials.json. Auf dem Mac legt Claude Code den
+    Login aber im Schlüsselbund ab ("Claude Code-credentials") — die Datei gibt
+    es dort gar nicht. Ohne diesen zweiten Weg stand oben "LOGIN NÖTIG",
+    obwohl die CLI angemeldet war und jeder Chat lief. `security` ist genau
+    das Werkzeug, mit dem die CLI selbst liest; der Schlüsselbund fragt darum
+    nicht nach.
+    """
     try:
         c = json.loads(CRED_FILE.read_text(encoding="utf-8")).get("claudeAiOauth") or {}
+        if c:
+            return c, "file"
+    except Exception:
+        pass
+    if sys.platform == "darwin":
+        try:
+            r = subprocess.run(["security", "find-generic-password",
+                                "-s", "Claude Code-credentials", "-w"],
+                               capture_output=True, text=True, timeout=5)
+            if r.returncode == 0:
+                return (json.loads(r.stdout.strip()).get("claudeAiOauth") or {}), "keychain"
+        except Exception:
+            pass
+    return {}, ""
+
+
+def _cred_info() -> dict:
+    """Kurzlebiger Interactive-Login der CLI (Datei oder Mac-Schlüsselbund)."""
+    try:
+        c, src = _read_creds()
         exp = c.get("expiresAt") or 0
         return {
             "exists": bool(c.get("accessToken")),
+            "source": src,
             "expires_at": exp,
-            "expired": exp / 1000 < time.time(),
+            # Abgelaufenes Access-Token ist kein Logout: mit Refresh-Token
+            # erneuert die CLI es beim nächsten Aufruf selbst.
+            "expired": exp / 1000 < time.time() and not c.get("refreshToken"),
             "subscription": c.get("subscriptionType") or "",
         }
     except Exception:
@@ -401,13 +433,18 @@ def _refresh_credentials() -> dict:
 def _usage_token() -> str:
     """Frisches Interactive-Token bevorzugen (hat die nötigen Scopes), sonst oat."""
     try:
-        c = json.loads(CRED_FILE.read_text(encoding="utf-8")).get("claudeAiOauth") or {}
+        c, src = _read_creds()
         if c.get("accessToken"):
             if (c.get("expiresAt") or 0) / 1000 > time.time() + 60:
                 return c["accessToken"]
-            c = _refresh_credentials()          # abgelaufen -> selbst erneuern
-            if c.get("accessToken"):
-                return c["accessToken"]
+            # Selbst erneuern nur bei der Datei. Im Schlüsselbund könnten wir
+            # das neue Refresh-Token nicht zurückschreiben — das alte wäre
+            # danach verbraucht und die CLI abgemeldet. Dort erneuert die CLI
+            # beim nächsten Chat selbst.
+            if src == "file":
+                c = _refresh_credentials()
+                if c.get("accessToken"):
+                    return c["accessToken"]
     except Exception:
         pass
     return load_web_token() or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
@@ -1296,6 +1333,105 @@ def sessions():
             continue
     out.sort(key=lambda x: x["mtime"], reverse=True)
     return out
+
+
+# Tagebuch fuer den Kalender: an welchen Tagen in welchem Projektordner
+# gearbeitet wurde. Nicht als Termine gespeichert, sondern aus den Transkripten
+# abgeleitet — so ist auch alles da, was VOR dieser Funktion lief, und nichts
+# kann auseinanderlaufen. Gezaehlt werden nur echte Eingaben (keine Tool-
+# Ergebnisse, keine System-Wrapper); ein Tag gehoert zur ORTSZEIT, nicht UTC.
+# Pro Datei gecacht nach (mtime, size): ganze Transkripte zu lesen ist teuer,
+# und die meisten aendern sich zwischen zwei Kalenderaufrufen nicht.
+_ACTIVITY_CACHE: dict = {}
+
+
+def _day_of(ts: str) -> str:
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+
+def _file_activity(f: Path) -> dict:
+    """{"title", "agent", "days": {tag: {cwd: anzahl Eingaben}}} einer .jsonl."""
+    st = f.stat()
+    key = (st.st_mtime, st.st_size)
+    hit = _ACTIVITY_CACHE.get(f)
+    if hit and hit[0] == key:
+        return hit[1]
+    days: dict = {}
+    title, firma, cwd = None, "", None
+    with f.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            # Schnellfilter vor json.loads: der Grossteil der Zeilen sind
+            # Assistant-Antworten und Tool-Ergebnisse.
+            if '"type":"user"' not in line and '"type":"attachment"' not in line:
+                continue
+            try:
+                ev = json.loads(line)
+            except Exception:
+                continue
+            if not firma:
+                firma = _fremde_firma(ev)
+            if ev.get("type") != "user" or ev.get("isSidechain") or ev.get("isMeta"):
+                continue
+            if isinstance(ev.get("cwd"), str):
+                cwd = ev["cwd"]
+            txt = extract_text(ev.get("message", {}).get("content")).strip()
+            if not txt or txt.startswith("<") or txt.startswith("Caveat"):
+                continue
+            if title is None:
+                title = txt.replace("\n", " ")[:80]
+            day = _day_of(ev.get("timestamp") or "")
+            if day and cwd and not _verborgen(cwd):
+                per = days.setdefault(day, {})
+                per[cwd] = per.get(cwd, 0) + 1
+    res = {"title": title, "agent": firma, "days": days}
+    _ACTIVITY_CACHE[f] = (key, res)
+    return res
+
+
+@app.get("/api/activity")
+def activity(start: str = "", end: str = ""):
+    """Projekte je Tag im Bereich [start, end] (YYYY-MM-DD, beide inklusive):
+    {tag: [{"cwd", "n", "sessions": [{"id", "project", "cwd", "title", "n"}]}]}
+    Sessions fremder Agenten-Anwendungen (FREMDE_MCP) zaehlen nicht mit."""
+    from datetime import datetime
+    out: dict = {}
+    names = load_meta().get("names", {})
+
+    def add(day, cwd, sess, n):
+        if (start and day < start) or (end and day > end):
+            return
+        projs = out.setdefault(day, {})
+        p = projs.setdefault(cwd, {"cwd": cwd, "n": 0, "sessions": []})
+        p["n"] += n
+        p["sessions"].append({**sess, "cwd": cwd, "n": n})
+
+    if PROJECTS_DIR.exists():
+        for f in PROJECTS_DIR.glob("*/*.jsonl"):
+            try:
+                a = _file_activity(f)
+            except Exception:
+                continue
+            if a["agent"]:
+                continue
+            sess = {"id": f.stem, "project": f.parent.name,
+                    "title": names.get(f.stem) or a["title"] or "(ohne Titel)"}
+            for day, per in a["days"].items():
+                for cwd, n in per.items():
+                    add(day, cwd, sess, n)
+    # Externe Modelle kennen keine Zeitstempel pro Nachricht — dort zaehlt der
+    # Tag der letzten Aenderung.
+    for s in llmmod.list_sessions() + hermesmod.list_sessions():
+        try:
+            day = datetime.fromtimestamp(s["mtime"]).strftime("%Y-%m-%d")
+        except Exception:
+            continue
+        add(day, s.get("cwd") or "(unbekannt)",
+            {"id": s["id"], "project": s["project"], "title": names.get(s["id"]) or s["title"]}, 1)
+    return {day: sorted(projs.values(), key=lambda p: -p["n"]) for day, projs in out.items()}
 
 
 def _parse_transcript_lines(data: bytes):
