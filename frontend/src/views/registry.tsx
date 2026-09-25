@@ -1,6 +1,12 @@
 import type { ComponentType } from 'react'
 import type { Settings } from '@/lib/bootstrap'
 import { Placeholder } from './Placeholder'
+import { CalendarMain } from './calendar/CalendarMain'
+import { CalendarSide } from './calendar/CalendarSide'
+import { McpMain } from './mcp/McpMain'
+import { McpSide } from './mcp/McpSide'
+import { SkillsMain } from './skills/SkillsMain'
+import { SkillsSide } from './skills/SkillsSide'
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
@@ -25,19 +31,19 @@ export const VIEWS: ViewDef[] = [
     icon: '⚡',
     label: 'Skills',
     tile: 'skills',
-    Side: Placeholder,
-    Main: Placeholder,
+    Side: SkillsSide,
+    Main: SkillsMain,
   },
   {
     key: 'calendar',
     icon: '📅',
     label: 'Kalender',
     tile: 'kalender',
-    Side: Placeholder,
-    Main: Placeholder,
+    Side: CalendarSide,
+    Main: CalendarMain,
   },
   { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: Placeholder, Main: Placeholder },
-  { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: Placeholder, Main: Placeholder },
+  { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: McpSide, Main: McpMain },
   { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: Placeholder, Main: Placeholder },
 ]
 

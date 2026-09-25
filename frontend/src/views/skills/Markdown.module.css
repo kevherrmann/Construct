@@ -1,0 +1,92 @@
+.msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 16px 0;
+  animation: fade 0.25s ease;
+}
+.bubble {
+  border: 1px solid var(--green-faint);
+  padding: 12px 15px;
+  background: var(--box);
+  line-height: 1.55;
+  font-size: 14.5px;
+  word-wrap: break-word;
+  min-width: 0;
+}
+.bubble img {
+  max-width: 260px;
+  border: 1px solid var(--green-faint);
+  margin: 6px 6px 0 0;
+  border-radius: 2px;
+}
+.bubble pre {
+  background: var(--codebg) !important;
+  border: 1px solid var(--green-faint);
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 3px;
+  position: relative;
+}
+.bubble code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+}
+.bubble :not(pre) > code {
+  color: var(--code);
+  background: rgba(var(--accent-rgb), 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+/* Code-Blöcke bleiben auch in hellen Themes dunkel — der Text darin also hell. */
+:global(html:is([data-theme='papier'], [data-theme='nebel'])) .bubble pre code {
+  color: #e6e6e6;
+}
+.bubble a {
+  color: var(--link);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bubble h1,
+.bubble h2,
+.bubble h3 {
+  color: var(--green);
+  text-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
+}
+.bubble table {
+  border-collapse: collapse;
+}
+.bubble td,
+.bubble th {
+  border: 1px solid var(--green-faint);
+  padding: 5px 9px;
+}
+.copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 1px;
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--green-dim);
+  border: 1px solid var(--green-faint);
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+.bubble pre:hover .copy {
+  opacity: 0.9;
+}
+.copy:hover {
+  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--green);
+}
+.copy.done {
+  color: var(--green);
+  border-color: var(--green);
+  opacity: 1;
+}

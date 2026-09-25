@@ -1,0 +1,185 @@
+.day {
+  margin-top: 20px;
+  border: 1px solid var(--green-faint);
+  background: var(--box);
+  border-radius: 3px;
+  padding: 15px 17px;
+  box-shadow: inset 0 0 22px rgba(var(--accent-rgb), 0.04);
+}
+.day h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
+}
+.none {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 2px 0 6px;
+}
+.ev {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 11px;
+  margin: 7px 0;
+  border: 1px solid var(--green-faint);
+  border-left: 3px solid var(--green);
+  background: var(--box);
+  border-radius: 2px;
+}
+.et {
+  font-size: 13px;
+  color: var(--green);
+  min-width: 48px;
+  text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+}
+.etitle {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--text);
+  word-break: break-word;
+}
+.enote {
+  font-size: 11.5px;
+  color: var(--green-dim);
+  opacity: 0.85;
+}
+/* Löschen ist in jedem Theme rot — Warnfarbe, keine Akzentfarbe. */
+.edel {
+  cursor: pointer;
+  color: #ff5c5c;
+  border: 1px solid #5a1f1f;
+  background: #1a0404;
+  border-radius: 3px;
+  width: 26px;
+  height: 26px;
+  line-height: 22px;
+  text-align: center;
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+.edel:hover {
+  background: #3d0808;
+  box-shadow: 0 0 10px rgba(255, 60, 60, 0.4);
+}
+/* Auf hellem Grund wäre das dunkle Rot ein schwarzer Klotz. */
+:global(html:is([data-theme='papier'], [data-theme='nebel'])) .edel {
+  background: #fff1f1;
+  border-color: #efc2c2;
+  color: #c62828;
+}
+:global(html:is([data-theme='papier'], [data-theme='nebel'])) .edel:hover {
+  background: #ffe0e0;
+}
+
+/* Tagebuch */
+.acth {
+  margin: 16px 0 6px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+}
+.proj {
+  padding: 7px 11px;
+  margin: 6px 0;
+  border: 1px dashed var(--green-faint);
+  border-radius: 2px;
+}
+.cph {
+  font-size: 13px;
+  color: var(--green);
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.cpn {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--green-dim);
+}
+.cps {
+  font-size: 12px;
+  color: var(--soft);
+  padding: 3px 0 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cps:hover {
+  color: var(--green);
+}
+
+/* Eintragen */
+.add {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.add input {
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 9px 11px;
+  text-shadow: inherit;
+  outline: none;
+  border-radius: 2px;
+}
+.add input:focus {
+  box-shadow: 0 0 11px rgba(var(--accent-rgb), 0.35);
+  border-color: var(--green);
+}
+.add input::placeholder {
+  color: var(--green-dim);
+  opacity: 0.6;
+}
+.ciTime {
+  width: 84px;
+}
+.ciTitle {
+  flex: 1;
+  min-width: 150px;
+}
+.ciRep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--green-dim);
+  cursor: pointer;
+  border: 1px solid var(--green-faint);
+  padding: 0 11px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.ciRep:hover {
+  color: var(--green);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+.ciRep input {
+  accent-color: var(--green);
+  cursor: pointer;
+}
+.add button {
+  background: var(--green);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 0 20px;
+  font-size: 13px;
+  text-shadow: none;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.45);
+  border-radius: 2px;
+}
+.add button:hover {
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.6);
+}

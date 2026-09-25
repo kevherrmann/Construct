@@ -1,0 +1,77 @@
+.hint {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 8px;
+}
+.folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--green);
+  border-bottom: 1px solid var(--green-faint);
+  text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+  user-select: none;
+}
+.folder:hover {
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.fa {
+  width: 10px;
+  color: var(--green-dim);
+}
+.fn {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fc {
+  font-size: 10px;
+  color: var(--green-dim);
+  background: rgba(var(--accent-rgb), 0.08);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+/* Wie die Session-Einträge der Chat-Liste. Die alte Oberfläche setzte hier
+   display:flex mit zwei Blöcken — die Beschreibung stand dadurch NEBEN dem
+   Namen; das bleibt so. */
+.sess {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 2px 0 2px 10px;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--green-faint);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--soft);
+  transition: 0.12s;
+}
+.sess:hover {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.06);
+  color: var(--green);
+}
+.t {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d {
+  font-size: 10px;
+  color: var(--green-dim);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}

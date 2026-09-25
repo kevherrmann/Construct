@@ -1,0 +1,166 @@
+/* Abstand wie der alte #chat-Bereich, in dem der Kalender früher gezeichnet wurde. */
+.page {
+  padding: 22px 8%;
+}
+.wrap {
+  padding: 14px 6px 60px;
+  animation: fade 0.25s ease;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.top h2 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-size: 21px;
+  letter-spacing: 4px;
+  color: var(--green);
+  text-shadow: 0 0 14px var(--green);
+}
+.nav {
+  background: transparent;
+  border: 1px solid var(--green-faint);
+  color: var(--green);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  text-shadow: inherit;
+  transition: 0.12s;
+  border-radius: 3px;
+}
+.nav:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.45);
+}
+.tbtn {
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 0 16px;
+  height: 40px;
+  text-shadow: inherit;
+  border-radius: 3px;
+}
+.tbtn:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+}
+.dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.dow span {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--green-dim);
+  padding: 4px 0;
+}
+/* Wochenende: fester Grünton wie in der alten Oberfläche (dort ebenfalls
+   nicht an das Theme gebunden). */
+.dow span.we {
+  color: #3aa862;
+  opacity: 0.7;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 7px;
+}
+.cell {
+  min-height: 96px;
+  border: 1px solid var(--green-faint);
+  background: var(--box);
+  padding: 5px 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  transition: 0.12s;
+  min-width: 0;
+}
+.cell:hover {
+  border-color: var(--green-dim);
+  background: rgba(var(--accent-rgb), 0.07);
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.07);
+}
+.other {
+  opacity: 0.34;
+}
+.today {
+  border-color: var(--green);
+  box-shadow:
+    0 0 16px rgba(var(--accent-rgb), 0.4),
+    inset 0 0 16px rgba(var(--accent-rgb), 0.08);
+}
+.sel {
+  border-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+.dnum {
+  font-size: 13px;
+  color: var(--green);
+  align-self: flex-end;
+  opacity: 0.85;
+  line-height: 1;
+}
+.today .dnum {
+  font-weight: bold;
+  text-shadow: 0 0 8px var(--green);
+  opacity: 1;
+}
+.chip {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--on-accent);
+  background: linear-gradient(90deg, var(--green), var(--accent2));
+  border-radius: 2px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: none;
+}
+.chip.allday {
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--green);
+  text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+}
+.more {
+  font-size: 10px;
+  color: var(--green-dim);
+  letter-spacing: 1px;
+}
+/* Tagebuch: bewusst gedämpft — Termine sind Plan, das hier ist Rückblick */
+.act {
+  margin-top: auto;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--soft);
+  border: 1px dashed var(--green-faint);
+  border-radius: 2px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: none;
+}
+@media (max-width: 900px) {
+  .page {
+    padding: 18px 16px;
+  }
+}
