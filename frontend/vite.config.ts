@@ -17,6 +17,11 @@ export default defineConfig({
     // Das Desktop-Fenster läuft unter Linux in WebKitGTK — dort sind ältere
     // Versionen verbreitet. Lieber konservativ übersetzen als eine leere Seite.
     target: ['es2020', 'safari14'],
+    // Das Start-Paket trägt Markdown und Code-Hervorhebung (highlight.js), die
+    // der Chat sofort braucht. Geladen wird von localhost, nicht übers Netz —
+    // ~210 kB gzip sind hier kein Problem. Alle anderen Ansichten laden erst
+    // beim Öffnen (views/registry.tsx).
+    chunkSizeWarningLimit: 800,
   },
   server: {
     port: 5173,

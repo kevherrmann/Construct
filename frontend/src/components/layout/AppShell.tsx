@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { useSettings } from '@/stores/settings'
 import { visibleViews, VIEWS } from '@/views/registry'
@@ -37,7 +37,9 @@ export function AppShell() {
           {/* Scroll-Container für alle Ansichten (früher #chat). Die Eingabe steht
             immer darunter — wer aus dem Kalender schreibt, landet im Chat. */}
           <div className={s.content} data-scroll>
-            <current.Main />
+            <Suspense fallback={null}>
+              <current.Main />
+            </Suspense>
           </div>
           <Composer />
         </section>

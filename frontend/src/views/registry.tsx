@@ -1,17 +1,31 @@
-import type { ComponentType } from 'react'
+import { lazy, type ComponentType } from 'react'
 import type { Settings } from '@/lib/bootstrap'
 import { ChatView } from './chat/ChatView'
 import { SessionsSide } from './chat/SessionsSide'
-import { CalendarMain } from './calendar/CalendarMain'
-import { CalendarSide } from './calendar/CalendarSide'
-import { McpMain } from './mcp/McpMain'
-import { McpSide } from './mcp/McpSide'
-import { SkillsMain } from './skills/SkillsMain'
-import { SkillsSide } from './skills/SkillsSide'
-import { MailMain } from './mail/MailMain'
-import { MailSide } from './mail/MailSide'
-import { SettingsMain } from './settings/SettingsMain'
-import { SettingsSide } from './settings/SettingsSide'
+
+// Alles außer dem Chat wird erst beim Öffnen geladen — der Start bleibt klein.
+const CalendarMain = lazy(() =>
+  import('./calendar/CalendarMain').then((m) => ({ default: m.CalendarMain })),
+)
+const CalendarSide = lazy(() =>
+  import('./calendar/CalendarSide').then((m) => ({ default: m.CalendarSide })),
+)
+const McpMain = lazy(() => import('./mcp/McpMain').then((m) => ({ default: m.McpMain })))
+const McpSide = lazy(() => import('./mcp/McpSide').then((m) => ({ default: m.McpSide })))
+const SkillsMain = lazy(() =>
+  import('./skills/SkillsMain').then((m) => ({ default: m.SkillsMain })),
+)
+const SkillsSide = lazy(() =>
+  import('./skills/SkillsSide').then((m) => ({ default: m.SkillsSide })),
+)
+const MailMain = lazy(() => import('./mail/MailMain').then((m) => ({ default: m.MailMain })))
+const MailSide = lazy(() => import('./mail/MailSide').then((m) => ({ default: m.MailSide })))
+const SettingsMain = lazy(() =>
+  import('./settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
+)
+const SettingsSide = lazy(() =>
+  import('./settings/SettingsSide').then((m) => ({ default: m.SettingsSide })),
+)
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 

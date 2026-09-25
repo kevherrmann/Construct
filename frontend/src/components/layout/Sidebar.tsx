@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { NavLink } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useSettings } from '@/stores/settings'
@@ -36,7 +37,9 @@ export function Sidebar({ view, open, onNavigate }: Props) {
         ))}
       </nav>
       <div className={s.panel}>
-        <view.Side />
+        <Suspense fallback={null}>
+          <view.Side />
+        </Suspense>
       </div>
     </aside>
   )

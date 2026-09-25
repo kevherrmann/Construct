@@ -16,4 +16,10 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // Die Menü-Registry ist Konfiguration, keine Komponentendatei: sie erzeugt
+    // die Lazy-Komponenten der Ansichten. Hot-Reload-Regel passt hier nicht.
+    files: ['src/views/registry.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 )
