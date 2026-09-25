@@ -1,0 +1,174 @@
+/* Farbwelten — ein Theme ist NUR ein Satz Variablen. Übernommen aus der
+   alten Oberfläche; neue Themes hier ergänzen und in THEMES (lib/themes.ts). */
+/* ---------- Farbwelten ----------
+     Ein Theme ist NUR ein Satz Variablen — kein Sonderfall im übrigen CSS.
+     Darum sind vorher alle festen Grüntöne hier hereingezogen worden; sonst
+     bliebe bei jedem Themenwechsel ein Rest Matrix-Grün stehen.
+       --accent-rgb  dieselbe Farbe wie --green, aber als Zahlentripel:
+                     rgba() kann keine Hex-Variable mit Deckkraft mischen.
+       --soft/--link untergeordneter Text und Verweise.
+     Die Vorgabe hier ist Matrix; data-theme am <html> überschreibt sie. */
+:root {
+  --green: #00ff41;
+  --green-dim: #00a82b;
+  --green-faint: #0d3d18;
+  --bg: #000600;
+  --panel: rgba(0, 18, 4, 0.82);
+  --user: #9dffb0;
+  --accent-rgb: 0, 255, 65;
+  --soft: #7dd398;
+  --link: #7fffd4;
+  --rain: #00ff41;
+  --rain-fade: rgba(0, 6, 0, 0.07);
+  /* Flächen und Schrift abseits der Akzentfarbe. Die dunklen Themes teilen
+       sich diese Werte; nur die hellen setzen sie neu.
+         --text       heller Fließtext (Mails, Termine, Tool-Ausgaben)
+         --field      Eingabefelder      --popup   Dialoge, Auswahllisten
+         --box        Karten, Blasen     --deep    satte Flächen (Mail, Avatar)
+         --codebg     Code-Blöcke — bleiben auch hell dunkel (atom-one-dark)
+         --on-accent  Schrift AUF der Akzentfarbe (Knöpfe, Chips) */
+  --text: #cfeede;
+  --field: rgba(0, 8, 2, 0.7);
+  --popup: #020e05;
+  --box: rgba(0, 12, 3, 0.55);
+  --box-user: rgba(4, 20, 8, 0.6);
+  --user-line: #1f5a30;
+  --deep: #04130b;
+  --deep-hi: #07240f;
+  --codebg: #05140a;
+  --on-accent: #001a06;
+  --accent2: #00c235;
+  --code: #aaffc0;
+  --shade: rgba(0, 0, 0, 0.35);
+  --mask: rgba(0, 4, 0, 0.82);
+}
+html[data-theme='bernstein'] {
+  --green: #ffb648;
+  --green-dim: #c07a12;
+  --green-faint: #4a2f0a;
+  --bg: #0a0600;
+  --panel: rgba(24, 14, 0, 0.84);
+  --user: #ffe0a8;
+  --accent-rgb: 255, 182, 72;
+  --soft: #d9ab6a;
+  --link: #ffd08a;
+  --rain: #ffb648;
+  --rain-fade: rgba(10, 6, 0, 0.07);
+}
+html[data-theme='eis'] {
+  --green: #5fd8ff;
+  --green-dim: #1e8fb5;
+  --green-faint: #0d3446;
+  --bg: #00060c;
+  --panel: rgba(0, 16, 26, 0.84);
+  --user: #bdeeff;
+  --accent-rgb: 95, 216, 255;
+  --soft: #8fc6de;
+  --link: #a6e8ff;
+  --rain: #5fd8ff;
+  --rain-fade: rgba(0, 6, 12, 0.07);
+}
+html[data-theme='space'] {
+  --green: #b98bff;
+  --green-dim: #7645c4;
+  --green-faint: #2c1a4d;
+  --bg: #06030f;
+  --panel: rgba(16, 8, 34, 0.86);
+  --user: #e0ccff;
+  --accent-rgb: 185, 139, 255;
+  --soft: #a992cf;
+  --link: #d3b6ff;
+  --rain: #b98bff;
+  --rain-fade: rgba(6, 3, 15, 0.07);
+}
+html[data-theme='asche'] {
+  --green: #d8dee4;
+  --green-dim: #8b949e;
+  --green-faint: #2b3138;
+  --bg: #0c0e11;
+  --panel: rgba(22, 25, 30, 0.88);
+  --user: #a9c9ef;
+  --accent-rgb: 216, 222, 228;
+  --soft: #9aa4af;
+  --link: #79b8ff;
+  --rain: #d8dee4;
+  --rain-fade: rgba(12, 14, 17, 0.07);
+}
+html[data-theme='blut'] {
+  --green: #ff5f57;
+  --green-dim: #b3302a;
+  --green-faint: #481815;
+  --bg: #0b0303;
+  --panel: rgba(28, 8, 8, 0.86);
+  --user: #ffb3ae;
+  --accent-rgb: 255, 95, 87;
+  --soft: #cf9490;
+  --link: #ff9c96;
+  --rain: #ff5f57;
+  --rain-fade: rgba(11, 3, 3, 0.07);
+}
+/* ---------- Helle Themes ----------
+     Papier: dunkles Waldgrün auf warmem Off-White.
+     Nebel:  Tintenblau auf kühlem Hellgrau.
+     Leuchten (text-shadow) ist für Schwarz gebaut — auf Hell
+     sieht es nur unscharf und schmutzig aus, darum fällt es hier weg. */
+html[data-theme='papier'] {
+  --green: #1d6b45;
+  --green-dim: #5f8a73;
+  --green-faint: #d3dfd6;
+  --bg: #f5f2ea;
+  --panel: rgba(252, 250, 244, 0.92);
+  --user: #34506b;
+  --accent-rgb: 29, 107, 69;
+  --soft: #46584d;
+  --link: #1b6aa8;
+  --rain: #1d6b45;
+  --rain-fade: rgba(245, 242, 234, 0.14);
+  --text: #1f2a24;
+  --field: #fffdf8;
+  --popup: #fffdf8;
+  --box: rgba(255, 255, 255, 0.72);
+  --box-user: rgba(228, 238, 231, 0.85);
+  --user-line: #b7ccbd;
+  --deep: #fbf9f3;
+  --deep-hi: #eaf1ea;
+  --codebg: #20272a;
+  --on-accent: #ffffff;
+  --accent2: #2e8a5c;
+  --code: #a2401a;
+  --shade: rgba(40, 50, 40, 0.06);
+  --mask: rgba(50, 48, 40, 0.35);
+}
+html[data-theme='nebel'] {
+  --green: #2757b8;
+  --green-dim: #6d7f9c;
+  --green-faint: #d5dce8;
+  --bg: #eef1f6;
+  --panel: rgba(250, 251, 253, 0.93);
+  --user: #6a3fa0;
+  --accent-rgb: 39, 87, 184;
+  --soft: #4b5870;
+  --link: #1f6fd1;
+  --rain: #2757b8;
+  --rain-fade: rgba(238, 241, 246, 0.14);
+  --text: #1c2433;
+  --field: #ffffff;
+  --popup: #ffffff;
+  --box: rgba(255, 255, 255, 0.75);
+  --box-user: rgba(232, 236, 248, 0.9);
+  --user-line: #c3cce0;
+  --deep: #f8f9fc;
+  --deep-hi: #e7ecf6;
+  --codebg: #232834;
+  --on-accent: #ffffff;
+  --accent2: #3b72d9;
+  --code: #b0306a;
+  --shade: rgba(30, 40, 70, 0.06);
+  --mask: rgba(30, 36, 50, 0.35);
+}
+html:is([data-theme='papier'], [data-theme='nebel']) {
+  color-scheme: light;
+}
+html:is([data-theme='papier'], [data-theme='nebel']) * {
+  text-shadow: none !important;
+}

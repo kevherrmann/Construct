@@ -1,0 +1,32 @@
+.topbar {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--green-faint);
+  font-size: 12px;
+  color: var(--green-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dot {
+  color: var(--green);
+  animation: blink 1.2s infinite;
+}
+.meta {
+  opacity: 0.6;
+  margin-left: 8px;
+}
+.burger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--green);
+  font-size: 22px;
+  cursor: pointer;
+}
+@media (max-width: 900px) {
+  .burger {
+    display: block;
+  }
+}

@@ -1,0 +1,64 @@
+.hud {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 11px;
+  border: 1px solid var(--green-faint);
+  padding: 3px 9px;
+  border-radius: 3px;
+  color: var(--green-dim);
+  letter-spacing: 0.5px;
+  text-shadow: none;
+  white-space: nowrap;
+  user-select: none;
+  background: none;
+  font-family: inherit;
+}
+.chip b {
+  color: var(--green);
+}
+.bar {
+  display: inline-block;
+  width: 46px;
+  height: 6px;
+  border: 1px solid var(--green-faint);
+  margin: 0 5px -1px 5px;
+  position: relative;
+  background: var(--shade);
+}
+.bar i {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.6);
+}
+.warn {
+  color: #ffd24a;
+  border-color: #5a4a1f;
+}
+.warn .bar i {
+  background: #ffd24a;
+  box-shadow: 0 0 6px rgba(255, 210, 74, 0.6);
+}
+.crit {
+  color: #ff5c5c;
+  border-color: #5a1f1f;
+}
+.crit .bar i {
+  background: #ff5c5c;
+  box-shadow: 0 0 6px rgba(255, 92, 92, 0.6);
+}
+.click {
+  cursor: pointer;
+}
+.click:hover {
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--green);
+}
+.alert {
+  animation: pulse 1.3s ease-in-out infinite;
+}

@@ -1,0 +1,33 @@
+/* Liegt mit negativem Rand halb über der Kante: 7px Trefferfläche, ohne dass
+   zwischen Leiste und Inhalt eine Lücke entsteht. */
+.grip {
+  flex: 0 0 7px;
+  margin: 0 -4px 0 -3px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 20;
+  touch-action: none;
+}
+.grip::after {
+  content: '';
+  position: absolute;
+  inset: 0 3px 0 3px;
+  transition: 0.12s;
+}
+.grip:hover::after,
+.drag::after {
+  background: var(--green-dim);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
+}
+:global(body.side-drag) {
+  cursor: col-resize;
+  user-select: none;
+}
+:global(body.side-drag iframe) {
+  pointer-events: none;
+}
+@media (max-width: 900px) {
+  .grip {
+    display: none;
+  }
+}
