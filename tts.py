@@ -26,8 +26,8 @@ class TTSError(Exception):
 def _key() -> str:
     k = llmmod.provider_conf("gemini")["api_key"]
     if not k:
-        raise TTSError("Kein Gemini-Key hinterlegt — unter 🧠 → KI-Anbieter "
-                       "einrichten (aistudio.google.com/apikey, kostenlos).")
+        raise TTSError("Kein Gemini-Key hinterlegt — unter ⚙ Einstellungen → "
+                       "🔊 Vorlesen → „Gemini-Key eintragen“.")
     return k
 
 

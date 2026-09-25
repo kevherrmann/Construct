@@ -2840,8 +2840,9 @@ function renderSettings(){
 
   <div class="set-sec"><h3>🔊 VORLESEN</h3><div class="set-body">
     <div class="set-d" style="margin-bottom:10px">Antworten per <b>Gemini TTS</b> vorlesen lassen —
-      der 🔊 neben dem Namen über jeder Antwort. Braucht den Gemini-Key unter
-      <i>Modelle &amp; Anbieter</i> (kostenloses Kontingent reicht).</div>
+      der 🔊 neben dem Namen über jeder Antwort. Braucht einen Gemini-Key
+      (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat.
+      <span style="display:block;margin-top:9px"><button class="set-btn" id="ttsKey">🔑 Gemini-Key eintragen…</button></span></div>
     <div class="set-row"><label>
       <input type="checkbox" id="ttsAuto" ${SETTINGS.tts?.auto?'checked':''}>
       <span><span class="set-t">Antworten automatisch vorlesen</span>
@@ -3252,6 +3253,7 @@ function setupTTS(w){
     info.textContent=`${d.voices.length} deutsche Stimmen im Gemini-Katalog.`;
     setVoiceOpts(d.voices);
   }).catch(()=>{info.textContent='⚠ Stimmenliste nicht abrufbar.';});
+  w.querySelector('#ttsKey').onclick=openLlmCfg;
   auto.onchange=()=>setSave({tts:{auto:auto.checked}});
   model.onchange=()=>setSave({tts:{model:model.value}});
   voice.onchange=()=>{cur.voice=voice.value;setSave({tts:{voice:voice.value}});};
