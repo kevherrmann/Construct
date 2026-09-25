@@ -301,3 +301,14 @@ pip install -r requirements-dev.txt
 python -m pyflakes app.py desktop.py cal.py selfupdate.py server tests
 python -m pytest -q
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout, the checks CI
+runs and what a change needs. Changes per version: [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+See [LICENSE](LICENSE). Bundled third-party packages and fonts:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
