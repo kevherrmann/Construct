@@ -47,7 +47,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "5.2.0"
+VERSION = "5.3.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -70,8 +70,8 @@ def auth_ok(header: str) -> bool:
     return secrets.compare_digest(user, AUTH_USER) and secrets.compare_digest(pw, AUTH_PASS)
 
 
-def load_persona() -> str:
-    """SOUL.md + USER.md als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
+def persona_text() -> str:
+    """SOUL.md + USER.md + Sprachvorgabe — der feste Teil der Persona."""
     parts = []
     for which in ("soul", "user"):
         txt = cfg.persona_read(which).strip()
@@ -81,14 +81,20 @@ def load_persona() -> str:
     # womöglich nicht — dann entscheidet die Einstellung.
     parts.append(cfg.L("Antworte auf Deutsch, außer der Nutzer schreibt in einer anderen Sprache.",
                        "Reply in English unless the user writes in another language."))
-    # Anstehende Termine frisch einspielen -> Cody weiß, was ansteht, und kann erinnern.
-    try:
-        block = cal.context_block()
-        if block:
-            parts.append(block)
-    except Exception:
-        pass
     return "\n\n".join(parts).strip()
+
+
+def calendar_text() -> str:
+    """Anstehende Termine samt Anleitung zum Eintragen — ändert sich laufend."""
+    try:
+        return cal.context_block() or ""
+    except Exception:
+        return ""
+
+
+def load_persona() -> str:
+    """Persona + Kalender als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
+    return "\n\n".join(p for p in (persona_text(), calendar_text()) if p).strip()
 
 ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", "dontAsk"}
 

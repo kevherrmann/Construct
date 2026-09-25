@@ -2,6 +2,18 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.3.0 — 2026-09-25
+
+### Fixed
+- **Other providers now get Cody's persona and calendar too.** Until now only
+  Claude runs received SOUL.md, USER.md and the upcoming events; with Gemini,
+  ChatGPT, Ollama & co. (via Hermes) the assistant had no name, no character
+  and knew nothing about the calendar. CONSTRUCT now writes the persona to
+  `$HERMES_HOME/SOUL.md` (only if that file is missing, Hermes' default, or
+  was written by CONSTRUCT — a SOUL.md you wrote for Hermes yourself is left
+  alone) and attaches the calendar to every message; the chat history hides
+  it again.
+
 ## 5.2.0 — 2026-09-25
 
 ### Changed

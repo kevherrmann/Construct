@@ -102,6 +102,61 @@ def child_env() -> dict:
     return env
 
 
+# ---------- Persona und Kalender für fremde Modelle ----------
+# Claude bekommt SOUL.md/USER.md und den Kalender bei jedem Lauf per
+# --append-system-prompt. Hermes kennt dafür keinen Schalter, lädt aber
+# $HERMES_HOME/SOUL.md als Identität — und friert den System-Prompt beim
+# Start einer Sitzung ein. Also: der feste Teil (Persona, Sprache) wandert in
+# SOUL.md, der Kalender (ändert sich laufend) geht mit jeder Nachricht mit.
+SOUL_MARK = ("<!-- Von CONSTRUCT geschrieben (SOUL.md + USER.md aus ⚙ Persona). "
+             "Änderungen bitte dort — diese Datei wird überschrieben. -->")
+HERMES_DEFAULT_SOUL = "You are Hermes Agent, built by Nous Research."
+CTX_OPEN, CTX_CLOSE = "[CONSTRUCT-Kontext]", "[/CONSTRUCT-Kontext]"
+_CTX_RE = re.compile(r"\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*$",
+                     re.S)
+
+
+def sync_soul() -> bool:
+    """$HERMES_HOME/SOUL.md auf die CONSTRUCT-Persona bringen.
+
+    Überschrieben wird nur, was fehlt, von Hermes vorgegeben ist oder von uns
+    stammt — eine SOUL.md, die jemand für Hermes selbst geschrieben hat,
+    bleibt unangetastet. True = die Datei trägt jetzt unsere Persona."""
+    from server.core import persona_text
+    path = Path(hermes_home()) / "SOUL.md"
+    want = f"{SOUL_MARK}\n\n{persona_text()}\n"
+    try:
+        have = path.read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        have = ""
+    except OSError:
+        return False
+    if have == want:
+        return True
+    if have.strip() and SOUL_MARK not in have \
+            and not have.lstrip().startswith(HERMES_DEFAULT_SOUL):
+        return False
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(want, encoding="utf-8")
+        path.chmod(0o600)
+    except OSError:
+        return False
+    return True
+
+
+def with_context(prompt: str) -> str:
+    """Kalender an die Nachricht hängen — markiert, damit die Verlaufsansicht
+    ihn wieder abschneiden kann (strip_context)."""
+    from server.core import calendar_text
+    block = calendar_text()
+    return f"{prompt}\n\n{CTX_OPEN}\n{block}\n{CTX_CLOSE}" if block else prompt
+
+
+def strip_context(text: str) -> str:
+    return _CTX_RE.sub("", text)
+
+
 def acp_model_id(model: str) -> str:
     """CONSTRUCT-Wert "anbieter:modell" → Hermes-Modell-ID.
 
@@ -710,6 +765,8 @@ def session_messages(sid: str) -> list:
     msgs = []
     for role, content, tool_calls, tool_name in rows:
         text = (content or "").strip()
+        if role == "user":
+            text = strip_context(text)
         if role == "tool":
             # Werkzeug-Ausgaben gehören nicht in den Gesprächsverlauf: sie sind
             # oft seitenlang und stehen im Chat ohnehin in eigenen Kästen.
