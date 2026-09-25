@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react'
 import type { Settings } from '@/lib/bootstrap'
 import { Placeholder } from './Placeholder'
+import { ChatView } from './chat/ChatView'
+import { SessionsSide } from './chat/SessionsSide'
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
@@ -19,7 +21,7 @@ export interface ViewDef {
 
 // Reihenfolge = Reihenfolge im Menü.
 export const VIEWS: ViewDef[] = [
-  { key: 'chat', icon: '💬', label: 'Chats', Side: Placeholder, Main: Placeholder },
+  { key: 'chat', icon: '💬', label: 'Chats', Side: SessionsSide, Main: ChatView },
   {
     key: 'skills',
     icon: '⚡',

@@ -23,3 +23,9 @@ export function initI18n(lang: Lang) {
 
 /** Gebietsschema für Datum/Zahl, passend zur Oberflächensprache. */
 export const locale = (lang: Lang) => (lang === 'de' ? 'de-DE' : 'en-GB')
+
+/**
+ * Markiert einen Text als übersetzbar, der erst später durch t() geht (z. B.
+ * Hinweise im Chat-Zustand). Tut nichts — der Übersetzungstest findet ihn so.
+ */
+export const tk = (s: string) => s

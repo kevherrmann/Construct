@@ -14,4 +14,11 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  padding: 22px 8%;
+  scroll-behavior: smooth;
+}
+@media (max-width: 900px) {
+  .content {
+    padding: 18px 16px;
+  }
 }
