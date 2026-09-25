@@ -35,6 +35,7 @@ import mail as mailmod  # E-Mail: IMAP/SMTP für GMX, Gmail, Outlook (mail.py)
 import attach  # Anhänge: Bilder normalisieren, PDF-Textauszug (attach.py)
 import updates as updmod  # hält Claude Code und Hermes aktuell (updates.py)
 import telegram_bot as tgmod  # Cody über Telegram, eingerichtet unter ⚙
+import tts as ttsmod  # Vorlesen über Gemini TTS (tts.py)
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
@@ -937,6 +938,34 @@ def settings_get():
 @app.post("/api/settings")
 async def settings_set(req: Request):
     return cfg.apply_patch(await req.json())
+
+
+# ---------- Vorlesen (Gemini TTS) ----------
+@app.post("/api/tts")
+async def tts_speak(req: Request):
+    """Text → WAV. Stimme/Modell aus den Einstellungen, einzeln überschreibbar
+    (für die Hörprobe im Einstellungsdialog)."""
+    body = await req.json()
+    conf = cfg.load_settings()["tts"]
+    model = body.get("model") if body.get("model") in cfg.TTS_MODELS else conf["model"]
+    voice = re.sub(r"[^\w.\-]", "", str(body.get("voice") or "")) or conf["voice"]
+    style = str(body.get("style") if "style" in body else conf["style"])[:200]
+    try:
+        wav = await asyncio.to_thread(ttsmod.synthesize, str(body.get("text") or ""),
+                                      model, voice, style)
+    except ttsmod.TTSError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return Response(wav, media_type="audio/wav")
+
+
+@app.get("/api/tts/voices")
+async def tts_voices(lang: str = "de-DE"):
+    if not re.fullmatch(r"[A-Za-z]{2,3}(-[A-Za-z0-9]{2,4})?", lang):
+        return JSONResponse({"error": "ungültiger Sprachcode"}, status_code=400)
+    try:
+        return {"voices": await asyncio.to_thread(ttsmod.list_voices, lang)}
+    except ttsmod.TTSError as e:
+        return JSONResponse({"error": str(e), "voices": []}, status_code=400)
 
 
 # ---------- Telegram (Einrichtung unter ⚙) ----------

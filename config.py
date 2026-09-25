@@ -13,6 +13,7 @@ Geprüft wird beim Lesen UND beim Schreiben: die Datei lässt sich von Hand
 bearbeiten, und ein Tippfehler darin soll die Oberfläche nicht zerlegen.
 """
 import json
+import re
 import os
 from pathlib import Path
 
@@ -54,7 +55,26 @@ DEFAULT_SETTINGS = {
     # interval_h = Mindestabstand zwischen zwei Prüfungen, 0 = jeder Start.
     # construct: CONSTRUCT selbst per git beim Start (selfupdate.py).
     "updates": {"auto": True, "interval_h": 6, "construct": True},
+    # Vorlesen über Gemini TTS (tts.py) — nutzt den Gemini-Key aus llm.py.
+    # auto = jede neue Antwort sofort vorlesen, style = Sprechanweisung.
+    "tts": {"auto": False, "model": "gemini-3.8-flash-lite-tts",
+            "voice": "Kore", "style": ""},
 }
+
+TTS_MODELS = ("gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts")
+
+
+def _clean_tts(src: dict, cur: dict):
+    """Übernimmt gültige TTS-Felder aus src nach cur (für Laden und Patch)."""
+    if "auto" in src:
+        cur["auto"] = bool(src["auto"])
+    if src.get("model") in TTS_MODELS:
+        cur["model"] = src["model"]
+    if "voice" in src:
+        v = re.sub(r"[^\w.\-]", "", str(src["voice"] or ""))[:80]
+        cur["voice"] = v or DEFAULT_SETTINGS["tts"]["voice"]
+    if "style" in src:
+        cur["style"] = str(src["style"] or "").strip()[:200]
 
 
 def _clean_name(v, fallback: str = "") -> str:
@@ -113,6 +133,7 @@ def load_settings() -> dict:
         out["updates"]["interval_h"] = max(0, min(720, int(up.get("interval_h"))))
     except Exception:
         pass
+    _clean_tts(raw.get("tts") or {}, out["tts"])
     return out
 
 
@@ -159,6 +180,7 @@ def apply_patch(patch: dict) -> dict:
             cur["updates"]["interval_h"] = max(0, min(720, int(up["interval_h"])))
         except Exception:
             pass
+    _clean_tts(patch.get("tts") or {}, cur["tts"])
     tmp = SETTINGS_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(SETTINGS_FILE)

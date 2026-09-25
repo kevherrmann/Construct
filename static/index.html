@@ -281,6 +281,10 @@
   @keyframes fade{from{opacity:0;transform:translateY(6px)}}
   .msg .who{font-size:11px;letter-spacing:2px;margin-bottom:5px;opacity:.85}
   .msg.user .who{color:var(--user)}.msg.bot .who{color:var(--green)}
+  .say-btn{background:none;border:none;color:inherit;cursor:pointer;font-size:12px;
+    padding:0 0 0 6px;opacity:.45;vertical-align:middle}
+  .say-btn:hover{opacity:1}.say-btn.on{opacity:1;animation:sayPulse 1s infinite}
+  @keyframes sayPulse{50%{opacity:.4}}
   .bubble{border:1px solid var(--green-faint);padding:12px 15px;background:var(--box);
     line-height:1.55;font-size:14.5px;word-wrap:break-word}
   .msg.user .bubble{border-color:var(--user-line);color:var(--user);background:var(--box-user)}
@@ -1113,7 +1117,8 @@ function msgNode(role,html){
   // ein leerer Kreis sähe aus, als wäre ein Bild kaputt.
   const initial=user&&!HAS_AVATAR?esc(USER_NAME.slice(0,1).toUpperCase()):'';
   m.innerHTML=`<div class="avatar ${user?'av-user':'av-cody'}">${initial}</div>`
-    +`<div class="msgcol"><div class="who">${esc((user?USER_NAME:ASSISTANT).toUpperCase())}</div>`
+    +`<div class="msgcol"><div class="who">${esc((user?USER_NAME:ASSISTANT).toUpperCase())}`
+    +(user?'':`<button type="button" class="say-btn" title="Vorlesen">🔊</button>`)+`</div>`
     +`<div class="bubble">${html}</div></div>`;
   return m;
 }
@@ -1127,6 +1132,46 @@ function addMsg(role,html,conv,raw){
   if(!conv||conv.key===activeKey)scroll();return bubble;
 }
 function addMsgTo(container,role,html){const m=msgNode(role,html);container.appendChild(m);const bubble=m.querySelector('.bubble');addCopyBtns(bubble);return bubble;}
+// ---------- Vorlesen (Gemini TTS, /api/tts) ----------
+// Nur der gesprochene Text: Werkzeug-Zeilen, Statistik und Codeblöcke fliegen raus.
+let sayAudio=null,sayBtn=null;
+function sayText(bubble){
+  const c=bubble.cloneNode(true);
+  c.querySelectorAll('.tool,.statline,.thinking,.thinkmark,.copy-btn,.err,pre').forEach(e=>e.remove());
+  const segs=c.querySelectorAll('.seg');
+  return (segs.length?[...segs].map(e=>e.innerText).join('\n'):c.innerText).trim();
+}
+function sayStop(){
+  if(sayAudio){sayAudio.pause();URL.revokeObjectURL(sayAudio.src);sayAudio=null;}
+  if(sayBtn){sayBtn.classList.remove('on');sayBtn.textContent='🔊';sayBtn=null;}
+}
+async function sayPlay(text,btn,opts){
+  sayStop();
+  if(!text)return;
+  sayBtn=btn||null;
+  if(btn){btn.classList.add('on');btn.textContent='⏳';}
+  try{
+    const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text,...(opts||{})})});
+    if(!r.ok){let m='Vorlesen fehlgeschlagen';try{m=(await r.json()).error||m;}catch{}throw new Error(m);}
+    const url=URL.createObjectURL(await r.blob());
+    if(sayBtn!==(btn||null)){URL.revokeObjectURL(url);return;}   // inzwischen etwas anderes gestartet
+    sayAudio=new Audio(url);
+    if(btn)btn.textContent='⏹';
+    sayAudio.onended=sayStop;
+    await sayAudio.play();
+  }catch(e){
+    sayStop();
+    if(btn){btn.textContent='⚠';btn.title=e.message;setTimeout(()=>{btn.textContent='🔊';btn.title='Vorlesen';},3000);}
+    else throw e;
+  }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.say-btn');if(!b)return;
+  if(b===sayBtn){sayStop();return;}
+  const bubble=b.closest('.msgcol')?.querySelector('.bubble');
+  if(bubble)sayPlay(sayText(bubble),b);
+});
 // Absolute Workspace-Pfade in Codys Antworten anklickbar machen (Vorschau/Download)
 const PATH_RE=/(^|[\s('"„`>])(\/(?:home|Users)\/[\w.\-\/]+\.[\w]{1,8})/g;
 function linkifyPaths(el){
@@ -1281,7 +1326,8 @@ async function consumeRun(conv,wrap){
     const newThinking=()=>{thinkEl=document.createElement('div');thinkEl.className='thinking';
       thinkEl.innerHTML='Denke nach<span class="td"></span><span class="td"></span><span class="td"></span>';
       flow.appendChild(thinkEl);};
-    const newTurn=()=>{const bubble=addMsgTo(wrap,'bot','');flow=document.createElement('div');bubble.appendChild(flow);thinkMarked=false;newThinking();};
+    let turnBubble=null;
+    const newTurn=()=>{const bubble=turnBubble=addMsgTo(wrap,'bot','');flow=document.createElement('div');bubble.appendChild(flow);thinkMarked=false;newThinking();};
     const killThinking=()=>{if(thinkEl){thinkEl.remove();thinkEl=null;}};
     const sc=()=>{if(conv.key===activeKey)scroll();};
     const endBlock=()=>{if(blk==='text'&&textEl){textEl.innerHTML=md(textAcc);linkifyPaths(textEl);addCopyBtns(textEl);}blk=null;textEl=null;textAcc='';};
@@ -1334,7 +1380,8 @@ async function consumeRun(conv,wrap){
             flow.appendChild(n);sc();}
           else if(ev.type==='neuer_zug'){endBlock();killThinking();conv.nachlauf=false;conv.busy=true;if(conv.key===activeKey)updateSendBtn();newTurn();sc();}
           else if(ev.type==='nachlauf_ende'){conv.nachlauf=false;}
-          else if(ev.type==='done'){killThinking();if(ev.session_id)conv.sessionId=ev.session_id;endBlock();if(!conv.nachlauf)finished=true;}
+          else if(ev.type==='done'){killThinking();if(ev.session_id)conv.sessionId=ev.session_id;endBlock();if(!conv.nachlauf)finished=true;
+            if(SETTINGS.tts?.auto&&conv.key===activeKey&&turnBubble){const b=turnBubble.closest('.msgcol')?.querySelector('.say-btn');sayPlay(sayText(turnBubble),b);}}
           else if(ev.type==='error'){killThinking();endBlock();finished=true;const e=document.createElement('div');e.className='err';e.textContent='⚠ '+ev.message;flow.appendChild(e);}
         }
       }
@@ -2678,13 +2725,14 @@ async function setSave(patch){
   Object.assign(SETTINGS.background, patch.background||{});
   Object.assign(SETTINGS.names=SETTINGS.names||{}, patch.names||{});
   Object.assign(SETTINGS.updates=SETTINGS.updates||{}, patch.updates||{});
+  Object.assign(SETTINGS.tts=SETTINGS.tts||{}, patch.tts||{});
   const note=document.getElementById('setSaved');
   try{
     const r=await fetch('/api/settings',{method:'POST',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
     const fresh=await r.json();
     SETTINGS.tiles=fresh.tiles; SETTINGS.background=fresh.background;
-    SETTINGS.names=fresh.names; SETTINGS.updates=fresh.updates;
+    SETTINGS.names=fresh.names; SETTINGS.updates=fresh.updates; SETTINGS.tts=fresh.tts;
     if(note){note.textContent='✓ gespeichert';note.classList.add('on');
       clearTimeout(setSaveTimer);setSaveTimer=setTimeout(()=>note.classList.remove('on'),1600);}
   }catch{
@@ -2701,7 +2749,7 @@ function applyTiles(){
 }
 function renderSettings(){
   const side=document.getElementById('setnav');
-  if(side)side.innerHTML=['Sprache','Kacheln','Modelle & Anbieter','Telegram','Namen','Charakter','Farbwelt','Hintergrund']
+  if(side)side.innerHTML=['Sprache','Kacheln','Modelle & Anbieter','Vorlesen','Telegram','Namen','Charakter','Farbwelt','Hintergrund']
     .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
   const w=document.createElement('div');w.className='set-wrap';
 
@@ -2788,6 +2836,38 @@ function renderSettings(){
       <span style="display:block;margin-top:9px">
         <button class="set-btn" id="setMail" ${SETTINGS.tiles.mail===false?'disabled title="Kachel E-Mails ist abgeschaltet"':''}>⚙ Konten verwalten…</button>
       </span></span></div>
+  </div></div>
+
+  <div class="set-sec"><h3>🔊 VORLESEN</h3><div class="set-body">
+    <div class="set-d" style="margin-bottom:10px">Antworten per <b>Gemini TTS</b> vorlesen lassen —
+      der 🔊 neben dem Namen über jeder Antwort. Braucht den Gemini-Key unter
+      <i>Modelle &amp; Anbieter</i> (kostenloses Kontingent reicht).</div>
+    <div class="set-row"><label>
+      <input type="checkbox" id="ttsAuto" ${SETTINGS.tts?.auto?'checked':''}>
+      <span><span class="set-t">Antworten automatisch vorlesen</span>
+      <span class="set-d">Jede fertige Antwort im offenen Chat wird sofort gesprochen.</span></span></label></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Modell</span>
+      <span class="set-d"><b>Flash-Lite</b> ist schneller und schont das Kontingent,
+      <b>Flash</b> klingt ausdrucksstärker.</span>
+      <span style="display:block;margin-top:9px">
+        <select id="ttsModel" class="set-btn" style="padding:7px 9px">
+          <option value="gemini-3.8-flash-lite-tts">Gemini 3.8 Flash-Lite TTS</option>
+          <option value="gemini-3.8-flash-tts">Gemini 3.8 Flash TTS</option>
+        </select></span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Stimme</span>
+      <span class="set-d" id="ttsVoiceInfo">Deutsche Stimmen aus dem Gemini-Katalog.</span>
+      <span style="display:block;margin-top:9px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+        <select id="ttsVoice" class="set-btn" style="padding:7px 9px;max-width:100%"></select>
+        <button class="set-btn" id="ttsTry">▶ Hörprobe</button>
+        <span class="set-saved" id="ttsNote"></span>
+      </span></span></div>
+    <div class="set-row"><span style="flex:1">
+      <span class="set-t">Sprechweise</span>
+      <span class="set-d">Optionale Regieanweisung, z. B. „locker und freundlich, etwas zügig“.</span>
+      <input id="ttsStyle" class="set-btn" style="display:block;margin-top:9px;width:100%;box-sizing:border-box;text-align:left;letter-spacing:0"
+        maxlength="200" placeholder="leer = natürlich"></span></div>
   </div></div>
 
   <div class="set-sec"><h3>✈ TELEGRAM</h3><div class="set-body">
@@ -2968,6 +3048,7 @@ function renderSettings(){
   });
   setupEngines(w);
   setupUpdates(w);
+  setupTTS(w);
   setupTelegram(w);
   setupPersona(w);
   setupAvatars(w);
@@ -3148,6 +3229,41 @@ function setupTelegram(w){
     if(!document.body.contains(stEl)){clearInterval(tgTimer);return;}
     try{showStatus(await(await fetch('/api/telegram')).json());}catch{}
   },3000);
+}
+
+function setupTTS(w){
+  const auto=w.querySelector('#ttsAuto'),model=w.querySelector('#ttsModel'),
+        voice=w.querySelector('#ttsVoice'),info=w.querySelector('#ttsVoiceInfo'),
+        style=w.querySelector('#ttsStyle'),tryB=w.querySelector('#ttsTry'),note=w.querySelector('#ttsNote');
+  if(!auto)return;
+  const cur=SETTINGS.tts||{};
+  model.value=cur.model||'gemini-3.8-flash-lite-tts';
+  style.value=cur.style||'';
+  const setVoiceOpts=list=>{
+    const have=list.some(v=>v.id===cur.voice);
+    voice.innerHTML=(have||!cur.voice?'':`<option value="${esc(cur.voice)}">${esc(cur.voice)}</option>`)
+      +list.map(v=>`<option value="${esc(v.id)}" title="${esc(v.description||'')}">${esc(v.name)}`
+        +[v.gender,v.pitch,v.accent].filter(Boolean).map(x=>' · '+esc(x)).join('')+'</option>').join('');
+    voice.value=cur.voice||list[0]?.id||'';
+  };
+  setVoiceOpts([]);
+  fetch('/api/tts/voices?lang=de-DE').then(r=>r.json()).then(d=>{
+    if(d.error){info.textContent='⚠ '+d.error;return;}
+    info.textContent=`${d.voices.length} deutsche Stimmen im Gemini-Katalog.`;
+    setVoiceOpts(d.voices);
+  }).catch(()=>{info.textContent='⚠ Stimmenliste nicht abrufbar.';});
+  auto.onchange=()=>setSave({tts:{auto:auto.checked}});
+  model.onchange=()=>setSave({tts:{model:model.value}});
+  voice.onchange=()=>{cur.voice=voice.value;setSave({tts:{voice:voice.value}});};
+  style.onchange=()=>setSave({tts:{style:style.value}});
+  tryB.onclick=async()=>{
+    note.textContent='…';note.classList.add('on');
+    try{
+      await sayPlay(`Hallo ${USER_NAME||''}, ich bin ${ASSISTANT}. So klinge ich mit dieser Stimme.`,null,
+        {voice:voice.value,model:model.value,style:style.value});
+      note.classList.remove('on');
+    }catch(e){note.textContent='⚠ '+e.message;}
+  };
 }
 
 function setupUpdates(w){
