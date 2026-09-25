@@ -27,7 +27,7 @@ OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
 BG_MODES = ("matrix", "image", "plain")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
-THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel")
+THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel", "plasma")
 # Sprache der Oberfläche UND des Assistenten. Englisch als Vorgabe: das
 # Repository ist öffentlich, Deutsch schaltet man sich im ⚙-Dialog um.
 LANGS = ("en", "de")

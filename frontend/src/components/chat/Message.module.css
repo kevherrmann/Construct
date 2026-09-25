@@ -91,14 +91,14 @@
   max-width: 260px;
   border: 1px solid var(--green-faint);
   margin: 6px 6px 0 0;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
 }
 .bubble :global(pre) {
   background: var(--codebg) !important;
   border: 1px solid var(--green-faint);
   padding: 12px;
   overflow-x: auto;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   position: relative;
 }
 .bubble :global(pre code) {
@@ -115,7 +115,7 @@
   color: var(--code);
   background: rgba(var(--accent-rgb), 0.08);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .bubble :global(a) {
   color: var(--link);
@@ -144,7 +144,7 @@
   color: var(--green-dim);
   border: 1px solid var(--green-faint);
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s;
@@ -174,7 +174,7 @@
   margin: 6px 6px 0 0;
   padding: 4px 8px;
   border: 1px solid var(--green-faint);
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   font-size: 12px;
 }
 
@@ -212,7 +212,7 @@
   background: var(--deep);
   color: var(--user);
   border: 1px solid var(--user-line);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   font-size: 14px;
   padding: 8px;
   resize: vertical;
@@ -227,7 +227,7 @@
 .editbar button {
   font-size: 12px;
   padding: 4px 12px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   cursor: pointer;
 }
 .ebSend {
@@ -334,7 +334,7 @@
   font-size: 13px;
   color: var(--on-accent);
   background: linear-gradient(90deg, var(--green), var(--accent2));
-  border-radius: 4px;
+  border-radius: var(--radius, 4px);
   font-weight: bold;
   text-shadow: none;
   box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.55);
@@ -357,5 +357,44 @@
   color: var(--code);
   background: rgba(var(--accent-rgb), 0.08);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
+}
+
+/* ---------- Plasma: Glas-Blasen ---------- */
+:global(html[data-theme='plasma']) .bubble {
+  border-radius: 20px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+:global(html[data-theme='plasma']) .user .bubble {
+  border-bottom-right-radius: 6px;
+  background: linear-gradient(135deg, rgba(143, 130, 255, 0.24), rgba(94, 200, 229, 0.14));
+  border-color: rgba(185, 176, 255, 0.3);
+  color: var(--user);
+}
+:global(html[data-theme='plasma']) .bot .bubble {
+  border-top-left-radius: 6px;
+}
+:global(html[data-theme='plasma']) .bubble :global(:is(h1, h2, h3)) {
+  color: var(--green);
+}
+:global(html[data-theme='plasma']) .bubble :global(pre) {
+  border-radius: 14px;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme='plasma']) .avatar {
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+:global(html[data-theme='plasma']) .helpbox {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+}
+:global(html[data-theme='plasma']) .statline {
+  border-top-color: rgba(255, 255, 255, 0.1);
 }

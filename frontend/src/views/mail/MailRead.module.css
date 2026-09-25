@@ -7,7 +7,7 @@
   background: var(--deep);
   padding: 13px 16px;
   margin-bottom: 10px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .sub {
   font-size: 16.5px;
@@ -32,7 +32,7 @@
   height: 62vh;
   border: 1px solid var(--green-faint);
   background: #fff;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .text {
   border: 1px solid var(--green-faint);
@@ -43,7 +43,7 @@
   font-size: 14px;
   line-height: 1.65;
   color: var(--text);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   word-break: break-word;
 }
 .atts {
@@ -57,7 +57,7 @@
   color: var(--link);
   border: 1px solid var(--green-faint);
   padding: 5px 10px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   text-decoration: none;
 }
 .att:hover {

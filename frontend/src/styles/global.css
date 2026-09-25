@@ -1,4 +1,5 @@
 @import '@fontsource/share-tech-mono';
+@import '@fontsource-variable/inter';
 @import './themes.css';
 
 *,
@@ -15,7 +16,7 @@ body,
 body {
   background: var(--bg);
   color: var(--green);
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font);
   overflow: hidden;
   text-shadow: 0 0 4px rgba(var(--accent-rgb), 0.45);
 }

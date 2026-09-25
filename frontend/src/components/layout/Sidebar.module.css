@@ -35,7 +35,7 @@
   grid-template-columns: repeat(3, 1fr);
   margin: 0 10px 12px;
   border: 1px solid var(--green-faint);
-  border-radius: 5px;
+  border-radius: var(--radius, 5px);
   overflow: hidden;
   background: var(--box);
 }
@@ -99,4 +99,41 @@
   .open {
     transform: none;
   }
+}
+
+/* ---------- Plasma ---------- */
+:global(html[data-theme='plasma']) .side {
+  border-radius: 26px;
+  border-right: none;
+  overflow: hidden;
+}
+:global(html[data-theme='plasma'].plasma-gl) .side {
+  background: transparent;
+  backdrop-filter: none;
+}
+:global(html[data-theme='plasma']:not(.plasma-gl)) .side {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+:global(html[data-theme='plasma']) .brand {
+  font-weight: 650;
+  letter-spacing: 4px;
+}
+:global(html[data-theme='plasma']) .menu {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+:global(html[data-theme='plasma']) .item span {
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+}
+:global(html[data-theme='plasma']) .active {
+  box-shadow: inset 0 -2px 0 var(--green);
+  background: rgba(var(--accent-rgb), 0.16);
 }

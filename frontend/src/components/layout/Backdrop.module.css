@@ -35,3 +35,22 @@
   background: #000;
   opacity: var(--bg-dim, 0.6);
 }
+
+/* Plasma ohne WebGL: das Farbfeld der Stimmung "tidal" als langsam
+   wandernder Verlauf — ruhig genug, um darauf zu lesen. */
+.plasmaField {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 20% 25%, rgba(106, 90, 205, 0.45), transparent 70%),
+    radial-gradient(55% 60% at 80% 70%, rgba(15, 76, 92, 0.7), transparent 70%), #04111c;
+  background-size: 140% 140%;
+  animation: plasmaDrift 40s ease-in-out infinite alternate;
+}
+@keyframes plasmaDrift {
+  to {
+    background-position: 100% 100%;
+  }
+}

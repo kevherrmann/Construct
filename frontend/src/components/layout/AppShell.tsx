@@ -8,6 +8,7 @@ import { SideGrip } from './SideGrip'
 import { Topbar } from './Topbar'
 import { Composer } from '@/components/chat/Composer'
 import { Backdrop } from './Backdrop'
+import { PlasmaRoot } from './PlasmaRoot'
 import { UpdateCard } from './UpdateCard'
 import { LoginDialog, ClaudeSetupDialog } from '@/components/dialogs/LoginDialog'
 import { ProvidersDialog } from '@/components/dialogs/ProvidersDialog'
@@ -33,7 +34,7 @@ export function AppShell() {
   }
 
   return (
-    <>
+    <PlasmaRoot>
       <Backdrop />
       <div className={s.app}>
         <Sidebar view={current} open={sideOpen} onNavigate={() => setSideOpen(false)} />
@@ -55,6 +56,6 @@ export function AppShell() {
       <ProvidersDialog />
       <LoginDialog />
       <ClaudeSetupDialog />
-    </>
+    </PlasmaRoot>
   )
 }

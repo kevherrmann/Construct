@@ -8,7 +8,7 @@
   font-size: 11px;
   border: 1px solid var(--green-faint);
   padding: 3px 9px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   color: var(--green-dim);
   letter-spacing: 0.5px;
   text-shadow: none;

@@ -11,7 +11,7 @@
 }
 .sec {
   border: 1px solid var(--green-faint);
-  border-radius: 4px;
+  border-radius: var(--radius, 4px);
   margin: 0 0 16px;
   background: var(--box);
 }
@@ -91,7 +91,7 @@
   background: transparent;
   color: var(--green);
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   cursor: pointer;
 }
 .btn + .btn {
@@ -117,7 +117,7 @@ select.btn {
   font-size: 10px;
   letter-spacing: 1px;
   border: 1px solid var(--green-faint);
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   padding: 2px 6px;
   opacity: 0.85;
   white-space: nowrap;
@@ -149,7 +149,7 @@ select.btn {
 .in {
   background: var(--shade);
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   color: var(--green);
   font-family: inherit;
   font-size: 13px;
@@ -167,7 +167,7 @@ select.btn {
   background: var(--shade);
   color: var(--green);
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   font-family: inherit;
   font-size: 12.5px;
   line-height: 1.55;
@@ -188,7 +188,7 @@ select.btn {
   background: var(--shade);
   padding: 8px;
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   white-space: pre-wrap;
 }
 .avPick {
@@ -227,7 +227,7 @@ select.btn {
   background: transparent;
   color: var(--green-dim);
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .tab.on {
   color: var(--green);
@@ -237,7 +237,7 @@ select.btn {
 .prev {
   height: 74px;
   border: 1px solid var(--green-faint);
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   margin-top: 8px;
   background-size: cover;
   background-position: center;
@@ -263,7 +263,7 @@ select.btn {
 }
 .th {
   border: 1px solid var(--green-faint);
-  border-radius: 4px;
+  border-radius: var(--radius, 4px);
   padding: 9px 10px;
   cursor: pointer;
   transition: 0.12s;
@@ -288,7 +288,7 @@ select.btn {
 .sw i {
   width: 20px;
   height: 20px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   display: block;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -331,4 +331,14 @@ select.btn {
 }
 .actionsFlex .btn + .btn {
   margin-left: 0;
+}
+
+/* ---------- Plasma ---------- */
+:global(html[data-theme='plasma']) .sec {
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }

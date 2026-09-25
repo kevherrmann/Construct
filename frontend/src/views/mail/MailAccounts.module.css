@@ -4,7 +4,7 @@
   background: var(--deep);
   padding: 12px 14px;
   margin: 8px 0;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .head {
   display: flex;
@@ -19,7 +19,7 @@
   color: var(--green-dim);
   border: 1px solid var(--green-faint);
   padding: 1px 6px;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
 }
 .st {
   flex: 1;
@@ -54,7 +54,7 @@
   font-size: 13px;
   padding: 8px 10px;
   outline: none;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   text-shadow: none;
 }
 .addTitle {

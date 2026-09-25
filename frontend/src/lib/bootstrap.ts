@@ -3,7 +3,7 @@
 
 export type Lang = 'de' | 'en'
 export type ThemeName =
-  'matrix' | 'bernstein' | 'eis' | 'space' | 'asche' | 'blut' | 'papier' | 'nebel'
+  'matrix' | 'bernstein' | 'eis' | 'space' | 'asche' | 'blut' | 'papier' | 'nebel' | 'plasma'
 
 export interface Settings {
   theme: ThemeName

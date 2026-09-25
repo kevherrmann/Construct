@@ -10,7 +10,7 @@
   border: 1px dashed var(--green-faint);
   padding: 7px 11px;
   margin-bottom: 9px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   background: var(--box);
 }
 .queue b {
@@ -165,4 +165,38 @@
   font-size: 22px;
   letter-spacing: 4px;
   pointer-events: none;
+}
+
+/* ---------- Plasma ---------- */
+:global(html[data-theme='plasma']) .composer {
+  border-radius: 26px;
+  border-top: none;
+  padding: 14px 20px;
+}
+:global(html[data-theme='plasma'].plasma-gl) .composer {
+  background: transparent;
+}
+:global(html[data-theme='plasma']:not(.plasma-gl)) .composer {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+:global(html[data-theme='plasma']) .input {
+  border-radius: 14px;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text);
+}
+:global(html[data-theme='plasma']) .send {
+  border-radius: 14px;
+  background: linear-gradient(135deg, #b9b0ff, #5ec8e5);
+  box-shadow: 0 6px 22px rgba(143, 130, 255, 0.45);
+}
+:global(html[data-theme='plasma']) .attach,
+:global(html[data-theme='plasma']) .stop {
+  border-radius: 14px;
 }

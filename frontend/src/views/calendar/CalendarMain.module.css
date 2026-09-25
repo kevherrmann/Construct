@@ -31,7 +31,7 @@
   height: 40px;
   text-shadow: inherit;
   transition: 0.12s;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .nav:hover {
   background: var(--green-faint);
@@ -48,7 +48,7 @@
   padding: 0 16px;
   height: 40px;
   text-shadow: inherit;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .tbtn:hover {
   background: var(--green-faint);
@@ -88,7 +88,7 @@
   flex-direction: column;
   gap: 3px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   transition: 0.12s;
   min-width: 0;
 }
@@ -127,7 +127,7 @@
   line-height: 1.35;
   color: var(--on-accent);
   background: linear-gradient(90deg, var(--green), var(--accent2));
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   padding: 1px 5px;
   white-space: nowrap;
   overflow: hidden;
@@ -151,10 +151,15 @@
   line-height: 1.35;
   color: var(--soft);
   border: 1px dashed var(--green-faint);
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   padding: 1px 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: none;
+}
+
+/* Plasma: Wochenende in der zweiten Theme-Farbe statt des festen Matrix-Grüns. */
+:global(html[data-theme='plasma']) .dow span.we {
+  color: var(--accent2);
 }

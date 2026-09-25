@@ -2,7 +2,7 @@
   border: 1px solid var(--green-faint);
   background: var(--box);
   margin: 9px 0;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.04);
 }
 .head {
@@ -69,7 +69,7 @@
   font-size: 12px;
   background: var(--shade);
   padding: 7px 9px;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   text-shadow: none;
 }
 .in {
@@ -98,7 +98,7 @@
   font-size: 12px;
   padding: 6px 9px;
   margin: 3px 0;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   text-shadow: none;
   border-left: 3px solid transparent;
 }
@@ -113,4 +113,10 @@
   background: rgba(var(--accent-rgb), 0.08);
   color: #9dffb0;
   border-left-color: var(--green-dim);
+}
+
+:global(html[data-theme='plasma']) .box {
+  border-radius: 14px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.18);
 }

@@ -41,3 +41,9 @@ def test_tts_einstellungen_je_sprache_und_alte_werte():
     assert cur["voice"]["de"] == "..boesex"
     assert "fr" not in cur["voice"]
     assert cur["model"] == config.DEFAULT_SETTINGS["tts"]["model"]
+
+
+def test_plasma_ist_ein_gueltiges_theme(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    assert config.apply_patch({"theme": "plasma"})["theme"] == "plasma"
+    assert config.apply_patch({"theme": "gibtsnicht"})["theme"] == "plasma"

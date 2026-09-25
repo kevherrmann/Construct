@@ -15,7 +15,7 @@
   background: var(--deep);
   padding: 12px 14px;
   margin: 8px 0;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .head {
   display: flex;
@@ -54,7 +54,7 @@
   font-size: 13px;
   padding: 8px 10px;
   outline: none;
-  border-radius: 2px;
+  border-radius: var(--radius, 2px);
   text-shadow: none;
 }
 .tbtn {
@@ -68,7 +68,7 @@
   padding: 0 16px;
   height: 40px;
   text-shadow: inherit;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
 }
 .tbtn:hover {
   background: var(--green-faint);
@@ -125,7 +125,7 @@
   font-family: inherit;
   font-size: 11px;
   padding: 4px 10px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   letter-spacing: 1px;
   flex: 0 0 auto;
   white-space: nowrap;

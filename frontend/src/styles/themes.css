@@ -9,6 +9,9 @@
        --soft/--link untergeordneter Text und Verweise.
      Die Vorgabe hier ist Matrix; data-theme am <html> überschreibt sie. */
 :root {
+  /* Schrift gehört zum Theme: Terminal-Optik für die klassischen, eine
+     klare Grotesk für Plasma. */
+  --font: 'Share Tech Mono', monospace;
   --green: #00ff41;
   --green-dim: #00a82b;
   --green-faint: #0d3d18;
@@ -170,5 +173,45 @@ html:is([data-theme='papier'], [data-theme='nebel']) {
   color-scheme: light;
 }
 html:is([data-theme='papier'], [data-theme='nebel']) * {
+  text-shadow: none !important;
+}
+
+/* ---------- Plasma ----------
+   Flüssiges Glas (Plasma UI, WebGL) auf einem lebendigen Farbfeld. Die Flächen
+   zeichnet der Canvas; die Variablen hier sorgen für Lesbarkeit darauf. Ohne
+   WebGL (html:not(.plasma-gl)) übernimmt eine CSS-Glas-Optik — siehe
+   styles/plasma.css. */
+html[data-theme='plasma'] {
+  --font: 'Inter Variable', system-ui, sans-serif;
+  /* Kleine Ecken der klassischen Themes (2–6 px) werden hier weich. */
+  --radius: 12px;
+  --green: #b9b0ff;
+  --green-dim: #8a86b8;
+  --green-faint: rgba(255, 255, 255, 0.12);
+  --bg: #04111c;
+  --panel: transparent;
+  --user: #e9e6ff;
+  --accent-rgb: 143, 130, 255;
+  --soft: #c2c6dc;
+  --link: #9fd4ff;
+  --rain: #8f82ff;
+  --rain-fade: rgba(4, 17, 28, 0.07);
+  --text: #eef0fa;
+  --field: rgba(255, 255, 255, 0.06);
+  --popup: rgba(18, 22, 40, 0.92);
+  --box: rgba(255, 255, 255, 0.05);
+  --box-user: rgba(143, 130, 255, 0.14);
+  --user-line: rgba(185, 176, 255, 0.35);
+  --deep: rgba(10, 14, 30, 0.6);
+  --deep-hi: rgba(143, 130, 255, 0.12);
+  --codebg: rgba(6, 10, 22, 0.78);
+  --on-accent: #0b0a1f;
+  --accent2: #5ec8e5;
+  --code: #ffd29a;
+  --shade: rgba(0, 0, 0, 0.25);
+  --mask: rgba(4, 8, 18, 0.55);
+  color-scheme: dark;
+}
+html[data-theme='plasma'] * {
   text-shadow: none !important;
 }

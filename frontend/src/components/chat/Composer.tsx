@@ -1,3 +1,4 @@
+import { Surface } from '@/components/layout/Surface'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
@@ -128,7 +129,7 @@ export function Composer() {
   }
 
   return (
-    <div className={s.composer}>
+    <Surface className={s.composer}>
       {!!conv?.queue.length && (
         <div className={s.queue}>
           ⏳ <b>{conv.queue.length}</b>{' '}
@@ -231,6 +232,6 @@ export function Composer() {
         }}
       />
       {dragging && <div className={s.dropmask}>{t('⌬ BILD HIER ABLEGEN ⌬')}</div>}
-    </div>
+    </Surface>
   )
 }

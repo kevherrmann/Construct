@@ -22,3 +22,15 @@
     padding: 18px 16px;
   }
 }
+
+/* ---------- Plasma: schwebende Flächen mit Abstand ---------- */
+:global(html[data-theme='plasma']) .app {
+  padding: 14px;
+  gap: 14px;
+}
+:global(html[data-theme='plasma']) .main {
+  gap: 14px;
+}
+:global(html[data-theme='plasma']) .content {
+  padding: 8px 6%;
+}

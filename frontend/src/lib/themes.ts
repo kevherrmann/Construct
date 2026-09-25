@@ -62,6 +62,13 @@ export const THEMES: ThemeInfo[] = [
     swatch: ['#eef1f6', '#2757b8', '#d5dce8'],
     light: true,
   },
+  {
+    key: 'plasma',
+    name: 'Plasma',
+    description:
+      'Flüssiges Glas auf lebendigem Farbfeld. Mit Grafikkarte in echt, sonst als Glas-Optik.',
+    swatch: ['#04111c', '#8f82ff', '#0f4c5c'],
+  },
 ]
 
 export function applyTheme(theme: ThemeName) {

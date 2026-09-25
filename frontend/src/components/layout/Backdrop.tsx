@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { fxLevel } from '@/lib/fx'
+import { plasmaLive } from '@/lib/plasma'
 import { useSettings } from '@/stores/settings'
 import s from './Backdrop.module.css'
 
@@ -75,7 +76,10 @@ function MatrixRain({ slow }: { slow: boolean }) {
 // Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild oder schlicht.
 export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
+  const theme = useSettings((st) => st.settings.theme)
   const fx = fxLevel()
+  // Plasma malt sein Feld selbst; ohne WebGL steht dafür ein ruhiger Verlauf da.
+  if (theme === 'plasma') return plasmaLive(theme) ? null : <div className={s.plasmaField} />
   if (bg.mode === 'image' && bg.image)
     return (
       <div

@@ -15,7 +15,7 @@
   color: var(--green-dim);
   border: 1px solid var(--green-faint);
   padding: 4px 10px;
-  border-radius: 3px;
+  border-radius: var(--radius, 3px);
   cursor: pointer;
   user-select: none;
   background: none;
