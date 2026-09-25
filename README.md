@@ -5,7 +5,7 @@
 ## What is CONSTRUCT?
 
 CONSTRUCT is the place; **Cody** is the assistant who lives in it. CONSTRUCT is a
-FastAPI backend (`app.py`) and a single-page frontend (`static/index.html`). It
+FastAPI backend (`app.py`) and a single-page frontend (`static/`). It
 runs in its own native window through pywebview (`desktop.py`) or in any browser.
 
 Chats run through the **Claude Code CLI** (`claude -p`), so CONSTRUCT uses your
@@ -246,9 +246,13 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | File | Purpose |
 |---|---|
 | `app.py` | FastAPI backend: chat runs, sessions, auth, usage, settings, calendar/mail/skills/MCP APIs |
-| `static/index.html` | The entire frontend (single page) |
+| `static/index.html` | Frontend markup (single page) |
+| `static/css/` | Styles: `themes.css` (color themes), `app.css` (layout, chat, calendar, mail), `settings.css` |
+| `static/js/` | Frontend scripts, one per area (`chat.js`, `settings.js`, `mail.js`, …), loaded in order by `index.html` |
+| `static/i18n.js` | German → English translation of the interface |
 | `desktop.py` | Native window through pywebview, with fallback to the browser |
 | `config.py` | `settings.json` and persona files |
+| `tts.py` | Read-aloud via Gemini TTS, voice catalog |
 | `llm.py` | Provider definitions, API keys, model lists, Ollama management |
 | `hermes.py` | Hermes Agent backend (ACP over stdio) for non-Claude models |
 | `bonsai.py` | On-demand `llama-server` for Bonsai models |

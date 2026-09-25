@@ -777,7 +777,7 @@ def code_stamp() -> str:
     machen. Gegenstück: code_stamp() in desktop.py.
     """
     try:
-        quellen = list(BASE_DIR.glob("*.py")) + [STATIC_DIR / "index.html"]
+        quellen = list(BASE_DIR.glob("*.py")) + list(STATIC_DIR.rglob("*.[hjc]*"))
         return str(int(max(f.stat().st_mtime for f in quellen if f.exists())))
     except Exception:
         return ""
@@ -1194,13 +1194,15 @@ def index():
         "workspace": WORKSPACE,
         "settings": cfg.load_settings(),
     }, ensure_ascii=False) + ";"
-    # Wörterbuch mit Stempel: index.html kommt nie aus dem Cache, das Script
-    # schon — ohne ?v= sähe man nach einem Update die alten Übersetzungen.
-    try:
-        v = int((STATIC_DIR / "i18n.js").stat().st_mtime)
-    except OSError:
-        v = 0
-    html = html.replace('src="/static/i18n.js"', f'src="/static/i18n.js?v={v}"', 1)
+    # Scripts und Stylesheets mit Stempel: index.html kommt nie aus dem Cache,
+    # die Dateien schon — ohne ?v= sähe man nach einem Update den alten Stand.
+    def _stamp(m):
+        try:
+            v = int((STATIC_DIR / m.group(2)).stat().st_mtime)
+        except OSError:
+            v = 0
+        return f'{m.group(1)}="/static/{m.group(2)}?v={v}"'
+    html = re.sub(r'(src|href)="/static/([\w./-]+\.(?:js|css))"', _stamp, html)
     # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
     # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
     html = re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};", lambda _m: payload,
