@@ -1,3 +1,4 @@
+import { trServer } from '@/lib/serverText'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -80,7 +81,7 @@ export function MailSide() {
           <div
             key={a.email}
             className={`${s.item} ${filter.acc === a.email ? s.on : ''}`}
-            title={err || a.email}
+            title={err ? trServer(err) : a.email}
             onClick={() => pick({ acc: a.email })}
           >
             <span

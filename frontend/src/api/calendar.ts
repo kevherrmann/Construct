@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 
 /** Ein Termin aus events.json (cal.py → add_event). */
@@ -60,6 +60,8 @@ export const useActivity = (start: string, end: string) =>
     queryFn: () => apiGet<Activity>(`/api/activity?start=${start}&end=${end}`),
     // Heute kann beim nächsten Öffnen Neues dazugekommen sein.
     refetchOnMount: 'always',
+    // Beim Monatswechsel die alten Chips stehen lassen, bis die neuen da sind.
+    placeholderData: keepPreviousData,
   })
 
 export function useAddEvent() {

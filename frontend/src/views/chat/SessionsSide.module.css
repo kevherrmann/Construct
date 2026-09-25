@@ -120,7 +120,7 @@
   border-left-color: #ffd24a;
 }
 .running .t {
-  animation: pulse 1.3s ease-in-out infinite;
+  animation: global(pulse) 1.3s ease-in-out infinite;
 }
 .archived {
   opacity: 0.5;

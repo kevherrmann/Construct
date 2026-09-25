@@ -1,4 +1,6 @@
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useAuthStatus } from '@/api/system'
+import { trServer } from '@/lib/serverText'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFolders } from '@/api/chat'
 import { useProviders } from '@/api/providers'
@@ -70,7 +72,9 @@ export function Pickers({
   setOpen: (p: PickerName | null) => void
 }) {
   const { t } = useTranslation()
-  const hasClaude = useSettings((st) => st.boot.claude)
+  // Live aus der Anmeldeprüfung — wer Claude Code nachinstalliert, sieht es ohne Neuladen.
+  const bootClaude = useSettings((st) => st.boot.claude)
+  const hasClaude = useAuthStatus().data?.cli ?? bootClaude
   const workspace = useSettings((st) => st.boot.workspace)
   const folders = useFolders()
   const providers = useProviders()
@@ -93,13 +97,15 @@ export function Pickers({
   }, [folder, folders.data, setFolder])
 
   // Ohne Claude Code wäre ein Claude-Modell eine Sackgasse: die erste Nachricht
-  // liefe in "claude nicht gefunden". Sobald ein externer Anbieter
-  // eingerichtet ist, von selbst dorthin schalten.
+  // liefe in "claude nicht gefunden". Sobald die Anbieterliste da ist, EINMAL
+  // auf ein externes Modell schalten — danach darf man frei wählen.
+  const autoPicked = useRef(false)
   useEffect(() => {
-    if (hasClaude || model.includes(':')) return
-    const e = extModels(provs)[0]
-    if (e) setModel(e.v)
-  }, [hasClaude, model, provs, setModel])
+    if (autoPicked.current || hasClaude || !providers.data) return
+    autoPicked.current = true
+    const e = extModels(providers.data)[0]
+    if (e && !model.includes(':')) setModel(e.v)
+  }, [hasClaude, model, providers.data, setModel])
 
   const pick = (fn: () => void) => () => {
     fn()
@@ -191,7 +197,7 @@ export function Pickers({
               {!p.models?.length && (
                 <Item>
                   <span className={s.muted}>
-                    {p.error ? `⚠ ${p.error}` : t('(keine Modelle gefunden)')}
+                    {p.error ? `⚠ ${trServer(p.error)}` : t('(keine Modelle gefunden)')}
                   </span>
                 </Item>
               )}

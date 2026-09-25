@@ -11,7 +11,7 @@
 }
 .dot {
   color: var(--green);
-  animation: blink 1.2s infinite;
+  animation: global(blink) 1.2s infinite;
 }
 .meta {
   opacity: 0.6;

@@ -16,9 +16,11 @@ export interface TtsOptions {
 export interface SayState {
   owner: string | null
   phase: 'idle' | 'loading' | 'playing'
+  /** Letzter Fehler, 3 s lang — so zeigt auch automatisches Vorlesen ⚠ am Knopf. */
+  error: { owner: string; message: string } | null
 }
 
-let state: SayState = { owner: null, phase: 'idle' }
+let state: SayState = { owner: null, phase: 'idle', error: null }
 let audio: HTMLAudioElement | null = null
 let url: string | null = null
 // Zählt Starts: eine späte Antwort eines überholten Aufrufs erkennt sich daran.
@@ -40,7 +42,7 @@ function release() {
 /** Laufende Wiedergabe (oder deren Laden) abbrechen. */
 export function stopSay() {
   release()
-  set({ owner: null, phase: 'idle' })
+  set({ owner: null, phase: 'idle', error: state.error })
 }
 
 /**
@@ -52,7 +54,7 @@ export async function say(text: string, opts: TtsOptions & { owner?: string } = 
   stopSay()
   if (!text) return
   const mine = ++gen
-  set({ owner, phase: 'loading' })
+  set({ owner, phase: 'loading', error: null })
   try {
     const r = await fetch('/api/tts', {
       method: 'POST',
@@ -74,10 +76,17 @@ export async function say(text: string, opts: TtsOptions & { owner?: string } = 
     url = URL.createObjectURL(blob)
     audio = new Audio(url)
     audio.onended = stopSay
-    set({ owner, phase: 'playing' })
+    set({ owner, phase: 'playing', error: null })
     await audio.play()
   } catch (e) {
-    if (gen === mine) stopSay()
+    if (gen === mine) {
+      stopSay()
+      const err = { owner, message: (e as Error).message }
+      set({ ...state, error: err })
+      setTimeout(() => {
+        if (state.error === err) set({ ...state, error: null })
+      }, 3000)
+    }
     throw e
   }
 }

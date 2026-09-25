@@ -1,3 +1,4 @@
+import { trServer } from '@/lib/serverText'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/lib/chat/types'
@@ -16,6 +17,7 @@ function useNote() {
 }
 
 function Avatar({ user }: { user: boolean }) {
+  const { t } = useTranslation()
   const avatars = useSettings((st) => st.settings.avatars)
   const userName = useSettings((st) => st.boot.user || st.settings.names.user)
   const img = user ? avatars.user : avatars.assistant || '/static/cody.png'
@@ -26,23 +28,17 @@ function Avatar({ user }: { user: boolean }) {
       className={`${s.avatar} ${user ? s.avatarUser : ''}`}
       style={img ? { backgroundImage: `url("${img}")` } : undefined}
     >
-      {user && !img ? (userName || '?').slice(0, 1).toUpperCase() : null}
+      {user && !img ? (userName || t('Du')).slice(0, 1).toUpperCase() : null}
     </div>
   )
 }
 
 function SayButton({ id, text }: { id: string; text: () => string }) {
   const { t } = useTranslation()
-  const { owner, phase } = useSayState()
-  const [err, setErr] = useState<string | null>(null)
+  const { owner, phase, error } = useSayState()
   const mine = owner === id && phase !== 'idle'
-  const click = () => {
-    if (mine) return stopSay()
-    say(text(), { owner: id }).catch((e: Error) => {
-      setErr(e.message)
-      setTimeout(() => setErr(null), 3000)
-    })
-  }
+  const err = error?.owner === id ? trServer(error.message) : null
+  const click = () => (mine ? stopSay() : void say(text(), { owner: id }).catch(() => {}))
   return (
     <button
       type="button"
@@ -237,7 +233,7 @@ function BlockView({ block }: { block: Block }) {
     case 'error':
       return (
         <div className={s.err}>
-          {block.message.startsWith('⚠') ? block.message : `⚠ ${block.message}`}
+          {trServer(block.message.startsWith('⚠') ? block.message : `⚠ ${block.message}`)}
         </div>
       )
   }

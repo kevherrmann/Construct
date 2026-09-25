@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useUi } from '@/stores/ui'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -20,10 +20,9 @@ export function SessionsSide() {
   const { newSession, openSession, forgetSession } = useChat()
   const convs = useChat((st) => st.convs)
   const activeSid = useChat((st) => st.active()?.sessionId)
-  const [query, setQuery] = useState('')
-  const [showArchived, setShowArchived] = useState(false)
-  const [showAgents, setShowAgents] = useState(false)
-  const [closed, setClosed] = useState<Record<string, boolean>>({})
+  // Suche und Filter überleben den Wechsel in andere Ansichten.
+  const { sessQuery: query, closedFolders: closed, showArchived, showAgents, setSess } = useUi()
+  const setSideOpen = useUi((st) => st.setSideOpen)
 
   const list = sessions.data?.sessions ?? []
   const running = sessions.data?.running ?? {}
@@ -48,6 +47,7 @@ export function SessionsSide() {
   )
 
   const open = (x: SessionInfo) => {
+    setSideOpen(false)
     navigate('/chat')
     void openSession(x, running[x.id])
   }
@@ -89,6 +89,7 @@ export function SessionsSide() {
         className={s.newBtn}
         onClick={() => {
           newSession()
+          setSideOpen(false)
           navigate('/chat')
         }}
       >
@@ -99,11 +100,11 @@ export function SessionsSide() {
         placeholder={t('🔎 Sessions durchsuchen…')}
         autoComplete="off"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => setSess({ sessQuery: e.target.value })}
       />
       <div
         className={`${s.toggle} ${showArchived ? s.toggleOn : ''}`}
-        onClick={() => setShowArchived((v) => !v)}
+        onClick={() => setSess({ showArchived: !showArchived })}
       >
         🗄 {t('Archiv')} ({archCount}) ·{' '}
         <span>{showArchived ? t('ausblenden') : t('anzeigen')}</span>
@@ -111,7 +112,7 @@ export function SessionsSide() {
       {agentCount > 0 && (
         <div
           className={`${s.toggle} ${showAgents ? s.toggleOn : ''}`}
-          onClick={() => setShowAgents((v) => !v)}
+          onClick={() => setSess({ showAgents: !showAgents })}
         >
           🏢 {t('Firma')} ({agentCount}) ·{' '}
           <span>{showAgents ? t('ausblenden') : t('anzeigen')}</span>
@@ -133,7 +134,7 @@ export function SessionsSide() {
           <div key={folder}>
             <div
               className={s.folder}
-              onClick={() => setClosed((c) => ({ ...c, [folder]: isOpen }))}
+              onClick={() => setSess({ closedFolders: { ...closed, [folder]: isOpen } })}
             >
               <span className={s.fa}>{isOpen ? '▾' : '▸'}</span>
               <span className={s.fn} title={folder}>

@@ -1,1 +1,0 @@
-import{a as e,r as t}from"./api-XHn_eWqV.js";var n=()=>e({queryKey:[`skills`],queryFn:()=>t(`/api/skills`),refetchOnMount:`always`}),r=n=>e({queryKey:[`skill`,n],queryFn:()=>t(`/api/skill?path=${encodeURIComponent(n)}`),enabled:!!n,refetchOnMount:`always`});export{n,r as t};

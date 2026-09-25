@@ -1,3 +1,5 @@
+import { ChatView } from '@/views/chat/ChatView'
+import { useChat } from '@/stores/chat'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useSkillFile, useSkills, type Skill } from '@/api/skills'
@@ -13,7 +15,9 @@ export function SkillsMain() {
   const path = params.get('path')
   const skills = useSkills().data
   const file = useSkillFile(path)
-  if (!path) return null
+  const newSession = useChat((st) => st.newSession)
+  // Noch kein Skill gewählt: rechts bleibt der Chat stehen, wie früher.
+  if (!path) return <ChatView />
 
   const sk: Skill | undefined = Object.values(skills ?? {})
     .flat()
@@ -34,8 +38,14 @@ export function SkillsMain() {
     <div className={s.page}>
       <div className={s.head}>
         <span>📄 {name}</span>
-        {/* Früher: zurück in eine neue Chat-Session. */}
-        <button className={s.back} onClick={() => navigate('/chat')}>
+        {/* Zurück in eine neue Chat-Session, wie früher. */}
+        <button
+          className={s.back}
+          onClick={() => {
+            newSession()
+            navigate('/chat')
+          }}
+        >
           {t('← zurück')}
         </button>
       </div>

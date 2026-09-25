@@ -1,16 +1,17 @@
+import { trServer } from '@/lib/serverText'
 import { useTranslation } from 'react-i18next'
 import { useAuthStatus, useUsage, type AuthStatus, type UsageWindow } from '@/api/system'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
 import s from './Hud.module.css'
 
-function UsageChip({ label, u }: { label: string; u?: UsageWindow }) {
+function UsageChip({ label, u, title: base }: { label: string; u?: UsageWindow; title?: string }) {
   const { t } = useTranslation()
   const lang = useSettings((st) => st.boot.lang)
   if (!u || u.percent == null)
     return (
-      <span className={s.chip} title={t('keine Daten')}>
-        {label} —
+      <span className={s.chip} title={u ? t('keine Daten') : base}>
+        {label} {u ? '—' : '…'}
       </span>
     )
   const p = Math.round(u.percent)
@@ -23,7 +24,7 @@ function UsageChip({ label, u }: { label: string; u?: UsageWindow }) {
           minute: '2-digit',
         }),
       })
-    : undefined
+    : base
   return (
     <span className={`${s.chip} ${level}`} title={title}>
       {label}
@@ -91,12 +92,18 @@ export function Hud({
         minute: '2-digit',
       })
       limitChips = (
-        <span className={`${s.chip} ${s.crit} ${s.alert}`} title={t('Nutzungs-Limit erreicht')}>
-          {t('⛔ Limit — bis {t}', { t: until })}
-        </span>
+        <>
+          <span
+            className={`${s.chip} ${s.crit} ${s.alert}`}
+            title={t('Nutzungs-Limit erreicht, Reset um {t} Uhr', { t: until })}
+          >
+            {t('⛔ Limit — bis {t}', { t: until })}
+          </span>
+          <UsageChip label={t('7T')} u={u.seven_day} title={t('Auslastung der Woche')} />
+        </>
       )
     } else if (u && !u.available) {
-      const title = t('Limits nicht abrufbar: {r}', { r: u.reason ?? '?' })
+      const title = t('Limits nicht abrufbar: {r}', { r: trServer(u.reason) || '?' })
       limitChips = (
         <>
           <span className={s.chip} title={title}>
@@ -110,8 +117,8 @@ export function Hud({
     } else
       limitChips = (
         <>
-          <UsageChip label="5h" u={u?.five_hour} />
-          <UsageChip label={t('7T')} u={u?.seven_day} />
+          <UsageChip label="5h" u={u?.five_hour} title={t('Auslastung des 5-Stunden-Fensters')} />
+          <UsageChip label={t('7T')} u={u?.seven_day} title={t('Auslastung der Woche')} />
         </>
       )
   }

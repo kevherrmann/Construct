@@ -32,7 +32,9 @@ select {
   background: var(--green-faint);
 }
 
-/* Gemeinsame Animationen — in CSS Modules per Name nutzbar, weil global. */
+/* Gemeinsame Animationen. In CSS Modules als `animation: global(blink) …`
+   ansprechen — ohne global() benennt das Modul den Namen um, und die
+   Animation läuft ins Leere (styles/animations.test.ts prüft das). */
 @keyframes blink {
   50% {
     opacity: 0.25;

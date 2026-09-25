@@ -3,7 +3,7 @@
   gap: 10px;
   align-items: flex-start;
   margin: 16px 0;
-  animation: fade 0.25s ease;
+  animation: global(fade) 0.25s ease;
 }
 .user {
   flex-direction: row-reverse;
@@ -166,7 +166,7 @@
   display: inline-block;
   width: 9px;
   background: var(--green);
-  animation: blink 0.9s steps(1) infinite;
+  animation: global(blink) 0.9s steps(1) infinite;
   box-shadow: 0 0 8px var(--green);
 }
 .att {

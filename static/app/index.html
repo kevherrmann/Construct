@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>CONSTRUCT</title>
+    <link rel="icon" href="/static/icon-256.png" />
+    <!-- Ersetzt app.py beim Ausliefern durch die echten Werte (Namen, Sprache,
+         Einstellungen). Synchron im <head>, damit die erste Darstellung schon
+         stimmt — kein Aufbauen und wieder Wegräumen. -->
+    <script>window.CONSTRUCT={};</script>
+    <!-- Theme vor dem ersten Bild setzen — sonst blitzt bei hellen Themes kurz
+         das dunkle Matrix-Grün auf, bis das Modul geladen ist. -->
+    <script>
+      (function () {
+        var t = ((window.CONSTRUCT || {}).settings || {}).theme
+        if (t && t !== 'matrix') document.documentElement.setAttribute('data-theme', t)
+        // Gespeicherte Breite der Seitenleiste — sonst springt sie beim Laden.
+        try {
+          var w = +localStorage.getItem('sideW')
+          if (w >= 220) document.documentElement.style.setProperty('--side-w', Math.min(w, 900) + 'px')
+        } catch (e) {}
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-B9cMQN-b.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-CbXtAM7H.js">
+    <link rel="modulepreload" crossorigin href="/assets/useTranslation-DY8H6yBN.js">
+    <link rel="modulepreload" crossorigin href="/assets/api-B5k-4ZPY.js">
+    <link rel="modulepreload" crossorigin href="/assets/mutation-CAMIkrMR.js">
+    <link rel="modulepreload" crossorigin href="/assets/queryClient-zM1-X4dC.js">
+    <link rel="modulepreload" crossorigin href="/assets/hooks-Byh-jDmo.js">
+    <link rel="modulepreload" crossorigin href="/assets/lib-BnGU0UAm.js">
+    <link rel="modulepreload" crossorigin href="/assets/settings-DA5Xd9rE.js">
+    <link rel="modulepreload" crossorigin href="/assets/en-CQCCP6TC.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-_8Q4S8vl.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

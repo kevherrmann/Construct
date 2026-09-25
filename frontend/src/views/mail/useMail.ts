@@ -1,3 +1,4 @@
+import { trServer } from '@/lib/serverText'
 import { useTranslation } from 'react-i18next'
 import { useMailAccounts, useMailCategories, useMailList } from '@/api/mail'
 import { locale } from '@/lib/i18n'
@@ -24,10 +25,11 @@ export function useMail() {
 }
 
 /** Texte vom Server (Anbieter-Hinweise, Fehlermeldungen) sind deutsch; die
- *  bekannten stehen im Wörterbuch, unbekannte bleiben einfach, wie sie sind. */
+ *  bekannten — auch Satzteile mit eingesetzten Werten — werden übersetzt,
+ *  unbekannte bleiben, wie sie sind. */
 export function useServerText() {
-  const { t } = useTranslation()
-  return (s: string) => (s ? t(s) : s)
+  useTranslation() // bei Sprachwechsel neu zeichnen
+  return (s: string) => trServer(s)
 }
 
 export const useLocale = () => locale(useSettings((s) => s.boot.lang))

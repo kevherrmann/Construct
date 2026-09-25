@@ -257,7 +257,7 @@ class _Bridge:
 
 
 # Bilder, die von aussen ins Fenster gezogen werden (Dateimanager, Bildbetrachter).
-# Im Browser reicht dafuer das drop-Ereignis in index.html. In WebKitGTK kommt
+# Im Browser reicht dafuer das drop-Ereignis der Oberflaeche. In WebKitGTK kommt
 # eine hereingezogene Datei beim JavaScript aber nur als Name an, nicht als
 # lesbare Datei - das Frontend laedt sie hoch und bekommt nichts. pywebview
 # hat dafuer den eigenen Weg: der Python-Handler erhaelt den vollen Pfad
@@ -340,9 +340,9 @@ def show_window() -> None:
 
     # private_mode=False ist PFLICHT, nicht Komfort: pywebview startet sonst im
     # Private Mode, und darin existiert in WebKitGTK gar kein localStorage —
-    # nicht leer, sondern nicht vorhanden. Das Frontend liest es auf Top-Level
-    # (index.html: currentMode/currentModel), der ReferenceError bricht das
-    # ganze Script ab und keine einzige Schaltfläche reagiert mehr.
+    # nicht leer, sondern nicht vorhanden. Die Oberfläche übersteht das
+    # (frontend/src/lib/storage.ts), vergäße aber Modell, Modus und Breite der
+    # Seitenleiste bei jedem Start.
     # storage_path liegt beim Projekt, damit Einstellungen auf dem USB-Stick
     # mitwandern statt am Rechner zu kleben.
     store = BASE_DIR / ".webview"

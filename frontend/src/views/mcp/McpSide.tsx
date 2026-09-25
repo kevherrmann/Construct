@@ -7,11 +7,13 @@ import s from './McpSide.module.css'
 export function McpSide() {
   const { t } = useTranslation()
   const assistant = useSettings((st) => st.boot.assistant)
-  const { data, isPending } = useMcp()
+  const { data, isPending, isFetching } = useMcp()
   const servers = data?.servers ?? []
 
   let body
-  if (isPending) body = <div className={s.hint}>{t('⟲ prüfe Konnektoren…')}</div>
+  // Bei jedem Öffnen läuft `claude mcp list` neu (bis zu 30 s) — solange
+  // das dauert, nicht so tun, als wäre die alte Liste aktuell.
+  if (isPending || isFetching) body = <div className={s.hint}>{t('⟲ prüfe Konnektoren…')}</div>
   else if (!servers.length)
     body = (
       <div className={s.hint}>

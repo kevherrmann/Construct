@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import {
   attachmentUrl,
   errText,
@@ -52,7 +52,8 @@ export function MailRead() {
     )
   }, [d, unseen, qc])
 
-  if (!r) return null
+  // Ohne Angabe, welche Mail: zurück zur Liste statt einer leeren Seite.
+  if (!r) return <Navigate to="/mail" replace />
   if (q.isPending) return <div className={shared.tool}>{t('⟲ Lade E-Mail …')}</div>
   if (q.isError || !d)
     return <div className={`${shared.err} ${s.loadErr}`}>⚠ {st(errText(q.error))}</div>

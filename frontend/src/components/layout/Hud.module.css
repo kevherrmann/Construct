@@ -60,5 +60,5 @@
   color: var(--green);
 }
 .alert {
-  animation: pulse 1.3s ease-in-out infinite;
+  animation: global(pulse) 1.3s ease-in-out infinite;
 }

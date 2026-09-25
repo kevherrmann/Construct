@@ -27,6 +27,9 @@ interface MailStore {
   /** Auswahl für Sammel-Aktionen: "konto|uid". */
   sel: Set<string>
   draft: Draft
+  /** Steigt mit jedem neuen Entwurf — das Formular baut sich damit frisch auf,
+   *  auch wenn es schon offen ist (sonst ginge "Neue E-Mail" als Antwort raus). */
+  draftSeq: number
   setFilter: (f: Partial<MailFilter>) => void
   setSel: (sel: Set<string>) => void
   toggle: (key: string, on: boolean) => void
@@ -39,6 +42,7 @@ export const useMailStore = create<MailStore>((set) => ({
   filter: { acc: '', cat: '', q: '' },
   sel: new Set(),
   draft: {},
+  draftSeq: 0,
   setFilter: (f) => set((s) => ({ filter: { ...s.filter, ...f } })),
   setSel: (sel) => set({ sel }),
   toggle: (key, on) =>
@@ -48,5 +52,5 @@ export const useMailStore = create<MailStore>((set) => ({
       else sel.delete(key)
       return { sel }
     }),
-  setDraft: (draft) => set({ draft }),
+  setDraft: (draft) => set((s) => ({ draft, draftSeq: s.draftSeq + 1 })),
 }))

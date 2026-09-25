@@ -26,7 +26,7 @@ export function MailList() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const loc = useLocale()
-  const { accounts, categories, msgs, errors, loaded, listQ } = useMail()
+  const { accounts, accountsQ, categories, msgs, errors, loaded, listQ } = useMail()
   const { filter, sel, setFilter, setSel, toggle } = useMailStore()
   const delMail = useDeleteMail()
   const [busy, setBusy] = useState<'' | 'del' | 'cat'>('')
@@ -184,11 +184,13 @@ export function MailList() {
       <div>
         {!list.length && (
           <div className={shared.vhint}>
-            {loaded
-              ? filter.acc || filter.cat || filter.q
-                ? t('Keine E-Mails (Filter aktiv).')
-                : t('Keine E-Mails.')
-              : t('Noch nichts geladen.')}
+            {accountsQ.isPending || (listQ.isFetching && !loaded)
+              ? t('⟲ Lade E-Mails …')
+              : loaded
+                ? filter.acc || filter.cat || filter.q
+                  ? t('Keine E-Mails (Filter aktiv).')
+                  : t('Keine E-Mails.')
+                : t('Noch nichts geladen.')}
           </div>
         )}
         {list.slice(0, limit).map((m) => (

@@ -1,3 +1,5 @@
+import type { AuthStatus } from '@/api/system'
+import { queryClient } from '@/lib/queryClient'
 import { tk } from '@/lib/i18n'
 import type { Provider } from '@/api/providers'
 import { baseName } from '@/lib/format'
@@ -28,10 +30,17 @@ export function runCommand(raw: string, ctx: CommandContext) {
   if (cmd === '' || cmd === 'help') return chat.addSys({ type: 'help' })
   if (cmd === 'new') return chat.newSession()
   if (cmd === 'clear') return chat.clear()
-  if (cmd === 'skills') return ctx.navigate('/skills')
+  if (cmd === 'skills') {
+    // Abgeschaltete Kachel: auch per Befehl nicht erreichbar, wie früher.
+    if (useSettings.getState().settings.tiles.skills === false) return
+    return ctx.navigate('/skills')
+  }
   if (cmd === 'login') {
     const { boot } = useSettings.getState()
-    return useDialogs.getState().open(boot.claude && boot.web_login ? 'login' : 'claude')
+    const auth = queryClient.getQueryData<AuthStatus>(['auth-status'])
+    const cli = auth?.cli ?? boot.claude
+    const web = auth?.can_web_login ?? boot.web_login
+    return useDialogs.getState().open(cli && web ? 'login' : 'claude')
   }
   if (cmd === 'llm' || cmd === 'anbieter') return useDialogs.getState().open('providers')
   if (cmd === 'model') {

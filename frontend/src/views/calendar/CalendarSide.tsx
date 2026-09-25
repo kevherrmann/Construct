@@ -10,7 +10,7 @@ import s from './CalendarSide.module.css'
 export function CalendarSide() {
   const { t } = useTranslation()
   const lang = useSettings((st) => st.boot.lang)
-  const { data } = useEvents()
+  const { data, isPending } = useEvents()
   const openAdd = useCalendar((st) => st.openAdd)
   const jump = useCalendar((st) => st.jump)
   const tStr = todayYMD()
@@ -22,7 +22,7 @@ export function CalendarSide() {
         {t('＋ TERMIN')}
       </button>
       <div className={s.uh}>{t('ANSTEHEND')}</div>
-      {!up.length && <div className={s.hint}>{t('Keine anstehenden Termine.')}</div>}
+      {!isPending && !up.length && <div className={s.hint}>{t('Keine anstehenden Termine.')}</div>}
       {up.map(({ e, d }) => (
         <div
           key={e.id}

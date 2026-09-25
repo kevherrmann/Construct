@@ -14,7 +14,7 @@
 }
 .wrap {
   padding: 12px 4px 60px;
-  animation: fade 0.25s ease;
+  animation: global(fade) 0.25s ease;
   text-shadow: none;
 }
 .top {

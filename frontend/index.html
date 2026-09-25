@@ -15,6 +15,11 @@
       (function () {
         var t = ((window.CONSTRUCT || {}).settings || {}).theme
         if (t && t !== 'matrix') document.documentElement.setAttribute('data-theme', t)
+        // Gespeicherte Breite der Seitenleiste — sonst springt sie beim Laden.
+        try {
+          var w = +localStorage.getItem('sideW')
+          if (w >= 220) document.documentElement.style.setProperty('--side-w', Math.min(w, 900) + 'px')
+        } catch (e) {}
       })()
     </script>
   </head>

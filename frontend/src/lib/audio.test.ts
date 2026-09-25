@@ -33,7 +33,7 @@ it('spielt, meldet den Zustand und räumt am Ende auf', async () => {
   const { result } = renderHook(() => useSayState())
   await act(() => say('Hallo', { owner: 'm1', voice: 'v' }))
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({ text: 'Hallo', voice: 'v' })
-  expect(result.current).toEqual({ owner: 'm1', phase: 'playing' })
+  expect(result.current).toEqual({ owner: 'm1', phase: 'playing', error: null })
   act(() => FakeAudio.last!.onended!())
   expect(result.current.phase).toBe('idle')
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:x')

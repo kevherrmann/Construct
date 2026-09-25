@@ -7,6 +7,7 @@ import { MailCompose } from './MailCompose'
 import { MailList } from './MailList'
 import { MailRead } from './MailRead'
 import { useMail } from './useMail'
+import { useMailStore } from './mailStore'
 import shared from './shared.module.css'
 
 /**
@@ -22,6 +23,14 @@ export function MailMain() {
   const loc = useLocation()
   const nav = useNavigate()
   const { accountsQ, configured } = useMail()
+  const draftSeq = useMailStore((st) => st.draftSeq)
+  const filter = useMailStore((st) => st.filter)
+
+  // Jede neue Seite (und jeder neue Filter) beginnt oben — wie früher.
+  useEffect(() => {
+    const scroller = document.querySelector('[data-scroll]')
+    if (scroller) scroller.scrollTop = 0
+  }, [loc.pathname, loc.search, filter])
   const entry = useRef(loc.pathname)
   const decided = useRef(false)
 
@@ -35,18 +44,20 @@ export function MailMain() {
   // Noch kein Konto eingerichtet? Dann beim Öffnen gleich zur Einrichtung —
   // aber nur beim Öffnen: ← Posteingang soll danach die (leere) Liste zeigen.
   useEffect(() => {
-    if (decided.current || !accountsQ.isSuccess) return
+    // Lassen sich die Konten nicht laden, gilt das wie "keins eingerichtet":
+    // die Einrichtung zeigt dann, was los ist.
+    if (decided.current || accountsQ.isPending) return
     decided.current = true
     if (!configured && /^\/mail\/?$/.test(entry.current))
       void nav('/mail/accounts', { replace: true })
-  }, [accountsQ.isSuccess, configured, nav])
+  }, [accountsQ.isPending, configured, nav])
 
   return (
     <div className={shared.main}>
       <Routes>
         <Route index element={<MailList />} />
         <Route path="msg" element={<MailRead />} />
-        <Route path="compose" element={<MailCompose />} />
+        <Route path="compose" element={<MailCompose key={draftSeq} />} />
         <Route path="accounts" element={<MailAccounts />} />
         <Route path="*" element={<Navigate to="/mail" replace />} />
       </Routes>

@@ -13,7 +13,7 @@
   padding: 12px 14px;
   font-size: 12px;
   line-height: 1.5;
-  animation: fade 0.35s ease;
+  animation: global(fade) 0.35s ease;
 }
 .card h4 {
   margin: 0;

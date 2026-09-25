@@ -3,7 +3,7 @@
 }
 .wrap {
   padding: 14px 6px 60px;
-  animation: fade 0.25s ease;
+  animation: global(fade) 0.25s ease;
 }
 .top {
   display: flex;

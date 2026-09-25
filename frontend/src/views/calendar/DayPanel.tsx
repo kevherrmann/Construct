@@ -1,3 +1,4 @@
+import { trServer } from '@/lib/serverText'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -110,15 +111,15 @@ export function DayPanel({ ds, events, act }: Props) {
                   key={se.id}
                   className={s.cps}
                   title={t('Session öffnen')}
-                  // Der Chat ist noch nicht umgezogen: er soll die Session aus
-                  // den Parametern öffnen (project braucht /api/sessions/…).
+                  // Mit Projekt und Ordner dieses Tages: der Chat öffnet die
+                  // Session damit auch, wenn sie (noch) nicht in seiner Liste steht.
                   onClick={() =>
                     navigate(
-                      `/chat?session=${encodeURIComponent(se.id)}&project=${encodeURIComponent(se.project)}`,
+                      `/chat?session=${encodeURIComponent(se.id)}&project=${encodeURIComponent(se.project)}&cwd=${encodeURIComponent(p.cwd ?? '')}`,
                     )
                   }
                 >
-                  ↳ {se.title}
+                  ↳ {trServer(se.title)}
                 </div>
               ))}
             </div>

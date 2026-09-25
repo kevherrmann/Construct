@@ -1,4 +1,5 @@
-import { Suspense, useEffect, useState } from 'react'
+import { useUi } from '@/stores/ui'
+import { Suspense, useEffect } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { useSettings } from '@/stores/settings'
 import { visibleViews, VIEWS } from '@/views/registry'
@@ -16,7 +17,8 @@ export function AppShell() {
   const { view } = useParams()
   const tiles = useSettings((st) => st.settings.tiles)
   const assistant = useSettings((st) => st.boot.assistant)
-  const [sideOpen, setSideOpen] = useState(false)
+  const sideOpen = useUi((st) => st.sideOpen)
+  const setSideOpen = useUi((st) => st.setSideOpen)
 
   useEffect(() => {
     document.title = `CONSTRUCT // ${assistant}`
@@ -37,7 +39,7 @@ export function AppShell() {
         <Sidebar view={current} open={sideOpen} onNavigate={() => setSideOpen(false)} />
         <SideGrip />
         <section className={s.main}>
-          <Topbar onBurger={() => setSideOpen((o) => !o)} />
+          <Topbar onBurger={() => setSideOpen(!sideOpen)} />
           {/* Scroll-Container für alle Ansichten (früher #chat). Die Eingabe steht
             immer darunter — wer aus dem Kalender schreibt, landet im Chat. */}
           <div className={s.content} data-scroll>

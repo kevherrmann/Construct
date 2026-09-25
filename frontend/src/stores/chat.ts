@@ -1,3 +1,4 @@
+import { trServer } from '@/lib/serverText'
 import i18n from 'i18next'
 import { tk } from '@/lib/i18n'
 import { create } from 'zustand'
@@ -311,7 +312,11 @@ export const useChat = create<ChatStore>((set, get) => {
           {
             t: 'error',
             message: i18n.t(tk('⚠ Konnte Anfrage nicht starten: {e}'), {
-              e: err.status === 401 ? i18n.t(tk('Nicht angemeldet (Passwort?)')) : err.message,
+              // Die Meldung des Servers hat Vorrang; nur ein nacktes 401 wird erklärt.
+              e:
+                err.status === 401 && /^401\b/.test(err.message)
+                  ? i18n.t(tk('Nicht angemeldet (Passwort?)'))
+                  : trServer(err.message),
             }),
           },
         ],
@@ -347,7 +352,9 @@ export const useChat = create<ChatStore>((set, get) => {
       set((s) => ({
         convs: { ...s.convs, [c.key]: c },
         activeKey: c.key,
-        folder: s.folder,
+        // Neue Session beginnt im Arbeitsordner, nicht im Ordner der zuletzt
+        // angesehenen — sonst landete die nächste Nachricht unbemerkt dort.
+        folder: workspace() || s.folder,
         focusTick: s.focusTick + 1,
       }))
       refreshLists()
@@ -356,7 +363,7 @@ export const useChat = create<ChatStore>((set, get) => {
     activate(key) {
       const c = conv(key)
       if (!c) return
-      set({ activeKey: key, folder: c.cwd ?? get().folder })
+      set({ activeKey: key, folder: c.cwd ?? (workspace() || get().folder) })
     },
 
     async openSession(s, runningRunId) {
@@ -513,6 +520,9 @@ export const useChat = create<ChatStore>((set, get) => {
         const now = get().active()
         if (!now || now.key !== c.key || now.busy || now.sessionId !== sid) return
         const firstSync = now.fileOffset == null
+        // Nichts Neues? Dann nichts anfassen — jede Änderung zeichnet neu, und
+        // wer gerade nach oben scrollt, soll nicht alle 3 s zurückgerissen werden.
+        if (!firstSync && j.offset === now.fileOffset && !j.messages?.length) return
         patch(c.key, (cc) => ({
           fileOffset: j.offset,
           // Beim ersten Mal nur Position merken — der Verlauf steht ja schon da.

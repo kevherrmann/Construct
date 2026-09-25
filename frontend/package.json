@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "CONSTRUCT web interface (React). Built into ../static/next — see README.",
+  "description": "CONSTRUCT web interface (React). Built into ../static/app — see README.",
   "engines": {
     "node": ">=20"
   },

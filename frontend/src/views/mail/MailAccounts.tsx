@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { MAIL_KEYS, errText, mailApi, patchMailList, type MailAccount } from '@/api/mail'
 import { accColor } from './format'
+import { useMsLogin } from './msLogin'
 import { useMail, useServerText } from './useMail'
 import shared from './shared.module.css'
 import s from './MailAccounts.module.css'
@@ -11,7 +12,6 @@ import s from './MailAccounts.module.css'
 type Status = { node: ReactNode; ok?: boolean }
 
 // Wie oft beim Microsoft-Login (Device-Flow) nachgefragt wird.
-const MS_POLL_MS = 5000
 
 /**
  * Konten verwalten: /mail/accounts. Auch das Ziel des Links aus
@@ -28,15 +28,19 @@ export function MailAccounts() {
   const [newEmail, setNewEmail] = useState('')
   const [newPw, setNewPw] = useState('')
   const [newMsg, setNewMsg] = useState('')
-  const msTimer = useRef<ReturnType<typeof setInterval>>(undefined)
-  // Beim Verlassen der Seite nicht weiter bei Microsoft nachfragen.
-  useEffect(() => () => clearInterval(msTimer.current), [])
+  const ms = useMsLogin((x) => x.byAccount)
 
-  const setSt = (em: string, node: ReactNode, ok?: boolean) =>
+  // Eigene Aktion auf der Seite ersetzt eine ältere Microsoft-Meldung.
+  const setSt = (em: string, node: ReactNode, ok?: boolean) => {
+    useMsLogin.getState().clear(em)
     setStatus((cur) => ({ ...cur, [em]: { node, ok } }))
+  }
   const reloadAccounts = () => qc.invalidateQueries({ queryKey: MAIL_KEYS.accounts })
-  // Nach erfolgreichem Test/Login die Liste neu holen (alte Oberfläche: mailLoaded=false).
-  const reloadList = () => void qc.resetQueries({ queryKey: MAIL_KEYS.list })
+  // Nach erfolgreichem Test die Liste nur als veraltet markieren — neu geladen
+  // wird beim Zurück zum Posteingang (alte Oberfläche: mailLoaded=false).
+  // Sofort alles neu zu holen ließe Zähler in der Seitenleiste verschwinden.
+  const reloadList = () =>
+    void qc.invalidateQueries({ queryKey: MAIL_KEYS.list, refetchType: 'none' })
 
   const save = async (em: string) => {
     const p = pw[em] ?? ''
@@ -70,34 +74,12 @@ export function MailAccounts() {
     } catch (e) {
       return setSt(em, '⚠ ' + st(errText(e)))
     }
-    setSt(
-      em,
-      <Trans
-        i18nKey="1. <a>{url}</a> öffnen  ·  2. Code <b>{code}</b> eingeben  ·  ⟲ warte auf Bestätigung …"
-        values={{ url: j.url, code: j.code }}
-        components={{
-          a: <a href={j.url} target="_blank" rel="noopener noreferrer" className={s.link} />,
-          b: <b className={s.code} />,
-        }}
-      />,
-    )
-    clearInterval(msTimer.current)
-    msTimer.current = setInterval(async () => {
-      try {
-        const p = await mailApi.msPoll(em)
-        if ('ok' in p) {
-          clearInterval(msTimer.current)
-          setSt(em, t('✅ verbunden!'), true)
-          reloadList()
-          await reloadAccounts()
-        } else if ('error' in p) {
-          clearInterval(msTimer.current)
-          setSt(em, '⚠ ' + st(p.error))
-        }
-      } catch {
-        /* Netzaussetzer — beim nächsten Takt nochmal */
-      }
-    }, MS_POLL_MS)
+    setStatus((cur) => {
+      const next = { ...cur }
+      delete next[em]
+      return next
+    })
+    useMsLogin.getState().start(em, j.url, j.code)
   }
 
   const remove = async (em: string) => {
@@ -135,7 +117,29 @@ export function MailAccounts() {
   }
 
   const stEl = (a: MailAccount, grow?: boolean) => {
-    const x = status[a.email]
+    const m = ms[a.email]
+    // Microsoft-Anmeldung läuft (oder lief) im Hintergrund weiter — ihr Stand
+    // steht darum im eigenen Store, nicht im Zustand dieser Seite.
+    const x: Status | undefined = m
+      ? m.phase === 'wait'
+        ? {
+            node: (
+              <Trans
+                i18nKey="1. <a>{url}</a> öffnen  ·  2. Code <b>{code}</b> eingeben  ·  ⟲ warte auf Bestätigung …"
+                values={{ url: m.url, code: m.code }}
+                components={{
+                  a: (
+                    <a href={m.url} target="_blank" rel="noopener noreferrer" className={s.link} />
+                  ),
+                  b: <b className={s.code} />,
+                }}
+              />
+            ),
+          }
+        : m.phase === 'ok'
+          ? { node: t('✅ verbunden!'), ok: true }
+          : { node: '⚠ ' + st(m.message) }
+      : status[a.email]
     return (
       <span
         className={`${shared.vhint} ${x?.ok ? shared.ok : ''}`}
