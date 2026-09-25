@@ -153,7 +153,6 @@
   }
   html:is([data-theme="papier"],[data-theme="nebel"]){color-scheme:light}
   html:is([data-theme="papier"],[data-theme="nebel"]) *{text-shadow:none!important}
-  html:is([data-theme="papier"],[data-theme="nebel"]) body::after{content:none}
   html:is([data-theme="papier"],[data-theme="nebel"]) #rain{opacity:.12}
   html:is([data-theme="papier"],[data-theme="nebel"]) .cal-ev .edel{background:#fff1f1;border-color:#efc2c2;color:#c62828}
   html:is([data-theme="papier"],[data-theme="nebel"]) .cal-ev .edel:hover{background:#ffe0e0}
@@ -169,16 +168,6 @@
      nimmt ohne CSS-Groesse seine Bitmap-Aufloesung — mit RAIN_SCALE<1 waere es
      sonst nur einen Bruchteil gross. inset:0 allein streckt es NICHT. */
   #rain{position:fixed;inset:0;width:100%;height:100%;z-index:0;opacity:.28;pointer-events:none}
-  body::after{content:"";position:fixed;inset:0;z-index:50;pointer-events:none;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px)}
-  /* In der Mail-Ansicht: Scanlines aus (Lesbarkeit!) — der Matrix-Regen läuft weiter */
-  body.mailmode::after{content:none}
-  /* Sparmodus: NUR die Scanlines weg, der Regen bleibt. Gemessen auf 4K ohne
-     GPU: Canvas allein 3,6% CPU, Scanlines allein 0,1% — beides zusammen aber
-     96,8%. Das Overlay liegt ueber dem Canvas, also muss der Gradient bei jedem
-     Regen-Frame ueber die volle Flaeche neu gerastert werden. */
-  body.fx-low::after{content:none}
-  body.fx-off::after{content:none}
   body.fx-off #rain{display:none}
   #app{position:relative;z-index:10;display:flex;height:100vh}
 
