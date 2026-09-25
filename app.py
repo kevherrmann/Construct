@@ -115,6 +115,11 @@ async def basic_auth(request: Request, call_next):
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+# Neue Oberfläche (React, frontend/ → static/next). Die Assets tragen einen
+# Hash im Namen und dürfen deshalb gecacht werden; index.html liefert next_index().
+NEXT_DIR = STATIC_DIR / "next"
+app.mount("/next/assets", StaticFiles(directory=str(NEXT_DIR / "assets"), check_dir=False),
+          name="next-assets")
 
 
 # ---------- Claude-Anmeldung (Status, Web-Login, Nutzungs-Limits) ----------
@@ -1175,16 +1180,16 @@ def mail_ms_poll(email: str):
     return _mail_call(mailmod.ms_poll, email)
 
 
-@app.get("/")
-def index():
-    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    # Ausbaustufe SYNCHRON mitgeben, nicht per fetch: sonst baut sich die Seite
-    # einmal mit Skills/E-Mail/Teile auf und räumt sie einen Wimpernschlag
-    # später wieder weg — sichtbares Flackern und ein kurz klickbares Menü.
-    # re.DOTALL ist Pflicht: das Vorgabe-Objekt in index.html geht über mehrere
-    # Zeilen. Ohne das Flag greift die Ersetzung stillschweigend nicht, die Seite
-    # bekommt die eingebauten Vorgaben statt der echten Einstellungen — und der
-    # Fehler sieht aus wie "die Einstellungen speichern nicht".
+def _inject_bootstrap(html: str) -> str:
+    """Ausbaustufe SYNCHRON mitgeben, nicht per fetch: sonst baut sich die Seite
+    einmal mit Skills/E-Mail/Teile auf und räumt sie einen Wimpernschlag
+    später wieder weg — sichtbares Flackern und ein kurz klickbares Menü.
+
+    re.DOTALL ist Pflicht: das Vorgabe-Objekt in index.html geht über mehrere
+    Zeilen. Ohne das Flag greift die Ersetzung stillschweigend nicht, die Seite
+    bekommt die eingebauten Vorgaben statt der echten Einstellungen — und der
+    Fehler sieht aus wie "die Einstellungen speichern nicht".
+    """
     payload = "window.CONSTRUCT=" + json.dumps({
         "user": cfg.user_name(),
         "assistant": cfg.assistant_name(),
@@ -1194,6 +1199,20 @@ def index():
         "workspace": WORKSPACE,
         "settings": cfg.load_settings(),
     }, ensure_ascii=False) + ";"
+    # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
+    # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
+    return re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};", lambda _m: payload,
+                  html, count=1, flags=re.DOTALL)
+
+
+# Kein Browser-Cache -> immer aktueller Stand, kein Hard-Refresh nötig
+_NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+             "Pragma": "no-cache"}
+
+
+@app.get("/")
+def index():
+    html = _inject_bootstrap((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
     # Scripts und Stylesheets mit Stempel: index.html kommt nie aus dem Cache,
     # die Dateien schon — ohne ?v= sähe man nach einem Update den alten Stand.
     def _stamp(m):
@@ -1203,15 +1222,19 @@ def index():
             v = 0
         return f'{m.group(1)}="/static/{m.group(2)}?v={v}"'
     html = re.sub(r'(src|href)="/static/([\w./-]+\.(?:js|css))"', _stamp, html)
-    # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
-    # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.
-    html = re.sub(r"window\.CONSTRUCT\s*=\s*\{.*?\};", lambda _m: payload,
-                  html, count=1, flags=re.DOTALL)
-    # Kein Browser-Cache -> immer aktueller Stand, kein Hard-Refresh nötig
-    return HTMLResponse(html, headers={
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        "Pragma": "no-cache",
-    })
+    return HTMLResponse(html, headers=_NO_CACHE)
+
+
+@app.get("/next")
+@app.get("/next/{_path:path}")
+def next_index(_path: str = ""):
+    """Neue Oberfläche. Jeder Pfad unter /next bekommt dieselbe Seite — das
+    Routing übernimmt React."""
+    f = NEXT_DIR / "index.html"
+    if not f.exists():
+        return HTMLResponse("Neue Oberfläche noch nicht gebaut: cd frontend && npm run build",
+                            status_code=404)
+    return HTMLResponse(_inject_bootstrap(f.read_text(encoding="utf-8")), headers=_NO_CACHE)
 
 
 @app.post("/api/upload")
