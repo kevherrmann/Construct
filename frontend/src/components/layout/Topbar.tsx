@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useVersion } from '@/api/system'
+import { openClaudeAuth } from '@/stores/dialogs'
 import { Hud } from './Hud'
 import s from './Topbar.module.css'
 
@@ -17,7 +18,7 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
           build {version.data?.version ?? (version.isError ? t('ALT/unbekannt') : '…')}
         </span>
       </span>
-      <Hud />
+      <Hud onAuthClick={openClaudeAuth} />
     </div>
   )
 }

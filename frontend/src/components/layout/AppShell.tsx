@@ -5,6 +5,8 @@ import { visibleViews, VIEWS } from '@/views/registry'
 import { Sidebar } from './Sidebar'
 import { SideGrip } from './SideGrip'
 import { Topbar } from './Topbar'
+import { LoginDialog, ClaudeSetupDialog } from '@/components/dialogs/LoginDialog'
+import { ProvidersDialog } from '@/components/dialogs/ProvidersDialog'
 import s from './AppShell.module.css'
 
 export function AppShell() {
@@ -31,6 +33,10 @@ export function AppShell() {
           <current.Main />
         </div>
       </section>
+      {/* App-weite Dialoge, einmal gerendert; öffnen über stores/dialogs. */}
+      <ProvidersDialog />
+      <LoginDialog />
+      <ClaudeSetupDialog />
     </div>
   )
 }

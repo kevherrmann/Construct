@@ -1,0 +1,36 @@
+.vhint {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 8px;
+}
+/* Wie die Session-Einträge der Chat-Liste (alte .sess) */
+.item {
+  display: block;
+  width: calc(100% - 10px);
+  text-align: left;
+  padding: 8px 10px;
+  margin: 2px 0 2px 10px;
+  border: 1px solid transparent;
+  border-left: 2px solid var(--green-faint);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--soft);
+  text-shadow: inherit;
+  transition: 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item:hover {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.06);
+  color: var(--green);
+}
+.active {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--green);
+}

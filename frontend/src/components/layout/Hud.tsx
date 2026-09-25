@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useAuthStatus, useUsage, type UsageWindow } from '@/api/system'
+import { useAuthStatus, useUsage, type AuthStatus, type UsageWindow } from '@/api/system'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
 import s from './Hud.module.css'
@@ -36,9 +36,14 @@ function UsageChip({ label, u }: { label: string; u?: UsageWindow }) {
 }
 
 // Limits des Anthropic-Kontos und Anmeldestatus oben rechts.
-export function Hud({ onAuthClick }: { onAuthClick?: () => void }) {
+export function Hud({
+  onAuthClick,
+}: {
+  onAuthClick?: (auth: Pick<AuthStatus, 'cli' | 'can_web_login'>) => void
+}) {
   const { t } = useTranslation()
   const lang = useSettings((st) => st.boot.lang)
+  const boot = useSettings((st) => st.boot)
   const auth = useAuthStatus()
   const hasClaude = auth.data?.cli !== false
   const usage = useUsage(hasClaude)
@@ -118,7 +123,10 @@ export function Hud({ onAuthClick }: { onAuthClick?: () => void }) {
         type="button"
         className={`${s.chip} ${s.click} ${authChip.cls}`}
         title={authChip.title}
-        onClick={onAuthClick}
+        // Ohne Antwort vom Server gilt, was die Seite beim Laden mitbekam.
+        onClick={() =>
+          onAuthClick?.(auth.data ?? { cli: boot.claude, can_web_login: boot.web_login })
+        }
       >
         {authChip.text}
       </button>
