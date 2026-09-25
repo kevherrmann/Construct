@@ -15,5 +15,5 @@ export function webgl2(): boolean {
   return gl
 }
 
-/** Echtes Plasma: Theme gewählt, WebGL2 da, volle Optik erlaubt. */
-export const plasmaLive = (theme: string) => theme === 'plasma' && fxLevel() === 'full' && webgl2()
+/** Echtes Plasma: Schalter an, WebGL2 da, volle Optik erlaubt. */
+export const plasmaLive = (on: boolean) => on && fxLevel() === 'full' && webgl2()

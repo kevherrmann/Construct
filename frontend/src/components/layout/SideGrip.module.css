@@ -33,7 +33,7 @@
 }
 
 /* Plasma: der Abstand zwischen den Flächen ist selbst die Griffzone. */
-:global(html[data-theme='plasma']) .grip {
+:global(html[data-plasma]) .grip {
   margin: 0 -14px 0 -14px;
   flex-basis: 14px;
 }

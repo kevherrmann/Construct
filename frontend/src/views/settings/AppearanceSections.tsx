@@ -1,3 +1,5 @@
+import { fxLevel } from '@/lib/fx'
+import { webgl2 } from '@/lib/plasma'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Settings } from '@/lib/bootstrap'
@@ -11,9 +13,31 @@ import s from './Settings.module.css'
 export function ThemeSection() {
   const { t } = useTranslation()
   const theme = useSettings((st) => st.settings.theme || 'matrix')
+  const plasma = useSettings((st) => st.settings.plasma)
   const save = useSettings((st) => st.save)
+  // Ohne WebGL2 (oder im Sparmodus) gibt es die Glas-Optik trotzdem, nur
+  // ohne Flüssigkeit — das soll man vorher wissen.
+  const gpu = webgl2() && fxLevel() === 'full'
   return (
     <Section id="farbwelt">
+      <div className={s.row}>
+        <label>
+          <input
+            type="checkbox"
+            checked={plasma}
+            onChange={(e) => void save({ plasma: e.target.checked })}
+          />
+          <span>
+            <span className={s.t}>✨ {t('Plasma — flüssiges Glas')}</span>
+            <span className={s.d}>
+              {t(
+                'Die Flächen werden zu flüssigem Glas über einem lebendigen Farbfeld, in den Farben der gewählten Farbwelt. Braucht eine Grafikkarte.',
+              )}
+              {!gpu && ` ${t('Hier ohne Grafikbeschleunigung: Glas-Optik ohne Flüssigkeit.')}`}
+            </span>
+          </span>
+        </label>
+      </div>
       <div className={s.thGrid}>
         {THEMES.map((th) => (
           <button

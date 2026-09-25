@@ -13,8 +13,9 @@
          das dunkle Matrix-Grün auf, bis das Modul geladen ist. -->
     <script>
       (function () {
-        var t = ((window.CONSTRUCT || {}).settings || {}).theme
-        if (t && t !== 'matrix') document.documentElement.setAttribute('data-theme', t)
+        var st = (window.CONSTRUCT || {}).settings || {}
+        if (st.theme && st.theme !== 'matrix') document.documentElement.setAttribute('data-theme', st.theme)
+        if (st.plasma) document.documentElement.setAttribute('data-plasma', '')
         // Gespeicherte Breite der Seitenleiste — sonst springt sie beim Laden.
         try {
           var w = +localStorage.getItem('sideW')

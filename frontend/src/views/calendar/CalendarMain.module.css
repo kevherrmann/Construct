@@ -160,6 +160,6 @@
 }
 
 /* Plasma: Wochenende in der zweiten Theme-Farbe statt des festen Matrix-Grüns. */
-:global(html[data-theme='plasma']) .dow span.we {
+:global(html[data-plasma]) .dow span.we {
   color: var(--accent2);
 }

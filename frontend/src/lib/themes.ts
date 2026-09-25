@@ -62,17 +62,17 @@ export const THEMES: ThemeInfo[] = [
     swatch: ['#eef1f6', '#2757b8', '#d5dce8'],
     light: true,
   },
-  {
-    key: 'plasma',
-    name: 'Plasma',
-    description:
-      'Flüssiges Glas auf lebendigem Farbfeld. Mit Grafikkarte in echt, sonst als Glas-Optik.',
-    swatch: ['#04111c', '#8f82ff', '#0f4c5c'],
-  },
 ]
 
 export function applyTheme(theme: ThemeName) {
   const root = document.documentElement
   if (theme === 'matrix') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', theme)
+}
+
+/** Plasma an/aus: steuert die Glas-Regeln im CSS (html[data-plasma]). */
+export function applyPlasma(on: boolean) {
+  const root = document.documentElement
+  if (on) root.setAttribute('data-plasma', '')
+  else root.removeAttribute('data-plasma')
 }

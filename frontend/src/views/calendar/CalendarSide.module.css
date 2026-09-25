@@ -58,8 +58,8 @@
   margin-top: 2px;
 }
 
-:global(html[data-theme='plasma']) .add {
+:global(html[data-plasma]) .add {
   border-radius: 14px;
-  border-color: rgba(185, 176, 255, 0.4);
-  background: rgba(143, 130, 255, 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.12);
 }

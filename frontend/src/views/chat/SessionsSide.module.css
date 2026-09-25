@@ -176,19 +176,19 @@
 }
 
 /* ---------- Plasma ---------- */
-:global(html[data-theme='plasma']) .newBtn {
+:global(html[data-plasma]) .newBtn {
   border-radius: 14px;
-  border-color: rgba(185, 176, 255, 0.4);
-  background: rgba(143, 130, 255, 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.12);
 }
-:global(html[data-theme='plasma']) .search {
+:global(html[data-plasma]) .search {
   border-radius: 12px;
 }
-:global(html[data-theme='plasma']) .sess {
+:global(html[data-plasma]) .sess {
   border-radius: 10px;
   border-left-width: 0;
   margin-left: 4px;
 }
-:global(html[data-theme='plasma']) .active {
-  background: rgba(143, 130, 255, 0.18);
+:global(html[data-plasma]) .active {
+  background: rgba(var(--accent-rgb), 0.18);
 }

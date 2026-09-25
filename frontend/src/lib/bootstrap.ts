@@ -3,10 +3,12 @@
 
 export type Lang = 'de' | 'en'
 export type ThemeName =
-  'matrix' | 'bernstein' | 'eis' | 'space' | 'asche' | 'blut' | 'papier' | 'nebel' | 'plasma'
+  'matrix' | 'bernstein' | 'eis' | 'space' | 'asche' | 'blut' | 'papier' | 'nebel'
 
 export interface Settings {
   theme: ThemeName
+  /** Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt. */
+  plasma: boolean
   lang: Lang
   names: { user: string; assistant: string }
   avatars: { user: string; assistant: string }
@@ -40,6 +42,7 @@ declare global {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'matrix',
+  plasma: false,
   lang: 'en',
   names: { user: '', assistant: 'Cody' },
   avatars: { user: '', assistant: '' },

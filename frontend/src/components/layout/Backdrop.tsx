@@ -76,10 +76,13 @@ function MatrixRain({ slow }: { slow: boolean }) {
 // Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild oder schlicht.
 export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
-  const theme = useSettings((st) => st.settings.theme)
+  const plasma = useSettings((st) => st.settings.plasma)
   const fx = fxLevel()
-  // Plasma malt sein Feld selbst; ohne WebGL steht dafür ein ruhiger Verlauf da.
-  if (theme === 'plasma') return plasmaLive(theme) ? null : <div className={s.plasmaField} />
+  const image = bg.mode === 'image' && !!bg.image
+  // Plasma malt sein Feld selbst (und bricht ein eigenes Bild durchs Glas);
+  // ohne WebGL steht ein ruhiger Verlauf in den Theme-Farben da.
+  if (plasma && plasmaLive(plasma)) return null
+  if (plasma && !image) return <div className={s.plasmaField} />
   if (bg.mode === 'image' && bg.image)
     return (
       <div

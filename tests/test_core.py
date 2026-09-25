@@ -43,7 +43,16 @@ def test_tts_einstellungen_je_sprache_und_alte_werte():
     assert cur["model"] == config.DEFAULT_SETTINGS["tts"]["model"]
 
 
-def test_plasma_ist_ein_gueltiges_theme(tmp_path, monkeypatch):
+def test_plasma_ist_ein_schalter_fuer_alle_themes(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
-    assert config.apply_patch({"theme": "plasma"})["theme"] == "plasma"
-    assert config.apply_patch({"theme": "gibtsnicht"})["theme"] == "plasma"
+    cur = config.apply_patch({"theme": "bernstein", "plasma": True})
+    assert (cur["theme"], cur["plasma"]) == ("bernstein", True)
+    assert config.apply_patch({"plasma": False})["plasma"] is False
+
+
+def test_altes_plasma_theme_wird_umgestellt(tmp_path, monkeypatch):
+    f = tmp_path / "settings.json"
+    f.write_text('{"theme": "plasma"}')
+    monkeypatch.setattr(config, "SETTINGS_FILE", f)
+    cur = config.load_settings()
+    assert (cur["theme"], cur["plasma"]) == ("space", True)

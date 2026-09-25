@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import App from './App'
 import { initI18n } from '@/lib/i18n'
-import { applyTheme } from '@/lib/themes'
+import { applyPlasma, applyTheme } from '@/lib/themes'
 import { useSettings } from '@/stores/settings'
 import { installExternalLinkHandler } from '@/lib/externalLinks'
 import { fxLevel } from '@/lib/fx'
@@ -13,6 +13,7 @@ import './styles/global.css'
 const { boot } = useSettings.getState()
 initI18n(boot.lang)
 applyTheme(boot.settings.theme)
+applyPlasma(boot.settings.plasma)
 installExternalLinkHandler()
 document.body.classList.toggle('fx-off', fxLevel() === 'off')
 

@@ -13,8 +13,9 @@
          das dunkle Matrix-Grün auf, bis das Modul geladen ist. -->
     <script>
       (function () {
-        var t = ((window.CONSTRUCT || {}).settings || {}).theme
-        if (t && t !== 'matrix') document.documentElement.setAttribute('data-theme', t)
+        var st = (window.CONSTRUCT || {}).settings || {}
+        if (st.theme && st.theme !== 'matrix') document.documentElement.setAttribute('data-theme', st.theme)
+        if (st.plasma) document.documentElement.setAttribute('data-plasma', '')
         // Gespeicherte Breite der Seitenleiste — sonst springt sie beim Laden.
         try {
           var w = +localStorage.getItem('sideW')
@@ -22,7 +23,7 @@
         } catch (e) {}
       })()
     </script>
-    <script type="module" crossorigin src="/assets/index-DYbApspS.js"></script>
+    <script type="module" crossorigin src="/assets/index-DtIrwBSb.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-CbXtAM7H.js">
     <link rel="modulepreload" crossorigin href="/assets/useTranslation-DY8H6yBN.js">
     <link rel="modulepreload" crossorigin href="/assets/api-B5k-4ZPY.js">
@@ -30,9 +31,10 @@
     <link rel="modulepreload" crossorigin href="/assets/queryClient-zM1-X4dC.js">
     <link rel="modulepreload" crossorigin href="/assets/hooks-Byh-jDmo.js">
     <link rel="modulepreload" crossorigin href="/assets/lib-BnGU0UAm.js">
-    <link rel="modulepreload" crossorigin href="/assets/settings-CWj1yGrh.js">
-    <link rel="modulepreload" crossorigin href="/assets/en-CQCCP6TC.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-Bo8GtC09.css">
+    <link rel="modulepreload" crossorigin href="/assets/settings-JOjXE7en.js">
+    <link rel="modulepreload" crossorigin href="/assets/en-Df6oiS4L.js">
+    <link rel="modulepreload" crossorigin href="/assets/audio-xJe6FyLT.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Bp4UdUPm.css">
   </head>
   <body>
     <div id="root"></div>

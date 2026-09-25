@@ -27,13 +27,15 @@ OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
 BG_MODES = ("matrix", "image", "plain")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
-THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel", "plasma")
+THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel")
 # Sprache der Oberfläche UND des Assistenten. Englisch als Vorgabe: das
 # Repository ist öffentlich, Deutsch schaltet man sich im ⚙-Dialog um.
 LANGS = ("en", "de")
 
 DEFAULT_SETTINGS = {
     "theme": "matrix",
+    # Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt, gilt für alle Themes.
+    "plasma": False,
     "lang": "en",
     # Leerer Nutzername = neutrale Anrede. Ein voreingestellter Vorname wäre in
     # einem Repository, das andere klonen, schlicht der falsche Mensch.
@@ -113,6 +115,12 @@ def load_settings() -> dict:
         return out
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
+    elif raw.get("theme") == "plasma":
+        # Kurzzeitig war Plasma ein eigenes Theme (violett) — heute ein Schalter
+        # plus Farbwelt; "space" kommt dem damaligen Violett am nächsten.
+        out["theme"], out["plasma"] = "space", True
+    if "plasma" in raw:
+        out["plasma"] = bool(raw["plasma"])
     if raw.get("lang") in LANGS:
         out["lang"] = raw["lang"]
     h = raw.get("hermes") or {}
@@ -153,6 +161,8 @@ def apply_patch(patch: dict) -> dict:
     cur = load_settings()
     if patch.get("theme") in THEMES:
         cur["theme"] = patch["theme"]
+    if "plasma" in patch:
+        cur["plasma"] = bool(patch["plasma"])
     if patch.get("lang") in LANGS:
         cur["lang"] = patch["lang"]
     h = patch.get("hermes") or {}
