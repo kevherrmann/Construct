@@ -25,7 +25,6 @@
     "i18next": "^26.4.2",
     "immer": "^11.1.18",
     "marked": "^18.0.14",
-    "marked-highlight": "^2.2.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^17.0.15",

@@ -1,0 +1,59 @@
+.add {
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 10px;
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-shadow: inherit;
+}
+.add:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.4);
+}
+.uh {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+  margin: 8px 2px 4px;
+}
+.hint {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 8px;
+}
+.up {
+  padding: 8px 10px;
+  margin: 3px 0;
+  border-left: 2px solid var(--green-faint);
+  cursor: pointer;
+  transition: 0.12s;
+}
+.up:hover {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+.isToday {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.t {
+  display: block;
+  font-size: 12px;
+  color: var(--green);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d {
+  display: block;
+  font-size: 10px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  margin-top: 2px;
+}

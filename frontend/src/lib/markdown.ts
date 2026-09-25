@@ -1,25 +1,30 @@
-import { Marked } from 'marked'
-import { markedHighlight } from 'marked-highlight'
-import hljs from 'highlight.js/lib/common'
 import DOMPurify from 'dompurify'
+import hljs from 'highlight.js/lib/common'
+import { Marked } from 'marked'
 import 'highlight.js/styles/atom-one-dark.css'
 
-// Markdown → bereinigtes HTML. Früher marked v4 vom CDN (neuere Versionen
-// ignorierten dort die highlight-Option); jetzt lokal gebündelt mit
-// marked-highlight, damit CONSTRUCT auch offline Antworten darstellt.
-const marked = new Marked(
-  { breaks: true },
-  markedHighlight({
-    langPrefix: 'hljs language-',
-    highlight(code, lang) {
+// Markdown → bereinigtes HTML, wie md() der alten Oberfläche: Zeilenumbrüche
+// bleiben Umbrüche, Code wird mit highlight.js eingefärbt, alles läuft durch
+// DOMPurify. Jetzt lokal gebündelt statt vom CDN — Antworten erscheinen auch
+// offline. Die Klasse "hljs" setzte die alte Fassung (marked v4) nicht; ohne
+// sie bleibt der Grundtext im Codeblock in der Theme-Farbe, nur die Token
+// werden bunt.
+const marked = new Marked({
+  breaks: true,
+  renderer: {
+    code({ text, lang }) {
+      const l = (lang ?? '').match(/^\S*/)?.[0] ?? ''
+      const language = hljs.getLanguage(l) ? l : 'plaintext'
+      let html: string
       try {
-        return hljs.highlight(code, { language: hljs.getLanguage(lang) ? lang : 'plaintext' }).value
+        html = hljs.highlight(text, { language }).value
       } catch {
-        return code
+        html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       }
+      return `<pre><code class="language-${language}">${html}</code></pre>\n`
     },
-  }),
-)
+  },
+})
 
 export function renderMarkdown(text: string): string {
   return DOMPurify.sanitize(marked.parse(text || '', { async: false }))

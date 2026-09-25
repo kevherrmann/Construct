@@ -39,3 +39,7 @@ export async function apiPost<T>(path: string, data?: unknown, init?: RequestIni
     }),
   )
 }
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  return handle<T>(await fetch(path, { method: 'DELETE' }))
+}
