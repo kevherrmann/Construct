@@ -1,6 +1,5 @@
 import type { ComponentType } from 'react'
 import type { Settings } from '@/lib/bootstrap'
-import { Placeholder } from './Placeholder'
 import { ChatView } from './chat/ChatView'
 import { SessionsSide } from './chat/SessionsSide'
 import { CalendarMain } from './calendar/CalendarMain'
@@ -11,6 +10,8 @@ import { SkillsMain } from './skills/SkillsMain'
 import { SkillsSide } from './skills/SkillsSide'
 import { MailMain } from './mail/MailMain'
 import { MailSide } from './mail/MailSide'
+import { SettingsMain } from './settings/SettingsMain'
+import { SettingsSide } from './settings/SettingsSide'
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
@@ -48,7 +49,7 @@ export const VIEWS: ViewDef[] = [
   },
   { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: MailSide, Main: MailMain },
   { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: McpSide, Main: McpMain },
-  { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: Placeholder, Main: Placeholder },
+  { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: SettingsSide, Main: SettingsMain },
 ]
 
 export const visibleViews = (tiles: Settings['tiles']) =>

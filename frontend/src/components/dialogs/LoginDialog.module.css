@@ -1,0 +1,50 @@
+.step {
+  border-left: 2px solid var(--green-faint);
+  padding-left: 12px;
+  margin: 12px 0;
+}
+.input {
+  width: 100%;
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  margin: 6px 0;
+}
+.input:focus {
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.35);
+}
+.btn {
+  background: var(--green);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 11px 20px;
+  font-size: 13px;
+  text-shadow: none;
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
+  margin-top: 6px;
+}
+.btn:disabled {
+  background: var(--green-faint);
+  color: var(--green-dim);
+  cursor: wait;
+  box-shadow: none;
+}
+.msg {
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+.ok {
+  color: var(--green);
+}
+.bad {
+  color: #ff5c5c;
+  text-shadow: none;
+}

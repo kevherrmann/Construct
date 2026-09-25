@@ -8,6 +8,8 @@ import { Topbar } from './Topbar'
 import { Composer } from '@/components/chat/Composer'
 import { Backdrop } from './Backdrop'
 import { UpdateCard } from './UpdateCard'
+import { LoginDialog, ClaudeSetupDialog } from '@/components/dialogs/LoginDialog'
+import { ProvidersDialog } from '@/components/dialogs/ProvidersDialog'
 import s from './AppShell.module.css'
 
 export function AppShell() {
@@ -41,6 +43,10 @@ export function AppShell() {
         </section>
       </div>
       <UpdateCard />
+      {/* App-weite Dialoge, einmal gerendert; öffnen über stores/dialogs. */}
+      <ProvidersDialog />
+      <LoginDialog />
+      <ClaudeSetupDialog />
     </>
   )
 }

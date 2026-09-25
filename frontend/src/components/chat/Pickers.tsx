@@ -1,6 +1,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useFolders, useProviders } from '@/api/chat'
+import { useFolders } from '@/api/chat'
+import { useProviders } from '@/api/providers'
 import { CLAUDE_MODELS, MODES, extModels, modelInfo, provIcon } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'

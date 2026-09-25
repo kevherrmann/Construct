@@ -21,16 +21,6 @@ export interface RunInfo {
   session_id: string | null
 }
 
-export interface Provider {
-  id: string
-  label: string
-  configured: boolean
-  models: string[]
-  /** true = werkzeugfähig, null = unbekannt. */
-  tools: Record<string, boolean | null>
-  error: string
-}
-
 export interface SessionDetail {
   id: string
   project: string
@@ -55,12 +45,3 @@ export const useSessions = () =>
 
 export const useFolders = () =>
   useQuery({ queryKey: ['folders'], queryFn: () => apiGet<string[]>('/api/folders') })
-
-export const useProviders = () =>
-  useQuery({
-    queryKey: ['providers'],
-    queryFn: async () => {
-      const p = await apiGet<Provider[]>('/api/llm/providers')
-      return Array.isArray(p) ? p : []
-    },
-  })

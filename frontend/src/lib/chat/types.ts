@@ -73,8 +73,7 @@ export interface SysItem {
   sys: SysBody
 }
 
-export type SysBody =
-  { type: 'help' } | { type: 'claude-setup' } | { type: 'text'; note: NoteText; code?: string[] }
+export type SysBody = { type: 'help' } | { type: 'text'; note: NoteText; code?: string[] }
 
 export type ChatItem = UserItem | BotItem | NoteItem | SysItem
 

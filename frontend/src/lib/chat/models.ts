@@ -1,4 +1,4 @@
-import type { Provider } from '@/api/chat'
+import type { Provider } from '@/api/providers'
 
 // Modell-Auswahl: Claude (voll integriert, mit Tools) + externe Anbieter über
 // Hermes. Externe Werte heißen "anbieter:modell", z. B. "openai:gpt-4o" oder

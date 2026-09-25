@@ -1,5 +1,5 @@
 import { tk } from '@/lib/i18n'
-import type { Provider } from '@/api/chat'
+import type { Provider } from '@/api/providers'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
@@ -31,9 +31,7 @@ export function runCommand(raw: string, ctx: CommandContext) {
   if (cmd === 'skills') return ctx.navigate('/skills')
   if (cmd === 'login') {
     const { boot } = useSettings.getState()
-    return boot.claude && boot.web_login
-      ? useDialogs.getState().open('login')
-      : chat.addSys({ type: 'claude-setup' })
+    return useDialogs.getState().open(boot.claude && boot.web_login ? 'login' : 'claude')
   }
   if (cmd === 'llm' || cmd === 'anbieter') return useDialogs.getState().open('providers')
   if (cmd === 'model') {

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Trans, useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/lib/chat/types'
 import { fmtDur, fmtNum, isPdf } from '@/lib/format'
 import { useChat } from '@/stores/chat'
-import { speakableText, useSay } from '@/stores/say'
+import { say, stopSay, useSayState } from '@/lib/audio'
+import { speakableText } from '@/lib/chat/speak'
 import { useSettings } from '@/stores/settings'
 import { Markdown } from './Markdown'
 import { ToolBox } from './ToolBox'
@@ -32,17 +33,24 @@ function Avatar({ user }: { user: boolean }) {
 
 function SayButton({ id, text }: { id: string; text: () => string }) {
   const { t } = useTranslation()
-  const { owner, state, error, play, stop } = useSay()
-  const mine = owner === id
-  const err = error?.owner === id ? error.message : null
+  const { owner, phase } = useSayState()
+  const [err, setErr] = useState<string | null>(null)
+  const mine = owner === id && phase !== 'idle'
+  const click = () => {
+    if (mine) return stopSay()
+    say(text(), { owner: id }).catch((e: Error) => {
+      setErr(e.message)
+      setTimeout(() => setErr(null), 3000)
+    })
+  }
   return (
     <button
       type="button"
       className={`${s.say} ${mine ? s.sayOn : ''}`}
       title={err ?? t('Vorlesen')}
-      onClick={() => (mine ? stop() : void play(id, text()).catch(() => {}))}
+      onClick={click}
     >
-      {err ? '⚠' : mine ? (state === 'loading' ? '⏳' : '⏹') : '🔊'}
+      {err ? '⚠' : mine ? (phase === 'loading' ? '⏳' : '⏹') : '🔊'}
     </button>
   )
 }
@@ -265,8 +273,6 @@ function BotMessage({ item }: { item: BotItem }) {
 
 function SysBox({ sys }: { sys: SysBody }) {
   const { t } = useTranslation()
-  const webLogin = useSettings((st) => st.boot.web_login)
-  const hasClaude = useSettings((st) => st.boot.claude)
   let body: ReactNode
   if (sys.type === 'help')
     body = (
@@ -297,43 +303,6 @@ function SysBox({ sys }: { sys: SysBody }) {
           {t(
             'Hinweis: Claudes eingebaute Slash-Befehle funktionieren im Headless-Modus nicht — das hier sind eigene App-Befehle.',
           )}
-        </span>
-      </>
-    )
-  else if (sys.type === 'claude-setup')
-    body = (
-      <>
-        <b>🔑 Claude Code</b>
-        <br />
-        {hasClaude ? (
-          t('Claude Code ist installiert.')
-        ) : (
-          <>
-            <Trans
-              i18nKey="Claude Code ist auf diesem Rechner <b>nicht installiert</b>. Ohne das läuft der Chat über den Anbieter aus dem 🧠-Menü (ChatGPT, Gemini …) — das reicht zum Reden, aber nicht für Dateien und Terminal."
-              components={{ b: <b /> }}
-            />
-            <br />
-            <br />
-            {t('Nachinstallieren (braucht Node.js):')}
-            <br />
-            <code>npm install -g @anthropic-ai/claude-code</code>
-            <br />
-            <br />
-          </>
-        )}
-        {webLogin ? (
-          t('Anmelden geht danach direkt hier über diesen Knopf.')
-        ) : (
-          <Trans
-            i18nKey="Anmelden danach <b>einmal im Terminal</b>: <code>claude</code> eingeben und dem Login folgen. CONSTRUCT erkennt die Anmeldung anschließend von selbst — der Login-Dialog in der Oberfläche braucht ein Pseudo-Terminal, das es unter Windows nicht gibt."
-            components={{ b: <b />, code: <code /> }}
-          />
-        )}
-        <br />
-        <br />
-        <span style={{ opacity: 0.7 }}>
-          {t('Dafür braucht es ein Anthropic-Konto (Abo oder API-Guthaben).')}
         </span>
       </>
     )

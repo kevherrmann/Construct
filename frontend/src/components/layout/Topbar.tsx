@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next'
-import { useProviders } from '@/api/chat'
+import { useProviders } from '@/api/providers'
 import { useVersion } from '@/api/system'
 import { modelInfo } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
+import { openClaudeAuth } from '@/stores/dialogs'
 import { Hud } from './Hud'
 import s from './Topbar.module.css'
 
@@ -38,7 +39,7 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
           </span>
         )}
       </span>
-      <Hud />
+      <Hud onAuthClick={openClaudeAuth} />
       <span className={s.sid} title={cwd || t('(unbekannt)')}>
         ▣ {baseName(cwd)}
       </span>

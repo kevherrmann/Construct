@@ -1,0 +1,334 @@
+/* Einstellungen — übernommen aus der alten settings.css. Gemeinsam für alle
+   Abschnitte der Seite, weil sie dieselben Bausteine (Zeile, Knopf, Schild)
+   teilen. */
+.page {
+  padding: 22px 8%;
+  scroll-behavior: smooth;
+}
+.wrap {
+  padding: 6px 2px 40px;
+  max-width: 760px;
+}
+.sec {
+  border: 1px solid var(--green-faint);
+  border-radius: 4px;
+  margin: 0 0 16px;
+  background: var(--box);
+}
+.sec > h3 {
+  margin: 0;
+  padding: 11px 14px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--green-faint);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.body {
+  padding: 12px 14px;
+}
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(var(--accent-rgb), 0.12);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row label {
+  cursor: pointer;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  flex: 1;
+}
+.row input[type='checkbox'],
+.row input[type='radio'] {
+  margin-top: 3px;
+  accent-color: var(--green);
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.grow {
+  flex: 1;
+}
+.t {
+  font-size: 14px;
+}
+.d {
+  opacity: 0.6;
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+  line-height: 1.45;
+}
+.fixed {
+  opacity: 0.5;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding-top: 4px;
+}
+/* Zeile mit Knöpfen unter dem Beschreibungstext */
+.actions {
+  display: block;
+  margin-top: 9px;
+}
+.actionsFlex {
+  margin-top: 9px;
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.btn + .btn {
+  margin-left: 4px;
+}
+.btn:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+}
+.btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn:hover[disabled] {
+  background: transparent;
+  box-shadow: none;
+}
+select.btn {
+  padding: 7px 9px;
+  max-width: 100%;
+}
+.tag {
+  font-size: 10px;
+  letter-spacing: 1px;
+  border: 1px solid var(--green-faint);
+  border-radius: 2px;
+  padding: 2px 6px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.tag.ok {
+  color: var(--on-accent);
+  background: var(--green);
+  border-color: var(--green);
+  opacity: 1;
+}
+.tag.warn {
+  color: #ffcf5a;
+  border-color: #6b5a20;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.head h4 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.slider {
+  width: 100%;
+  accent-color: var(--green);
+}
+.in {
+  background: var(--shade);
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+  color: var(--green);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  width: 230px;
+  max-width: 100%;
+}
+.in:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+.area {
+  width: 100%;
+  min-height: 300px;
+  background: var(--shade);
+  color: var(--green);
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 10px;
+  resize: vertical;
+}
+.area:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+/* Protokoll eines Installations- bzw. Update-Laufs */
+.log {
+  margin: 9px 0 0;
+  max-height: 170px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.4;
+  background: var(--shade);
+  padding: 8px;
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+  white-space: pre-wrap;
+}
+.avPick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.avPick .btn + .btn {
+  margin-left: 0;
+}
+.avPrev {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--green-faint);
+  background: var(--deep) center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 21px;
+  flex: 0 0 auto;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.tab {
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 6px 12px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--green-dim);
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+}
+.tab.on {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.prev {
+  height: 74px;
+  border: 1px solid var(--green-faint);
+  border-radius: 3px;
+  margin-top: 8px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+.prev span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 6px #000;
+}
+/* Theme-Auswahl als Kärtchen mit echten Farbtupfern: eine Liste mit
+   Namen wie "Bernstein" sagt niemandem, wie das aussieht. */
+.thGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 9px;
+}
+.th {
+  border: 1px solid var(--green-faint);
+  border-radius: 4px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: 0.12s;
+  background: rgba(var(--accent-rgb), 0.03);
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  text-shadow: inherit;
+}
+.th:hover {
+  border-color: var(--green-dim);
+}
+.th.on {
+  border-color: var(--green);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.3);
+}
+.sw {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+.sw i {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.thName {
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.thName b {
+  font-size: 10px;
+  opacity: 0.7;
+  letter-spacing: 1px;
+  margin-left: 5px;
+}
+.thDesc {
+  font-size: 11px;
+  opacity: 0.6;
+  display: block;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.saved {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  margin-left: 4px;
+}
+.saved.on {
+  opacity: 0.8;
+}
+.styleIn {
+  display: block;
+  margin-top: 9px;
+  width: 100%;
+  text-align: left;
+  letter-spacing: 0;
+}
+.inlineD {
+  display: inline;
+}
+.actionsFlex .btn + .btn {
+  margin-left: 0;
+}

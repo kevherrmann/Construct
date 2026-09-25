@@ -10,7 +10,8 @@ import type { BotItem, ChatItem, NoteText, SysBody, TranscriptMessage } from '@/
 import { queryClient } from '@/lib/queryClient'
 import { getItem, setItem } from '@/lib/storage'
 import { useSettings } from './settings'
-import { speakableText, useSay } from './say'
+import { say } from '@/lib/audio'
+import { speakableText } from '@/lib/chat/speak'
 
 // Mehrere parallele Unterhaltungen (wie mehrere Terminals): jede hat EIGENEN
 // Zustand — Session, laufender Stream, Warteschlange, Verlauf. Wechseln blendet
@@ -241,10 +242,7 @@ export const useChat = create<ChatStore>((set, get) => {
                 const st = useSettings.getState()
                 const turn = [...rs.items].reverse().find((i): i is BotItem => i.kind === 'bot')
                 if (st.settings.tts.auto && get().activeKey === key && turn)
-                  void useSay
-                    .getState()
-                    .play(turn.id, speakableText(turn.blocks))
-                    .catch(() => {})
+                  void say(speakableText(turn.blocks), { owner: turn.id }).catch(() => {})
                 break
               }
               case 'error':

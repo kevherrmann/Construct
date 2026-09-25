@@ -1,7 +1,8 @@
 import { modelInfo, extModels } from './models'
-import type { Provider } from '@/api/chat'
+import type { Provider } from '@/api/providers'
 
-const prov: Provider[] = [
+// Nur die Felder, die die Modell-Logik liest.
+const prov = [
   {
     id: 'ollama',
     label: 'Ollama (lokal)',
@@ -11,7 +12,7 @@ const prov: Provider[] = [
     error: '',
   },
   { id: 'openai', label: 'ChatGPT', configured: false, models: ['gpt-4o'], tools: {}, error: '' },
-]
+] as Provider[]
 
 describe('modelInfo', () => {
   it('findet Einträge der Liste direkt', () => {

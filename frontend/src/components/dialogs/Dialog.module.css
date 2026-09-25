@@ -1,0 +1,55 @@
+/* Login-Dialog + KI-Anbieter-Dialog (aus der alten Oberfläche, app.css) */
+.mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--mask);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.box {
+  position: relative;
+  width: min(600px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--popup);
+  border: 1px solid var(--green-dim);
+  box-shadow: 0 0 34px rgba(var(--accent-rgb), 0.3);
+  padding: 22px 26px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--green);
+  outline: none;
+}
+.wide {
+  width: min(760px, 94vw);
+}
+.box h3 {
+  margin: 0 0 10px;
+  letter-spacing: 3px;
+  color: var(--green);
+  text-shadow: 0 0 10px var(--green);
+}
+.box p {
+  margin: 9px 0;
+  color: var(--soft);
+}
+.box a {
+  color: var(--link);
+  word-break: break-all;
+}
+.close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #ff5c5c;
+  font-size: 17px;
+  cursor: pointer;
+}
+.close:focus:not(:focus-visible) {
+  outline: none;
+}
