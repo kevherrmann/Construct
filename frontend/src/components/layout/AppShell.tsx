@@ -6,6 +6,8 @@ import { Sidebar } from './Sidebar'
 import { SideGrip } from './SideGrip'
 import { Topbar } from './Topbar'
 import { Composer } from '@/components/chat/Composer'
+import { Backdrop } from './Backdrop'
+import { UpdateCard } from './UpdateCard'
 import s from './AppShell.module.css'
 
 export function AppShell() {
@@ -23,18 +25,22 @@ export function AppShell() {
   if (!current) return <Navigate to={`/${VIEWS[0]!.key}`} replace />
 
   return (
-    <div className={s.app}>
-      <Sidebar view={current} open={sideOpen} onNavigate={() => setSideOpen(false)} />
-      <SideGrip />
-      <section className={s.main}>
-        <Topbar onBurger={() => setSideOpen((o) => !o)} />
-        {/* Scroll-Container für alle Ansichten (früher #chat). Die Eingabe steht
+    <>
+      <Backdrop />
+      <div className={s.app}>
+        <Sidebar view={current} open={sideOpen} onNavigate={() => setSideOpen(false)} />
+        <SideGrip />
+        <section className={s.main}>
+          <Topbar onBurger={() => setSideOpen((o) => !o)} />
+          {/* Scroll-Container für alle Ansichten (früher #chat). Die Eingabe steht
             immer darunter — wer aus dem Kalender schreibt, landet im Chat. */}
-        <div className={s.content} data-scroll>
-          <current.Main />
-        </div>
-        <Composer />
-      </section>
-    </div>
+          <div className={s.content} data-scroll>
+            <current.Main />
+          </div>
+          <Composer />
+        </section>
+      </div>
+      <UpdateCard />
+    </>
   )
 }

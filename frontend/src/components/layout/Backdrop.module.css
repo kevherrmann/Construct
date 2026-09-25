@@ -1,0 +1,37 @@
+/* pointer-events:none — der Regen ist reine Deko und darf NIE Klicks fangen.
+   Im WebKitGTK-Fenster (desktop.py) kann das Stacking kippen; dann läge das
+   Canvas über der UI und schluckte alles.
+   width/height MÜSSEN hier stehen: ein <canvas> nimmt ohne CSS-Größe seine
+   Bitmap-Auflösung — mit halber Auflösung wäre es sonst nur ein Viertel groß. */
+.rain {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.28;
+  pointer-events: none;
+}
+:global(html:is([data-theme='papier'], [data-theme='nebel'])) .rain {
+  opacity: 0.12;
+}
+/* Eigenes Bild. Es schließt den Regen aus — beides gleichzeitig ist visuelles
+   Rauschen ohne Nutzen. */
+.image {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/* Abdunkeln ist kein Schmuck, sondern Lesbarkeit: Grün auf einem hellen Foto
+   ist unlesbar. Die Stärke stellt der Nutzer selbst ein. */
+.image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: var(--bg-dim, 0.6);
+}
