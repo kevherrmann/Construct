@@ -67,7 +67,8 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   The server starts on the first prompt and stops after a period of inactivity
   or when CONSTRUCT exits, so it only uses VRAM while it's needed.
 - **Attachments.** You can paste, drag and drop, or upload images and PDFs.
-  Images are normalized: EXIF orientation is applied, metadata is removed,
+  Ctrl+V works in the native Linux window too (WebKitGTK does not pass copied
+  images to the page, so `desktop.py` reads them from the clipboard). Images are normalized: EXIF orientation is applied, metadata is removed,
   images are resized to 2048×2048 or smaller and HEIC is converted. PDFs get a
   text extract.
 - **Rendered replies.** Markdown and code are highlighted, and file paths in
@@ -85,11 +86,17 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   (`claude mcp list`).
 - **Persona.** You can edit Cody's character (`SOUL.md`) and what Cody knows
   about you (`USER.md`) in the UI. Both are added to the system prompt — for
-  Claude and for every Hermes provider.
+  Claude and for every Hermes provider. The persona belongs to your
+  installation: `SOUL.md` is created from `SOUL.default.md` on first start, is
+  not versioned and survives updates, so you can give your assistant a
+  different name and character without touching the code.
 - **Look.** Eight color themes (Matrix, Amber, Ice, Space, Ash, Blood, Paper,
   Mist). **Plasma** switches any of them to liquid glass
-  ([Plasma UI](https://github.com/CruxGarden/plasma-ui), WebGL, with a CSS
-  fallback) and adds a moving plasma field as a background option. Background:
+  ([Plasma UI](https://github.com/CruxGarden/plasma-ui), WebGL) and adds a
+  moving plasma field as a background option. Where WebGL can't run smoothly
+  (no WebGL2, or software rendering, e.g. NVIDIA under Wayland), the same
+  switch offers a **rounded glass design** in plain CSS instead: borderless
+  panels over a calm, static gradient. Background:
   Matrix rain, your own image or plain. Six bundled fonts, no internet needed.
 - **Settings panel (⚙).** Choose which tiles are visible, the language, theme,
   Plasma, font, background, display names and avatars, read-aloud voice, the

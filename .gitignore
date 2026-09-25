@@ -24,8 +24,8 @@
 # --- Laufzeit- und Nutzerdaten ---
 # USER.md gehört hierher, nicht zum Programm: es beschreibt DIESEN Nutzer
 # (Familie, Geburtstage, Vorlieben), und make-lite.sh legt für jede Kopie
-# eine eigene an. SOUL.md dagegen IST das Programm — Codys Charakter —
-# und bleibt versioniert.
+# eine eigene an. SOUL.md steht weiter unten: jede Installation hat ihre
+# eigene Persona, die Vorlage ist SOUL.default.md.
 # Soll die Datei mitgesichert werden: diese eine Zeile löschen.
 USER.md
 settings.json
