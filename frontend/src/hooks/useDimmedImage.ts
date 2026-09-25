@@ -20,7 +20,12 @@ export function useDimmedImage(url: string, dim: number): HTMLCanvasElement | nu
       c.height = Math.round(img.naturalHeight * k)
       const cx = c.getContext('2d')
       if (!cx) return
+      // Gespiegelt zeichnen: das Plasma-Glas dreht Quellen beim Laden
+      // senkrecht um (UNPACK_FLIP_Y) — zweimal gedreht steht das Bild richtig.
+      cx.translate(0, c.height)
+      cx.scale(1, -1)
       cx.drawImage(img, 0, 0, c.width, c.height)
+      cx.setTransform(1, 0, 0, 1, 0, 0)
       cx.fillStyle = `rgba(0,0,0,${Math.max(0, Math.min(100, dim)) / 100})`
       cx.fillRect(0, 0, c.width, c.height)
       setCanvas(c)

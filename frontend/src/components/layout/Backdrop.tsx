@@ -47,6 +47,11 @@ export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
       cv.height = Math.max(1, Math.round(innerHeight * RAIN_SCALE))
       step = CELL * RAIN_SCALE
       drops = Array<number>(Math.floor(cv.width / step)).fill(1)
+      // Plasma-Glas lädt Quellen mit UNPACK_FLIP_Y und dreht sie dabei
+      // senkrecht um — als Quelle darum gespiegelt zeichnen, dann steht der
+      // Regen wieder richtig (fällt von oben, Zeichen aufrecht). Neues Maß
+      // setzt die Transformation zurück, darum hier bei jedem Größenwechsel.
+      if (source) cx.setTransform(1, 0, 0, -1, 0, cv.height)
     }
     size()
     addEventListener('resize', size)
