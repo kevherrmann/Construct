@@ -4,7 +4,7 @@ Transkripte lesen, Filter für fremde und versteckte Sessions.
 import json
 import re
 
-from server.core import BASE_DIR, extract_text
+from server.core import BASE_DIR, PROJECTS_DIR, extract_text
 
 
 SESS_META = BASE_DIR / "sessions_meta.json"
@@ -153,3 +153,36 @@ def _last_model(data: bytes) -> str:
 
 
 SID_RE = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+
+
+def find_prompt(session_id: str, text: str, occurrence: int = 0):
+    """Eine eigene Nachricht im Transkript wiederfinden — fürs Bearbeiten.
+
+    Gesucht wird die `occurrence`-te Nutzer-Nachricht (0 = erste) mit genau
+    diesem Text; angehängte Datei-Hinweise hinter dem Text zählen mit dazu.
+    Liefert (uuid, parentUuid) — an parentUuid setzt der neue Lauf wieder an
+    (--resume-session-at), die Nachricht selbst und alles danach fallen weg.
+    parentUuid ist None, wenn es die allererste Nachricht war.
+    Nicht gefunden → None.
+    """
+    if not SID_RE.match(session_id or ""):
+        return None
+    f = next(iter(PROJECTS_DIR.glob(f"*/{session_id}.jsonl")), None)
+    if f is None:
+        return None
+    want = (text or "").strip()
+    seen = 0
+    for line in f.read_bytes().split(b"\n"):
+        try:
+            ev = json.loads(line.decode("utf-8", "replace"))
+        except Exception:
+            continue
+        if ev.get("type") != "user" or not ev.get("uuid"):
+            continue
+        got = extract_text(ev.get("message", {}).get("content")).strip()
+        if got == want or got.startswith(want + "\n\n["):
+            if seen == occurrence:
+                return ev["uuid"], ev.get("parentUuid")
+            seen += 1
+    return None
+

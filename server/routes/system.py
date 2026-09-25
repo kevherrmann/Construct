@@ -9,12 +9,14 @@ import subprocess
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, File, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 
 from server import config as cfg
 from server import hermes as hermesmod
 from server import telegram_bot as tgmod
+from server import stt as sttmod
+from server.gemini import GeminiError
 from server import tts as ttsmod
 from server import updates as updmod
 
@@ -195,6 +197,18 @@ async def tts_speak(req: Request):
     except ttsmod.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return Response(wav, media_type="audio/wav")
+
+
+@router.post("/api/stt")
+async def stt_transcribe(file: UploadFile = File(...)):
+    """Sprachaufnahme → Text (Gemini 3.5 Transcribe). Sprache der Oberfläche als Hinweis."""
+    audio = await file.read(sttmod.MAX_BYTES + 1)
+    try:
+        text = await asyncio.to_thread(sttmod.transcribe, audio, file.content_type or "",
+                                       cfg.load_settings()["lang"])
+    except GeminiError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"text": text}
 
 
 @router.get("/api/tts/voices")

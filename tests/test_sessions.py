@@ -36,3 +36,28 @@ def test_letztes_modell_der_session():
         {"type": "user", "message": {"content": "c"}},
     )
     assert _last_model(data) == "claude-opus-5-5"
+
+
+def test_nachricht_zum_bearbeiten_wiederfinden(tmp_path, monkeypatch):
+    from server import sessions
+
+    sid = "abcd1234-0000-0000-0000-000000000000"
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / f"{sid}.jsonl").write_bytes(jl(
+        {"type": "user", "uuid": "u1", "parentUuid": None, "message": {"content": "Hallo"}},
+        {"type": "assistant", "uuid": "a1", "parentUuid": "u1", "message": {"content": "Moin"}},
+        {"type": "user", "uuid": "u2", "parentUuid": "a1",
+         "message": {"content": "Schau das an\n\n[Vom Nutzer hochgeladenes Bild: /x.png]"}},
+        {"type": "assistant", "uuid": "a2", "parentUuid": "u2", "message": {"content": "Ok"}},
+        {"type": "user", "uuid": "u3", "parentUuid": "a2", "message": {"content": "Hallo"}},
+    ))
+    monkeypatch.setattr(sessions, "PROJECTS_DIR", tmp_path)
+    # erste Nachricht: kein Vorgänger → neue Sitzung
+    assert sessions.find_prompt(sid, "Hallo", 0) == ("u1", None)
+    # gleicher Text zum zweiten Mal
+    assert sessions.find_prompt(sid, "Hallo", 1) == ("u3", "a2")
+    # mit angehängtem Bild-Hinweis
+    assert sessions.find_prompt(sid, "Schau das an", 0) == ("u2", "a1")
+    assert sessions.find_prompt(sid, "Gibt es nicht", 0) is None
+    assert sessions.find_prompt("../boese", "Hallo", 0) is None

@@ -1,3 +1,5 @@
+import { canRecord, startRecording, transcribe, type Recording } from '@/lib/recorder'
+import { trServer } from '@/lib/serverText'
 import { Surface } from '@/components/layout/Surface'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +41,13 @@ export function Composer() {
   const [text, setText] = useState('')
   const [picker, setPicker] = useState<PickerName | null>(null)
   const [dragging, setDragging] = useState(false)
+  // Spracheingabe: Aufnahme läuft (Sekunden) bzw. wird gerade umgewandelt.
+  const [rec, setRec] = useState<{ state: 'idle' | 'recording' | 'working'; secs: number }>({
+    state: 'idle',
+    secs: 0,
+  })
+  const [micError, setMicError] = useState('')
+  const recording = useRef<Recording | null>(null)
   const input = useRef<HTMLTextAreaElement>(null)
   const file = useRef<HTMLInputElement>(null)
   const providers = useProviders()
@@ -110,6 +119,79 @@ export function Composer() {
     }
   }, [addFiles, addPending])
 
+  // Erkannten Text ans Eingabefeld anhängen — nicht gleich senden: man soll
+  // vorher noch korrigieren können.
+  const insertText = (said: string) => {
+    if (!said) return
+    setText((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')} ${said}` : said))
+    requestAnimationFrame(() => {
+      autosize()
+      input.current?.focus()
+    })
+  }
+
+  const showMicError = (msg: string) => {
+    setMicError(msg)
+    setTimeout(() => setMicError((m) => (m === msg ? '' : m)), 6000)
+  }
+
+  const toggleMic = async () => {
+    if (rec.state === 'working') return
+    if (rec.state === 'recording' && recording.current) {
+      const r = recording.current
+      recording.current = null
+      setRec({ state: 'working', secs: 0 })
+      try {
+        insertText(await transcribe(await r.stop()))
+      } catch (e) {
+        showMicError(trServer((e as Error).message))
+      } finally {
+        setRec({ state: 'idle', secs: 0 })
+      }
+      return
+    }
+    try {
+      recording.current = await startRecording()
+      setRec({ state: 'recording', secs: 0 })
+    } catch (e) {
+      const name = (e as Error).name
+      showMicError(
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? t(
+              'Kein Zugriff aufs Mikrofon — bitte in den System- bzw. Browser-Einstellungen erlauben.',
+            )
+          : t('Mikrofon nicht verfügbar.'),
+      )
+    }
+  }
+
+  // Sekunden zählen; nach 5 Minuten von selbst beenden (Größengrenze der API).
+  useEffect(() => {
+    if (rec.state !== 'recording') return
+    const id = setInterval(() => setRec((r) => ({ ...r, secs: r.secs + 1 })), 1000)
+    return () => clearInterval(id)
+  }, [rec.state])
+  const toggleRef = useRef(toggleMic)
+  useEffect(() => {
+    toggleRef.current = toggleMic
+  })
+  useEffect(() => {
+    if (rec.state === 'recording' && rec.secs >= 300) void toggleRef.current()
+  }, [rec.state, rec.secs])
+  // Esc bricht eine laufende Aufnahme ab; beim Verlassen ebenso.
+  useEffect(() => {
+    if (rec.state !== 'recording') return
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      recording.current?.cancel()
+      recording.current = null
+      setRec({ state: 'idle', secs: 0 })
+    }
+    addEventListener('keydown', key)
+    return () => removeEventListener('keydown', key)
+  }, [rec.state])
+  useEffect(() => () => recording.current?.cancel(), [])
+
   const submit = () => {
     const msg = text.trim()
     if (!msg && !pending.length) return
@@ -163,6 +245,7 @@ export function Composer() {
           ))}
         </div>
       )}
+      {micError && <div className={s.micError}>⚠ {micError}</div>}
       <div className={s.row}>
         {busy && (
           <button type="button" className={s.stop} title={t('Cody stoppen')} onClick={stop}>
@@ -177,6 +260,24 @@ export function Composer() {
         >
           ⧉
         </button>
+        {canRecord() && (
+          <button
+            type="button"
+            className={`${s.attach} ${rec.state === 'recording' ? s.recording : ''}`}
+            title={
+              rec.state === 'recording'
+                ? t('Aufnahme beenden (Esc = verwerfen)')
+                : t('Spracheingabe — klicken, sprechen, nochmal klicken')
+            }
+            onClick={() => void toggleMic()}
+          >
+            {rec.state === 'working'
+              ? '⏳'
+              : rec.state === 'recording'
+                ? `⏺ ${Math.floor(rec.secs / 60)}:${String(rec.secs % 60).padStart(2, '0')}`
+                : '🎤'}
+          </button>
+        )}
         <textarea
           ref={input}
           className={s.input}

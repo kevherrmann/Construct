@@ -2,6 +2,22 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.1.0 — 2026-09-25
+
+### New
+- **Voice input** 🎤 next to the message field: click, speak, click again —
+  the text lands in the field so you can correct it before sending (Esc
+  discards). Gemini 3.5 Transcribe with the same key as read-aloud; filler
+  words and false starts are left out.
+- **Edit and resend now really rewinds.** ✎ on one of your messages lets Cody
+  continue from exactly that point, as if the old version and everything after
+  it had never happened (the session branches with
+  `--resume-session-at`). The original goes to the archive, so nothing is
+  lost.
+
+### Changed
+- Read-aloud and voice input share one Gemini client (`server/gemini.py`).
+
 ## 5.0.0 — 2026-09-25
 
 A rebuild of the interface and the server structure. Settings, sessions and

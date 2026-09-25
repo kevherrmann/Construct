@@ -1,54 +1,21 @@
 """
 Vorlesen für CONSTRUCT über Gemini TTS (gemini-3.8-flash[-lite]-tts).
 
-Nutzt den Gemini-Key, der unter 🧠 → KI-Anbieter hinterlegt ist (llm.py).
+Nutzt den Gemini-Key über server/gemini.py.
 Liefert immer WAV — die API gibt je nach Modell WAV oder rohes PCM (L16)
 zurück, Letzteres bekommt hier einen WAV-Kopf.
 """
 import base64
-import json
 import re
 import struct
 import time
-import urllib.error
-import urllib.request
 
-from server import llm as llmmod
-
-API = "https://generativelanguage.googleapis.com/v1beta"
+from server.gemini import GeminiError, call
 MAX_CHARS = 4000  # längere Antworten werden gekürzt, sonst dauert es ewig
 
 
-class TTSError(Exception):
-    """Verständlicher Fehler (wird dem Nutzer 1:1 angezeigt)."""
-
-
-def _key() -> str:
-    k = llmmod.provider_conf("gemini")["api_key"]
-    if not k:
-        raise TTSError("Kein Gemini-Key hinterlegt — unter ⚙ Einstellungen → "
-                       "🔊 Vorlesen → „Gemini-Key eintragen“.")
-    return k
-
-
-def _call(url: str, body=None, timeout: int = 60) -> dict:
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, headers={
-        "x-goog-api-key": _key(), "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        try:
-            msg = json.loads(e.read()).get("error", {}).get("message", "")
-        except Exception:
-            msg = ""
-        if e.code == 429:
-            raise TTSError("Gemini-Kontingent erschöpft — kurz warten oder "
-                           "morgen wieder.") from None
-        raise TTSError(f"Gemini TTS: {msg or e.reason} ({e.code})") from None
-    except urllib.error.URLError as e:
-        raise TTSError(f"Gemini nicht erreichbar: {e.reason}") from None
+# Früherer Name — die Routen fangen TTSError.
+TTSError = GeminiError
 
 
 def clean_text(text: str, lang: str = "de") -> str:
@@ -81,7 +48,7 @@ def synthesize(text: str, model: str, voice: str, style: str = "",
     part = {"text": text}
     if style:
         part["speech_metadata"] = {"style": style}
-    res = _call(f"{API}/models/{model}:generateContent", {
+    res = call(f"models/{model}:generateContent", what="Gemini TTS", body={
         "contents": [{"role": "user", "parts": [part]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
@@ -122,7 +89,7 @@ def list_voices(lang: str = "de-DE") -> list:
         q = f"language_code={lang}&page_size=1000"
         if token:
             q += f"&page_token={token}"
-        res = _call(f"{API}/voices?{q}")
+        res = call(f"voices?{q}", what="Gemini TTS")
         for v in res.get("voices") or []:
             vid = _g(v, "id", "name")
             if not vid:

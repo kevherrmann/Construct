@@ -284,6 +284,7 @@
   "Archiv": "Archive",
   "archivieren": "archive",
   "Asche": "Ash",
+  "Aufnahme beenden (Esc = verwerfen)": "Stop recording (Esc = discard)",
   "aus": "off",
   "aus Archiv holen": "restore from archive",
   "aus der Umgebung (TELEGRAM_TOKEN)": "from the environment (TELEGRAM_TOKEN)",
@@ -457,6 +458,7 @@
   "kein Modell unter": "no model at",
   "kein Ping vorher": "no ping beforehand",
   "kein Token — bitte einloggen": "no token — please sign in",
+  "Kein Zugriff aufs Mikrofon — bitte in den System- bzw. Browser-Einstellungen erlauben.": "No access to the microphone — please allow it in the system or browser settings.",
   "Keine aktiven Sessions.": "No active sessions.",
   "Keine anstehenden Termine.": "No upcoming events.",
   "keine Datei": "no file",
@@ -520,6 +522,7 @@
   "Microsoft Phi-4 — stark in Logik & Mathe für seine Größe": "Microsoft Phi-4 — strong at logic & math for its size",
   "Microsoft-Login nötig — unter ⚙ Konten verwalten anmelden.": "Microsoft login needed — sign in under ⚙ Manage accounts.",
   "Microsoft-Token abgelaufen — bitte unter ⚙ Konten neu anmelden.": "Microsoft token expired — please sign in again under ⚙ Accounts.",
+  "Mikrofon nicht verfügbar.": "Microphone not available.",
   "min geprüft": "min ago",
   "Min Leerlauf von selbst)": "min of inactivity)",
   "Minuten — Lauf abgebrochen (Modell/Anbieter hängt?).": "minutes — run aborted (model/provider stuck?).",
@@ -638,6 +641,7 @@
   "SPEICHERN & TESTEN": "SAVE & TEST",
   "Sprache": "Language",
   "Sprache der Oberfläche und des Assistenten. Die Seite lädt danach neu.": "Language of the interface and the assistant. The page reloads afterwards.",
+  "Spracheingabe — klicken, sprechen, nochmal klicken": "Voice input — click, speak, click again",
   "Sprechweise": "Speaking style",
   "Sprich mit {a} von unterwegs — per Text oder Sprachnachricht. Dazu Erinnerungen an Termine, eine Meldung, wenn ein langer Lauf fertig ist, und geplante Aufgaben aus dem Kalender. Läuft nur, solange CONSTRUCT läuft.": "Talk to {a} on the go — by text or voice message. Plus reminders for events, a message when a long run finishes, and scheduled tasks from the calendar. Only works while CONSTRUCT is running.",
   "Standard": "Default",
@@ -711,5 +715,6 @@
   "zuletzt gerade eben geprüft": "last checked just now",
   "zuletzt vor": "last checked",
   "zuletzt vor {n} h geprüft": "last checked {n} h ago",
-  "zuletzt vor {n} min geprüft": "last checked {n} min ago"
+  "zuletzt vor {n} min geprüft": "last checked {n} min ago",
+  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history."
 }

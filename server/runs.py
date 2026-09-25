@@ -397,7 +397,7 @@ def _nachlauf_beenden(run):
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./,:_-]{0,63}$")
 
 
-def start_run(prompt, work_dir, mode, model="", session_id=None):
+def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None):
     """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben."""
     cmd = [
         claude_bin() or "claude", "-p",
@@ -414,6 +414,10 @@ def start_run(prompt, work_dir, mode, model="", session_id=None):
         cmd += ["--append-system-prompt", persona]
     if session_id:
         cmd += ["--resume", session_id]
+        if resume_at:
+            # Bearbeitete Nachricht: bis zu dieser Stelle fortsetzen, als
+            # eigene neue Sitzung — das Original bleibt unangetastet.
+            cmd += ["--resume-session-at", resume_at, "--fork-session"]
 
     gc_runs()
     run_id = uuid.uuid4().hex

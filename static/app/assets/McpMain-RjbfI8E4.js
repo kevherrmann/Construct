@@ -1,1 +1,0 @@
-import{f as e}from"./useTranslation-DY8H6yBN.js";import{l as t}from"./index-eAHWlLoX.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as McpMain};

@@ -10,6 +10,7 @@ from server import llm as llmmod
 
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
+from server.sessions import find_prompt
 from server.runs import MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
 
 router = APIRouter()
@@ -59,8 +60,24 @@ async def chat(req: Request):
             prompt = hist + "\n\n" + prompt
         session_id = None
 
-    run = start_run(prompt, work_dir, mode, model, session_id)
-    return {"run_id": run.id, "session_id": session_id}
+    # Bearbeitete eigene Nachricht: die Sitzung an der Stelle davor abzweigen,
+    # damit Cody die alte Fassung und alles danach wirklich vergisst — nicht
+    # nur in der Anzeige. Die allererste Nachricht bearbeitet = neue Sitzung.
+    resume_at, forked_from, rewound = None, None, None
+    edit = body.get("edit")
+    if isinstance(edit, dict) and session_id:
+        hit = find_prompt(session_id, str(edit.get("text") or ""),
+                          int(edit.get("occurrence") or 0))
+        rewound = hit is not None
+        if hit:
+            forked_from = session_id
+            resume_at = hit[1]
+            if not resume_at:
+                session_id = None
+
+    run = start_run(prompt, work_dir, mode, model, session_id, resume_at)
+    return {"run_id": run.id, "session_id": None if forked_from else session_id,
+            "forked_from": forked_from, "rewound": rewound}
 
 
 @router.post("/api/inject/{run_id}")

@@ -49,6 +49,9 @@ export interface Conv {
   history: ChatItem[]
   /** Anzeige des laufenden Laufs — wird bei jedem Reconnect aus dem Replay neu gebaut. */
   run: RunState | null
+  /** Beim Bearbeiten abgezweigt: diese alte Sitzung kommt ins Archiv, sobald
+   *  die neue ihre ID hat. */
+  forkedFrom: string | null
 }
 
 interface ChatStore {
@@ -106,6 +109,7 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
     fileOffset: null,
     history: [],
     run: null,
+    forkedFrom: null,
     ...opts,
   }
 }
@@ -219,10 +223,21 @@ export const useChat = create<ChatStore>((set, get) => {
           for (const ev of parser.push(dec.decode(value, { stream: true }))) {
             rs = applyEvent(rs, ev)
             switch (ev.type) {
-              case 'session':
-                patch(key, { sessionId: ev.session_id })
-                refreshLists()
+              case 'session': {
+                // Nach dem Bearbeiten läuft eine abgezweigte Sitzung weiter —
+                // das Original ins Archiv, damit die Liste nicht doppelt ist.
+                // Es bleibt dort erhalten, falls man zurück will.
+                const old = conv(key)?.forkedFrom
+                patch(key, { sessionId: ev.session_id, forkedFrom: null })
+                if (old && old !== ev.session_id)
+                  void apiPost(`/api/sessions/${encodeURIComponent(old)}/archive`, {
+                    archived: true,
+                  })
+                    .catch(() => {})
+                    .finally(refreshLists)
+                else refreshLists()
                 break
+              }
               case 'stats':
                 if (ev.model) patch(key, { lastModel: ev.model })
                 break
@@ -281,7 +296,13 @@ export const useChat = create<ChatStore>((set, get) => {
   }
 
   // Startet einen entkoppelten Lauf: POST holt die run_id, dann dockt consumeRun an.
-  async function runSend(key: string, text: string, images: string[], urls: string[]) {
+  interface Edit {
+    /** Ursprünglicher Text der bearbeiteten Nachricht und wievielte mit diesem Text. */
+    text: string
+    occurrence: number
+  }
+
+  async function runSend(key: string, text: string, images: string[], urls: string[], edit?: Edit) {
     const c0 = conv(key)
     if (!c0) return
     // cwd beim ersten Senden festschreiben, damit parallele Sessions stabil bleiben.
@@ -289,19 +310,44 @@ export const useChat = create<ChatStore>((set, get) => {
     const user: ChatItem = { kind: 'user', id: newId('u'), text, urls, editable: true }
     patch(key, { busy: true, stopReq: false, cwd, history: [...c0.history, user] })
     try {
-      const j = await apiPost<{ run_id?: string; session_id?: string; error?: string }>(
-        '/api/chat',
-        {
-          message: text,
-          session_id: c0.sessionId,
-          images,
-          cwd,
-          mode: get().mode,
-          model: c0.model || '',
-        },
-      )
+      const j = await apiPost<{
+        run_id?: string
+        session_id?: string | null
+        forked_from?: string | null
+        rewound?: boolean | null
+        error?: string
+      }>('/api/chat', {
+        message: text,
+        session_id: c0.sessionId,
+        images,
+        cwd,
+        mode: get().mode,
+        model: c0.model || '',
+        edit,
+      })
       if (!j.run_id) throw new Error(j.error ?? 'keine run_id')
-      patch(key, (c) => ({ runId: j.run_id!, sessionId: j.session_id ?? c.sessionId }))
+      patch(key, (c) =>
+        j.forked_from
+          ? // Abgezweigt: die neue Sitzungs-ID kommt gleich mit dem Stream.
+            { runId: j.run_id!, sessionId: null, forkedFrom: j.forked_from }
+          : { runId: j.run_id!, sessionId: j.session_id ?? c.sessionId },
+      )
+      if (edit && j.rewound === false)
+        patch(key, (c) => ({
+          history: [
+            ...c.history.slice(0, -1),
+            {
+              kind: 'note',
+              id: newId('n'),
+              note: {
+                key: tk(
+                  'Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.',
+                ),
+              },
+            },
+            ...c.history.slice(-1),
+          ],
+        }))
     } catch (e) {
       const err = e as Error & { status?: number }
       const failed: BotItem = {
@@ -440,15 +486,27 @@ export const useChat = create<ChatStore>((set, get) => {
       await runSend(c.key, text, images, urls)
     },
 
+    // Bearbeiten & neu senden: Cody macht ab genau dieser Stelle weiter, als
+    // hätte es die alte Fassung nie gegeben — der Server zweigt die Sitzung
+    // davor ab (--resume-session-at). Darum verschwindet hier auch alles
+    // darunter, nicht nur die Antwort.
     resend(itemId, text) {
       const c = get().active()
       if (!c || c.busy || !text.trim()) return
       const idx = c.history.findIndex((i) => i.id === itemId)
-      // Nur wenn dies die LETZTE eigene Nachricht ist, räumen wir die
-      // (gestoppte) Antwort darunter weg — bei älteren bleibt alles stehen.
-      const laterUser = c.history.slice(idx + 1).some((i) => i.kind === 'user')
-      if (idx >= 0 && !laterUser) patch(c.key, { history: c.history.slice(0, idx) })
-      void runSend(c.key, text.trim(), [], [])
+      const item = c.history[idx]
+      if (idx < 0 || item?.kind !== 'user') return
+      const occurrence = c.history
+        .slice(0, idx)
+        .filter((i) => i.kind === 'user' && i.text.trim() === item.text.trim()).length
+      patch(c.key, { history: c.history.slice(0, idx) })
+      void runSend(
+        c.key,
+        text.trim(),
+        [],
+        [],
+        c.sessionId ? { text: item.text, occurrence } : undefined,
+      )
     },
 
     stop() {
