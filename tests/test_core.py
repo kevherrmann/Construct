@@ -1,7 +1,7 @@
 """Grundlagen (server/core.py) und Einstellungen (config.py)."""
 import json
 
-import config
+from server import config
 from server.core import BASE_DIR, LIMIT_HIT, extract_text, friendly_claude_error, sse
 
 

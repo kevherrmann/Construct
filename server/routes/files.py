@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
-import attach
+from server import attach
 
 from server.core import WORKSPACE, claude_bin, claude_env
 

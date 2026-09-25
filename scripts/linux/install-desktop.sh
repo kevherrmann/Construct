@@ -5,7 +5,7 @@
 #   ./install-desktop.sh            eintragen
 #   ./install-desktop.sh --remove   wieder entfernen
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../.."   # Projektordner
 
 DIR=$(pwd)
 APPS="$HOME/.local/share/applications"

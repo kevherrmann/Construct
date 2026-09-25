@@ -5,8 +5,8 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-import hermes as hermesmod
-import llm as llmmod
+from server import hermes as hermesmod
+from server import llm as llmmod
 
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run

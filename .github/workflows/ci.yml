@@ -38,6 +38,6 @@ jobs:
       # Undefinierte oder überflüssige Namen — fängt beim Verschieben von Code
       # zwischen Modulen genau die Fehler, die sonst erst zur Laufzeit knallen.
       - name: Lint
-        run: python -m pyflakes app.py server tests
+        run: python -m pyflakes app.py desktop.py cal.py selfupdate.py server tests
       - name: Tests
         run: python -m pytest -q

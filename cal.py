@@ -117,7 +117,7 @@ def context_block(days=7, today=None):
     """
     today = today or datetime.date.today()
     try:
-        import config
+        from server import config
         en = config.lang() == "en"
     except Exception:
         en = False

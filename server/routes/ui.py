@@ -8,7 +8,7 @@ import re
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-import config as cfg
+from server import config as cfg
 
 from server.core import APP_DIR, WEB_LOGIN_OK, WORKSPACE, claude_bin
 

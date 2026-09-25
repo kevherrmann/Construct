@@ -5,7 +5,7 @@
 #    ./start.sh            eigenes Fenster (Taskleiste)
 #    ./start.sh --web      nur Server auf http://127.0.0.1:8765
 #    ./start.sh --update   Abhängigkeiten neu installieren
-#    ./start.sh --setup-only  nur einrichten, nicht starten (fuer install.sh)
+#    ./start.sh --setup-only  nur einrichten, nicht starten
 #
 #  Legt beim ersten Start ein venv an — pro Plattform ein eigenes
 #  (.venv-Linux-x86_64 / .venv-Darwin-arm64), damit derselbe Ordner
@@ -101,7 +101,7 @@ if [ "$OS" = "Linux" ] && [ "$WEB" = "0" ]; then
      Fedora/Nobara:   sudo dnf install python3-gobject webkit2gtk4.1
      Debian/Ubuntu:   sudo apt install python3-gi gir1.2-webkit2-4.1
    Danach reicht ein normales ./start.sh (kein venv-Neubau nötig).
-   Details:  ./check-desktop.sh     — bis dahin öffnet sich der Browser.
+   Details:  ./scripts/linux/check-desktop.sh     — bis dahin öffnet sich der Browser.
 EOF
 fi
 

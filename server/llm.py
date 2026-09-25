@@ -26,10 +26,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-import config as cfg  # Einstellungen der Installation (Namen)
-import bonsai as bonsaimod  # llama-server des Bonsai-Demos (nur bei Bedarf im VRAM)
+from server import config as cfg  # Einstellungen der Installation (Namen)
+from server import bonsai as bonsaimod  # llama-server des Bonsai-Demos (nur bei Bedarf im VRAM)
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_FILE = BASE_DIR / ".llm-config.json"
 SESS_DIR = BASE_DIR / "llm_sessions"
 SESS_DIR.mkdir(exist_ok=True)

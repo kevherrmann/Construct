@@ -36,9 +36,10 @@ import urllib.request
 from pathlib import Path
 
 import cal
-import config as cfg
+from server import config as cfg
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 CONF_FILE = BASE_DIR / ".telegram.json"
 STATE_FILE = BASE_DIR / "telegram_state.json"
 WHISPER_MODEL = os.environ.get("CODY_WHISPER_MODEL", "small")

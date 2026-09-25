@@ -2,6 +2,17 @@
 
 **A local desktop and web interface for Claude Code, with an AI assistant called Cody.**
 
+> **Which file do I run?** Only the start script for your system — everything
+> else sets itself up.
+>
+> | System | Start | Double-click |
+> |---|---|---|
+> | Linux / macOS | `./start.sh` | macOS: `start-mac.command` |
+> | Windows | `start.bat` | `start.bat` |
+>
+> Linux extras (optional): `scripts/linux/install-desktop.sh` adds an application
+> menu entry, `scripts/linux/check-desktop.sh` explains why no window opens.
+
 ## What is CONSTRUCT?
 
 CONSTRUCT is the place; **Cody** is the assistant who lives in it. CONSTRUCT is a
@@ -99,45 +110,39 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   sudo apt install python3-gi gir1.2-webkit2-4.1     # Debian / Ubuntu
   ```
   If these packages are missing, CONSTRUCT opens in your browser instead.
-  `./check-desktop.sh` shows what is missing. macOS and Windows need nothing
+  `scripts/linux/check-desktop.sh` shows what is missing. macOS and Windows need nothing
   extra.
 
 ## Installation
 
-The installers work without root or admin rights, and everything goes into your
-user account. They check Python, clone or update the repository, create the
-virtual environment and add a launcher.
-
-**Linux / macOS**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/kevherrmann/Construct/main/install.sh | bash
-```
-
-Or from a clone:
-
 ```bash
 git clone https://github.com/kevherrmann/Construct.git construct
-cd construct && ./install.sh
+cd construct
+./start.sh          # Windows: start.bat
 ```
 
-On Linux, the installer adds an application menu entry (`install-desktop.sh`;
-remove it with `--remove`). On macOS, it creates a `CONSTRUCT.command` shortcut
-on the Desktop.
+The first start creates a virtual environment and installs the dependencies
+(a minute or two, needs internet once). After that CONSTRUCT runs offline and
+updates itself with `git pull` on every start. Everything stays in your user
+account; no root or admin rights needed.
 
-**Windows**
+**Linux:** `scripts/linux/install-desktop.sh` adds CONSTRUCT to the application
+menu (remove it again with `--remove`).
 
-Download [`install.ps1`](https://raw.githubusercontent.com/kevherrmann/Construct/main/install.ps1) and run:
+**macOS:** if Gatekeeper blocks the scripts ("cannot be opened"), clear the
+download quarantine once in the folder:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
+```bash
+xattr -dr com.apple.quarantine .
+chmod +x start.sh start-mac.command
 ```
 
-The Windows installer creates Desktop and Start menu shortcuts. On Windows,
-sign in to Claude Code once in a terminal (`claude`). The web login needs a
-pseudo-terminal, which Windows doesn't provide.
+The window uses the system WKWebView, no extra packages needed.
 
-**Manual (server only)**
+**Windows:** sign in to Claude Code once in a terminal (`claude`). The web login
+needs a pseudo-terminal, which Windows doesn't provide.
+
+**Manual (server only):**
 
 ```bash
 python3 -m pip install -r requirements.txt
@@ -161,8 +166,9 @@ the requirements files change. If CONSTRUCT is already running on the port, the
 window attaches to it. If that instance is older than the code on disk and was
 started from the same folder, it is restarted.
 
-On macOS, if Gatekeeper blocks the scripts, run
-`xattr -dr com.apple.quarantine .` in the folder. See [START-MAC.md](START-MAC.md).
+If something is stuck: `./start.sh --web` runs the server without a window
+(http://127.0.0.1:8765), `CODY_DEBUG=1 ./start.sh` opens the window with the web
+inspector (right-click), and `MATRIX_PORT=8766 ./start.sh` uses another port.
 
 ## Configuration
 
@@ -254,22 +260,19 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `tests/` | Backend tests (`pip install -r requirements-dev.txt && pytest`) |
 | `frontend/` | Web interface: React 19 + TypeScript + Vite — see [`frontend/README.md`](frontend/README.md) |
 | `static/app/` | Built interface, committed so installs and updates need no Node.js |
+| `server/config.py` | `settings.json` and persona files |
+| `server/llm.py`, `server/hermes.py`, `server/bonsai.py` | Providers and models: API keys, model lists, Ollama; Hermes Agent (ACP) for non-Claude models; on-demand `llama-server` for Bonsai |
+| `server/mail.py` | IMAP/SMTP mail, Outlook OAuth2 |
+| `server/telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
+| `server/tts.py` | Read-aloud via Gemini TTS, voice catalog |
+| `server/updates.py` | Background updates for Claude Code and Hermes |
+| `server/attach.py` | Image normalization and PDF text extraction |
 | `desktop.py` | Native window through pywebview, with fallback to the browser |
-| `config.py` | `settings.json` and persona files |
-| `tts.py` | Read-aloud via Gemini TTS, voice catalog |
-| `llm.py` | Provider definitions, API keys, model lists, Ollama management |
-| `hermes.py` | Hermes Agent backend (ACP over stdio) for non-Claude models |
-| `bonsai.py` | On-demand `llama-server` for Bonsai models |
-| `updates.py` | Background updates for Claude Code and Hermes |
-| `selfupdate.py` | Git fast-forward self-update at startup |
-| `mail.py` | IMAP/SMTP mail, Outlook OAuth2 |
-| `cal.py` | Calendar store and CLI |
-| `attach.py` | Image normalization and PDF text extraction |
-| `telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
-| `SOUL.default.md` | Default persona template |
-| `install.sh`, `install.ps1` | Installers |
+| `cal.py` | Calendar store — also a command-line tool Cody calls (`python3 cal.py`) |
+| `selfupdate.py` | Git fast-forward self-update at startup (runs before the virtual environment, standard library only) |
 | `start.sh`, `start.bat`, `start-mac.command` | Launchers |
-| `install-desktop.sh`, `check-desktop.sh` | Linux menu entry and native-window diagnostics |
+| `scripts/linux/` | Optional Linux helpers: application menu entry, native-window diagnostics |
+| `SOUL.default.md`, `SOUL.default.en.md` | Default persona templates |
 
 ## Frontend development
 
@@ -295,6 +298,6 @@ fails if it is out of date. Conventions: [`frontend/README.md`](frontend/README.
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pyflakes app.py server tests
+python -m pyflakes app.py desktop.py cal.py selfupdate.py server tests
 python -m pytest -q
 ```

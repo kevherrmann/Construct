@@ -18,10 +18,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-import bonsai as bonsaimod
-import llm as llmmod
-import telegram_bot as tgmod
-import updates as updmod
+from server import bonsai as bonsaimod
+from server import llm as llmmod
+from server import telegram_bot as tgmod
+from server import updates as updmod
 
 from server.core import (APP_DIR, AUTH_PASS, AUTH_USER, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          claude_bin, claude_env, load_persona)

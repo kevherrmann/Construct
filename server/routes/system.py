@@ -12,11 +12,11 @@ from pathlib import Path
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
-import config as cfg
-import hermes as hermesmod
-import telegram_bot as tgmod
-import tts as ttsmod
-import updates as updmod
+from server import config as cfg
+from server import hermes as hermesmod
+from server import telegram_bot as tgmod
+from server import tts as ttsmod
+from server import updates as updmod
 
 from server.core import BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, claude_bin
 from server.runs import RUNS

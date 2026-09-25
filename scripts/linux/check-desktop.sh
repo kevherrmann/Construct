@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sagt, warum der Fenster-Modus nicht geht (Linux). Nichts wird verändert.
 #   ./check-desktop.sh
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../.."   # Projektordner
 
 PYVER=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo "?")
 VENV=".venv-$(uname -s)-$(uname -m)-py$PYVER"

@@ -4,8 +4,8 @@ import json
 import time
 
 import cal
-import config as cfg
-import telegram_bot as tgmod
+from server import config as cfg
+from server import telegram_bot as tgmod
 
 from server.core import BASE_DIR, DEFAULT_CWD
 from server.runs import start_run

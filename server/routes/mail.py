@@ -8,8 +8,8 @@ import uuid
 from fastapi import APIRouter, File, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 
-import attach
-import mail as mailmod
+from server import attach
+from server import mail as mailmod
 
 router = APIRouter()
 

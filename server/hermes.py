@@ -27,10 +27,11 @@ import time
 import urllib.request
 from pathlib import Path
 
-import bonsai as bonsaimod
-import llm as llmmod
+from server import bonsai as bonsaimod
+from server import llm as llmmod
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Die offizielle Installationsroutine. Wird nur nach ausdrücklichem Klick in
 # den Einstellungen ausgeführt — nichts davon passiert von allein.
@@ -59,7 +60,7 @@ def hermes_home() -> str:
     if env:
         return env
     try:
-        import config as cfg
+        from server import config as cfg
         p = (cfg.load_settings().get("hermes") or {}).get("home", "").strip()
         if p:
             return os.path.expanduser(p)
@@ -559,9 +560,13 @@ def _image_blocks(paths) -> list:
 def _history_fallback(sid: str) -> str:
     """Verlauf einer nicht mehr ladbaren Sitzung als Textblock.
 
-    Gleiche Konvention wie carry_over_block in app.py: keine echte Fortsetzung
+    Gleiche Konvention wie carry_over_block in server/hermes_runs.py: keine echte Fortsetzung
     (Werkzeug-Zustand ist weg), aber ehrlicher als ein Assistent ohne Gedächtnis.
     """
+    # config erst hier laden (wie in hermes_home): auf Modulebene gäbe es
+    # einen Import-Kreis über llm. Der Import fehlte früher ganz — beim
+    # Wiederaufnehmen einer kaputten Hermes-Sitzung wäre das ein NameError.
+    from server import config as cfg
     msgs = session_messages(sid)
     if not msgs:
         return ""

@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.request
 
-import llm as llmmod
+from server import llm as llmmod
 
 API = "https://generativelanguage.googleapis.com/v1beta"
 MAX_CHARS = 4000  # längere Antworten werden gekürzt, sonst dauert es ewig

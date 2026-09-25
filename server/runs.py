@@ -10,8 +10,8 @@ import time
 import uuid
 from pathlib import Path
 
-import config as cfg
-import telegram_bot as tgmod
+from server import config as cfg
+from server import telegram_bot as tgmod
 
 from server.core import claude_bin, claude_env, friendly_claude_error, load_persona
 from server.sessions import model_short

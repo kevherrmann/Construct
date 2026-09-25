@@ -23,9 +23,10 @@ import threading
 import time
 from pathlib import Path
 
-import hermes as hermesmod
+from server import hermes as hermesmod
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 # Wann zuletzt gesucht wurde. Eigene Datei statt settings.json: das hier ist
 # Laufzeitspur, keine Einstellung — und settings.json schreibt der Nutzer.
 STAMP_FILE = BASE_DIR / ".update-stamp"
@@ -292,7 +293,7 @@ def boot_check() -> dict:
     Netzrunden auslöst. `interval_h: 0` heißt: bei jedem Start.
     """
     try:
-        import config as cfg
+        from server import config as cfg
         s = cfg.load_settings().get("updates") or {}
     except Exception:
         s = {}

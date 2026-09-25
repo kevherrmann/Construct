@@ -31,7 +31,8 @@ from email.header import decode_header
 from email.message import EmailMessage
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 ACC_FILE = BASE_DIR / ".mail-accounts.json"
 META_FILE = BASE_DIR / "mail_meta.json"
 ATTACH_DIR = BASE_DIR / "mail_attach"       # Anhänge zum VERSENDEN (nicht web-gemountet)

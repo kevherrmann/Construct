@@ -266,7 +266,7 @@ class _Bridge:
 # dem Frontend als Anhang - über dieselbe Ablage wie /api/upload (attach.py).
 def _install_native_drop(window) -> None:
     import json
-    import attach
+    from server import attach
 
     def on_drop(event):
         files = (event.get("dataTransfer") or {}).get("files") or []

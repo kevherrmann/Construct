@@ -5,10 +5,10 @@ import asyncio
 import time
 import uuid
 
-import bonsai as bonsaimod
-import config as cfg
-import hermes as hermesmod
-import llm as llmmod
+from server import bonsai as bonsaimod
+from server import config as cfg
+from server import hermes as hermesmod
+from server import llm as llmmod
 
 from server.core import PROJECTS_DIR
 from server.runs import RUNS, Run, gc_runs, is_pdf, maybe_notify, pdf_note

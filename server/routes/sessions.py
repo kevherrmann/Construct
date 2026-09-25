@@ -4,8 +4,8 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-import hermes as hermesmod
-import llm as llmmod
+from server import hermes as hermesmod
+from server import llm as llmmod
 
 from server.core import PROJECTS_DIR, extract_text
 from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, save_archived, save_meta

@@ -17,7 +17,8 @@ import re
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+# Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
+BASE_DIR = Path(__file__).resolve().parent.parent
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
 # Kacheln, die sich abschalten lassen. "sessions" (der Chat) fehlt mit Absicht:

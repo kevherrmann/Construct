@@ -4,8 +4,8 @@ import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-import bonsai as bonsaimod
-import llm as llmmod
+from server import bonsai as bonsaimod
+from server import llm as llmmod
 
 router = APIRouter()
 

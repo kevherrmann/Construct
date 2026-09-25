@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 import cal
-import config as cfg
+from server import config as cfg
 
 
 # server/core.py liegt eine Ebene unter dem Projektordner.
