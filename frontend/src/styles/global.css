@@ -1,6 +1,7 @@
 @import '@fontsource/share-tech-mono';
 @import '@fontsource-variable/inter';
 @import './themes.css';
+@import './glass.css';
 
 *,
 *::before,

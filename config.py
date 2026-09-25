@@ -24,7 +24,9 @@ SETTINGS_FILE = BASE_DIR / "settings.json"
 # eine Oberfläche ohne ihren Hauptzweck wäre eine Sackgasse, aus der man sich
 # nicht mehr herausklicken kann.
 OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
-BG_MODES = ("matrix", "image", "plain")
+# "plasma" = das bewegte Plasma-Feld — nur mit eingeschaltetem Plasma sinnvoll,
+# ohne Plasma zeigt die Oberfläche dafür den Regen.
+BG_MODES = ("matrix", "image", "plain", "plasma")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
 THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel")

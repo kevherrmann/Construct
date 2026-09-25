@@ -10,6 +10,7 @@
   max-width: 760px;
 }
 .sec {
+  composes: glass-card from global;
   border: 1px solid var(--green-faint);
   border-radius: var(--radius, 4px);
   margin: 0 0 16px;

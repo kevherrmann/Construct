@@ -54,3 +54,13 @@
     background-position: 100% 100%;
   }
 }
+
+/* Regen als Bildquelle fürs Plasma-Glas: wird gezeichnet, aber nicht gezeigt. */
+.source {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}

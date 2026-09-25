@@ -1,0 +1,67 @@
+/* Glas-Karte im Plasma-Look — für alles, was nicht als echte Plasma-Fläche
+   (WebGL) laufen kann: Chat-Blasen, Einstellungs-Abschnitte, Kalender,
+   Dialoge. Echte Flächen malt der Canvas HINTER der Seite; der weiß nichts
+   von Scroll-Bereichen und würde eine halb weggescrollte Blase über die
+   Statusleiste malen. Und davon gibt es nur ein kleines Budget. Darum hier
+   derselbe Eindruck in CSS: mattes Glas, schillernder Rand, Licht an der
+   Oberkante — beliebig oft, scrollt sauber, kostet fast nichts.
+
+   Nutzung in einem Modul: .bubble { composes: glass-card from global; }
+   Wirkt nur mit eingeschaltetem Plasma (html[data-plasma]). */
+
+html[data-plasma] .glass-card.glass-card {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.025) 45%,
+    rgba(var(--accent-rgb), 0.07)
+  );
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 26px rgba(var(--accent-rgb), 0.08);
+}
+
+/* Der schillernde Rand: ein Verlauf, der per Maske nur als 1-px-Kante
+   stehen bleibt — wie der irisierende Saum der Plasma-Flächen. */
+html[data-plasma] .glass-card.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from 210deg,
+    rgba(var(--accent-rgb), 0.95),
+    #8fe3ff,
+    #ffb0e8,
+    #fff3b0,
+    rgba(var(--accent-rgb), 0.95)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+html[data-plasma] .glass-card.glass-card:hover::before {
+  opacity: 0.85;
+}
+
+/* Helle Farbwelten: weißes Glas auf hellem Grund braucht mehr Deckung und
+   einen weicheren Schatten. */
+html[data-plasma]:is([data-theme='papier'], [data-theme='nebel']) .glass-card.glass-card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.5));
+  box-shadow:
+    0 10px 28px rgba(40, 50, 70, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}

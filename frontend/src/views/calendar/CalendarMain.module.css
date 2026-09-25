@@ -79,6 +79,7 @@
   gap: 7px;
 }
 .cell {
+  composes: glass-card from global;
   min-height: 96px;
   border: 1px solid var(--green-faint);
   background: var(--box);
@@ -159,7 +160,8 @@
   text-shadow: none;
 }
 
-/* Plasma: Wochenende in der zweiten Theme-Farbe statt des festen Matrix-Grüns. */
+/* Plasma: Wochenende in der Akzentfarbe (gedämpft) statt des festen Matrix-Grüns. */
 :global(html[data-plasma]) .dow span.we {
-  color: var(--accent2);
+  color: var(--green);
+  opacity: 0.55;
 }

@@ -14,7 +14,8 @@ export interface Settings {
   avatars: { user: string; assistant: string }
   hermes: { home: string }
   tiles: { skills: boolean; kalender: boolean; mail: boolean; mcp: boolean }
-  background: { mode: 'matrix' | 'plain' | 'image'; image: string; dim: number }
+  /** plasma = bewegtes Plasma-Feld (nur mit Plasma; sonst gilt es als Regen). */
+  background: { mode: 'matrix' | 'plain' | 'image' | 'plasma'; image: string; dim: number }
   updates: { auto: boolean; interval_h: number; construct: boolean }
   tts: {
     auto: boolean

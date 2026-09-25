@@ -10,6 +10,7 @@
   backdrop-filter: blur(2px);
 }
 .box {
+  composes: glass-card from global;
   position: relative;
   width: min(600px, 94vw);
   max-height: 88vh;

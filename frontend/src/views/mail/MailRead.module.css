@@ -3,6 +3,7 @@
   margin: 20px;
 }
 .head {
+  composes: glass-card from global;
   border: 1px solid var(--green-faint);
   background: var(--deep);
   padding: 13px 16px;
@@ -35,6 +36,7 @@
   border-radius: var(--radius, 3px);
 }
 .text {
+  composes: glass-card from global;
   border: 1px solid var(--green-faint);
   background: var(--deep);
   padding: 16px 18px;

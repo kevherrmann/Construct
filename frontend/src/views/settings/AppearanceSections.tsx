@@ -103,7 +103,18 @@ export function BackgroundSection() {
     if (url) apply({ image: url, mode: 'image' })
   }
 
+  const plasma = useSettings((st) => st.settings.plasma)
   const modes: { v: Bg['mode']; title: string; d: string }[] = [
+    // Das bewegte Plasma-Feld gibt es nur mit eingeschaltetem Plasma.
+    ...(plasma
+      ? [
+          {
+            v: 'plasma' as const,
+            title: t('Plasma-Feld (bewegt)'),
+            d: t('Lebendiges Farbfeld in den Farben der Farbwelt, durch das Glas gebrochen.'),
+          },
+        ]
+      : []),
     { v: 'matrix', title: t('Matrix-Regen'), d: t('Die Vorgabe. Kostet etwas Rechenleistung.') },
     {
       v: 'image',

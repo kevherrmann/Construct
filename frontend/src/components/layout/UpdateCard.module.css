@@ -2,6 +2,7 @@
    Code und Hermes gesucht wird. Bewusst KEINE Maske über dem Bild: das Update
    läuft im Hintergrund, der Chat bleibt die ganze Zeit bedienbar. */
 .card {
+  composes: glass-card from global;
   position: fixed;
   right: 18px;
   bottom: 18px;

@@ -73,6 +73,7 @@
 }
 
 .bubble {
+  composes: glass-card from global;
   position: relative;
   border: 1px solid var(--green-faint);
   padding: 12px 15px;
@@ -343,6 +344,7 @@
   font-weight: normal;
 }
 .helpbox {
+  composes: glass-card from global;
   border: 1px solid var(--green-faint);
   background: var(--box);
   padding: 12px 15px;

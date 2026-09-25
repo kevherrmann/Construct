@@ -56,3 +56,8 @@ def test_altes_plasma_theme_wird_umgestellt(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SETTINGS_FILE", f)
     cur = config.load_settings()
     assert (cur["theme"], cur["plasma"]) == ("space", True)
+
+
+def test_hintergrund_plasma_feld(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    assert config.apply_patch({"background": {"mode": "plasma"}})["background"]["mode"] == "plasma"

@@ -11,7 +11,17 @@ const RAIN_SCALE = 0.5
 const CELL = 14
 const GLYPHS = 'ｱｲｳｴｵｶｷｸ0123456789ABCDEFﾊﾋﾌﾍﾎ$+*=<>'
 
-function MatrixRain({ slow }: { slow: boolean }) {
+interface RainProps {
+  slow: boolean
+  /** Als Bildquelle fürs Plasma-Glas: unsichtbar, Zeichen gedämpft (die CSS-
+   *  Deckkraft von 28 % gilt dort nicht — das Glas liest die rohen Pixel). */
+  source?: boolean
+  /** Nicht zeichnen (Canvas bleibt bestehen) — spart Rechenzeit. */
+  paused?: boolean
+  onCanvas?: (c: HTMLCanvasElement | null) => void
+}
+
+export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
   const ref = useRef<HTMLCanvasElement>(null)
   const theme = useSettings((st) => st.settings.theme)
   // Canvas versteht keine CSS-Variablen: einmal pro Theme auslesen, nicht pro
@@ -50,12 +60,15 @@ function MatrixRain({ slow }: { slow: boolean }) {
     // Fenster unsichtbar ist, und staut nie Frames auf.
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop)
+      if (paused) return
       if (t - last < every) return
       last = t
       const { color, fade } = colors.current
+      cx.globalAlpha = 1
       cx.fillStyle = fade
       cx.fillRect(0, 0, cv.width, cv.height)
       cx.fillStyle = color
+      cx.globalAlpha = source ? 0.55 : 1
       cx.font = `${step}px monospace`
       for (let i = 0; i < drops.length; i++) {
         cx.fillText(GLYPHS[Math.floor(Math.random() * GLYPHS.length)]!, i * step, drops[i]! * step)
@@ -68,21 +81,27 @@ function MatrixRain({ slow }: { slow: boolean }) {
       cancelAnimationFrame(raf)
       removeEventListener('resize', size)
     }
-  }, [slow])
+  }, [slow, source, paused])
 
-  return <canvas ref={ref} className={s.rain} />
+  useEffect(() => {
+    onCanvas?.(ref.current)
+    return () => onCanvas?.(null)
+  }, [onCanvas])
+
+  return <canvas ref={ref} className={source ? s.source : s.rain} />
 }
 
-// Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild oder schlicht.
+// Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild, schlicht — und mit
+// Plasma das bewegte Plasma-Feld. Mit echtem Plasma (WebGL) malt PlasmaRoot
+// den Hintergrund selbst durchs Glas; hier bleibt dann nichts zu tun.
 export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
   const plasma = useSettings((st) => st.settings.plasma)
   const fx = fxLevel()
-  const image = bg.mode === 'image' && !!bg.image
-  // Plasma malt sein Feld selbst (und bricht ein eigenes Bild durchs Glas);
-  // ohne WebGL steht ein ruhiger Verlauf in den Theme-Farben da.
   if (plasma && plasmaLive(plasma)) return null
-  if (plasma && !image) return <div className={s.plasmaField} />
+  // Plasma-Feld ohne WebGL: ruhiger Verlauf in den Theme-Farben. Ohne Plasma
+  // gibt es das Feld nicht — dann gilt die Wahl als Regen.
+  if (bg.mode === 'plasma' && plasma) return <div className={s.plasmaField} />
   if (bg.mode === 'image' && bg.image)
     return (
       <div
@@ -95,6 +114,7 @@ export function Backdrop() {
         }
       />
     )
-  if (bg.mode === 'matrix' && fx !== 'off') return <MatrixRain slow={fx === 'low'} />
+  if ((bg.mode === 'matrix' || bg.mode === 'plasma') && fx !== 'off')
+    return <MatrixRain slow={fx === 'low'} />
   return null
 }
