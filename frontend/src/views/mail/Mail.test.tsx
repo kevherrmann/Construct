@@ -159,7 +159,9 @@ describe('Einrichtung', () => {
     })
     renderMail()
     expect(await main().findByText('⚙ E-MAIL-KONTEN')).toBeInTheDocument()
-    expect(loc).toBe('/mail/accounts')
+    // Die Adresse merkt sich der Test erst nach dem Zeichnen — darauf warten,
+    // sonst schlägt er unter Last (CI) zufällig fehl.
+    await waitFor(() => expect(loc).toBe('/mail/accounts'))
     // Kein Listenabruf ohne eingerichtetes Konto
     expect(calls.some((c) => c.path.startsWith('/api/mail/list'))).toBe(false)
 
@@ -352,7 +354,7 @@ describe('Lesen und Schreiben', () => {
     const { container } = renderMail()
     fireEvent.click(await main().findByText('Angebot'))
     expect(await main().findByText('Von:', { exact: false })).toBeInTheDocument()
-    expect(loc).toBe('/mail/msg?account=kevin%40gmx.de&uid=11&folder=INBOX')
+    await waitFor(() => expect(loc).toBe('/mail/msg?account=kevin%40gmx.de&uid=11&folder=INBOX'))
 
     const frame = container.querySelector('iframe')!
     expect(frame.getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox')
