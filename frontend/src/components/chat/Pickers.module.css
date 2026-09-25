@@ -86,3 +86,6 @@
 .head:first-child {
   border-top: none;
 }
+.dim {
+  opacity: 0.4;
+}

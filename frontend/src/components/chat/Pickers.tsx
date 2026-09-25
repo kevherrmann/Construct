@@ -17,12 +17,14 @@ interface PickerProps {
   bar: ReactNode
   title?: string
   wide?: boolean
+  /** Ohne Claude Code wirken Ordner und Modus nicht — abgeblendet zeigen. */
+  dim?: boolean
   children: ReactNode
 }
 
-function Picker({ name, open, setOpen, bar, title, wide, children }: PickerProps) {
+function Picker({ name, open, setOpen, bar, title, wide, dim, children }: PickerProps) {
   return (
-    <div className={s.picker}>
+    <div className={`${s.picker} ${dim ? s.dim : ''}`}>
       {open === name && (
         <div className={`${s.list} ${wide ? s.wide : ''}`} onClick={(e) => e.stopPropagation()}>
           {children}
@@ -115,6 +117,7 @@ export function Pickers({
     <div className={s.bars}>
       <Picker
         name="folder"
+        dim={!hasClaude}
         open={open}
         setOpen={setOpen}
         title={t('Arbeitsordner') + claudeHint}
@@ -135,6 +138,7 @@ export function Pickers({
       </Picker>
       <Picker
         name="mode"
+        dim={!hasClaude}
         open={open}
         setOpen={setOpen}
         title={t('Berechtigungs-Modus') + claudeHint}
