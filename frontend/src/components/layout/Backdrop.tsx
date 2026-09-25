@@ -103,10 +103,8 @@ export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
   const plasma = useSettings((st) => st.settings.plasma)
   const fx = fxLevel()
-  if (plasma && plasmaLive(plasma)) return null
-  // Plasma-Feld ohne WebGL: ruhiger Verlauf in den Theme-Farben. Ohne Plasma
-  // gibt es das Feld nicht — dann gilt die Wahl als Regen.
-  if (bg.mode === 'plasma' && plasma) return <div className={s.plasmaField} />
+  if (plasmaLive(plasma)) return null
+  // Das Plasma-Feld gibt es nur mit WebGL — sonst gilt die Wahl als Regen.
   if (bg.mode === 'image' && bg.image)
     return (
       <div

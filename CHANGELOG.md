@@ -2,6 +2,27 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.4.0 — 2026-09-25
+
+### Added
+- **Paste images with Ctrl+V in the desktop window.** WebKitGTK does not pass
+  copied images to the page, so `desktop.py` now reads them from the clipboard
+  itself (copied images and copied image files alike). Text still pastes as
+  text.
+- **Rounded glass design without a graphics card.** Where liquid plasma cannot
+  run (no WebGL2, or software rendering), the plasma switch is offered as
+  "Rounded glass design": borderless sidebar, top bar and input over a calm,
+  static gradient in the theme colors. The "Plasma field" background is only
+  offered where WebGL really runs.
+
+### Fixed
+- **Flickering in the Linux window (NVIDIA + Wayland).** The router dropped
+  `?fx=low` right after start, so the full WebGL plasma ran on the CPU and
+  flickered, getting worse the longer CONSTRUCT ran. The low-effects mode is
+  now read once at load. In that mode the glass surfaces also skip
+  `backdrop-filter`.
+- Select boxes were drawn white by WebKitGTK; they now follow the theme.
+
 ## 5.3.1 — 2026-09-25
 
 ### Fixed

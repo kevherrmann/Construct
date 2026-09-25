@@ -65,3 +65,16 @@ html[data-plasma]:is([data-theme='papier'], [data-theme='nebel']) .glass-card.gl
     0 10px 28px rgba(40, 50, 70, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
+/* Sparmodus (Software-Rendering, z.B. Wayland + NVIDIA) und Effekte aus:
+   KEIN backdrop-filter. WebKitGTK rastert jede Glas-Fläche dann als eigene
+   Ebene auf der CPU; mit vielen davon (Einstellungs-Abschnitte, Chat-Blasen,
+   die sich über die Sitzung ansammeln) plus blinkender Statuspunkt flackern
+   sie sichtbar — und es wird schlimmer, je länger die Sitzung läuft. Ohne
+   Unschärfe bleibt der Glas-Look (Verlauf, Rand, Schatten) erhalten. */
+body:is(.fx-low, .fx-off) *,
+body:is(.fx-low, .fx-off) *::before,
+body:is(.fx-low, .fx-off) *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

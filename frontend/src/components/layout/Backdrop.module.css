@@ -36,25 +36,6 @@
   opacity: var(--bg-dim, 0.6);
 }
 
-/* Plasma ohne WebGL: ein langsam wandernder Verlauf in den Farben des
-   Themes — ruhig genug, um darauf zu lesen. */
-.plasmaField {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(60% 50% at 20% 25%, rgba(var(--accent-rgb), 0.28), transparent 70%),
-    radial-gradient(55% 60% at 80% 70%, var(--green-faint), transparent 70%), var(--bg);
-  background-size: 140% 140%;
-  animation: plasmaDrift 40s ease-in-out infinite alternate;
-}
-@keyframes plasmaDrift {
-  to {
-    background-position: 100% 100%;
-  }
-}
-
 /* Regen als Bildquelle fürs Plasma-Glas: wird gezeichnet, aber nicht gezeigt. */
 .source {
   position: fixed;

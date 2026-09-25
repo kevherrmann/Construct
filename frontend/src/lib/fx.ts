@@ -11,10 +11,15 @@ import { getItem } from './storage'
 //   localStorage.removeItem('mxfx')      → wieder automatisch
 export type FxLevel = 'full' | 'low' | 'off'
 
+// ?fx=low beim Laden festhalten: der Router leitet / sofort auf /chat um und
+// wirft die Query dabei weg. Später gelesen, lief sonst doch das volle
+// WebGL-Plasma im Software-Rendering (flackert in WebKitGTK).
+const urlLow = new URLSearchParams(location.search).get('fx') === 'low'
+
 export function fxLevel(): FxLevel {
   const pref = getItem('mxfx')
   if (pref === 'off') return 'off'
   if (pref === 'low') return 'low'
-  if (pref !== 'full' && new URLSearchParams(location.search).get('fx') === 'low') return 'low'
+  if (pref !== 'full' && urlLow) return 'low'
   return 'full'
 }

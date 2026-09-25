@@ -18,6 +18,7 @@ applyPlasma(boot.settings.plasma)
 applyFont(boot.settings.font)
 installExternalLinkHandler()
 document.body.classList.toggle('fx-off', fxLevel() === 'off')
+document.body.classList.toggle('fx-low', fxLevel() === 'low')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

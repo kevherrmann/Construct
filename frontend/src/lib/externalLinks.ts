@@ -6,7 +6,11 @@
 // alle gestreamten Markdown-Links erfasst.
 
 interface PyWebview {
-  api?: { open_url?: (url: string) => void }
+  api?: {
+    open_url?: (url: string) => void
+    /** Nur im Desktop-Fenster: Bild aus der Zwischenablage (siehe desktop.py). */
+    paste_image?: () => Promise<import('@/stores/chat').Attachment | null>
+  }
   platform?: string
 }
 declare global {

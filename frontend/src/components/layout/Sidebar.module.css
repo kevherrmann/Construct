@@ -107,18 +107,11 @@
   border-right: none;
   overflow: hidden;
 }
-:global(html[data-plasma].plasma-gl) .side {
+/* Ohne WebGL (rundes Glas-Design): wie mit Canvas randlos und durchsichtig —
+   die Fläche geht in den Seitenverlauf über, statt als Kasten dazustehen. */
+:global(html[data-plasma]) .side {
   background: transparent;
   backdrop-filter: none;
-}
-:global(html[data-plasma]:not(.plasma-gl)) .side {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(22px) saturate(1.5);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
-  border: 1px solid rgba(var(--accent-rgb), 0.18);
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 :global(html[data-plasma]) .brand {
   font-weight: 650;

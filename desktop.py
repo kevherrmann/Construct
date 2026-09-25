@@ -256,6 +256,62 @@ class _Bridge:
         webbrowser.open(url)
         return True
 
+    def paste_image(self):
+        """Bild aus der Zwischenablage als Anhang ablegen (Strg+V im Fenster).
+
+        WebKitGTK reicht kopierte Bilder beim paste-Ereignis nicht an die
+        Seite weiter - clipboardData enthält dort nur Text. Darum fragt das
+        Frontend hier nach, und wir holen das Bild über GTK selbst. Kopierte
+        Bilddateien (Dateimanager) zählen auch. None, wenn kein Bild drin ist.
+        """
+        from server import attach
+        got = _clipboard_image()
+        if not got:
+            return None
+        data, ext, name = got
+        try:
+            return attach.store(data, ext, name)
+        except (OSError, ValueError) as e:
+            print(f"!! Einfügen: Bild nicht übernommen ({e})")
+            return None
+
+
+def _clipboard_image():
+    """(bytes, ext, name) des Bildes in der Zwischenablage, sonst None.
+
+    Die js_api läuft in einem eigenen Thread, GTK aber nur im Hauptthread:
+    darum per idle_add dort ausführen und hier auf das Ergebnis warten.
+    """
+    import threading
+    from gi.repository import Gdk, GLib, Gtk
+
+    out = {}
+    done = threading.Event()
+
+    def grab():
+        try:
+            cb = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+            pb = cb.wait_for_image()
+            if pb is not None:
+                ok, buf = pb.save_to_bufferv("png", [], [])
+                if ok:
+                    out["img"] = (bytes(buf), ".png", "Zwischenablage.png")
+                    return False
+            for uri in cb.wait_for_uris() or []:
+                p = Path(GLib.filename_from_uri(uri)[0])
+                if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp") and p.is_file():
+                    out["img"] = (p.read_bytes(), p.suffix, p.name)
+                    break
+        except Exception as e:
+            print(f"!! Zwischenablage nicht lesbar ({e})")
+        finally:
+            done.set()
+        return False
+
+    GLib.idle_add(grab)
+    done.wait(5)
+    return out.get("img")
+
 
 # Bilder, die von aussen ins Fenster gezogen werden (Dateimanager, Bildbetrachter).
 # Im Browser reicht dafuer das drop-Ereignis der Oberflaeche. In WebKitGTK kommt

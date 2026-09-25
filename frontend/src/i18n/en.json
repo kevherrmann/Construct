@@ -418,7 +418,6 @@
   "heute": "today",
   "HEUTE": "TODAY",
   "HH:MM": "HH:MM",
-  "Hier ohne Grafikbeschleunigung: Glas-Optik ohne Flüssigkeit.": "No graphics acceleration here: glass look without the liquid.",
   "Hintergrund": "Background",
   "Hinweis: Claudes eingebaute Slash-Befehle funktionieren im Headless-Modus nicht — das hier sind eigene App-Befehle.": "Note: Claude's built-in slash commands don't work in headless mode — these are the app's own commands.",
   "HINZUFÜGEN": "ADD",
@@ -720,5 +719,7 @@
   "Verbindung zur Spracheingabe abgebrochen": "Connection to voice input lost",
   "Gemini-Key ungültig — unter ⚙ Einstellungen prüfen.": "Gemini key invalid — check it under ⚙ Settings.",
   "Gemini nicht erreichbar.": "Gemini unreachable.",
-  "Gemini-Kontingent erschöpft — kurz warten oder morgen wieder.": "Gemini quota used up — wait a moment or try again tomorrow."
+  "Gemini-Kontingent erschöpft — kurz warten oder morgen wieder.": "Gemini quota used up — wait a moment or try again tomorrow.",
+  "Rundes Glas-Design": "Rounded glass design",
+  "Weiche, runde Glasflächen statt kantiger Kästen, dazu ein ruhiger Farbverlauf im Hintergrund. Das flüssige Plasma braucht Grafikbeschleunigung, die hier fehlt.": "Soft, rounded glass panels instead of sharp boxes, with a calm color gradient in the background. Liquid plasma needs graphics acceleration, which is missing here."
 }

@@ -321,6 +321,16 @@ export function Composer() {
             if (imgs.length) {
               e.preventDefault()
               addFiles(imgs)
+              return
+            }
+            // WebKitGTK (Desktop-Fenster) reicht kopierte Bilder nicht durch —
+            // dann holt desktop.py sie direkt aus der Zwischenablage. Nur wenn
+            // kein Text drin ist: Zellen aus Calc & Co. liegen zusätzlich als
+            // Bild in der Ablage, da soll der Text kommen, kein Anhang.
+            const api = window.pywebview?.api
+            if (api?.paste_image && !e.clipboardData.types.includes('text/plain')) {
+              e.preventDefault()
+              void api.paste_image().then((a) => a && addPending(a))
             }
           }}
         />
