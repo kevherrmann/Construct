@@ -114,7 +114,8 @@ def code_stamp() -> str:
     """
     try:
         base = Path(__file__).parent
-        quellen = list(base.glob("*.py")) + list((base / "static").rglob("*.[hjc]*"))
+        quellen = (list(base.glob("*.py")) + list((base / "server").rglob("*.py"))
+                   + list((base / "static").rglob("*.[hjc]*")))
         return str(int(max(f.stat().st_mtime for f in quellen if f.exists())))
     except Exception:
         return ""

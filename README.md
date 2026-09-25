@@ -245,7 +245,13 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 
 | File | Purpose |
 |---|---|
-| `app.py` | FastAPI backend: chat runs, sessions, auth, usage, settings, calendar/mail/skills/MCP APIs |
+| `app.py` | Entry point: assembles the FastAPI app (middleware, static files, routers, start/stop) |
+| `server/core.py` | Shared basics: paths, workspace, version, persona, `claude` CLI invocation, SSE helpers |
+| `server/routes/` | HTTP API, one module per area: `auth`, `files`, `providers`, `system`, `calendar`, `mail`, `sessions`, `chat`, `ui` |
+| `server/runs.py`, `server/hermes_runs.py` | Detached chat runs (claude CLI / Hermes): start, stream, inject, background tasks |
+| `server/sessions.py` | Claude Code sessions on disk: metadata, transcripts, filters |
+| `server/scheduler.py` | Scheduled tasks from calendar events |
+| `tests/` | Backend tests (`pip install -r requirements-dev.txt && pytest`) |
 | `frontend/` | Web interface: React 19 + TypeScript + Vite — see [`frontend/README.md`](frontend/README.md) |
 | `static/app/` | Built interface, committed so installs and updates need no Node.js |
 | `desktop.py` | Native window through pywebview, with fallback to the browser |
@@ -281,3 +287,14 @@ npm run check    # types, lint, format, tests, build
 
 Commit the rebuilt `static/app/` together with your source changes — CI
 fails if it is out of date. Conventions: [`frontend/README.md`](frontend/README.md).
+
+## Backend development
+
+`app.py` only assembles the FastAPI app; the logic lives in `server/` (routes in
+`server/routes/`, one module per area). Run the checks CI runs:
+
+```bash
+pip install -r requirements-dev.txt
+python -m pyflakes app.py server tests
+python -m pytest -q
+```

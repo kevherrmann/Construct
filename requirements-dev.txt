@@ -1,0 +1,5 @@
+# Nur für Entwicklung und CI — Nutzer brauchen das nicht.
+-r requirements.txt
+pytest
+httpx2
+pyflakes
