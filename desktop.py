@@ -210,15 +210,15 @@ def start_server() -> bool:
     """True, wenn wir den Server selbst gestartet haben."""
     if port_busy():
         info = server_info()
-        if info and stop_stale(info):
-            info = {}                 # Port ist frei, unten wird neu gestartet
-        elif info:
+        if not info:
+            sys.exit(
+                f"!! Port {PORT} ist belegt, aber das ist nicht CONSTRUCT.\n"
+                f"   Anderen Port nehmen:  MATRIX_PORT=8766 ./start.sh"
+            )
+        if not stop_stale(info):
             print(f"» CONSTRUCT läuft schon auf {URL} — hänge mich dran.")
             return False
-        sys.exit(
-            f"!! Port {PORT} ist belegt, aber das ist nicht CONSTRUCT.\n"
-            f"   Anderen Port nehmen:  MATRIX_PORT=8766 ./start.sh"
-        )
+        # Alte Instanz ist weg, Port frei — unten wird neu gestartet.
 
     threading.Thread(target=serve, daemon=True).start()
     for _ in range(150):              # bis 30 s — der erste Start liest Skills ein
