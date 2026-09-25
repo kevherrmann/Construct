@@ -38,12 +38,26 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   rename, archive or delete sessions. You can queue messages or send them into
   a turn that is still running, and stop a run. Each chat has a working-folder
   picker and a model picker.
+- **Edit and resend.** ✎ on one of your messages lets Cody continue from exactly
+  that point, as if the old version and everything after it had never
+  happened (the session branches with `--resume-session-at`). The original goes
+  to the archive, so nothing is lost.
+- **Voice input.** 🎤 next to the message field: the text appears in the field
+  while you speak (Gemini 3.5 Transcribe Live, streamed over a WebSocket; the
+  key stays on the server). Each sentence is cleaned up after the pause —
+  filler words disappear. Enter ends dictation, Esc discards it.
+- **Read-aloud.** 🔊 above every reply reads it out with Gemini TTS, or every
+  new reply automatically. Voice and speaking style per UI language.
 - **Permission modes.** You choose Claude Code's permission mode per chat
   (`default`, `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`).
   Claude gets real file and terminal access in the selected working folder.
 - **Other providers through Hermes.** Supported providers are ChatGPT (OpenAI),
   Gemini, DeepSeek, local **Ollama** models and **Bonsai** (local). Only models
   that can use tools are offered. You manage API keys in the settings panel.
+  Cody's persona and calendar reach these models too (via
+  `$HERMES_HOME/SOUL.md` — a SOUL.md you wrote for Hermes yourself is left
+  alone), and provider failures such as a used-up quota show up as a short
+  hint instead of a raw error.
 - **Ollama management.** You can list and delete installed models, and pull
   models from a curated catalog or by name with a progress bar. On Linux, if
   Ollama is missing, CONSTRUCT can install it with one click into your user
@@ -70,11 +84,16 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
 - **MCP connectors.** Shows your configured MCP servers and their status
   (`claude mcp list`).
 - **Persona.** You can edit Cody's character (`SOUL.md`) and what Cody knows
-  about you (`USER.md`) in the UI. Both are added to the system prompt.
-- **Settings panel (⚙).** Choose which tiles are visible, the language, a color
-  theme (Matrix, Amber, Ice, Space, Ash, Blood), the background (Matrix rain,
-  custom image or plain), display names and avatars, the Hermes home directory,
-  and update behavior.
+  about you (`USER.md`) in the UI. Both are added to the system prompt — for
+  Claude and for every Hermes provider.
+- **Look.** Eight color themes (Matrix, Amber, Ice, Space, Ash, Blood, Paper,
+  Mist). **Plasma** switches any of them to liquid glass
+  ([Plasma UI](https://github.com/CruxGarden/plasma-ui), WebGL, with a CSS
+  fallback) and adds a moving plasma field as a background option. Background:
+  Matrix rain, your own image or plain. Six bundled fonts, no internet needed.
+- **Settings panel (⚙).** Choose which tiles are visible, the language, theme,
+  Plasma, font, background, display names and avatars, read-aloud voice, the
+  Hermes home directory, and update behavior.
 - **Usage limits.** Shows your subscription's 5-hour and 7-day usage in the
   header, including the reset time when you hit a limit.
 - **Web login.** Signs in to Claude Code from the UI through `claude setup-token`.
@@ -104,6 +123,9 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
 - **Optional:** [Hermes Agent](https://hermes-agent.nousresearch.com) for
   non-Claude models (you can install it from the settings panel), Ollama and
   Bonsai-demo.
+- **Optional:** a Gemini API key for read-aloud and voice input — free at
+  [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The same key
+  also unlocks the Gemini models.
 - **Native window on Linux:** WebKitGTK system packages:
   ```bash
   sudo dnf install python3-gobject webkit2gtk4.1     # Fedora
@@ -179,11 +201,14 @@ when it writes it.
 | Key | Values / default |
 |---|---|
 | `lang` | `"en"` (default) or `"de"` |
-| `theme` | `matrix`, `bernstein`, `eis`, `space`, `asche`, `blut` |
+| `theme` | `matrix`, `bernstein`, `eis`, `space`, `asche`, `blut`, `papier`, `nebel` |
+| `plasma` | `false` (default) or `true`: liquid glass for any theme |
+| `font` | `""` (automatic), `share-tech-mono`, `jetbrains-mono`, `ibm-plex-mono`, `space-grotesk`, `exo-2`, `inter` |
 | `names` | `{"user": "", "assistant": "Cody"}` |
 | `avatars` | `{"user": "", "assistant": ""}`: uploaded image paths |
 | `tiles` | `skills`, `kalender`, `mail`, `mcp` (on/off; the chat tile is always shown) |
-| `background` | `{"mode": "matrix" \| "image" \| "plain", "image": "", "dim": 60}` |
+| `background` | `{"mode": "matrix" \| "image" \| "plain" \| "plasma", "image": "", "dim": 60}` |
+| `tts` | `{"auto": false, "model": "gemini-3.8-flash-lite-tts", "voice": {"de": …, "en": …}, "style": {"de": "", "en": ""}}` |
 | `hermes` | `{"home": ""}`: empty means `~/.hermes` |
 | `updates` | `{"auto": true, "interval_h": 6, "construct": true}` |
 
@@ -236,7 +261,9 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 ## Security
 
 - CONSTRUCT binds to **127.0.0.1** by default and has **no login** unless you
-  set `MATRIX_PASS`. Then every request needs HTTP Basic Auth.
+  set `MATRIX_PASS`. Then every request needs HTTP Basic Auth — WebSockets
+  (voice input) included, and those also only accept connections from
+  CONSTRUCT's own page.
 - The default permission mode is `bypassPermissions`. **In that mode, Claude
   runs tools and shell commands without asking.** Never expose CONSTRUCT to a
   network without authentication. Put it behind a password or a reverse proxy
@@ -264,7 +291,9 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/llm.py`, `server/hermes.py`, `server/bonsai.py` | Providers and models: API keys, model lists, Ollama; Hermes Agent (ACP) for non-Claude models; on-demand `llama-server` for Bonsai |
 | `server/mail.py` | IMAP/SMTP mail, Outlook OAuth2 |
 | `server/telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
+| `server/gemini.py` | Shared Gemini API client (key, errors) |
 | `server/tts.py` | Read-aloud via Gemini TTS, voice catalog |
+| `server/stt.py` | Voice input: relays the microphone stream to Gemini 3.5 Transcribe Live |
 | `server/updates.py` | Background updates for Claude Code and Hermes |
 | `server/attach.py` | Image normalization and PDF text extraction |
 | `desktop.py` | Native window through pywebview, with fallback to the browser |
