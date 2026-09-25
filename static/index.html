@@ -2747,10 +2747,9 @@ function applyTiles(){
   const cur=document.querySelector('.mi.active')?.dataset.v;
   if(cur && SETTINGS.tiles[cur]===false) setView('einstellungen');
 }
+// „🧠 MODELLE & ANBIETER“ → „Modelle & Anbieter“
+const navLabel=t=>t.replace(/^[^\p{L}]+/u,'').trim().toLowerCase().replace(/(^|[\s-])\p{L}/gu,m=>m.toUpperCase());
 function renderSettings(){
-  const side=document.getElementById('setnav');
-  if(side)side.innerHTML=['Sprache','Kacheln','Modelle & Anbieter','Vorlesen','Telegram','Namen','Charakter','Farbwelt','Hintergrund']
-    .map(t=>`<div class="sess"><span class="t">${t}</span></div>`).join('');
   const w=document.createElement('div');w.className='set-wrap';
 
   // --- 1) Kacheln ---
@@ -3047,6 +3046,18 @@ function renderSettings(){
   w.querySelectorAll('input[data-tile]').forEach(cb=>cb.onchange=()=>{
     setSave({tiles:{[cb.dataset.tile]:cb.checked}}).then(applyTiles);
   });
+  // Navigation links aus den tatsächlichen Abschnitten bauen — eine feste
+  // Liste lief auseinander, sobald ein Abschnitt dazukam.
+  const side=document.getElementById('setnav');
+  if(side){
+    const secs=[...w.querySelectorAll('.set-sec')];
+    side.innerHTML=secs.map((sec,i)=>`<div class="sess" data-i="${i}"><span class="t">`
+      +esc(navLabel(sec.querySelector('h3')?.textContent||''))+`</span></div>`).join('');
+    side.querySelectorAll('.sess').forEach(n=>n.onclick=()=>{
+      side.querySelectorAll('.sess').forEach(x=>x.classList.toggle('active',x===n));
+      secs[+n.dataset.i].scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
   setupEngines(w);
   setupUpdates(w);
   setupTTS(w);
