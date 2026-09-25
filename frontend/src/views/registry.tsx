@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react'
 import type { Settings } from '@/lib/bootstrap'
 import { Placeholder } from './Placeholder'
+import { MailMain } from './mail/MailMain'
+import { MailSide } from './mail/MailSide'
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
@@ -36,7 +38,7 @@ export const VIEWS: ViewDef[] = [
     Side: Placeholder,
     Main: Placeholder,
   },
-  { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: Placeholder, Main: Placeholder },
+  { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: MailSide, Main: MailMain },
   { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: Placeholder, Main: Placeholder },
   { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: Placeholder, Main: Placeholder },
 ]

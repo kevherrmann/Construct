@@ -1,0 +1,76 @@
+/* Alte Klassen: .kal-add, .kal-uh, .mside, .fc */
+.side {
+  /* Block, nicht Flex: die 2px-Außenabstände der Einträge fallen sonst nicht
+     zusammen, und die Liste wird höher als früher. */
+  display: block;
+}
+.add {
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 10px;
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-shadow: inherit;
+}
+.add:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.4);
+}
+.cfg {
+  margin-top: 14px;
+}
+.uh {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+  margin: 8px 2px 4px;
+}
+.catAdd {
+  cursor: pointer;
+  color: var(--green);
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--soft);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.item:hover {
+  background: rgba(var(--accent-rgb), 0.06);
+  color: var(--green);
+}
+.on {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--green);
+}
+.mn {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Zähler: in der alten Oberfläche ungestylt (.fc griff nur in .folder). */
+.fc {
+  flex: 0 0 auto;
+}
+.mx {
+  opacity: 0;
+  color: #ff5c5c;
+  padding: 0 3px;
+  flex: 0 0 auto;
+}
+.item:hover .mx {
+  opacity: 0.8;
+}
