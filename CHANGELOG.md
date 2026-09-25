@@ -2,6 +2,15 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.3.1 — 2026-09-25
+
+### Fixed
+- When a provider fails via Hermes (quota used up, key rejected, service
+  down, unknown model), the chat now shows a short hint in your language
+  instead of Hermes' long English message with terminal commands (`/retry`,
+  `hermes fallback add`) that do nothing in CONSTRUCT. On the Gemini free tier
+  it also explains why tool tasks hit the limit quickly.
+
 ## 5.3.0 — 2026-09-25
 
 ### Fixed

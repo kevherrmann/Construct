@@ -157,6 +157,72 @@ def strip_context(text: str) -> str:
     return _CTX_RE.sub("", text)
 
 
+# ---------- Fehlermeldungen von Hermes ----------
+# Scheitert ein Lauf am Anbieter (Limit, Key, Ausfall), schreibt Hermes das als
+# gewöhnlichen Antworttext — auf Englisch, mehrzeilig und mit Ratschlägen für
+# sein eigenes Terminal (/retry, /model, `hermes fallback add`), die in
+# CONSTRUCT ins Leere gehen. Bekannte Fälle werden zu einem kurzen Hinweis;
+# Unbekanntes bleibt, wie es ist. Vorlagen: agent/turn_failure_copy.py.
+_FAIL_PATTERNS = [
+    ("rate", re.compile(r"^(?P<label>.{1,60}?) rate-limited every one of \d+ attempts — ")),
+    ("down", re.compile(r"^(?P<label>.{1,60}?) (?:reported it was overloaded on all|returned a "
+                        r"server error on all|didn't respond in time on any of|didn't answer "
+                        r"after) \d+ attempts — ")),
+    ("key", re.compile(r"^(?P<label>.{1,60}?) rejected your (?:API key|sign-in), "
+                       r"so the model can't be ")),
+    ("model", re.compile(r"^Model '(?P<model>[^']+)' isn't available on (?P<label>.{1,60}?)\. ")),
+]
+
+
+def friendly_failure(text: str) -> str | None:
+    """Hermes-Fehlertext → kurzer Hinweis (Markdown), sonst None."""
+    from server import config as cfg
+    head = text.lstrip()
+    for kind, rx in _FAIL_PATTERNS:
+        m = rx.match(head)
+        if m:
+            break
+    else:
+        return None
+    label = m.group("label")
+    if kind == "rate":
+        msg = cfg.L(f"⚠ **Kontingent erschöpft** — {label} nimmt gerade keine weiteren "
+                    "Anfragen an. Kurz warten und die Nachricht nochmal senden, oder oben ein "
+                    "anderes Modell wählen.",
+                    f"⚠ **Quota used up** — {label} is not accepting more requests right now. "
+                    "Wait a moment and send the message again, or pick another model above.")
+        reset = re.search(r"usage limit resets in ([^.]+)\.", head)
+        if reset:
+            msg += cfg.L(f" Das Limit wird in {reset.group(1)} zurückgesetzt.",
+                         f" The limit resets in {reset.group(1)}.")
+        if "free_tier" in head:
+            msg += cfg.L("\n\nIm kostenlosen Kontingent ist bei Aufgaben mit Werkzeugen schnell "
+                         "Schluss: jeder Werkzeug-Schritt ist eine eigene Anfrage. Die Lite-Modelle "
+                         "haben mehr Luft.",
+                         "\n\nThe free tier runs out quickly on tasks with tools: every tool step "
+                         "is a request of its own. The Lite models have more headroom.")
+    elif kind == "down":
+        msg = cfg.L(f"⚠ **{label} antwortet gerade nicht** — später nochmal versuchen oder oben "
+                    "ein anderes Modell wählen.",
+                    f"⚠ **{label} is not responding right now** — try again later or pick "
+                    "another model above.")
+    elif kind == "key":
+        msg = cfg.L(f"⚠ **{label} lehnt den Zugang ab** — Key unter ⚙ Einstellungen → "
+                    "Modelle & Anbieter prüfen.",
+                    f"⚠ **{label} rejected the credentials** — check the key under ⚙ Settings "
+                    "→ Models & providers.")
+    else:
+        msg = cfg.L(f"⚠ **Modell „{m.group('model')}“ gibt es bei {label} nicht** — oben ein "
+                    "anderes wählen.",
+                    f"⚠ **Model '{m.group('model')}' is not available on {label}** — pick "
+                    "another one above.")
+    said = re.search(r"Provider said: (.+)", head)
+    if said:
+        detail = said.group(1).strip()
+        msg += f"\n\n_Details: {detail[:240]}{'…' if len(detail) > 240 else ''}_"
+    return msg
+
+
 def acp_model_id(model: str) -> str:
     """CONSTRUCT-Wert "anbieter:modell" → Hermes-Modell-ID.
 
@@ -544,7 +610,7 @@ class AcpSession:
         if kind == "agent_message_chunk":
             txt = ((u.get("content") or {}).get("text")) or ""
             if txt:
-                emit({"type": "text", "text": txt})
+                emit({"type": "text", "text": friendly_failure(txt) or txt})
         elif kind == "agent_thought_chunk":
             if not state["thinking_sent"]:
                 state["thinking_sent"] = True
@@ -767,6 +833,8 @@ def session_messages(sid: str) -> list:
         text = (content or "").strip()
         if role == "user":
             text = strip_context(text)
+        elif role == "assistant":
+            text = friendly_failure(text) or text
         if role == "tool":
             # Werkzeug-Ausgaben gehören nicht in den Gesprächsverlauf: sie sind
             # oft seitenlang und stehen im Chat ohnehin in eigenen Kästen.
