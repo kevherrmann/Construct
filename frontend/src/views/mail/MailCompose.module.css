@@ -1,0 +1,60 @@
+/* Alte Klassen: .mc-form, .mc-att */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 860px;
+}
+.form label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+  margin-top: 8px;
+}
+.form input,
+.form textarea {
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13.5px;
+  padding: 9px 11px;
+  outline: none;
+  border-radius: 2px;
+  resize: vertical;
+  text-shadow: none;
+}
+.form input:focus,
+.form textarea:focus {
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.3);
+}
+.from {
+  max-width: 320px;
+}
+.att {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--link);
+  border: 1px solid var(--green-faint);
+  padding: 4px 9px;
+  border-radius: 3px;
+  margin: 6px 6px 0 0;
+}
+.x {
+  color: #ff5c5c;
+  cursor: pointer;
+}
+.dim {
+  opacity: 0.6;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+.send {
+  margin: 0;
+}

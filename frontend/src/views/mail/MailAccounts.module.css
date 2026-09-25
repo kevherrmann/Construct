@@ -1,0 +1,72 @@
+/* Alte Klassen: .mc-acc, .mca-* */
+.acc {
+  border: 1px solid var(--green-faint);
+  background: var(--deep);
+  padding: 12px 14px;
+  margin: 8px 0;
+  border-radius: 3px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+.prov {
+  font-size: 10px;
+  color: var(--green-dim);
+  border: 1px solid var(--green-faint);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.st {
+  flex: 1;
+  font-size: 11px;
+  color: var(--green-dim);
+}
+.mx {
+  color: #ff5c5c;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.mx:hover {
+  opacity: 1;
+}
+.hint {
+  padding: 6px 0 0;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.row input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  border-radius: 2px;
+  text-shadow: none;
+}
+.addTitle {
+  color: var(--green);
+}
+.foot {
+  margin-top: 10px;
+}
+.link {
+  color: var(--link);
+}
+.code {
+  color: var(--green);
+  letter-spacing: 2px;
+}

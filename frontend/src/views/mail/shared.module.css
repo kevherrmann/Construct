@@ -1,0 +1,141 @@
+/* Bausteine, die alle Mail-Seiten teilen (alte Klassen: #mailwrap, .mail-top,
+   .cal-tbtn, .backbtn, .msel, .vhint, .err, .tool, .lg-btn, .chip).
+
+   Professioneller Lese-Modus: in der Mail-Ansicht sind die Flächen blickdicht
+   und ohne Grün-Glow (text-shadow:none) — der Matrix-Regen läuft im Hintergrund
+   einfach weiter.
+
+   Warnrot (#ff5c5c / #5a1f1f) ist wie in der alten Oberfläche in allen Themes
+   gleich — es ist eine Statusfarbe, keine Theme-Farbe. */
+
+/* Hauptbereich — die Abstände setzt die Hülle (AppShell). */
+.main {
+  min-height: 100%;
+}
+.wrap {
+  padding: 12px 4px 60px;
+  animation: fade 0.25s ease;
+  text-shadow: none;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.top h2 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-shadow: none;
+}
+.top h2.small {
+  font-size: 16px;
+}
+.spacer {
+  flex: 1;
+}
+.tbtn {
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 0 16px;
+  height: 40px;
+  text-shadow: inherit;
+  border-radius: 3px;
+}
+.tbtn:hover {
+  background: var(--green-faint);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+}
+.danger {
+  color: #ff5c5c;
+  border-color: #5a1f1f;
+}
+.backbtn {
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  text-shadow: inherit;
+}
+.backbtn:hover {
+  background: var(--green-faint);
+}
+.msel {
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 8px;
+  outline: none;
+  border-radius: 3px;
+  height: 40px;
+  max-width: 220px;
+}
+.vhint {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 8px;
+}
+.vhint code {
+  font-family: inherit;
+}
+.err {
+  color: #ff5c5c;
+  border: 1px solid #5a1f1f;
+  padding: 10px;
+  background: rgba(40, 0, 0, 0.4);
+  text-shadow: none;
+}
+.tool {
+  font-size: 11.5px;
+  color: var(--green-dim);
+  margin: 6px 0;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+.loading {
+  text-align: center;
+  margin-top: 40px;
+}
+.lgBtn {
+  background: var(--green);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 11px 20px;
+  font-size: 13px;
+  text-shadow: none;
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
+}
+.lgBtn:disabled {
+  background: var(--green-faint);
+  color: var(--green-dim);
+  cursor: wait;
+  box-shadow: none;
+}
+.mdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5);
+}
+.ok {
+  color: var(--green);
+}

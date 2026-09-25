@@ -9,6 +9,8 @@ import { McpMain } from './mcp/McpMain'
 import { McpSide } from './mcp/McpSide'
 import { SkillsMain } from './skills/SkillsMain'
 import { SkillsSide } from './skills/SkillsSide'
+import { MailMain } from './mail/MailMain'
+import { MailSide } from './mail/MailSide'
 
 export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
@@ -44,7 +46,7 @@ export const VIEWS: ViewDef[] = [
     Side: CalendarSide,
     Main: CalendarMain,
   },
-  { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: Placeholder, Main: Placeholder },
+  { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: MailSide, Main: MailMain },
   { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: McpSide, Main: McpMain },
   { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: Placeholder, Main: Placeholder },
 ]

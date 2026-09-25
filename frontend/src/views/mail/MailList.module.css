@@ -1,0 +1,140 @@
+/* Alte Klassen: .ml-*, .mail-search, .chip.click */
+.bar {
+  margin-bottom: 10px;
+}
+.search {
+  background: var(--field);
+  border: 1px solid var(--green-dim);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0 10px;
+  height: 30px;
+  outline: none;
+  border-radius: 3px;
+  flex: 1;
+  min-width: 160px;
+  max-width: 340px;
+  text-shadow: none;
+}
+.search:focus {
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.3);
+}
+.count {
+  margin: 0;
+  flex: 0 0 auto;
+}
+.chip {
+  font-size: 11px;
+  border: 1px solid var(--green-faint);
+  padding: 3px 9px;
+  border-radius: 3px;
+  color: var(--green-dim);
+  letter-spacing: 0.5px;
+  text-shadow: none;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+}
+.chip:hover {
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--green);
+}
+.errLine {
+  margin: 6px 0;
+}
+.more {
+  display: block;
+  margin: 12px auto;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 12px;
+  margin: 5px 0;
+  cursor: pointer;
+  border: 1px solid var(--green-faint);
+  border-left: 3px solid var(--green-faint);
+  background: var(--deep);
+  transition: 0.12s;
+  border-radius: 3px;
+}
+.row:hover {
+  border-color: var(--green-dim);
+  background: var(--deep-hi);
+}
+.unread {
+  border-left-color: var(--green);
+}
+.unread .from,
+.unread .sub {
+  color: var(--green);
+}
+.sel {
+  border-color: var(--green-dim);
+  background: var(--deep-hi);
+}
+.acc {
+  font-size: 10px;
+  border: 1px solid;
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  text-shadow: none;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.from {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sub {
+  font-size: 12px;
+  color: var(--soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat {
+  font-size: 10px;
+  color: var(--on-accent);
+  background: linear-gradient(90deg, var(--green), var(--accent2));
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  text-shadow: none;
+}
+.date {
+  font-size: 11px;
+  color: var(--green-dim);
+  flex: 0 0 auto;
+  min-width: 44px;
+  text-align: right;
+}
+.del {
+  opacity: 0;
+  color: #ff5c5c;
+  flex: 0 0 auto;
+  padding: 2px 4px;
+  transition: 0.12s;
+}
+.row:hover .del {
+  opacity: 0.85;
+}
+.chk {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--green);
+  cursor: pointer;
+  margin: 0;
+}
