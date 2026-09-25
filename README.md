@@ -309,6 +309,6 @@ runs and what a change needs. Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-See [LICENSE](LICENSE). Bundled third-party packages and fonts:
+MIT — see [LICENSE](LICENSE). Bundled third-party packages and fonts:
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
