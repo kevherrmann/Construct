@@ -24,7 +24,7 @@ jobs:
       # Der Build liegt im Repo, damit Nutzer ohne Node.js installieren können.
       # Weicht er vom frisch gebauten ab, hat jemand vergessen, neu zu bauen.
       - name: Committed build is up to date
-        run: git diff --exit-code -- ../static/next || (echo "::error::static/next is stale — run 'npm run build' in frontend/ and commit the result" && exit 1)
+        run: git diff --exit-code -- ../static/app || (echo "::error::static/app is stale — run 'npm run build' in frontend/ and commit the result" && exit 1)
 
   backend:
     runs-on: ubuntu-latest

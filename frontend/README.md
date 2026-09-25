@@ -1,13 +1,12 @@
 # CONSTRUCT frontend
 
-React 19 + TypeScript + Vite. Served by the FastAPI backend at `/next` while it
-replaces the old interface (`static/index.html` + `static/js/`). The build output
-goes to `../static/next/` and **is committed** — users install and update
+React 19 + TypeScript + Vite, served by the FastAPI backend. The build output
+goes to `../static/app/` and **is committed** — users install and update
 CONSTRUCT via `git pull` without Node.js.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173/next/ — proxies /api to CONSTRUCT on :8765
+npm run dev      # http://localhost:5173 — proxies /api to CONSTRUCT on :8765
 npm run check    # typecheck, lint, format, tests, build — run before every commit
 ```
 
@@ -18,7 +17,7 @@ Point the dev server at another backend with `CONSTRUCT_BACKEND=http://127.0.0.1
 ```
 src/
 ├── main.tsx              entry: i18n, theme, React Query, router
-├── App.tsx               routes: /next/:view/*
+├── App.tsx               routes: /:view/*  (the backend serves index.html for each view path)
 ├── api/                  React Query hooks + response types, one file per backend area
 ├── components/           shared UI; components/layout/ = app shell (sidebar, topbar, HUD)
 ├── views/                one folder per menu entry; registry.tsx wires them into the menu

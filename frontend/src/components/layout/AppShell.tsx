@@ -22,9 +22,13 @@ export function AppShell() {
     document.title = `CONSTRUCT // ${assistant}`
   }, [assistant])
 
-  // Abgeschaltete oder unbekannte Ansichten führen zum Chat.
+  // Unbekannte Ansichten führen zum Chat; abgeschaltete zu den Einstellungen —
+  // dort hat man sie gerade abgeschaltet und kann sie wieder einschalten.
   const current = visibleViews(tiles).find((v) => v.key === view)
-  if (!current) return <Navigate to={`/${VIEWS[0]!.key}`} replace />
+  if (!current) {
+    const known = VIEWS.some((v) => v.key === view)
+    return <Navigate to={known ? '/settings' : `/${VIEWS[0]!.key}`} replace />
+  }
 
   return (
     <>

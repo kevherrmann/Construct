@@ -13,16 +13,22 @@ const GLYPHS = 'ｱｲｳｴｵｶｷｸ0123456789ABCDEFﾊﾋﾌﾍﾎ$+*=<>'
 function MatrixRain({ slow }: { slow: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const theme = useSettings((st) => st.settings.theme)
+  // Canvas versteht keine CSS-Variablen: einmal pro Theme auslesen, nicht pro
+  // Frame (das erzwänge ständiges Neu-Berechnen des Stils). Der Regen selbst
+  // läuft beim Themenwechsel einfach weiter, nur in neuer Farbe.
+  const colors = useRef({ color: '#00ff41', fade: 'rgba(0,6,0,.07)' })
+  useEffect(() => {
+    const cs = getComputedStyle(document.documentElement)
+    colors.current = {
+      color: cs.getPropertyValue('--rain').trim() || '#00ff41',
+      fade: cs.getPropertyValue('--rain-fade').trim() || 'rgba(0,6,0,.07)',
+    }
+  }, [theme])
 
   useEffect(() => {
     const cv = ref.current
     const cx = cv?.getContext('2d')
     if (!cv || !cx) return
-    // Canvas versteht keine CSS-Variablen: einmal pro Theme auslesen, nicht
-    // pro Frame (das erzwänge ständiges Neu-Berechnen des Stils).
-    const cs = getComputedStyle(document.documentElement)
-    const color = cs.getPropertyValue('--rain').trim() || '#00ff41'
-    const fade = cs.getPropertyValue('--rain-fade').trim() || 'rgba(0,6,0,.07)'
     let step = CELL * RAIN_SCALE
     let drops: number[] = []
     const size = () => {
@@ -45,6 +51,7 @@ function MatrixRain({ slow }: { slow: boolean }) {
       raf = requestAnimationFrame(loop)
       if (t - last < every) return
       last = t
+      const { color, fade } = colors.current
       cx.fillStyle = fade
       cx.fillRect(0, 0, cv.width, cv.height)
       cx.fillStyle = color
@@ -60,7 +67,7 @@ function MatrixRain({ slow }: { slow: boolean }) {
       cancelAnimationFrame(raf)
       removeEventListener('resize', size)
     }
-  }, [slow, theme])
+  }, [slow])
 
   return <canvas ref={ref} className={s.rain} />
 }

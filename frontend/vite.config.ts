@@ -2,17 +2,16 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
-// Die neue Oberfläche wächst parallel zur alten unter /next. Der Build landet
-// im Repo (static/next), damit Nutzer ohne Node.js installieren und per
-// `git pull` aktualisieren können — siehe README, Abschnitt Frontend.
+// Der Build landet im Repo (static/app), damit Nutzer ohne Node.js
+// installieren und per `git pull` aktualisieren können — siehe README.
 const BACKEND = process.env.CONSTRUCT_BACKEND ?? 'http://127.0.0.1:8765'
 
 export default defineConfig({
-  base: '/next/',
+  base: '/',
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
-    outDir: '../static/next',
+    outDir: '../static/app',
     emptyOutDir: true,
     // Das Desktop-Fenster läuft unter Linux in WebKitGTK — dort sind ältere
     // Versionen verbreitet. Lieber konservativ übersetzen als eine leere Seite.

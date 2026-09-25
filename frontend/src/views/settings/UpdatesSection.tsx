@@ -7,6 +7,7 @@ import { ago } from '@/lib/format'
 import { rich } from '@/lib/rich'
 import { trServer } from '@/lib/serverText'
 import { useSettings } from '@/stores/settings'
+import { useUpdateCard } from '@/stores/updateCard'
 import { LogBox, Note, Section } from './parts'
 import s from './Settings.module.css'
 
@@ -66,7 +67,10 @@ export function UpdatesSection() {
     if (r.ok === false) {
       setRunning(false)
       setNote('⚠ ' + (trServer(r.error) || t('nicht gestartet')))
+      return
     }
+    // Karte unten rechts wieder zeigen, auch wenn sie weggeklickt war.
+    useUpdateCard.getState().reveal()
   }
 
   return (

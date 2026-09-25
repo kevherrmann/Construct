@@ -49,6 +49,7 @@ export function NamesSection() {
               placeholder={t('dein Name')}
               value={user}
               onChange={(e) => setUser(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() => user !== (names?.user ?? '') && void save({ names: { user } })}
             />
           </span>
@@ -71,6 +72,7 @@ export function NamesSection() {
               placeholder="Cody"
               value={asst}
               onChange={(e) => setAsst(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() =>
                 asst !== (names?.assistant ?? '') && void save({ names: { assistant: asst } })
               }

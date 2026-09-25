@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTtsVoices, type Voice } from '@/api/settings'
@@ -35,10 +36,15 @@ export function TtsSection() {
   const [note, setNote] = useState('')
 
   const list = voices.data?.voices ?? []
+  // Server-Fehler (z. B. fehlender Key) im Wortlaut, Netzfehler als Klartext.
   const info = voices.isError
-    ? '⚠ ' + trServer(voices.error.message)
+    ? voices.error instanceof ApiError
+      ? '⚠ ' + trServer(voices.error.message)
+      : t('⚠ Stimmenliste nicht abrufbar.')
     : voices.data
-      ? t('{n} deutsche Stimmen im Gemini-Katalog.', { n: list.length })
+      ? en
+        ? t('{n} englische Stimmen (US) im Gemini-Katalog.', { n: list.length })
+        : t('{n} deutsche Stimmen im Gemini-Katalog.', { n: list.length })
       : t('Stimmen aus dem Gemini-Katalog — passend zur Sprache der Oberfläche.')
   // Gespeicherte Stimme, die (noch) nicht in der Liste steht, trotzdem zeigen.
   const extra = curVoice && !list.some((v) => v.id === curVoice)
@@ -51,7 +57,13 @@ export function TtsSection() {
           u: boot.user || t('Du'),
           a: boot.assistant,
         }),
-        { voice: curVoice, model: tts.model, style, owner: 'settings-preview' },
+        // Die Stimme, die die Auswahl gerade zeigt — auch wenn noch keine gespeichert ist.
+        {
+          voice: curVoice || list[0]?.id || '',
+          model: tts.model,
+          style,
+          owner: 'settings-preview',
+        },
       )
       setNote('')
     } catch (e) {
@@ -151,6 +163,7 @@ export function TtsSection() {
             placeholder={t('leer = natürlich')}
             value={style}
             onChange={(e) => setStyle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             onBlur={() => {
               if (style !== (tts.style?.[lang] ?? ''))
                 void save({ tts: { style: { [lang]: style } } })

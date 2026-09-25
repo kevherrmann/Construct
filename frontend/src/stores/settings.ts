@@ -22,6 +22,8 @@ interface SettingsStore {
   saveState: SaveState
   /** Sofort lokal übernehmen, dann speichern; die Antwort des Servers ist maßgeblich. */
   save: (patch: SettingsPatch) => Promise<void>
+  /** Nur anzeigen, nicht speichern — z. B. während ein Regler gezogen wird. */
+  preview: (patch: SettingsPatch) => void
 }
 
 function merge(cur: Settings, patch: SettingsPatch): Settings {
@@ -47,6 +49,9 @@ export const useSettings = create<SettingsStore>((set, get) => ({
   boot,
   settings: boot.settings,
   saveState: 'idle',
+  preview(patch) {
+    set({ settings: merge(get().settings, patch) })
+  },
   async save(patch) {
     const next = merge(get().settings, patch)
     set({ settings: next, saveState: 'saving' })

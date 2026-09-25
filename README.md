@@ -5,7 +5,7 @@
 ## What is CONSTRUCT?
 
 CONSTRUCT is the place; **Cody** is the assistant who lives in it. CONSTRUCT is a
-FastAPI backend (`app.py`) and a single-page frontend (`static/`). It
+FastAPI backend (`app.py`) and a React frontend (`frontend/`, built into `static/app/`). It
 runs in its own native window through pywebview (`desktop.py`) or in any browser.
 
 Chats run through the **Claude Code CLI** (`claude -p`), so CONSTRUCT uses your
@@ -246,11 +246,8 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | File | Purpose |
 |---|---|
 | `app.py` | FastAPI backend: chat runs, sessions, auth, usage, settings, calendar/mail/skills/MCP APIs |
-| `static/index.html` | Frontend markup (single page) |
-| `static/css/` | Styles: `themes.css` (color themes), `app.css` (layout, chat, calendar, mail), `settings.css` |
-| `static/js/` | Frontend scripts, one per area (`chat.js`, `settings.js`, `mail.js`, …), loaded in order by `index.html` |
-| `static/i18n.js` | German → English translation of the interface |
-| `frontend/` | New React interface (TypeScript + Vite), served at `/next` while it replaces the old one; built into `static/next/` |
+| `frontend/` | Web interface: React 19 + TypeScript + Vite — see [`frontend/README.md`](frontend/README.md) |
+| `static/app/` | Built interface, committed so installs and updates need no Node.js |
 | `desktop.py` | Native window through pywebview, with fallback to the browser |
 | `config.py` | `settings.json` and persona files |
 | `tts.py` | Read-aloud via Gemini TTS, voice catalog |
@@ -270,20 +267,17 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 
 ## Frontend development
 
-The interface is being rebuilt in React (`frontend/`). Until it has caught up,
-it runs at **`/next`** next to the current interface at `/`.
-
-The built files in `static/next/` are committed on purpose: installing and
-updating CONSTRUCT (`git pull`) must not require Node.js. Only if you work on
-the frontend do you need **Node.js 20+**:
+The interface lives in `frontend/` (React 19, TypeScript, Vite). The built
+files in `static/app/` are committed on purpose: installing and updating
+CONSTRUCT (`git pull`) must not require Node.js. Only if you work on the
+frontend do you need **Node.js 20+**:
 
 ```bash
 cd frontend
 npm install
-npm run dev      # http://localhost:5173/next/ — talks to CONSTRUCT on :8765
-npm run check    # types, lint, tests, build
+npm run dev      # http://localhost:5173 — talks to CONSTRUCT on :8765
+npm run check    # types, lint, format, tests, build
 ```
 
-Commit the rebuilt `static/next/` together with your source changes — CI
-fails if it is out of date.
-
+Commit the rebuilt `static/app/` together with your source changes — CI
+fails if it is out of date. Conventions: [`frontend/README.md`](frontend/README.md).

@@ -48,20 +48,32 @@ export function BackgroundSection() {
   const { t } = useTranslation()
   const bg = useSettings((st) => st.settings.background)
   const save = useSettings((st) => st.save)
+  const preview = useSettings((st) => st.preview)
   const mode = bg.mode || 'matrix'
   const [dim, setDim] = useState(bg.dim ?? 60)
   const file = useRef<HTMLInputElement>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
+  const pending = useRef<number | null>(null)
 
   const apply = (patch: Partial<Bg>) => void save({ background: patch })
-  // Der Regler speichert erst, wenn er zur Ruhe kommt — sonst schriebe jedes
-  // Zwischen-Prozent eine Datei.
+  // Beim Ziehen wirkt die Abdunkelung sofort auf den echten Hintergrund;
+  // gespeichert wird erst beim Loslassen — sonst schriebe jedes
+  // Zwischen-Prozent eine Datei. Wer die Ansicht mitten im Ziehen verlässt,
+  // verliert den Wert trotzdem nicht.
   const slide = (v: number) => {
     setDim(v)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => apply({ dim: v }), 300)
+    pending.current = v
+    preview({ background: { dim: v } })
   }
+  const commit = () => {
+    if (pending.current == null) return
+    apply({ dim: pending.current })
+    pending.current = null
+  }
+  const commitRef = useRef(commit)
+  useEffect(() => {
+    commitRef.current = commit
+  })
+  useEffect(() => () => commitRef.current(), [])
   const upload = async (f: File | undefined) => {
     const url = await pickUpload(f, t('Upload fehlgeschlagen'))
     if (url) apply({ image: url, mode: 'image' })
@@ -119,6 +131,9 @@ export function BackgroundSection() {
             className={s.slider}
             value={dim}
             onChange={(e) => slide(+e.target.value)}
+            onPointerUp={commit}
+            onKeyUp={commit}
+            onBlur={commit}
           />
         </div>
         <div className={s.prev} style={previewStyle(bg, dim)}>

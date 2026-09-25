@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -8,11 +9,14 @@ import s from './Settings.module.css'
 
 export function LanguageSection() {
   const { t } = useTranslation()
-  const lang = useSettings((st) => st.boot.lang)
+  const boot = useSettings((st) => st.boot.lang)
   const save = useSettings((st) => st.save)
+  // Die neue Wahl bleibt sichtbar, während gespeichert und neu geladen wird.
+  const [lang, setLang] = useState<Lang>(boot)
   // Neu laden statt live umschalten: Texte stecken auch in schon gebauten
   // Ansichten und im Server-Prompt — ein frischer Start ist die ehrliche Lösung.
   const change = async (v: Lang) => {
+    setLang(v)
     await save({ lang: v })
     location.reload()
   }

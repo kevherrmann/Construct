@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { apiGet } from '@/lib/api'
+import { useUpdateCard } from '@/stores/updateCard'
 import s from './UpdateCard.module.css'
 
 type StepState = 'idle' | 'run' | 'ok' | 'new' | 'error' | 'skip'
@@ -16,9 +17,6 @@ interface UpdateStatus {
 // Kurz nach dem Laden schneller nachfragen: der Start-Lauf braucht einen
 // Moment, bis er überhaupt als "läuft" erscheint.
 const eagerUntil = Date.now() + 25000
-// Einmal laufen gesehen? Nur dann gibt es etwas zu melden — eine längst
-// abgeschlossene Prüfung soll nicht bei jedem Neuladen wieder auftauchen.
-let seenRunning = false
 
 const NAMES: Record<string, string> = { claude: 'Claude Code', hermes: 'Hermes' }
 const ICON: Record<StepState, string> = {
@@ -35,15 +33,17 @@ const ICON: Record<StepState, string> = {
 // verabschiedet, wenn nichts war.
 export function UpdateCard() {
   const { t } = useTranslation()
-  const [hidden, setHidden] = useState(false)
+  // Einmal laufen gesehen? Nur dann gibt es etwas zu melden — eine längst
+  // abgeschlossene Prüfung soll nicht bei jedem Neuladen wieder auftauchen.
+  const { hidden, seen, hide } = useUpdateCard()
   // Welcher abgeschlossene Lauf schon ausgeblendet wurde (Länge des Logs als Kennung).
   const [fadedAt, setFadedAt] = useState(-1)
   const q = useQuery({
     queryKey: ['updates'],
     queryFn: async () => {
       const d = await apiGet<UpdateStatus>('/api/updates')
-      if (d.running) seenRunning = true
-      return { ...d, seen: seenRunning }
+      if (d.running) useUpdateCard.getState().markSeen()
+      return d
     },
     refetchInterval: (query) =>
       query.state.data?.running ? 1200 : Date.now() < eagerUntil ? 1500 : 60000,
@@ -62,7 +62,7 @@ export function UpdateCard() {
   }, [st?.done, st?.running, st?.changed, bad, runKey])
 
   const faded = !st?.running && fadedAt === runKey
-  if (!st || hidden || faded || !(st.running || (st.seen && st.done))) return null
+  if (!st || hidden || faded || !(st.running || (seen && st.done))) return null
 
   const text = (k: string) => {
     const x = steps[k]!
@@ -86,12 +86,7 @@ export function UpdateCard() {
       <h4>
         <span className={st.running ? s.spin : ''}>{st.running ? '⟳' : bad ? '⚠' : '✓'}</span>
         <span>{title}</span>
-        <button
-          type="button"
-          className={s.x}
-          title={t('ausblenden')}
-          onClick={() => setHidden(true)}
-        >
+        <button type="button" className={s.x} title={t('ausblenden')} onClick={hide}>
           ✕
         </button>
       </h4>

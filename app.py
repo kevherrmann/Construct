@@ -23,7 +23,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Request, Response
-from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 import config as cfg  # Einstellungen der Installation — siehe config.py
@@ -115,11 +115,11 @@ async def basic_auth(request: Request, call_next):
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
-# Neue Oberfläche (React, frontend/ → static/next). Die Assets tragen einen
-# Hash im Namen und dürfen deshalb gecacht werden; index.html liefert next_index().
-NEXT_DIR = STATIC_DIR / "next"
-app.mount("/next/assets", StaticFiles(directory=str(NEXT_DIR / "assets"), check_dir=False),
-          name="next-assets")
+# Oberfläche (React, frontend/ → static/app). Die Assets tragen einen Hash im
+# Namen und dürfen deshalb gecacht werden; index.html liefert index().
+APP_DIR = STATIC_DIR / "app"
+app.mount("/assets", StaticFiles(directory=str(APP_DIR / "assets"), check_dir=False),
+          name="assets")
 
 
 # ---------- Claude-Anmeldung (Status, Web-Login, Nutzungs-Limits) ----------
@@ -1210,31 +1210,25 @@ _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
              "Pragma": "no-cache"}
 
 
+def _app_page() -> HTMLResponse:
+    f = APP_DIR / "index.html"
+    if not f.exists():
+        return HTMLResponse("Oberfläche noch nicht gebaut: cd frontend && npm run build",
+                            status_code=500)
+    return HTMLResponse(_inject_bootstrap(f.read_text(encoding="utf-8")), headers=_NO_CACHE)
+
+
 @app.get("/")
 def index():
-    html = _inject_bootstrap((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
-    # Scripts und Stylesheets mit Stempel: index.html kommt nie aus dem Cache,
-    # die Dateien schon — ohne ?v= sähe man nach einem Update den alten Stand.
-    def _stamp(m):
-        try:
-            v = int((STATIC_DIR / m.group(2)).stat().st_mtime)
-        except OSError:
-            v = 0
-        return f'{m.group(1)}="/static/{m.group(2)}?v={v}"'
-    html = re.sub(r'(src|href)="/static/([\w./-]+\.(?:js|css))"', _stamp, html)
-    return HTMLResponse(html, headers=_NO_CACHE)
+    return _app_page()
 
 
+# Die React-Oberfläche lief während des Umbaus unter /next — alte Lesezeichen
+# und offene Fenster landen jetzt auf der gleichen Seite ohne Präfix.
 @app.get("/next")
-@app.get("/next/{_path:path}")
-def next_index(_path: str = ""):
-    """Neue Oberfläche. Jeder Pfad unter /next bekommt dieselbe Seite — das
-    Routing übernimmt React."""
-    f = NEXT_DIR / "index.html"
-    if not f.exists():
-        return HTMLResponse("Neue Oberfläche noch nicht gebaut: cd frontend && npm run build",
-                            status_code=404)
-    return HTMLResponse(_inject_bootstrap(f.read_text(encoding="utf-8")), headers=_NO_CACHE)
+@app.get("/next/{rest:path}")
+def next_redirect(rest: str = ""):
+    return RedirectResponse("/" + rest, status_code=301)
 
 
 @app.post("/api/upload")
@@ -2449,6 +2443,22 @@ async def _start_scheduler():
     except Exception as e:
         print(f"[updates] Start-Prüfung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
 
+
+
+# ---------- Oberfläche: Direktlinks ----------
+# Jede Ansicht hat eine eigene Adresse (/chat, /calendar, /mail/accounts …);
+# das Routing macht React. Bewusst nur die bekannten Ansichten und ganz am
+# Ende deklariert: ein allgemeiner Platzhalter weiter oben würde die
+# /api-Routen verschlucken, und Tippfehler sollen ein ehrliches 404 bekommen.
+APP_VIEWS = {"chat", "skills", "calendar", "mail", "mcp", "settings"}
+
+
+@app.get("/{view}")
+@app.get("/{view}/{_rest:path}")
+def app_view(view: str, _rest: str = ""):
+    if view not in APP_VIEWS:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return _app_page()
 
 if __name__ == "__main__":
     import uvicorn

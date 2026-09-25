@@ -9,6 +9,14 @@
          Einstellungen). Synchron im <head>, damit die erste Darstellung schon
          stimmt — kein Aufbauen und wieder Wegräumen. -->
     <script>window.CONSTRUCT={};</script>
+    <!-- Theme vor dem ersten Bild setzen — sonst blitzt bei hellen Themes kurz
+         das dunkle Matrix-Grün auf, bis das Modul geladen ist. -->
+    <script>
+      (function () {
+        var t = ((window.CONSTRUCT || {}).settings || {}).theme
+        if (t && t !== 'matrix') document.documentElement.setAttribute('data-theme', t)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
