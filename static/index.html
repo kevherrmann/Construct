@@ -2725,7 +2725,8 @@ async function setSave(patch){
   Object.assign(SETTINGS.background, patch.background||{});
   Object.assign(SETTINGS.names=SETTINGS.names||{}, patch.names||{});
   Object.assign(SETTINGS.updates=SETTINGS.updates||{}, patch.updates||{});
-  Object.assign(SETTINGS.tts=SETTINGS.tts||{}, patch.tts||{});
+  const tp=patch.tts||{};SETTINGS.tts=SETTINGS.tts||{};
+  for(const k in tp)SETTINGS.tts[k]=(tp[k]&&typeof tp[k]==='object')?{...SETTINGS.tts[k],...tp[k]}:tp[k];
   const note=document.getElementById('setSaved');
   try{
     const r=await fetch('/api/settings',{method:'POST',
@@ -2840,8 +2841,8 @@ function renderSettings(){
   <div class="set-sec"><h3>🔊 VORLESEN</h3><div class="set-body">
     <div class="set-d" style="margin-bottom:10px">Antworten per <b>Gemini TTS</b> vorlesen lassen —
       der 🔊 neben dem Namen über jeder Antwort. Braucht einen Gemini-Key
-      (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat.
-      <span style="display:block;margin-top:9px"><button class="set-btn" id="ttsKey">🔑 Gemini-Key eintragen…</button></span></div>
+      (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat.</div>
+    <div style="margin-bottom:10px"><button class="set-btn" id="ttsKey">🔑 Gemini-Key eintragen…</button></div>
     <div class="set-row"><label>
       <input type="checkbox" id="ttsAuto" ${SETTINGS.tts?.auto?'checked':''}>
       <span><span class="set-t">Antworten automatisch vorlesen</span>
@@ -2857,7 +2858,7 @@ function renderSettings(){
         </select></span></span></div>
     <div class="set-row"><span style="flex:1">
       <span class="set-t">Stimme</span>
-      <span class="set-d" id="ttsVoiceInfo">Deutsche Stimmen aus dem Gemini-Katalog.</span>
+      <span class="set-d" id="ttsVoiceInfo">Stimmen aus dem Gemini-Katalog — passend zur Sprache der Oberfläche.</span>
       <span style="display:block;margin-top:9px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
         <select id="ttsVoice" class="set-btn" style="padding:7px 9px;max-width:100%"></select>
         <button class="set-btn" id="ttsTry">▶ Hörprobe</button>
@@ -3248,31 +3249,35 @@ function setupTTS(w){
         voice=w.querySelector('#ttsVoice'),info=w.querySelector('#ttsVoiceInfo'),
         style=w.querySelector('#ttsStyle'),tryB=w.querySelector('#ttsTry'),note=w.querySelector('#ttsNote');
   if(!auto)return;
-  const cur=SETTINGS.tts||{};
+  // Stimme und Sprechweise gelten je Oberflächensprache (config.py).
+  const lang=I18N.lang==='en'?'en':'de', en=lang==='en';
+  const cur=SETTINGS.tts||{}, curVoice=(cur.voice||{})[lang]||'';
   model.value=cur.model||'gemini-3.8-flash-lite-tts';
-  style.value=cur.style||'';
+  style.value=(cur.style||{})[lang]||'';
   const setVoiceOpts=list=>{
-    const have=list.some(v=>v.id===cur.voice);
-    voice.innerHTML=(have||!cur.voice?'':`<option value="${esc(cur.voice)}">${esc(cur.voice)}</option>`)
+    const have=list.some(v=>v.id===curVoice);
+    voice.innerHTML=(have||!curVoice?'':`<option value="${esc(curVoice)}">${esc(curVoice)}</option>`)
       +list.map(v=>`<option value="${esc(v.id)}" title="${esc(v.description||'')}">${esc(v.name)}`
         +[v.gender,v.pitch,v.accent].filter(Boolean).map(x=>' · '+esc(x)).join('')+'</option>').join('');
-    voice.value=cur.voice||list[0]?.id||'';
+    voice.value=curVoice||list[0]?.id||'';
   };
   setVoiceOpts([]);
-  fetch('/api/tts/voices?lang=de-DE').then(r=>r.json()).then(d=>{
+  fetch('/api/tts/voices?lang='+(en?'en-US':'de-DE')).then(r=>r.json()).then(d=>{
     if(d.error){info.textContent='⚠ '+d.error;return;}
-    info.textContent=`${d.voices.length} deutsche Stimmen im Gemini-Katalog.`;
+    info.textContent=en?`${d.voices.length} English (US) voices in the Gemini catalog.`
+                       :`${d.voices.length} deutsche Stimmen im Gemini-Katalog.`;
     setVoiceOpts(d.voices);
   }).catch(()=>{info.textContent='⚠ Stimmenliste nicht abrufbar.';});
   w.querySelector('#ttsKey').onclick=openLlmCfg;
   auto.onchange=()=>setSave({tts:{auto:auto.checked}});
   model.onchange=()=>setSave({tts:{model:model.value}});
-  voice.onchange=()=>{cur.voice=voice.value;setSave({tts:{voice:voice.value}});};
-  style.onchange=()=>setSave({tts:{style:style.value}});
+  voice.onchange=()=>setSave({tts:{voice:{[lang]:voice.value}}});
+  style.onchange=()=>setSave({tts:{style:{[lang]:style.value}}});
   tryB.onclick=async()=>{
     note.textContent='…';note.classList.add('on');
     try{
-      await sayPlay(`Hallo ${USER_NAME||''}, ich bin ${ASSISTANT}. So klinge ich mit dieser Stimme.`,null,
+      await sayPlay(en?`Hi ${USER_NAME||''}, I'm ${ASSISTANT}. This is how I sound with this voice.`
+                      :`Hallo ${USER_NAME||''}, ich bin ${ASSISTANT}. So klinge ich mit dieser Stimme.`,null,
         {voice:voice.value,model:model.value,style:style.value});
       note.classList.remove('on');
     }catch(e){note.textContent='⚠ '+e.message;}

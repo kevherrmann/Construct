@@ -51,9 +51,10 @@ def _call(url: str, body=None, timeout: int = 60) -> dict:
         raise TTSError(f"Gemini nicht erreichbar: {e.reason}") from None
 
 
-def clean_text(text: str) -> str:
+def clean_text(text: str, lang: str = "de") -> str:
     """Markdown raus — sonst liest die Stimme Sternchen und Codeblöcke vor."""
-    t = re.sub(r"```.*?```", " (Codeblock ausgelassen) ", text, flags=re.S)
+    skip = " (code block skipped) " if lang == "en" else " (Codeblock ausgelassen) "
+    t = re.sub(r"```.*?```", skip, text, flags=re.S)
     t = re.sub(r"`([^`]*)`", r"\1", t)
     t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
@@ -72,8 +73,9 @@ def _wav(pcm: bytes, rate: int) -> bytes:
             + b"data" + struct.pack("<I", len(pcm)) + pcm)
 
 
-def synthesize(text: str, model: str, voice: str, style: str = "") -> bytes:
-    text = clean_text(text)
+def synthesize(text: str, model: str, voice: str, style: str = "",
+               lang: str = "de") -> bytes:
+    text = clean_text(text, lang)
     if not text:
         raise TTSError("Nichts zum Vorlesen.")
     part = {"text": text}

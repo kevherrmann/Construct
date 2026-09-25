@@ -56,9 +56,11 @@ DEFAULT_SETTINGS = {
     # construct: CONSTRUCT selbst per git beim Start (selfupdate.py).
     "updates": {"auto": True, "interval_h": 6, "construct": True},
     # Vorlesen über Gemini TTS (tts.py) — nutzt den Gemini-Key aus llm.py.
-    # auto = jede neue Antwort sofort vorlesen, style = Sprechanweisung.
+    # auto = jede neue Antwort sofort vorlesen. Stimme und Sprechanweisung
+    # je Oberflächensprache: eine deutsche Stimme liest Englisch mit Akzent.
     "tts": {"auto": False, "model": "gemini-3.8-flash-lite-tts",
-            "voice": "Kore", "style": ""},
+            "voice": {"de": "de-de-podcaster-3", "en": "en-us-podcaster-6"},
+            "style": {"de": "", "en": ""}},
 }
 
 TTS_MODELS = ("gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts")
@@ -70,11 +72,20 @@ def _clean_tts(src: dict, cur: dict):
         cur["auto"] = bool(src["auto"])
     if src.get("model") in TTS_MODELS:
         cur["model"] = src["model"]
-    if "voice" in src:
-        v = re.sub(r"[^\w.\-]", "", str(src["voice"] or ""))[:80]
-        cur["voice"] = v or DEFAULT_SETTINGS["tts"]["voice"]
-    if "style" in src:
-        cur["style"] = str(src["style"] or "").strip()[:200]
+    voice, style = src.get("voice"), src.get("style")
+    # Frühe Fassung speicherte eine einzelne Stimme — die gehört zur Sprache
+    # ihres Kürzels (de-de-…, en-us-…), die Sprechanweisung dann zu Deutsch.
+    if isinstance(voice, str):
+        voice = {"en" if voice.lower().startswith("en-") else "de": voice}
+    if isinstance(style, str):
+        style = {"de": style}
+    for lang, v in (voice or {}).items() if isinstance(voice, dict) else ():
+        if lang in LANGS:
+            v = re.sub(r"[^\w.\-]", "", str(v or ""))[:80]
+            cur["voice"][lang] = v or DEFAULT_SETTINGS["tts"]["voice"][lang]
+    for lang, v in (style or {}).items() if isinstance(style, dict) else ():
+        if lang in LANGS:
+            cur["style"][lang] = str(v or "").strip()[:200]
 
 
 def _clean_name(v, fallback: str = "") -> str:

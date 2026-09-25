@@ -436,12 +436,26 @@ var EN = {
   "Alibaba Qwen 3.5 — aktuelle Generation, multimodal": "Alibaba Qwen 3.5 — current generation, multimodal",
   "Qwen 3.5, klein & flott": "Qwen 3.5, small & quick",
   "DeepSeek R1 (destilliert) — Reasoning-Modell, denkt sichtbar nach": "DeepSeek R1 (distilled) — reasoning model, thinks visibly",
-  "Mistral 7B — schneller Klassiker aus Frankreich": "Mistral 7B — fast classic from France"
+  "Mistral 7B — schneller Klassiker aus Frankreich": "Mistral 7B — fast classic from France",
+  "E-Mail-Konten": "E-mail accounts", "Aktualisierung": "Updates",
+  "🔊 VORLESEN": "🔊 READ ALOUD", "Vorlesen": "Read aloud",
+  "🔑 Gemini-Key eintragen…": "🔑 Enter Gemini key…",
+  "Antworten automatisch vorlesen": "Read replies aloud automatically",
+  "Jede fertige Antwort im offenen Chat wird sofort gesprochen.": "Every finished reply in the open chat is spoken right away.",
+  "Modell": "Model", "Stimme": "Voice", "Sprechweise": "Speaking style",
+  "▶ Hörprobe": "▶ Preview", "leer = natürlich": "empty = natural",
+  "Stimmen aus dem Gemini-Katalog — passend zur Sprache der Oberfläche.": "Voices from the Gemini catalog — matching the interface language.",
+  "⚠ Stimmenliste nicht abrufbar.": "⚠ Couldn't load the voice list.",
+  "Optionale Regieanweisung, z. B. „locker und freundlich, etwas zügig“.": "Optional direction, e.g. “relaxed and friendly, a bit brisk”."
 };
 
 // Ganze Absätze mit Auszeichnung. Schlüssel = Klartext des Elements
 // (Leerraum zusammengefasst), Wert = englisches HTML.
 var HTML = {
+  "Antworten per Gemini TTS vorlesen lassen — der 🔊 neben dem Namen über jeder Antwort. Braucht einen Gemini-Key (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat.":
+    "Have replies read aloud via <b>Gemini TTS</b> — the 🔊 next to the name above every reply. Needs a Gemini key (free at aistudio.google.com/apikey) — the same one as for Gemini chat.",
+  "Flash-Lite ist schneller und schont das Kontingent, Flash klingt ausdrucksstärker.":
+    "<b>Flash-Lite</b> is faster and saves quota, <b>Flash</b> sounds more expressive.",
   "In Telegram bei @BotFather: /newbot → Namen vergeben → Token kopieren.":
     "In Telegram, open <b>@BotFather</b>: <code>/newbot</code> → choose a name → copy the token.",
   "Neben Claude Code kannst du hier weitere Anbieter hinterlegen — ChatGPT, Gemini, DeepSeek, lokale Ollama-Modelle oder jede andere OpenAI-kompatible API. Sie laufen über Hermes und können damit ebenfalls Dateien und Terminal. Auswahl danach unten links über 🧠.":

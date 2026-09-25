@@ -946,13 +946,14 @@ async def tts_speak(req: Request):
     """Text → WAV. Stimme/Modell aus den Einstellungen, einzeln überschreibbar
     (für die Hörprobe im Einstellungsdialog)."""
     body = await req.json()
-    conf = cfg.load_settings()["tts"]
+    st = cfg.load_settings()
+    conf, lang = st["tts"], st["lang"]
     model = body.get("model") if body.get("model") in cfg.TTS_MODELS else conf["model"]
-    voice = re.sub(r"[^\w.\-]", "", str(body.get("voice") or "")) or conf["voice"]
-    style = str(body.get("style") if "style" in body else conf["style"])[:200]
+    voice = re.sub(r"[^\w.\-]", "", str(body.get("voice") or "")) or conf["voice"][lang]
+    style = str(body.get("style") if "style" in body else conf["style"][lang])[:200]
     try:
         wav = await asyncio.to_thread(ttsmod.synthesize, str(body.get("text") or ""),
-                                      model, voice, style)
+                                      model, voice, style, lang)
     except ttsmod.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return Response(wav, media_type="audio/wav")
