@@ -7,6 +7,7 @@ import { initI18n } from '@/lib/i18n'
 import { applyPlasma, applyTheme } from '@/lib/themes'
 import { useSettings } from '@/stores/settings'
 import { installExternalLinkHandler } from '@/lib/externalLinks'
+import { applyFont } from '@/lib/fonts'
 import { fxLevel } from '@/lib/fx'
 import './styles/global.css'
 
@@ -14,6 +15,7 @@ const { boot } = useSettings.getState()
 initI18n(boot.lang)
 applyTheme(boot.settings.theme)
 applyPlasma(boot.settings.plasma)
+applyFont(boot.settings.font)
 installExternalLinkHandler()
 document.body.classList.toggle('fx-off', fxLevel() === 'off')
 

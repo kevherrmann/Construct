@@ -9,6 +9,8 @@ export interface Settings {
   theme: ThemeName
   /** Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt. */
   plasma: boolean
+  /** Schrift (lib/fonts.ts); "" = automatisch. */
+  font: string
   lang: Lang
   names: { user: string; assistant: string }
   avatars: { user: string; assistant: string }
@@ -44,6 +46,7 @@ declare global {
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'matrix',
   plasma: false,
+  font: '',
   lang: 'en',
   names: { user: '', assistant: 'Cody' },
   avatars: { user: '', assistant: '' },

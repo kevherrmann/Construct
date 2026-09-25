@@ -1,3 +1,4 @@
+import { FONTS } from '@/lib/fonts'
 import { fxLevel } from '@/lib/fx'
 import { webgl2 } from '@/lib/plasma'
 import { useEffect, useRef, useState } from 'react'
@@ -14,6 +15,7 @@ export function ThemeSection() {
   const { t } = useTranslation()
   const theme = useSettings((st) => st.settings.theme || 'matrix')
   const plasma = useSettings((st) => st.settings.plasma)
+  const font = useSettings((st) => st.settings.font ?? '')
   const save = useSettings((st) => st.save)
   // Ohne WebGL2 (oder im Sparmodus) gibt es die Glas-Optik trotzdem, nur
   // ohne Flüssigkeit — das soll man vorher wissen.
@@ -56,6 +58,34 @@ export function ThemeSection() {
               {theme === th.key && <b>{t('AKTIV')}</b>}
             </span>
             <span className={s.thDesc}>{t(th.description)}</span>
+          </button>
+        ))}
+      </div>
+      {/* Schrift: jede Karte zeigt sich in ihrer eigenen Schrift. */}
+      <div className={s.fontHead}>{t('SCHRIFT')}</div>
+      <div className={s.fontGrid}>
+        {[
+          {
+            key: '',
+            name: t('Automatisch'),
+            family: '',
+            description: t('Terminal-Schrift klassisch, Inter mit Plasma.'),
+          },
+          ...FONTS,
+        ].map((f) => (
+          <button
+            type="button"
+            key={f.key || 'auto'}
+            className={`${s.fontCard} ${font === f.key ? s.on : ''}`}
+            style={f.family ? { fontFamily: f.family } : undefined}
+            onClick={() => void save({ font: f.key })}
+          >
+            <span className={s.fontSample}>Aa</span>
+            <span className={s.thName}>
+              {f.name}
+              {font === f.key && <b>{t('AKTIV')}</b>}
+            </span>
+            <span className={s.thDesc}>{t(f.description)}</span>
           </button>
         ))}
       </div>

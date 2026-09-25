@@ -27,6 +27,9 @@ OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
 # "plasma" = das bewegte Plasma-Feld — nur mit eingeschaltetem Plasma sinnvoll,
 # ohne Plasma zeigt die Oberfläche dafür den Regen.
 BG_MODES = ("matrix", "image", "plain", "plasma")
+# Schriften, die das Frontend mitbringt (frontend/src/lib/fonts.ts).
+# "" = automatisch: Terminal-Schrift klassisch, Inter mit Plasma.
+FONTS = ("", "share-tech-mono", "jetbrains-mono", "ibm-plex-mono", "space-grotesk", "exo-2", "inter")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
 THEMES = ("matrix", "bernstein", "eis", "space", "asche", "blut", "papier", "nebel")
@@ -38,6 +41,7 @@ DEFAULT_SETTINGS = {
     "theme": "matrix",
     # Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt, gilt für alle Themes.
     "plasma": False,
+    "font": "",
     "lang": "en",
     # Leerer Nutzername = neutrale Anrede. Ein voreingestellter Vorname wäre in
     # einem Repository, das andere klonen, schlicht der falsche Mensch.
@@ -123,6 +127,8 @@ def load_settings() -> dict:
         out["theme"], out["plasma"] = "space", True
     if "plasma" in raw:
         out["plasma"] = bool(raw["plasma"])
+    if raw.get("font") in FONTS:
+        out["font"] = raw["font"]
     if raw.get("lang") in LANGS:
         out["lang"] = raw["lang"]
     h = raw.get("hermes") or {}
@@ -165,6 +171,8 @@ def apply_patch(patch: dict) -> dict:
         cur["theme"] = patch["theme"]
     if "plasma" in patch:
         cur["plasma"] = bool(patch["plasma"])
+    if patch.get("font") in FONTS:
+        cur["font"] = patch["font"]
     if patch.get("lang") in LANGS:
         cur["lang"] = patch["lang"]
     h = patch.get("hermes") or {}

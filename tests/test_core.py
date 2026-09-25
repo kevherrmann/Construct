@@ -61,3 +61,10 @@ def test_altes_plasma_theme_wird_umgestellt(tmp_path, monkeypatch):
 def test_hintergrund_plasma_feld(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
     assert config.apply_patch({"background": {"mode": "plasma"}})["background"]["mode"] == "plasma"
+
+
+def test_schriftwahl(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    assert config.apply_patch({"font": "jetbrains-mono"})["font"] == "jetbrains-mono"
+    assert config.apply_patch({"font": "comic-sans"})["font"] == "jetbrains-mono"
+    assert config.apply_patch({"font": ""})["font"] == ""

@@ -189,7 +189,7 @@
   border-radius: 14px;
   border-color: rgba(var(--accent-rgb), 0.18);
   background: var(--field);
-  color: var(--text);
+  color: var(--green);
 }
 :global(html[data-plasma]) .send {
   border-radius: 14px;

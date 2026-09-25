@@ -343,3 +343,27 @@ select.btn {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+
+/* Schrift-Auswahl unter den Farbwelten: Karten wie die Farbwelten, jede in
+   ihrer eigenen Schrift gesetzt. */
+.fontHead {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+}
+.fontGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 9px;
+}
+.fontCard {
+  composes: th;
+}
+.fontSample {
+  display: block;
+  font-size: 26px;
+  line-height: 1.1;
+  margin-bottom: 6px;
+  color: var(--green);
+}

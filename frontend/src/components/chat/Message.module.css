@@ -365,7 +365,6 @@
 /* ---------- Plasma: Glas-Blasen ---------- */
 :global(html[data-plasma]) .bubble {
   border-radius: 20px;
-  color: var(--text);
   background: rgba(255, 255, 255, 0.055);
   border-color: rgba(var(--accent-rgb), 0.18);
   backdrop-filter: blur(14px);
