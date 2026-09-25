@@ -1,5 +1,9 @@
 """HTTP-Ebene: Routen, Auslieferung der Oberfläche, Passwortschutz."""
-import app as appmod
+from starlette.websockets import WebSocketDisconnect
+
+from server import core
+from server import stt as sttmod
+from server.gemini import GeminiError
 
 
 def test_version(client):
@@ -35,8 +39,32 @@ def test_api_routen_werden_nicht_von_direktlinks_verschluckt(client):
 
 
 def test_passwortschutz(client, monkeypatch):
-    monkeypatch.setattr(appmod, "AUTH_PASS", "geheim")
+    monkeypatch.setattr(core, "AUTH_PASS", "geheim")
     assert client.get("/api/version").status_code == 401
-    ok = client.get("/api/version", auth=(appmod.AUTH_USER, "geheim"))
+    ok = client.get("/api/version", auth=(core.AUTH_USER, "geheim"))
     assert ok.status_code == 200
-    assert client.get("/api/version", auth=(appmod.AUTH_USER, "falsch")).status_code == 401
+    assert client.get("/api/version", auth=(core.AUTH_USER, "falsch")).status_code == 401
+
+
+def _ws_abgelehnt(client, **kw):
+    try:
+        with client.websocket_connect("/api/stt/live", **kw):
+            return False
+    except WebSocketDisconnect as e:
+        return e.code == 1008
+
+
+def test_spracheingabe_nur_von_hier_und_mit_passwort(client, monkeypatch):
+    # WebSockets laufen an der HTTP-Middleware vorbei — die Route prüft selbst.
+    assert _ws_abgelehnt(client, headers={"origin": "https://fremde-seite.example"})
+    monkeypatch.setattr(core, "AUTH_PASS", "geheim")
+    assert _ws_abgelehnt(client, headers={"origin": "http://127.0.0.1:8765"})
+
+
+def test_spracheingabe_ohne_key_meldet_sich_verstaendlich(client, monkeypatch):
+    def kein_key():
+        raise GeminiError("Kein Gemini-Key hinterlegt")
+    monkeypatch.setattr(sttmod, "api_key", kein_key)
+    with client.websocket_connect("/api/stt/live",
+                                  headers={"origin": "http://localhost:5173"}) as ws:
+        assert ws.receive_json() == {"error": "Kein Gemini-Key hinterlegt"}

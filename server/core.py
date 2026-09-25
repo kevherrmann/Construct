@@ -1,9 +1,11 @@
 """Grundlagen für alle Teile: Pfade, Arbeitsordner, Version, Persona,
 Aufruf des claude-CLI, SSE-Hilfen.
 """
+import base64
 import json
 import os
 import re
+import secrets
 import shutil
 import time
 from pathlib import Path
@@ -45,13 +47,28 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "5.1.0"
+VERSION = "5.2.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
 AUTH_USER = os.environ.get("MATRIX_USER", "Cody")
 
 AUTH_PASS = os.environ.get("MATRIX_PASS", "")
+
+
+def auth_ok(header: str) -> bool:
+    """Passt der Authorization-Header ("Basic …")? Ohne MATRIX_PASS immer ja."""
+    if not AUTH_PASS:
+        return True
+    if not header.startswith("Basic "):
+        return False
+    try:
+        user, _, pw = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+    except Exception:
+        return False
+    # konstante Laufzeit -> kein Timing-Leak
+    return secrets.compare_digest(user, AUTH_USER) and secrets.compare_digest(pw, AUTH_PASS)
+
 
 def load_persona() -> str:
     """SOUL.md + USER.md als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""

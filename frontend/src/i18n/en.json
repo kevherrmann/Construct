@@ -284,7 +284,6 @@
   "Archiv": "Archive",
   "archivieren": "archive",
   "Asche": "Ash",
-  "Aufnahme beenden (Esc = verwerfen)": "Stop recording (Esc = discard)",
   "aus": "off",
   "aus Archiv holen": "restore from archive",
   "aus der Umgebung (TELEGRAM_TOKEN)": "from the environment (TELEGRAM_TOKEN)",
@@ -641,7 +640,6 @@
   "SPEICHERN & TESTEN": "SAVE & TEST",
   "Sprache": "Language",
   "Sprache der Oberfläche und des Assistenten. Die Seite lädt danach neu.": "Language of the interface and the assistant. The page reloads afterwards.",
-  "Spracheingabe — klicken, sprechen, nochmal klicken": "Voice input — click, speak, click again",
   "Sprechweise": "Speaking style",
   "Sprich mit {a} von unterwegs — per Text oder Sprachnachricht. Dazu Erinnerungen an Termine, eine Meldung, wenn ein langer Lauf fertig ist, und geplante Aufgaben aus dem Kalender. Läuft nur, solange CONSTRUCT läuft.": "Talk to {a} on the go — by text or voice message. Plus reminders for events, a message when a long run finishes, and scheduled tasks from the calendar. Only works while CONSTRUCT is running.",
   "Standard": "Default",
@@ -716,5 +714,11 @@
   "zuletzt vor": "last checked",
   "zuletzt vor {n} h geprüft": "last checked {n} h ago",
   "zuletzt vor {n} min geprüft": "last checked {n} min ago",
-  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history."
+  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history.",
+  "Diktat beenden (Enter) · Esc = verwerfen": "Stop dictation (Enter) · Esc = discard",
+  "Spracheingabe — klicken und sprechen, der Text erscheint gleich im Feld": "Voice input — click and speak, the text appears in the field right away",
+  "Verbindung zur Spracheingabe abgebrochen": "Connection to voice input lost",
+  "Gemini-Key ungültig — unter ⚙ Einstellungen prüfen.": "Gemini key invalid — check it under ⚙ Settings.",
+  "Gemini nicht erreichbar.": "Gemini unreachable.",
+  "Gemini-Kontingent erschöpft — kurz warten oder morgen wieder.": "Gemini quota used up — wait a moment or try again tomorrow."
 }

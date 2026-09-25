@@ -8,19 +8,20 @@ import shutil
 import subprocess
 import threading
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, Request, Response, UploadFile
+from fastapi import APIRouter, Request, Response, WebSocket
 from fastapi.responses import JSONResponse
 
 from server import config as cfg
 from server import hermes as hermesmod
 from server import telegram_bot as tgmod
 from server import stt as sttmod
-from server.gemini import GeminiError
 from server import tts as ttsmod
 from server import updates as updmod
 
-from server.core import BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, claude_bin
+from server.core import (BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, auth_ok,
+                         claude_bin)
 from server.runs import RUNS
 
 router = APIRouter()
@@ -199,16 +200,30 @@ async def tts_speak(req: Request):
     return Response(wav, media_type="audio/wav")
 
 
-@router.post("/api/stt")
-async def stt_transcribe(file: UploadFile = File(...)):
-    """Sprachaufnahme → Text (Gemini 3.5 Transcribe). Sprache der Oberfläche als Hinweis."""
-    audio = await file.read(sttmod.MAX_BYTES + 1)
+def _same_origin(ws: WebSocket) -> bool:
+    """WebSockets kennen keine Same-Origin-Policy: sonst könnte jede Webseite,
+    die man gerade offen hat, über localhost das Mikrofon-Diktat (und damit den
+    Gemini-Key) mitbenutzen. Erlaubt: gleiche Adresse oder localhost (Vite)."""
+    origin = ws.headers.get("origin")
+    if not origin:
+        return True  # kein Browser
+    netloc = urlsplit(origin).netloc
+    host = urlsplit(origin).hostname or ""
+    return netloc == ws.headers.get("host") or host in ("localhost", "127.0.0.1", "::1")
+
+
+@router.websocket("/api/stt/live")
+async def stt_live(ws: WebSocket):
+    """Spracheingabe live (Gemini 3.5 Transcribe Live) — Ablauf in server/stt.py."""
+    if not (_same_origin(ws) and auth_ok(ws.headers.get("authorization", ""))):
+        await ws.close(code=1008)
+        return
+    await ws.accept()
+    await sttmod.live(ws, cfg.load_settings()["lang"])
     try:
-        text = await asyncio.to_thread(sttmod.transcribe, audio, file.content_type or "",
-                                       cfg.load_settings()["lang"])
-    except GeminiError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-    return {"text": text}
+        await ws.close()
+    except Exception:
+        pass
 
 
 @router.get("/api/tts/voices")

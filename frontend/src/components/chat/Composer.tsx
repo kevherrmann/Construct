@@ -1,4 +1,4 @@
-import { canRecord, startRecording, transcribe, type Recording } from '@/lib/recorder'
+import { canDictate, startDictation, type Dictation } from '@/lib/dictation'
 import { trServer } from '@/lib/serverText'
 import { Surface } from '@/components/layout/Surface'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -41,13 +41,15 @@ export function Composer() {
   const [text, setText] = useState('')
   const [picker, setPicker] = useState<PickerName | null>(null)
   const [dragging, setDragging] = useState(false)
-  // Spracheingabe: Aufnahme läuft (Sekunden) bzw. wird gerade umgewandelt.
+  // Spracheingabe: Diktat läuft (Sekunden) bzw. der Rest kommt noch nach.
   const [rec, setRec] = useState<{ state: 'idle' | 'recording' | 'working'; secs: number }>({
     state: 'idle',
     secs: 0,
   })
   const [micError, setMicError] = useState('')
-  const recording = useRef<Recording | null>(null)
+  const dictation = useRef<Dictation | null>(null)
+  // Eingabetext vor dem Diktat — das Gesprochene wird dahinter geschrieben.
+  const base = useRef('')
   const input = useRef<HTMLTextAreaElement>(null)
   const file = useRef<HTMLInputElement>(null)
   const providers = useProviders()
@@ -119,14 +121,19 @@ export function Composer() {
     }
   }, [addFiles, addPending])
 
-  // Erkannten Text ans Eingabefeld anhängen — nicht gleich senden: man soll
-  // vorher noch korrigieren können.
-  const insertText = (said: string) => {
-    if (!said) return
-    setText((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')} ${said}` : said))
+  // Das Gesprochene erscheint schon während des Sprechens im Eingabefeld,
+  // hinter dem, was vorher drinstand. Gesendet wird nicht — man soll noch
+  // korrigieren können.
+  const withSpoken = (spoken: string) => {
+    const before = base.current
+    if (!spoken) return before
+    return before.trim() ? `${before.replace(/\s+$/, '')} ${spoken}` : spoken
+  }
+  const showSpoken = (spoken: string) => {
+    setText(withSpoken(spoken))
     requestAnimationFrame(() => {
-      autosize()
-      input.current?.focus()
+      const el = input.current
+      if (el) el.scrollTop = el.scrollHeight
     })
   }
 
@@ -137,21 +144,25 @@ export function Composer() {
 
   const toggleMic = async () => {
     if (rec.state === 'working') return
-    if (rec.state === 'recording' && recording.current) {
-      const r = recording.current
-      recording.current = null
+    if (rec.state === 'recording' && dictation.current) {
+      const d = dictation.current
+      dictation.current = null
       setRec({ state: 'working', secs: 0 })
-      try {
-        insertText(await transcribe(await r.stop()))
-      } catch (e) {
-        showMicError(trServer((e as Error).message))
-      } finally {
-        setRec({ state: 'idle', secs: 0 })
-      }
+      showSpoken(await d.stop())
+      setRec({ state: 'idle', secs: 0 })
+      requestAnimationFrame(() => input.current?.focus())
       return
     }
+    base.current = text
     try {
-      recording.current = await startRecording()
+      dictation.current = await startDictation({
+        onText: showSpoken,
+        onError: (msg) => {
+          dictation.current = null
+          setRec({ state: 'idle', secs: 0 })
+          showMicError(trServer(msg))
+        },
+      })
       setRec({ state: 'recording', secs: 0 })
     } catch (e) {
       const name = (e as Error).name
@@ -164,33 +175,40 @@ export function Composer() {
       )
     }
   }
+  const cancelMic = () => {
+    dictation.current?.cancel()
+    dictation.current = null
+    setText(base.current)
+    setRec({ state: 'idle', secs: 0 })
+  }
 
-  // Sekunden zählen; nach 5 Minuten von selbst beenden (Größengrenze der API).
+  // Sekunden zählen; kurz vor dem 10-Minuten-Limit der Live-API von selbst
+  // beenden.
   useEffect(() => {
     if (rec.state !== 'recording') return
     const id = setInterval(() => setRec((r) => ({ ...r, secs: r.secs + 1 })), 1000)
     return () => clearInterval(id)
   }, [rec.state])
   const toggleRef = useRef(toggleMic)
+  const cancelRef = useRef(cancelMic)
   useEffect(() => {
     toggleRef.current = toggleMic
+    cancelRef.current = cancelMic
   })
   useEffect(() => {
-    if (rec.state === 'recording' && rec.secs >= 300) void toggleRef.current()
+    if (rec.state === 'recording' && rec.secs >= 570) void toggleRef.current()
   }, [rec.state, rec.secs])
-  // Esc bricht eine laufende Aufnahme ab; beim Verlassen ebenso.
+  // Esc verwirft ein laufendes Diktat (das Eingabefeld ist wie vorher);
+  // beim Verlassen ebenso.
   useEffect(() => {
     if (rec.state !== 'recording') return
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      recording.current?.cancel()
-      recording.current = null
-      setRec({ state: 'idle', secs: 0 })
+      if (e.key === 'Escape') cancelRef.current()
     }
     addEventListener('keydown', key)
     return () => removeEventListener('keydown', key)
   }, [rec.state])
-  useEffect(() => () => recording.current?.cancel(), [])
+  useEffect(() => () => dictation.current?.cancel(), [])
 
   const submit = () => {
     const msg = text.trim()
@@ -260,14 +278,14 @@ export function Composer() {
         >
           ⧉
         </button>
-        {canRecord() && (
+        {canDictate() && (
           <button
             type="button"
             className={`${s.attach} ${rec.state === 'recording' ? s.recording : ''}`}
             title={
               rec.state === 'recording'
-                ? t('Aufnahme beenden (Esc = verwerfen)')
-                : t('Spracheingabe — klicken, sprechen, nochmal klicken')
+                ? t('Diktat beenden (Enter) · Esc = verwerfen')
+                : t('Spracheingabe — klicken und sprechen, der Text erscheint gleich im Feld')
             }
             onClick={() => void toggleMic()}
           >
@@ -283,12 +301,16 @@ export function Composer() {
           className={s.input}
           rows={1}
           value={text}
+          readOnly={rec.state !== 'idle'}
           placeholder={t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
-              submit()
+              // Während des Diktats beendet Enter nur das Diktat — gesendet
+              // wird erst mit dem nächsten Enter, nach einem Blick auf den Text.
+              if (rec.state === 'recording') void toggleMic()
+              else if (rec.state === 'idle') submit()
             }
           }}
           onPaste={(e) => {

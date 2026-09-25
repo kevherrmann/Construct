@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.2.0 — 2026-09-25
+
+### Changed
+- **Voice input writes live.** The text now appears in the message field
+  while you speak (Gemini 3.5 Transcribe Live over a WebSocket, the key stays
+  on the server) instead of only after you stop. Each sentence is cleaned up
+  after the pause — filler words disappear. Enter ends dictation, Esc discards
+  it and restores the field; up to 9½ minutes per dictation.
+- The WebSocket checks password protection and origin itself (HTTP middleware
+  does not cover WebSockets).
+
 ## 5.1.0 — 2026-09-25
 
 ### New

@@ -10,9 +10,7 @@ Router, Start und Stopp. Die Logik liegt im Paket server/ — die HTTP-Routen
 in server/routes/, ein Modul je Bereich.
 """
 import asyncio
-import base64
 import os
-import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -23,8 +21,8 @@ from server import llm as llmmod
 from server import telegram_bot as tgmod
 from server import updates as updmod
 
-from server.core import (APP_DIR, AUTH_PASS, AUTH_USER, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
-                         claude_bin, claude_env, load_persona)
+from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
+                         auth_ok, claude_bin, claude_env, load_persona)
 from server.scheduler import scheduler_loop
 from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, ui
 
@@ -54,19 +52,10 @@ app = FastAPI(title="CONSTRUCT", lifespan=lifespan)
 
 @app.middleware("http")
 async def basic_auth(request: Request, call_next):
-    """HTTP-Basic-Auth vor ALLEM — aber nur wenn ein Passwort konfiguriert ist."""
-    if AUTH_PASS:
-        ok = False
-        header = request.headers.get("Authorization", "")
-        if header.startswith("Basic "):
-            try:
-                user, _, pw = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-                # konstante Laufzeit -> kein Timing-Leak
-                ok = secrets.compare_digest(user, AUTH_USER) and secrets.compare_digest(pw, AUTH_PASS)
-            except Exception:
-                ok = False
-        if not ok:
-            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
+    """HTTP-Basic-Auth vor ALLEM — aber nur wenn ein Passwort konfiguriert ist.
+    WebSockets laufen an Middleware vorbei und prüfen selbst (auth_ok)."""
+    if not auth_ok(request.headers.get("Authorization", "")):
+        return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
     return await call_next(request)
 
 
