@@ -327,8 +327,12 @@ export function Composer() {
             // dann holt desktop.py sie direkt aus der Zwischenablage. Nur wenn
             // kein Text drin ist: Zellen aus Calc & Co. liegen zusätzlich als
             // Bild in der Ablage, da soll der Text kommen, kein Anhang.
+            // Auf den Inhalt prüfen, nicht auf types: übernimmt Klipper (KDE)
+            // die Ablage, fehlt dort 'text/plain', der Text ist aber lesbar.
             const api = window.pywebview?.api
-            if (api?.paste_image && !e.clipboardData.types.includes('text/plain')) {
+            const cd = e.clipboardData
+            const hasText = !!(cd.getData('text/plain') || cd.getData('text/html'))
+            if (api?.paste_image && !hasText) {
               e.preventDefault()
               void api.paste_image().then((a) => a && addPending(a))
             }
