@@ -33,13 +33,19 @@ def call(path: str, body=None, timeout: int = 60, what: str = "Gemini") -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", "replace")
         try:
-            msg = json.loads(e.read()).get("error", {}).get("message", "")
+            msg = json.loads(raw).get("error", {}).get("message", "")
         except Exception:
             msg = ""
         if e.code == 429:
+            if "PerDay" in raw:  # z. B. GenerateRequestsPerDayPerProjectPerModel-FreeTier
+                raise GeminiError(f"{what}: Tageskontingent des Gemini-Keys "
+                                  "aufgebraucht — morgen wieder.") from None
             raise GeminiError("Gemini-Kontingent erschöpft — kurz warten oder "
                               "morgen wieder.") from None
         raise GeminiError(f"{what}: {msg or e.reason} ({e.code})") from None
     except urllib.error.URLError as e:
         raise GeminiError(f"Gemini nicht erreichbar: {e.reason}") from None
+    except TimeoutError:
+        raise GeminiError(f"{what}: keine Antwort nach {timeout} s.") from None

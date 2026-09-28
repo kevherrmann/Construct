@@ -329,9 +329,15 @@ export function Composer() {
             // Bild in der Ablage, da soll der Text kommen, kein Anhang.
             // Auf den Inhalt prüfen, nicht auf types: übernimmt Klipper (KDE)
             // die Ablage, fehlt dort 'text/plain', der Text ist aber lesbar.
+            // HTML zählt nur mit sichtbarem Text: "Bild kopieren" im Browser
+            // legt neben dem Bild ein bloßes <img> als text/html ab.
             const api = window.pywebview?.api
             const cd = e.clipboardData
-            const hasText = !!(cd.getData('text/plain') || cd.getData('text/html'))
+            const html = cd.getData('text/html')
+            const htmlText = html
+              ? new DOMParser().parseFromString(html, 'text/html').body.textContent
+              : ''
+            const hasText = !!(cd.getData('text/plain').trim() || htmlText?.trim())
             if (api?.paste_image && !hasText) {
               e.preventDefault()
               void api.paste_image().then((a) => a && addPending(a))

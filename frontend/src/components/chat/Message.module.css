@@ -62,6 +62,13 @@
 .say:hover {
   opacity: 1;
 }
+.sayErr {
+  color: var(--err, #ff6b6b);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  padding-left: 6px;
+}
 .sayOn {
   opacity: 1;
   animation: sayPulse 1s infinite;

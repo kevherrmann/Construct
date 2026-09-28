@@ -40,14 +40,17 @@ function SayButton({ id, text }: { id: string; text: () => string }) {
   const err = error?.owner === id ? trServer(error.message) : null
   const click = () => (mine ? stopSay() : void say(text(), { owner: id }).catch(() => {}))
   return (
-    <button
-      type="button"
-      className={`${s.say} ${mine ? s.sayOn : ''}`}
-      title={err ?? t('Vorlesen')}
-      onClick={click}
-    >
-      {err ? '⚠' : mine ? (phase === 'loading' ? '⏳' : '⏹') : '🔊'}
-    </button>
+    <>
+      <button
+        type="button"
+        className={`${s.say} ${mine ? s.sayOn : ''}`}
+        title={err ?? t('Vorlesen')}
+        onClick={click}
+      >
+        {err ? '⚠' : mine ? (phase === 'loading' ? '⏳' : '⏹') : '🔊'}
+      </button>
+      {err && <span className={s.sayErr}>{err}</span>}
+    </>
   )
 }
 

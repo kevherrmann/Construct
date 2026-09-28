@@ -17,6 +17,7 @@ KEIN zweiter Server gestartet — das Fenster hängt sich an die laufende an.
 """
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -240,6 +241,22 @@ def browser_fallback(grund: str) -> None:
     idle()
 
 
+def _open_browser(url: str) -> None:
+    """Systembrowser öffnen, ohne unsere Fenster-Einstellungen zu vererben.
+
+    Startet der Link den Browser, erbt er sonst GDK_BACKEND=x11: Firefox lief
+    dann über XWayland ohne Grafikkarte, und schon YouTube ruckelte.
+    """
+    ours = os.environ.get("CODY_SET_GDK_BACKEND") == "1"  # von spawn_window
+    if not (ours and shutil.which("xdg-open")):
+        webbrowser.open(url)
+        return
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("GDK_BACKEND", "CODY_SET_GDK_BACKEND")}
+    subprocess.Popen(["xdg-open", url], env=env, start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 class _Bridge:
     """Wird dem Frontend als window.pywebview.api bereitgestellt.
 
@@ -253,7 +270,7 @@ class _Bridge:
         # hier nichts verloren.
         if not isinstance(url, str) or not url.lower().startswith(("http://", "https://")):
             return False
-        webbrowser.open(url)
+        _open_browser(url)
         return True
 
     def paste_image(self):
@@ -434,6 +451,7 @@ def spawn_window(backend: str) -> int:
     env = dict(os.environ)
     if backend:
         env["GDK_BACKEND"] = backend
+        env["CODY_SET_GDK_BACKEND"] = "1"
     return subprocess.call(
         [sys.executable, str(Path(__file__).resolve()), "--window-only"], env=env
     )

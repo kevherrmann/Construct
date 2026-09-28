@@ -720,6 +720,8 @@
   "Gemini-Key ungültig — unter ⚙ Einstellungen prüfen.": "Gemini key invalid — check it under ⚙ Settings.",
   "Gemini nicht erreichbar.": "Gemini unreachable.",
   "Gemini-Kontingent erschöpft — kurz warten oder morgen wieder.": "Gemini quota used up — wait a moment or try again tomorrow.",
+  "Tageskontingent des Gemini-Keys aufgebraucht — morgen wieder.": "daily quota of the Gemini key used up — try again tomorrow.",
+  "keine Antwort nach": "no response after",
   "Rundes Glas-Design": "Rounded glass design",
   "Weiche, runde Glasflächen statt kantiger Kästen, dazu ein ruhiger Farbverlauf im Hintergrund. Das flüssige Plasma braucht Grafikbeschleunigung, die hier fehlt.": "Soft, rounded glass panels instead of sharp boxes, with a calm color gradient in the background. Liquid plasma needs graphics acceleration, which is missing here."
 }

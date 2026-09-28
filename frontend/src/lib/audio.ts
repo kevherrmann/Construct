@@ -16,7 +16,7 @@ export interface TtsOptions {
 export interface SayState {
   owner: string | null
   phase: 'idle' | 'loading' | 'playing'
-  /** Letzter Fehler, 3 s lang — so zeigt auch automatisches Vorlesen ⚠ am Knopf. */
+  /** Letzter Fehler, 10 s lang — so zeigt auch automatisches Vorlesen ⚠ am Knopf. */
   error: { owner: string; message: string } | null
 }
 
@@ -85,7 +85,7 @@ export async function say(text: string, opts: TtsOptions & { owner?: string } = 
       set({ ...state, error: err })
       setTimeout(() => {
         if (state.error === err) set({ ...state, error: null })
-      }, 3000)
+      }, 10000)
     }
     throw e
   }

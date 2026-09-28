@@ -2,6 +2,22 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.4.3 — 2026-09-28
+
+### Fixed
+- **Pasting images copied in the browser works again.** "Copy image" also puts
+  a bare `<img>` on the clipboard as `text/html`; since 5.4.1 that counted as
+  text, so neither the image nor any text arrived. HTML now only counts as text
+  if it contains visible text.
+- **Links from the desktop window no longer slow the browser down.** A browser
+  started from a link inherited `GDK_BACKEND=x11` from the window and ran over
+  XWayland without the graphics card (even YouTube stuttered). Links now open
+  with the window's own setting removed.
+- **Read aloud: long texts and errors.** Gemini gets up to 5 minutes instead of
+  2 (long texts took longer and ended in a silent server error). Timeouts and
+  the free tier's daily quota now show a clear message, and the chat shows the
+  error as text next to 🔊 for 10 seconds instead of a 3-second ⚠.
+
 ## 5.4.2 — 2026-09-28
 
 ### Fixed

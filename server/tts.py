@@ -54,7 +54,7 @@ def synthesize(text: str, model: str, voice: str, style: str = "",
             "responseModalities": ["AUDIO"],
             "speechConfig": {"voiceConfig": {"voice": voice}},
         },
-    }, timeout=120)
+    }, timeout=300)  # lange Texte brauchen über 2 Minuten
     try:
         inline = next(p for p in res["candidates"][0]["content"]["parts"]
                       if "inlineData" in p)["inlineData"]
