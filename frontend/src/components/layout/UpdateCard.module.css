@@ -16,6 +16,11 @@
   line-height: 1.5;
   animation: global(fade) 0.35s ease;
 }
+/* Schwebt über dem Chat: das durchsichtige Plasma-Glas ließe den Text
+   darunter durchscheinen. Deckend wie ein Dialog, Rand und Schatten bleiben. */
+:global(html[data-plasma]) .card.card.card {
+  background: var(--popup);
+}
 .card h4 {
   margin: 0;
   font-size: 12px;

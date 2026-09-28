@@ -2,6 +2,16 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.4.2 — 2026-09-28
+
+### Fixed
+- With Plasma on, the update card ("Checking tools") no longer ends up hidden
+  in the bottom-left corner behind the interface. The glass style forced
+  `position: relative` on every glass card and overrode the card's fixed
+  position; it now only applies to cards that don't position themselves. The
+  card also gets an opaque background under Plasma, so the chat no longer
+  shows through its text.
+
 ## 5.4.0 — 2026-09-25
 
 ### Added

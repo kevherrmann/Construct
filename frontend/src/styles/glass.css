@@ -9,8 +9,14 @@
    Nutzung in einem Modul: .bubble { composes: glass-card from global; }
    Wirkt nur mit eingeschaltetem Plasma (html[data-plasma]). */
 
-html[data-plasma] .glass-card.glass-card {
+/* Bezugsrahmen für den Rand (::before) — aber ohne Gewicht (:where): wer
+   selbst fixed/absolute ist, behält das. Sonst rutschte z.B. die Update-Karte
+   (fixed, unten rechts) mit Plasma ans Seitenende hinter die Oberfläche. */
+:where(html[data-plasma] .glass-card) {
   position: relative;
+}
+
+html[data-plasma] .glass-card.glass-card {
   isolation: isolate;
   border-color: transparent;
   background: linear-gradient(
