@@ -252,6 +252,11 @@ The following files belong to your installation. They are listed in
 
 Claude Code sessions stay where Claude Code keeps them (`~/.claude/projects`).
 
+Attachments in `uploads/` are deleted together with the chat they belong to.
+Attachments that no chat mentions anymore (Telegram files, uploads that were
+never sent) are cleaned up after 7 days. An image used as background in the
+settings is kept.
+
 ## Updating
 
 CONSTRUCT updates itself automatically. On every start, `selfupdate.py` fetches

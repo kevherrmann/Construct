@@ -20,6 +20,7 @@ from server import bonsai as bonsaimod
 from server import llm as llmmod
 from server import telegram_bot as tgmod
 from server import updates as updmod
+from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, load_persona)
@@ -34,6 +35,7 @@ async def lifespan(_app: FastAPI):
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
                persona=load_persona, workspace=WORKSPACE)
     tgmod.restart()
+    uploads_gc.start()   # verwaiste Anhänge nach ein paar Tagen wegräumen
     # Früher installiertes Ollama nach Container-Neustart wieder hochfahren
     asyncio.get_running_loop().run_in_executor(None, llmmod.ollama_autostart)
     # Claude Code / Hermes aktuell halten. Der Aufruf kehrt sofort zurück —

@@ -2,6 +2,15 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.5.0 — 2026-09-29
+
+### Changed
+- **Images and PDFs no longer stay on disk forever.** Deleting a chat now also
+  deletes its attachments from `uploads/`, unless another chat or the
+  background image in the settings still uses them. Once a day, attachments
+  older than 7 days that no chat mentions anymore are removed as well
+  (Telegram files, uploads that were never sent).
+
 ## 5.4.3 — 2026-09-28
 
 ### Fixed

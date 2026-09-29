@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from server import hermes as hermesmod
 from server import llm as llmmod
+from server import uploads_gc
 
 from server.core import PROJECTS_DIR, extract_text
 from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, save_archived, save_meta
@@ -160,12 +161,15 @@ async def session_rename(sid: str, req: Request):
 
 @router.delete("/api/sessions/{project}/{sid}")
 def session_delete(project: str, sid: str):
-    """Session-Datei endgültig löschen (mit Pfad-Schutz)."""
+    """Session-Datei endgültig löschen (mit Pfad-Schutz), ihre Anhänge gleich mit."""
     if project == "llm":
+        s = llmmod.load_session(sid)
+        attached = uploads_gc.names_in(json.dumps(s)) if s else set()
         if not llmmod.delete_session(sid):
             return JSONResponse({"error": "not found"}, status_code=404)
     elif project == "hermes":
         raw = sid[len("hermes-"):] if sid.startswith("hermes-") else sid
+        attached = uploads_gc.names_in(json.dumps(hermesmod.session_messages(raw)))
         if not hermesmod.delete_session(raw):
             return JSONResponse({"error": "not found"}, status_code=404)
     else:
@@ -178,7 +182,9 @@ def session_delete(project: str, sid: str):
             return JSONResponse({"error": "bad path"}, status_code=400)
         if not rp.exists():
             return JSONResponse({"error": "not found"}, status_code=404)
+        attached = uploads_gc.names_in(rp.read_bytes())
         rp.unlink()
+    uploads_gc.drop_later(attached)
     meta = load_meta()
     changed = False
     if sid in meta.get("archived", []):
