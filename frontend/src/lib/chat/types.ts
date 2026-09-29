@@ -46,6 +46,8 @@ export interface UserItem {
   urls: string[]
   /** Nur eigene, direkt gesendete Nachrichten lassen sich bearbeiten. */
   editable: boolean
+  /** Sendezeit (ms seit 1970); fehlt, wenn der Verlauf keine kennt. */
+  ts?: number
 }
 
 export interface BotItem {
@@ -56,6 +58,8 @@ export interface BotItem {
   thinking: boolean
   /** Verlauf aus dem Transkript: fertiges Markdown statt Blöcken. */
   markdown?: string
+  /** Beginn der Antwort (ms seit 1970). */
+  ts?: number
 }
 
 /** Zeile ohne Sprechblase (Hinweise wie "Neue Session …", "Gestoppt."). */
@@ -80,4 +84,6 @@ export type ChatItem = UserItem | BotItem | NoteItem | SysItem
 export interface TranscriptMessage {
   role: 'user' | 'assistant'
   text: string
+  /** ISO-Zeit (Claude-Transkript) oder Unix-Sekunden (Hermes). */
+  ts?: string | number
 }

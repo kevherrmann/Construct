@@ -112,7 +112,10 @@ def _parse_transcript_lines(data: bytes):
         # Meta-Rauschen fremder Sessions (System-Reminder, CLI-Wrapper) ausblenden
         if not txt or (t == "user" and (txt.startswith("<") or txt.startswith("Caveat"))):
             continue
-        msgs.append({"role": t, "text": txt})
+        m = {"role": t, "text": txt}
+        if isinstance(ev.get("timestamp"), str):
+            m["ts"] = ev["timestamp"]     # ISO-Zeit, die UI zeigt sie neben der Nachricht
+        msgs.append(m)
     return msgs
 
 

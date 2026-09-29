@@ -49,6 +49,13 @@
 .bot .who {
   color: var(--green);
 }
+.time {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding-left: 8px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
 .say {
   background: none;
   border: none;

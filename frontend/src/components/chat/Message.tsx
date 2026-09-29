@@ -2,7 +2,7 @@ import { trServer } from '@/lib/serverText'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/lib/chat/types'
-import { fmtDur, fmtNum, isPdf } from '@/lib/format'
+import { fmtDur, fmtMsgTime, fmtNum, isPdf } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
 import { speakableText } from '@/lib/chat/speak'
@@ -54,14 +54,29 @@ function SayButton({ id, text }: { id: string; text: () => string }) {
   )
 }
 
+function Time({ ts }: { ts: number }) {
+  const { i18n } = useTranslation()
+  return (
+    <time
+      className={s.time}
+      dateTime={new Date(ts).toISOString()}
+      title={new Date(ts).toLocaleString(i18n.language)}
+    >
+      {fmtMsgTime(ts, i18n.language)}
+    </time>
+  )
+}
+
 function Frame({
   user,
   children,
   say,
+  ts,
 }: {
   user: boolean
   children: ReactNode
   say?: { id: string; text: () => string }
+  ts?: number
 }) {
   const assistant = useSettings((st) => st.boot.assistant)
   const userName = useSettings((st) => st.boot.user || st.settings.names.user)
@@ -72,6 +87,7 @@ function Frame({
       <div className={s.col}>
         <div className={s.who}>
           {(user ? userName || t('Du') : assistant).toUpperCase()}
+          {ts != null && <Time ts={ts} />}
           {say && <SayButton {...say} />}
         </div>
         {children}
@@ -123,7 +139,7 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
     if (draft.trim() && !busy) resend(item.id, draft)
   }
   return (
-    <Frame user>
+    <Frame user ts={item.ts}>
       <div className={s.bubble}>
         {editing ? (
           <>
@@ -246,7 +262,7 @@ function BotMessage({ item }: { item: BotItem }) {
   const { t } = useTranslation()
   const text = () => (item.markdown ?? speakableText(item.blocks)).trim()
   return (
-    <Frame user={false} say={{ id: item.id, text }}>
+    <Frame user={false} say={{ id: item.id, text }} ts={item.ts}>
       <div className={s.bubble}>
         {item.markdown != null ? (
           <Markdown text={item.markdown} />

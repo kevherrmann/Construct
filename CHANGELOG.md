@@ -2,6 +2,14 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.6.0 — 2026-09-29
+
+### Added
+- **Time next to every message.** The name line above each message now shows
+  when it was sent (e.g. `21:14`, on other days `28.09. 21:14`; hovering shows
+  the full date). Older chats get their times from the Claude transcript or
+  the Hermes database.
+
 ## 5.5.0 — 2026-09-29
 
 ### Changed

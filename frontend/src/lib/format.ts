@@ -15,6 +15,27 @@ export function fmtDur(ms?: number | null) {
   return `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`
 }
 
+/** Zeit aus dem Verlauf -> ms: ISO-Text oder Unix-Sekunden. */
+export function parseTs(v?: string | number | null): number | undefined {
+  if (v == null || v === '') return undefined
+  const n = typeof v === 'number' ? (v < 1e12 ? v * 1000 : v) : Date.parse(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+/** Uhrzeit neben der Nachricht: "21:14", an anderen Tagen "28.09. 21:14". */
+export function fmtMsgTime(ts: number, lang?: string, now = Date.now()) {
+  const d = new Date(ts)
+  const time = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === new Date(now).toDateString()) return time
+  const sameYear = d.getFullYear() === new Date(now).getFullYear()
+  const date = d.toLocaleDateString(lang, {
+    day: '2-digit',
+    month: '2-digit',
+    ...(sameYear ? {} : { year: '2-digit' }),
+  })
+  return `${date} ${time}`
+}
+
 export const isPdf = (u?: string) => /\.pdf$/i.test(u ?? '')
 
 /** Bytes als GB (mit Komma, eine Stelle) bzw. MB — wie in der alten Oberfläche. */

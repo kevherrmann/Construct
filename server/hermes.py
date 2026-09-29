@@ -822,14 +822,14 @@ def session_messages(sid: str) -> list:
     try:
         con = _db()
         rows = con.execute(
-            "SELECT role, content, tool_calls, tool_name FROM messages "
+            "SELECT role, content, tool_calls, tool_name, timestamp FROM messages "
             "WHERE session_id=? AND COALESCE(active,1)=1 ORDER BY CAST(id AS INTEGER)",
             (sid,)).fetchall()
         con.close()
     except Exception:
         return []
     msgs = []
-    for role, content, tool_calls, tool_name in rows:
+    for role, content, tool_calls, tool_name, ts in rows:
         text = (content or "").strip()
         if role == "user":
             text = strip_context(text)
@@ -850,5 +850,8 @@ def session_messages(sid: str) -> list:
             text = "🔧 " + ", ".join(names) if names else "🔧 Werkzeug"
         if not text:
             continue
-        msgs.append({"role": "user" if role == "user" else "assistant", "text": text})
+        m = {"role": "user" if role == "user" else "assistant", "text": text}
+        if isinstance(ts, (int, float, str)) and ts:
+            m["ts"] = ts                   # Unix-Sekunden (oder ISO-Text)
+        msgs.append(m)
     return msgs

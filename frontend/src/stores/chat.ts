@@ -6,6 +6,7 @@ import type { SessionDetail, SessionInfo } from '@/api/chat'
 import { apiGet, apiPost } from '@/lib/api'
 import { addRunNote, applyEvent, initialRun, newId, type RunState } from '@/lib/chat/reducer'
 import { SseParser } from '@/lib/chat/sse'
+import { parseTs } from '@/lib/format'
 import { DEFAULT_MODEL, MODES, type Mode } from '@/lib/chat/models'
 import type { BotItem, ChatItem, NoteText, SysBody, TranscriptMessage } from '@/lib/chat/types'
 import { queryClient } from '@/lib/queryClient'
@@ -117,8 +118,15 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
 export const transcriptItems = (msgs: TranscriptMessage[]): ChatItem[] =>
   msgs.map((m) =>
     m.role === 'user'
-      ? { kind: 'user', id: newId('u'), text: m.text, urls: [], editable: true }
-      : { kind: 'bot', id: newId('b'), blocks: [], thinking: false, markdown: m.text },
+      ? { kind: 'user', id: newId('u'), text: m.text, urls: [], editable: true, ts: parseTs(m.ts) }
+      : {
+          kind: 'bot',
+          id: newId('b'),
+          blocks: [],
+          thinking: false,
+          markdown: m.text,
+          ts: parseTs(m.ts),
+        },
   )
 
 const note = (key: string, center = false): ChatItem => ({
@@ -307,7 +315,14 @@ export const useChat = create<ChatStore>((set, get) => {
     if (!c0) return
     // cwd beim ersten Senden festschreiben, damit parallele Sessions stabil bleiben.
     const cwd = c0.cwd ?? get().folder ?? workspace()
-    const user: ChatItem = { kind: 'user', id: newId('u'), text, urls, editable: true }
+    const user: ChatItem = {
+      kind: 'user',
+      id: newId('u'),
+      text,
+      urls,
+      editable: true,
+      ts: Date.now(),
+    }
     patch(key, { busy: true, stopReq: false, cwd, history: [...c0.history, user] })
     try {
       const j = await apiPost<{
@@ -354,6 +369,7 @@ export const useChat = create<ChatStore>((set, get) => {
         kind: 'bot',
         id: newId('b'),
         thinking: false,
+        ts: Date.now(),
         blocks: [
           {
             t: 'error',

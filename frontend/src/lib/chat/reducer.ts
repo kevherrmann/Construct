@@ -16,7 +16,13 @@ export interface RunState {
 let seq = 0
 export const newId = (p = 'i') => `${p}${++seq}-${Date.now().toString(36)}`
 
-const botTurn = (): BotItem => ({ kind: 'bot', id: newId('b'), blocks: [], thinking: true })
+const botTurn = (): BotItem => ({
+  kind: 'bot',
+  id: newId('b'),
+  blocks: [],
+  thinking: true,
+  ts: Date.now(),
+})
 
 export const initialRun = (): RunState => ({ items: [botTurn()], written: {} })
 
@@ -74,6 +80,7 @@ export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
           text: ev.text ?? '',
           urls: ev.urls ?? [],
           editable: false,
+          ts: Date.now(),
         })
         s.items.push(botTurn())
         break
