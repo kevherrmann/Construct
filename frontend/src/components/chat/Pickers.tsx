@@ -236,13 +236,13 @@ export function Pickers({
         title={t('Aufwand — wie gründlich Claude nachdenkt') + claudeHint}
         bar={
           <>
-            🎚 <span className={s.name}>{t(curEffort.l)}</span>
+            💪 <span className={s.name}>{t(curEffort.l)}</span>
           </>
         }
       >
         {EFFORTS.map((e) => (
           <Item key={e.v} sel={e.v === effort} onClick={pick(() => setEffort(e.v))}>
-            🎚 {t(e.l)} <span className={s.muted}>— {t(e.d)}</span>
+            💪 {t(e.l)} <span className={s.muted}>— {t(e.d)}</span>
           </Item>
         ))}
       </Picker>

@@ -2,12 +2,21 @@
 import json
 
 from server import config
-from server.core import BASE_DIR, LIMIT_HIT, extract_text, friendly_claude_error, sse
+from server.core import BASE_DIR, LIMIT_HIT, VERSION, extract_text, friendly_claude_error, sse
 
 
 def test_base_dir_ist_der_projektordner():
     # core.py liegt in server/ — der Projektordner ist eine Ebene höher.
     assert (BASE_DIR / "app.py").exists()
+
+
+def test_version_ueberall_gleich():
+    # Die Kopfzeile zeigt core.VERSION — beim Release leicht zu vergessen.
+    pkg = json.loads((BASE_DIR / "frontend" / "package.json").read_text(encoding="utf-8"))
+    log = (BASE_DIR / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert pkg["version"] == VERSION
+    newest = next(line for line in log.splitlines() if line.startswith("## "))
+    assert newest.startswith(f"## {VERSION} ")
 
 
 def test_sse_format():

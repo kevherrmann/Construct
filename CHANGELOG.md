@@ -2,6 +2,13 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.7.1 — 2026-09-30
+
+### Fixed
+- **The effort switch has a readable icon.** 🎚 showed up on macOS as a grey
+  box with a cross; it is 💪 now.
+- **The top bar shows the right version.** 5.7.0 still said "build 5.6.0".
+
 ## 5.7.0 — 2026-09-30
 
 ### Added
