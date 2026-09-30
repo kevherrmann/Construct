@@ -6,7 +6,7 @@ import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
-import { CLAUDE_MODELS, MODES, extModels } from './models'
+import { CLAUDE_MODELS, EFFORTS, MODES, extModels } from './models'
 
 // App-eigene Slash-Befehle. Claudes eingebaute funktionieren im Headless-Modus
 // nicht — das hier sind eigene.
@@ -16,7 +16,7 @@ export interface CommandContext {
   folders: string[]
   navigate: (to: string) => void
   /** Öffnet ein Auswahlmenü unten (ohne Argument aufgerufen). */
-  openPicker: (p: 'model' | 'mode' | 'folder') => void
+  openPicker: (p: 'model' | 'mode' | 'folder' | 'effort') => void
 }
 
 export function runCommand(raw: string, ctx: CommandContext) {
@@ -78,6 +78,20 @@ export function runCommand(raw: string, ctx: CommandContext) {
       tk('Unbekannter Mode. Verfügbar:'),
       undefined,
       MODES.map((x) => x.v),
+    )
+  }
+  if (cmd === 'effort' || cmd === 'aufwand') {
+    if (!arg) return ctx.openPicker('effort')
+    const a = arg.toLowerCase()
+    const e = EFFORTS.find((x) => (x.v || 'standard') === a || x.l.toLowerCase() === a)
+    if (e) {
+      chat.setEffort(e.v)
+      return say(tk('Aufwand → {e}'), { e: e.l })
+    }
+    return say(
+      tk('Unbekannter Aufwand. Verfügbar:'),
+      undefined,
+      EFFORTS.map((x) => x.v || 'standard'),
     )
   }
   if (cmd === 'folder') {

@@ -72,6 +72,27 @@ DEFAULT_SETTINGS = {
             "style": {"de": "", "en": ""}},
 }
 
+# Ist das gewählte Claude-Modell überlastet oder nicht erreichbar, springt die
+# CLI auf das nächste der Liste (zu Beginn jeder Nachricht wird wieder das
+# eigentliche versucht). Welches wirklich lief, meldet `modelUsage`.
+_FALLBACK = {
+    "claude-fable-5-1": "claude-opus-5-5,claude-sonnet-5-5",
+    "claude-opus-5-5": "claude-sonnet-5-5,claude-haiku-4-5",
+    "claude-sonnet-5-5": "claude-opus-5-5,claude-haiku-4-5",
+    "claude-haiku-4-5": "claude-sonnet-5-5",
+}
+
+
+# Aufwand für Läufe ohne eigenen Schalter (Telegram, geplante Aufgaben) —
+# derselbe wie die Vorgabe im Chat (frontend: DEFAULT_EFFORT).
+DEFAULT_EFFORT = "high"
+
+
+def fallback_models(model: str) -> str:
+    """Wert für `--fallback-model`; "" (Konto-Standard) und Unbekanntes → Sonnet."""
+    return _FALLBACK.get(model, "claude-sonnet-5-5,claude-haiku-4-5")
+
+
 TTS_MODELS = ("gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts")
 
 

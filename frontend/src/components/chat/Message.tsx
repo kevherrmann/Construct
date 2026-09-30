@@ -305,6 +305,9 @@ function SysBox({ sys }: { sys: SysBody }) {
         <br />
         <code>/mode [auto|plan|bypassPermissions|default]</code> — {t('Modus wechseln')}
         <br />
+        <code>/effort [low|medium|high|xhigh|max|standard]</code> —{' '}
+        {t('Aufwand: wie gründlich Claude nachdenkt')}
+        <br />
         <code>/folder [name]</code> — {t('Arbeitsordner wechseln')}
         <br />
         <code>/skills</code> — {t('Skills-Ansicht')}

@@ -8,8 +8,10 @@ import type { Provider } from '@/api/providers'
 // das jeweils neueste Modell seiner Reihe, und man sieht ihm nicht an, welches
 // das gerade IST. Nachmessen, wenn ein neues Modell erscheint:
 //   claude -p "ok" --model <name> --output-format json | jq .modelUsage
-// Gemessen am 04.09.2026 mit Claude Code 2.1.280: fable→claude-fable-5-1,
-// opus→claude-opus-5-5, sonnet→claude-sonnet-5, haiku→claude-haiku-4-5-20251001.
+// Gemessen am 30.09.2026 mit Claude Code 2.1.283: fable→claude-fable-5-1,
+// opus→claude-opus-5-5, sonnet→claude-sonnet-5 (!), haiku→claude-haiku-4-5.
+// Sonnet 5.5 kennt diese CLI-Version noch nicht als Alias, die volle ID
+// `claude-sonnet-5-5` läuft aber (nur eine Warnung auf stderr).
 
 export interface ModelInfo {
   v: string
@@ -30,8 +32,7 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     l: 'Fable 5.1',
     d: 'stärkstes Modell — für die härtesten und längsten Aufgaben',
   },
-  { v: 'claude-opus-5', l: 'Opus 5', d: 'Vorgänger von Opus 5.5' },
-  { v: 'claude-sonnet-5', l: 'Sonnet 5', d: 'schnell, schont das Limit' },
+  { v: 'claude-sonnet-5-5', l: 'Sonnet 5.5', d: 'schnell, schont das Limit' },
   { v: 'claude-haiku-4-5', l: 'Haiku 4.5', d: 'am schnellsten — kleine Aufgaben' },
 ]
 
@@ -44,6 +45,30 @@ const MODEL_ALIAS: Record<string, string> = {
   sonnet: 'claude-sonnet-5',
   haiku: 'claude-haiku-4-5',
 }
+
+/** Aus der Auswahl genommen → gespeicherte Wahl geht auf den Nachfolger. */
+const RETIRED: Record<string, string> = {
+  'claude-opus-5': 'claude-opus-5-5',
+  'claude-sonnet-5': 'claude-sonnet-5-5',
+}
+export const successor = (v: string) => RETIRED[v] ?? v
+
+/**
+ * Aufwand (`--effort`): wie gründlich Claude nachdenkt. '' = Vorgabe des
+ * Modells (bei Opus 5.5 "mittel"). Haiku ignoriert ihn, externe Modelle auch.
+ */
+export const EFFORTS = [
+  { v: '', l: 'Standard', d: 'Vorgabe des Modells' },
+  { v: 'low', l: 'Niedrig', d: 'schnell, spart Limit — für Kleinkram' },
+  { v: 'medium', l: 'Mittel', d: 'Alltag' },
+  { v: 'high', l: 'Hoch', d: 'gründlicher — für knifflige Aufgaben' },
+  { v: 'xhigh', l: 'Sehr hoch', d: 'für Coding und lange Aufgaben' },
+  { v: 'max', l: 'Maximum', d: 'wenn es wirklich stimmen muss — kostet viel Limit' },
+] as const
+export type Effort = (typeof EFFORTS)[number]['v']
+
+/** Vorgabe, solange nie etwas gewählt wurde. Ein bewusstes "Standard" ('') bleibt. */
+export const DEFAULT_EFFORT: Effort = 'high'
 
 export const PROV_ICON: Record<string, string> = {
   openai: '🟢',
@@ -82,14 +107,13 @@ export function modelInfo(v: string, providers: Provider[] = []): ModelInfo | nu
   const e = extModels(providers).find((x) => x.v === v)
   if (e) return e
   if (v && !v.includes(':')) {
-    const raw = v.replace(/\[.*\]$/, '')
+    const bare = v.replace(/\[.*\]$/, '')
+    const raw = MODEL_ALIAS[bare] ?? bare
     // Längster passender Präfix gewinnt, sonst bliebe "claude-opus-5-5[1m]"
     // bei "claude-opus-5" hängen.
-    const hit =
-      MODEL_ALIAS[raw] ??
-      CLAUDE_MODELS.slice(1)
-        .filter((x) => raw.startsWith(x.v))
-        .sort((a, b) => b.v.length - a.v.length)[0]?.v
+    const hit = CLAUDE_MODELS.slice(1)
+      .filter((x) => raw.startsWith(x.v))
+      .sort((a, b) => b.v.length - a.v.length)[0]?.v
     if (hit) return CLAUDE_MODELS.find((x) => x.v === hit) ?? null
     // Claude-Modell, das nicht (mehr) zur Auswahl steht: mit roher ID zeigen —
     // "Standard" wäre hier schlicht gelogen.

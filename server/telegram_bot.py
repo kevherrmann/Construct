@@ -262,6 +262,8 @@ def ask_cody(prompt, cwd, session_id, conf):
            "--permission-mode", conf["mode"]]
     if conf.get("model"):
         cmd += ["--model", conf["model"]]
+    cmd += ["--fallback-model", cfg.fallback_models(conf.get("model") or ""),
+            "--effort", cfg.DEFAULT_EFFORT]
     persona = HOOKS["persona"]()
     if persona:
         cmd += ["--append-system-prompt", persona]

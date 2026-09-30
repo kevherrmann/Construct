@@ -74,7 +74,8 @@ async def scheduler_loop():
                     f"as a Telegram message. Keep it short accordingly.]",
                 ) + f"\n\n{ev['prompt']}"
                 tconf = tgmod.load_conf()
-                run = start_run(prompt, DEFAULT_CWD, tconf["mode"], tconf["model"])
+                run = start_run(prompt, DEFAULT_CWD, tconf["mode"], tconf["model"],
+                                effort=cfg.DEFAULT_EFFORT)
                 run.notify_always = True
                 run.task_title = title
         except Exception as e:

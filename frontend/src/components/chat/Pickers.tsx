@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFolders } from '@/api/chat'
 import { useProviders } from '@/api/providers'
-import { CLAUDE_MODELS, MODES, extModels, modelInfo, provIcon } from '@/lib/chat/models'
+import { CLAUDE_MODELS, EFFORTS, MODES, extModels, modelInfo, provIcon } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
 import s from './Pickers.module.css'
 
-export type PickerName = 'folder' | 'mode' | 'model'
+export type PickerName = 'folder' | 'mode' | 'model' | 'effort'
 
 interface PickerProps {
   name: PickerName
@@ -79,7 +79,7 @@ export function Pickers({
   const folders = useFolders()
   const providers = useProviders()
   const provs = useMemo(() => providers.data ?? [], [providers.data])
-  const { folder, mode, setFolder, setMode, setModel } = useChat()
+  const { folder, mode, effort, setFolder, setMode, setModel, setEffort } = useChat()
   const model = useChat((st) => st.active()?.model ?? '')
 
   // Klick irgendwo sonst schließt das offene Menü.
@@ -118,6 +118,7 @@ export function Pickers({
       )
   const curMode = MODES.find((m) => m.v === mode) ?? MODES[0]
   const curModel = modelInfo(model, provs) ?? CLAUDE_MODELS[0]!
+  const curEffort = EFFORTS.find((e) => e.v === effort) ?? EFFORTS[0]
   const shownFolder = folder ?? workspace
 
   return (
@@ -226,6 +227,24 @@ export function Pickers({
           ⚙ <b>{t('KI-Anbieter einrichten…')}</b>{' '}
           <span className={s.muted}>— ChatGPT, Gemini, DeepSeek, Ollama</span>
         </Item>
+      </Picker>
+      <Picker
+        name="effort"
+        dim={!hasClaude || !!curModel.prov}
+        open={open}
+        setOpen={setOpen}
+        title={t('Aufwand — wie gründlich Claude nachdenkt') + claudeHint}
+        bar={
+          <>
+            🎚 <span className={s.name}>{t(curEffort.l)}</span>
+          </>
+        }
+      >
+        {EFFORTS.map((e) => (
+          <Item key={e.v} sel={e.v === effort} onClick={pick(() => setEffort(e.v))}>
+            🎚 {t(e.l)} <span className={s.muted}>— {t(e.d)}</span>
+          </Item>
+        ))}
       </Picker>
     </div>
   )

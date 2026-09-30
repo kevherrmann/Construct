@@ -395,9 +395,11 @@ def _nachlauf_beenden(run):
 
 
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./,:_-]{0,63}$")
+EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
-def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None):
+def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
+              effort=""):
     """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben."""
     cmd = [
         claude_bin() or "claude", "-p",
@@ -406,9 +408,13 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None)
         "--verbose",
         "--include-partial-messages",
         "--permission-mode", mode,
+        "--chrome",   # Claude in Chrome: im -p-Modus nicht automatisch aktiv
     ]
     if model:
         cmd += ["--model", model]
+    cmd += ["--fallback-model", cfg.fallback_models(model)]
+    if effort in EFFORTS:
+        cmd += ["--effort", effort]
     persona = load_persona()
     if persona:
         cmd += ["--append-system-prompt", persona]

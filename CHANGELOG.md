@@ -2,6 +2,32 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.7.0 — 2026-09-30
+
+### Added
+- **Claude Sonnet 5.5** replaces Sonnet 5 in the model list. Opus 5 is gone
+  too — the list now only has current models (Opus 5.5, Fable 5.1,
+  Sonnet 5.5, Haiku 4.5). A stored choice of a removed model, and old chats
+  continued from the sidebar, move on to its successor.
+- **Effort switch 🎚** next to the model picker, plus `/effort`: how
+  thoroughly Claude thinks (`--effort`, low … max). Defaults to **high** —
+  without it, Opus 5.5 runs at medium. Telegram and scheduled tasks use high
+  as well.
+- **Automatic fallback model.** If the chosen model is overloaded or
+  unavailable, the reply comes from the next one (Opus 5.5 → Sonnet 5.5 →
+  Haiku 4.5, and so on); the next message tries the chosen model again. The
+  stats line shows which model actually answered.
+- **Claude in Chrome** is switched on for chat runs (`--chrome`).
+
+### Changed
+- **The self-update no longer gives up on any local change.** Before, a single
+  edited program file skipped the update for good — a second development
+  machine silently fell behind. Now local changes stay as they are and the
+  update runs as long as it does not touch them; a local change that is
+  already on GitHub in exactly the same form is dropped first. Only a
+  *different* change to a file the update also changes still skips the update,
+  and then nothing is touched.
+
 ## 5.6.0 — 2026-09-29
 
 ### Added

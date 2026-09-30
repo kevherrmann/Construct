@@ -7,7 +7,15 @@ import { apiGet, apiPost } from '@/lib/api'
 import { addRunNote, applyEvent, initialRun, newId, type RunState } from '@/lib/chat/reducer'
 import { SseParser } from '@/lib/chat/sse'
 import { parseTs } from '@/lib/format'
-import { DEFAULT_MODEL, MODES, type Mode } from '@/lib/chat/models'
+import {
+  DEFAULT_EFFORT,
+  DEFAULT_MODEL,
+  EFFORTS,
+  MODES,
+  successor,
+  type Effort,
+  type Mode,
+} from '@/lib/chat/models'
 import type { BotItem, ChatItem, NoteText, SysBody, TranscriptMessage } from '@/lib/chat/types'
 import { queryClient } from '@/lib/queryClient'
 import { getItem, setItem } from '@/lib/storage'
@@ -61,6 +69,7 @@ interface ChatStore {
   /** Anhänge für die nächste Nachricht (gelten für die aktive Unterhaltung). */
   pending: Attachment[]
   mode: Mode
+  effort: Effort
   /** Ordner-Auswahl unten; gilt ab dem ersten Senden fest für die Session. */
   folder: string | null
   /** Zähler: steigt, wenn das Eingabefeld den Fokus zurückbekommen soll. */
@@ -79,6 +88,7 @@ interface ChatStore {
   addNote: (note: NoteText) => void
   setModel: (v: string) => void
   setMode: (v: string) => void
+  setEffort: (v: string) => void
   setFolder: (path: string) => void
   addPending: (a: Attachment) => void
   removePending: (i: number) => void
@@ -89,7 +99,11 @@ interface ChatStore {
 const workspace = () => useSettings.getState().boot.workspace
 
 /** Noch nie etwas gewählt → Opus 5.5. Ein bewusst gewähltes "Standard" ist '' und bleibt es. */
-export const storedModel = () => getItem('mxmodel') ?? DEFAULT_MODEL
+export const storedModel = () => successor(getItem('mxmodel') ?? DEFAULT_MODEL)
+const storedEffort = (): Effort => {
+  const v = getItem('mxeffort')
+  return v != null && EFFORTS.some((e) => e.v === v) ? (v as Effort) : DEFAULT_EFFORT
+}
 const storedMode = (): Mode => {
   const v = getItem('mxmode')
   return MODES.some((m) => m.v === v) ? (v as Mode) : 'bypassPermissions'
@@ -337,6 +351,7 @@ export const useChat = create<ChatStore>((set, get) => {
         images,
         cwd,
         mode: get().mode,
+        effort: get().effort,
         model: c0.model || '',
         edit,
       })
@@ -399,6 +414,7 @@ export const useChat = create<ChatStore>((set, get) => {
     activeKey: first.key,
     pending: [],
     mode: storedMode(),
+    effort: storedEffort(),
     folder: null,
     focusTick: 0,
 
@@ -458,7 +474,8 @@ export const useChat = create<ChatStore>((set, get) => {
       }
       const items = transcriptItems(j.messages ?? [])
       patch(c.key, {
-        ...(j.model ? { model: j.model, lastModel: j.model } : {}),
+        // Weiterschreiben läuft auf dem Nachfolger, falls das Modell raus ist.
+        ...(j.model ? { model: successor(j.model), lastModel: j.model } : {}),
         // ab hier übernimmt der Live-Tail — außer ein Lauf dockt gleich an
         fileOffset: runningRunId ? null : (j.offset ?? null),
         history: items.length || runningRunId ? items : [note(tk('(leere Session)'))],
@@ -564,6 +581,12 @@ export const useChat = create<ChatStore>((set, get) => {
       const m = MODES.find((x) => x.v === v)?.v ?? 'bypassPermissions'
       setItem('mxmode', m)
       set({ mode: m })
+    },
+
+    setEffort(v) {
+      const e = EFFORTS.find((x) => x.v === v)?.v ?? ''
+      setItem('mxeffort', e)
+      set({ effort: e })
     },
 
     setFolder(path) {

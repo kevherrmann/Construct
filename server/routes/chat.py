@@ -11,7 +11,7 @@ from server import llm as llmmod
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
-from server.runs import MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
+from server.runs import EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ async def chat(req: Request):
     mode = req_mode if req_mode in ALLOWED_MODES else "bypassPermissions"
     req_model = (body.get("model") or "").strip()
     model = req_model if MODEL_RE.match(req_model) else ""
+    effort = body.get("effort") if body.get("effort") in EFFORTS else ""
 
     # Fremdes Modell ("anbieter:modell") -> Hermes statt claude-CLI.
     # Reiner Chat ohne Werkzeuge gibt es nicht mehr: die Oberfläche zeigt nur
@@ -75,7 +76,7 @@ async def chat(req: Request):
             if not resume_at:
                 session_id = None
 
-    run = start_run(prompt, work_dir, mode, model, session_id, resume_at)
+    run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort)
     return {"run_id": run.id, "session_id": None if forked_from else session_id,
             "forked_from": forked_from, "rewound": rewound}
 
