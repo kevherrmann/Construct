@@ -89,3 +89,7 @@
 .dim {
   opacity: 0.4;
 }
+.flush {
+  max-height: none;
+  overflow: visible;
+}

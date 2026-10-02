@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 5.8.0 — 2026-10-02
+
+### Added
+- **Folder picker reaches subfolders.** Projects kept in collection folders
+  (`company/clients/…`) are now selectable: a breadcrumb bar, search across
+  all levels, "Use this folder", recently used folders and keyboard control.
+  Projects (`.git`, `CLAUDE.md`, `package.json`, …) are not expanded;
+  `node_modules`, `vendor` and the like stay hidden.
+- The bar shows `clients › project` instead of just `project`.
+- `/folder` finds subfolders too, as `clients/project` if needed.
+
 ## 5.7.1 — 2026-09-30
 
 ### Fixed

@@ -2,13 +2,15 @@ import { useAuthStatus } from '@/api/system'
 import { trServer } from '@/lib/serverText'
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useFolders } from '@/api/chat'
+import { useFolderTree, useFolders } from '@/api/chat'
 import { useProviders } from '@/api/providers'
 import { CLAUDE_MODELS, EFFORTS, MODES, extModels, modelInfo, provIcon } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
+import { folderLabel, indexTree, rememberFolder } from '@/lib/chat/folders'
+import { FolderNav } from './FolderNav'
 import s from './Pickers.module.css'
 
 export type PickerName = 'folder' | 'mode' | 'model' | 'effort'
@@ -20,16 +22,21 @@ interface PickerProps {
   bar: ReactNode
   title?: string
   wide?: boolean
+  /** Inhalt scrollt selbst (Ordner-Navigation) — Liste ohne eigene Höhe. */
+  flush?: boolean
   /** Ohne Claude Code wirken Ordner und Modus nicht — abgeblendet zeigen. */
   dim?: boolean
   children: ReactNode
 }
 
-function Picker({ name, open, setOpen, bar, title, wide, dim, children }: PickerProps) {
+function Picker({ name, open, setOpen, bar, title, wide, flush, dim, children }: PickerProps) {
   return (
     <div className={`${s.picker} ${dim ? s.dim : ''}`}>
       {open === name && (
-        <div className={`${s.list} ${wide ? s.wide : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`${s.list} ${wide ? s.wide : ''} ${flush ? s.flush : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {children}
         </div>
       )}
@@ -77,6 +84,8 @@ export function Pickers({
   const hasClaude = useAuthStatus().data?.cli ?? bootClaude
   const workspace = useSettings((st) => st.boot.workspace)
   const folders = useFolders()
+  const tree = useFolderTree()
+  const treeIndex = useMemo(() => (tree.data ? indexTree(tree.data) : null), [tree.data])
   const providers = useProviders()
   const provs = useMemo(() => providers.data ?? [], [providers.data])
   const { folder, mode, effort, setFolder, setMode, setModel, setEffort } = useChat()
@@ -107,10 +116,12 @@ export function Pickers({
     if (e && !model.includes(':')) setModel(e.v)
   }, [hasClaude, model, providers.data, setModel])
 
-  const pick = (fn: () => void) => () => {
-    fn()
-    setOpen(null)
-  }
+  const pick =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      fn(...a)
+      setOpen(null)
+    }
   const claudeHint = hasClaude
     ? ''
     : t(
@@ -126,6 +137,7 @@ export function Pickers({
       <Picker
         name="folder"
         dim={!hasClaude}
+        flush={!!tree.data}
         open={open}
         setOpen={setOpen}
         title={t('Arbeitsordner') + claudeHint}
@@ -133,16 +145,28 @@ export function Pickers({
           <>
             📂{' '}
             <span className={s.name} title={shownFolder}>
-              {baseName(shownFolder)}
+              {folderLabel(shownFolder, treeIndex)}
             </span>
           </>
         }
       >
-        {(folders.data ?? []).map((p) => (
-          <Item key={p} sel={p === folder} onClick={pick(() => setFolder(p))}>
-            <span title={p}>📂 {baseName(p)}</span>
-          </Item>
-        ))}
+        {tree.data ? (
+          <FolderNav
+            tree={tree.data}
+            current={folder}
+            onClose={() => setOpen(null)}
+            onPick={pick((p: string) => {
+              rememberFolder(p)
+              setFolder(p)
+            })}
+          />
+        ) : (
+          (folders.data ?? []).map((p) => (
+            <Item key={p} sel={p === folder} onClick={pick(() => setFolder(p))}>
+              <span title={p}>📂 {baseName(p)}</span>
+            </Item>
+          ))
+        )}
       </Picker>
       <Picker
         name="mode"

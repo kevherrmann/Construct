@@ -45,3 +45,18 @@ export const useSessions = () =>
 
 export const useFolders = () =>
   useQuery({ queryKey: ['folders'], queryFn: () => apiGet<string[]>('/api/folders') })
+
+/** Ordnerbaum unter dem Workspace. Projekte (.git, CLAUDE.md, package.json …)
+ *  haben keine Kinder — aufklappbar sind nur Sammelordner wie "kunden". */
+export interface FolderNode {
+  path: string
+  name: string
+  project: boolean
+  children: FolderNode[]
+}
+
+export const useFolderTree = () =>
+  useQuery({
+    queryKey: ['folders', 'tree'],
+    queryFn: () => apiGet<FolderNode>('/api/folders/tree'),
+  })

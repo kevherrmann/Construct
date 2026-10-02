@@ -68,3 +68,26 @@ def test_spracheingabe_ohne_key_meldet_sich_verstaendlich(client, monkeypatch):
     with client.websocket_connect("/api/stt/live",
                                   headers={"origin": "http://localhost:5173"}) as ws:
         assert ws.receive_json() == {"error": "Kein Gemini-Key hinterlegt"}
+
+
+def test_ordnerbaum_klappt_nur_sammelordner_auf(client, tmp_path, monkeypatch):
+    from server.routes import files
+    (tmp_path / "Firma" / "kunden" / "shop" / "src").mkdir(parents=True)
+    (tmp_path / "Firma" / "kunden" / "shop" / "package.json").write_text("{}")
+    (tmp_path / "Firma" / "app" / "lib").mkdir(parents=True)
+    (tmp_path / "Firma" / "app" / ".git").mkdir()
+    (tmp_path / "Firma" / "node_modules").mkdir()
+    (tmp_path / ".versteckt").mkdir()
+    monkeypatch.setattr(files, "WORKSPACE", str(tmp_path))
+
+    tree = client.get("/api/folders/tree").json()
+    firma, = tree["children"]
+    assert firma["name"] == "Firma" and not firma["project"]
+    app, kunden = firma["children"]  # node_modules fehlt
+    assert app["project"] and app["children"] == []  # lib/ nicht aufgeklappt
+    shop, = kunden["children"]
+    assert shop["project"] and shop["children"] == []
+
+    flat = client.get("/api/folders").json()
+    assert flat[0] == str(tmp_path)
+    assert str(tmp_path / "Firma" / "kunden" / "shop") in flat

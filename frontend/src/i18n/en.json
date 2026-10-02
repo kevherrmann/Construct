@@ -737,5 +737,16 @@
   "zuletzt vor": "last checked",
   "zuletzt vor {n} h geprüft": "last checked {n} h ago",
   "zuletzt vor {n} min geprüft": "last checked {n} min ago",
-  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history."
+  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history.",
+  "ZULETZT": "RECENT",
+  "ALLE ORDNER": "ALL FOLDERS",
+  "Ordner suchen …": "Search folders …",
+  "Eine Ebene hoch": "Up one level",
+  "Diesen Ordner verwenden": "Use this folder",
+  "Öffnen": "Open",
+  "Nichts gefunden": "Nothing found",
+  "Keine Unterordner": "No subfolders",
+  "wählen": "select",
+  "öffnen/übernehmen": "open/use",
+  "zurück": "back"
 }

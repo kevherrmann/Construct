@@ -96,7 +96,12 @@ export function runCommand(raw: string, ctx: CommandContext) {
   }
   if (cmd === 'folder') {
     if (!arg) return ctx.openPicker('folder')
-    const p = ctx.folders.find((x) => baseName(x).toLowerCase() === arg.toLowerCase())
+    // "fahrsignal" oder – bei gleichen Namen in Unterordnern – "kunden/fahrsignal"
+    const want = arg.toLowerCase().replace(/^\/+|\/+$/g, '')
+    const p = ctx.folders.find((x) => {
+      const lx = x.toLowerCase()
+      return baseName(lx) === want || lx.endsWith(`/${want}`)
+    })
     if (p) {
       chat.setFolder(p)
       return say(tk('Ordner → {f}'), { f: baseName(p) })

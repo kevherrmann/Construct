@@ -14,18 +14,75 @@ from server.core import WORKSPACE, claude_bin, claude_env
 router = APIRouter()
 
 
+# Woran ein Projekt zu erkennen ist. Ordner OHNE eine dieser Dateien, die aber
+# Unterordner haben, gelten als Sammelordner (z.B. ~/Projekte/Firma/kunden) —
+# in die kann man in der Ordner-Auswahl hineinklicken.
+PROJECT_MARKERS = (
+    ".git", "CLAUDE.md", "AGENTS.md", "README.md", "package.json", "composer.json",
+    "pubspec.yaml", "pyproject.toml", "requirements.txt", "Cargo.toml", "go.mod",
+    "pom.xml", "build.gradle", "Makefile", "index.html", "index.php", "artisan",
+)
+# Nie als Projekt anbieten — Abhängigkeiten, Build-Ausgaben, Umgebungen.
+SKIP_DIRS = {"node_modules", "vendor", "__pycache__", "venv", "dist", "build", "target"}
+TREE_MAX_DEPTH = 4
+TREE_MAX_NODES = 1500
+
+
+def _subdirs(path):
+    try:
+        with os.scandir(path) as it:
+            dirs = [e for e in it if e.is_dir() and not e.name.startswith(".")
+                    and e.name not in SKIP_DIRS and not e.name.startswith(".venv")]
+    except OSError:
+        return []
+    return sorted(dirs, key=lambda e: e.name.lower())
+
+
+def _is_project(path):
+    return any(os.path.exists(os.path.join(path, m)) for m in PROJECT_MARKERS)
+
+
+def folder_tree(root=None):
+    """Ordnerbaum unter WORKSPACE. Projekte werden nicht weiter aufgeklappt
+    (sonst landen android/, lib/, src/ … in der Auswahl), nur Sammelordner."""
+    root = root or WORKSPACE
+    budget = [TREE_MAX_NODES]
+
+    def walk(path, depth):
+        kids = []
+        for e in _subdirs(path):
+            if budget[0] <= 0:
+                break
+            budget[0] -= 1
+            project = _is_project(e.path)
+            node = {"path": e.path, "name": e.name, "project": project, "children": []}
+            if not project and depth < TREE_MAX_DEPTH:
+                node["children"] = walk(e.path, depth + 1)
+            kids.append(node)
+        return kids
+
+    return {"path": root, "name": os.path.basename(root.rstrip(os.sep)) or root,
+            "project": False, "children": walk(root, 1)}
+
+
 @router.get("/api/folders")
 def folders():
-    """Projektordner unter WORKSPACE (für die Ordner-Auswahl im Chat)."""
-    out = [WORKSPACE]
-    try:
-        for name in sorted(os.listdir(WORKSPACE), key=str.lower):
-            p = os.path.join(WORKSPACE, name)
-            if os.path.isdir(p) and not name.startswith("."):
-                out.append(p)
-    except Exception:
-        pass
+    """Alle wählbaren Ordner flach, WORKSPACE zuerst (für /folder im Chat)."""
+    out = []
+
+    def flat(node):
+        out.append(node["path"])
+        for c in node["children"]:
+            flat(c)
+
+    flat(folder_tree())
     return out
+
+
+@router.get("/api/folders/tree")
+def folders_tree():
+    """Ordnerbaum für die Ordner-Auswahl über dem Chat."""
+    return folder_tree()
 
 
 def _parse_skill_md(path):
