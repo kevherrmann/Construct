@@ -1,4 +1,3 @@
-import { Surface } from './Surface'
 import { useTranslation } from 'react-i18next'
 import { useProviders } from '@/api/providers'
 import { useVersion } from '@/api/system'
@@ -22,7 +21,7 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
   const lastLabel = last ? (modelInfo(last, providers.data)?.l ?? last.replace(/^claude-/, '')) : ''
   const cwd = conv?.cwd ?? workspace
   return (
-    <Surface className={s.topbar}>
+    <div className={s.topbar}>
       <button type="button" className={s.burger} onClick={onBurger} aria-label="Menu">
         ☰
       </button>
@@ -44,6 +43,6 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
       <span className={s.sid} title={cwd || t('(unbekannt)')}>
         ▣ {baseName(cwd)}
       </span>
-    </Surface>
+    </div>
   )
 }

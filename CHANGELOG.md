@@ -2,6 +2,25 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.0.0 — 2026-10-02
+
+### Changed
+- **One look: the rounded glass design.** Borderless panels, glass cards and a
+  calm gradient behind them are now the only design, in all eight color
+  themes. The old boxy terminal look is gone, and so is the `plasma` setting.
+  Inter is the default font; the font picker still offers the others.
+
+### Removed
+- **WebGL Plasma** (liquid glass and the moving plasma field). It was buggy
+  on NVIDIA cards. A stored "plasma field" background becomes Matrix rain,
+  which is what it already showed without WebGL. `@cruxgarden/plasma-ui` is
+  no longer a dependency.
+
+### Fixed
+- **The calendar marks today and the selected day again.** The glass cards
+  covered both; today now has a full accent-colored edge, the selected day a
+  tint.
+
 ## 5.8.0 — 2026-10-02
 
 ### Added

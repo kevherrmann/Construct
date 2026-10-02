@@ -20,9 +20,8 @@
   font-size: 13.5px;
   padding: 9px 11px;
   outline: none;
-  border-radius: var(--radius, 2px);
+  border-radius: var(--radius);
   resize: vertical;
-  text-shadow: none;
 }
 .form input:focus,
 .form textarea:focus {
@@ -39,7 +38,7 @@
   color: var(--link);
   border: 1px solid var(--green-faint);
   padding: 4px 9px;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   margin: 6px 6px 0 0;
 }
 .x {

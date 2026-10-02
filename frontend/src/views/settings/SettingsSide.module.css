@@ -18,7 +18,6 @@
   font-size: 12px;
   line-height: 1.35;
   color: var(--soft);
-  text-shadow: inherit;
   transition: 0.12s;
   white-space: nowrap;
   overflow: hidden;

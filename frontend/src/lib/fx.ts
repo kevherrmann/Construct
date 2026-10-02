@@ -12,8 +12,8 @@ import { getItem } from './storage'
 export type FxLevel = 'full' | 'low' | 'off'
 
 // ?fx=low beim Laden festhalten: der Router leitet / sofort auf /chat um und
-// wirft die Query dabei weg. Später gelesen, lief sonst doch das volle
-// WebGL-Plasma im Software-Rendering (flackert in WebKitGTK).
+// wirft die Query dabei weg. Später gelesen, lief sonst doch die volle Optik
+// (Unschärfe hinter den Glasflächen) im Software-Rendering — flackert in WebKitGTK.
 const urlLow = new URLSearchParams(location.search).get('fx') === 'low'
 
 export function fxLevel(): FxLevel {

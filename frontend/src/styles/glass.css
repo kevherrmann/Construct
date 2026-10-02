@@ -1,22 +1,20 @@
-/* Glas-Karte im Plasma-Look — für alles, was nicht als echte Plasma-Fläche
-   (WebGL) laufen kann: Chat-Blasen, Einstellungs-Abschnitte, Kalender,
-   Dialoge. Echte Flächen malt der Canvas HINTER der Seite; der weiß nichts
-   von Scroll-Bereichen und würde eine halb weggescrollte Blase über die
-   Statusleiste malen. Und davon gibt es nur ein kleines Budget. Darum hier
-   derselbe Eindruck in CSS: mattes Glas, schillernder Rand, Licht an der
-   Oberkante — beliebig oft, scrollt sauber, kostet fast nichts.
+/* Glas-Karte: Chat-Blasen, Einstellungs-Abschnitte, Kalender, Dialoge.
+   Mattes Glas, schillernder Rand, Licht an der Oberkante — rein in CSS,
+   beliebig oft, scrollt sauber, kostet fast nichts.
 
    Nutzung in einem Modul: .bubble { composes: glass-card from global; }
-   Wirkt nur mit eingeschaltetem Plasma (html[data-plasma]). */
+   Die Karte bestimmt Hintergrund, Randfarbe und Schatten; die doppelte Klasse
+   setzt sich gegen die Modul-Regeln durch, die in den nachgeladenen Ansichten
+   später im CSS stehen. */
 
 /* Bezugsrahmen für den Rand (::before) — aber ohne Gewicht (:where): wer
    selbst fixed/absolute ist, behält das. Sonst rutschte z.B. die Update-Karte
-   (fixed, unten rechts) mit Plasma ans Seitenende hinter die Oberfläche. */
-:where(html[data-plasma] .glass-card) {
+   (fixed, unten rechts) ans Seitenende hinter die Oberfläche. */
+:where(.glass-card) {
   position: relative;
 }
 
-html[data-plasma] .glass-card.glass-card {
+.glass-card.glass-card {
   isolation: isolate;
   border-color: transparent;
   background: linear-gradient(
@@ -34,8 +32,8 @@ html[data-plasma] .glass-card.glass-card {
 }
 
 /* Der schillernde Rand: ein Verlauf, der per Maske nur als 1-px-Kante
-   stehen bleibt — wie der irisierende Saum der Plasma-Flächen. */
-html[data-plasma] .glass-card.glass-card::before {
+   stehen bleibt. */
+.glass-card.glass-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -59,13 +57,13 @@ html[data-plasma] .glass-card.glass-card::before {
   opacity: 0.55;
   transition: opacity 0.2s;
 }
-html[data-plasma] .glass-card.glass-card:hover::before {
+.glass-card.glass-card:hover::before {
   opacity: 0.85;
 }
 
 /* Helle Farbwelten: weißes Glas auf hellem Grund braucht mehr Deckung und
    einen weicheren Schatten. */
-html[data-plasma]:is([data-theme='papier'], [data-theme='nebel']) .glass-card.glass-card {
+html:is([data-theme='papier'], [data-theme='nebel']) .glass-card.glass-card {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.5));
   box-shadow:
     0 10px 28px rgba(40, 50, 70, 0.12),

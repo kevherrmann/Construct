@@ -8,13 +8,12 @@
   background: var(--deep);
   padding: 13px 16px;
   margin-bottom: 10px;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
 }
 .sub {
   font-size: 16.5px;
   color: var(--text);
   margin-bottom: 7px;
-  text-shadow: none;
   word-break: break-word;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-weight: 600;
@@ -33,7 +32,7 @@
   height: 62vh;
   border: 1px solid var(--green-faint);
   background: #fff;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
 }
 .text {
   composes: glass-card from global;
@@ -45,7 +44,7 @@
   font-size: 14px;
   line-height: 1.65;
   color: var(--text);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   word-break: break-word;
 }
 .atts {
@@ -59,7 +58,7 @@
   color: var(--link);
   border: 1px solid var(--green-faint);
   padding: 5px 10px;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   text-decoration: none;
 }
 .att:hover {

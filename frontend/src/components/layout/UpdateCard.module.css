@@ -8,17 +8,15 @@
   bottom: 18px;
   z-index: 70;
   width: min(340px, 90vw);
-  background: var(--popup);
-  border: 1px solid var(--green-dim);
-  box-shadow: 0 0 26px rgba(var(--accent-rgb), 0.28);
+  border: 1px solid transparent;
   padding: 12px 14px;
   font-size: 12px;
   line-height: 1.5;
   animation: global(fade) 0.35s ease;
 }
-/* Schwebt über dem Chat: das durchsichtige Plasma-Glas ließe den Text
-   darunter durchscheinen. Deckend wie ein Dialog, Rand und Schatten bleiben. */
-:global(html[data-plasma]) .card.card.card {
+/* Schwebt über dem Chat: durchsichtiges Glas ließe den Text darunter
+   durchscheinen. Deckend, Rand und Schatten der Glas-Karte bleiben. */
+.card.card.card {
   background: var(--popup);
 }
 .card h4 {
@@ -26,7 +24,6 @@
   font-size: 12px;
   letter-spacing: 2px;
   color: var(--green);
-  text-shadow: 0 0 8px var(--green);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -69,11 +66,9 @@
 }
 .new .v {
   color: var(--green);
-  text-shadow: 0 0 7px var(--green);
 }
 .error .v {
   color: #ff5c5c;
-  text-shadow: none;
 }
 .line {
   margin-top: 9px;

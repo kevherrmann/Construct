@@ -14,7 +14,7 @@
   box-sizing: border-box;
   background: rgba(var(--accent-rgb), 0.04);
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   color: var(--green);
   font: inherit;
   font-size: 12px;
@@ -50,7 +50,7 @@
   font: inherit;
   padding: 2px 4px;
   cursor: pointer;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;

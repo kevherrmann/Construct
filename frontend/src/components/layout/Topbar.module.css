@@ -1,6 +1,6 @@
 .topbar {
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--green-faint);
+  padding: 12px 20px;
+  border-radius: 22px;
   font-size: 12px;
   color: var(--green-dim);
   display: flex;
@@ -32,11 +32,4 @@
 }
 .sid {
   opacity: 0.5;
-}
-
-/* ---------- Plasma ---------- */
-:global(html[data-plasma]) .topbar {
-  border-radius: 22px;
-  border-bottom: none;
-  padding: 12px 20px;
 }

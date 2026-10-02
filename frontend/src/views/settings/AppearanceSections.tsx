@@ -1,6 +1,4 @@
 import { FONTS } from '@/lib/fonts'
-import { fxLevel } from '@/lib/fx'
-import { plasmaLive, webgl2 } from '@/lib/plasma'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Settings } from '@/lib/bootstrap'
@@ -14,37 +12,10 @@ import s from './Settings.module.css'
 export function ThemeSection() {
   const { t } = useTranslation()
   const theme = useSettings((st) => st.settings.theme || 'matrix')
-  const plasma = useSettings((st) => st.settings.plasma)
   const font = useSettings((st) => st.settings.font ?? '')
   const save = useSettings((st) => st.save)
-  // Ohne WebGL2 (oder im Sparmodus) gibt es kein flüssiges Plasma, aber das
-  // runde Glas-Design in CSS — als eigene Wahl neben dem kantigen Terminal-Look.
-  const gpu = webgl2() && fxLevel() === 'full'
   return (
     <Section id="farbwelt">
-      <div className={s.row}>
-        <label>
-          <input
-            type="checkbox"
-            checked={plasma}
-            onChange={(e) => void save({ plasma: e.target.checked })}
-          />
-          <span>
-            <span className={s.t}>
-              ✨ {gpu ? t('Plasma — flüssiges Glas') : t('Rundes Glas-Design')}
-            </span>
-            <span className={s.d}>
-              {gpu
-                ? t(
-                    'Die Flächen werden zu flüssigem Glas über einem lebendigen Farbfeld, in den Farben der gewählten Farbwelt. Braucht eine Grafikkarte.',
-                  )
-                : t(
-                    'Weiche, runde Glasflächen statt kantiger Kästen, dazu ein ruhiger Farbverlauf im Hintergrund. Das flüssige Plasma braucht Grafikbeschleunigung, die hier fehlt.',
-                  )}
-            </span>
-          </span>
-        </label>
-      </div>
       <div className={s.thGrid}>
         {THEMES.map((th) => (
           <button
@@ -74,7 +45,7 @@ export function ThemeSection() {
             key: '',
             name: t('Automatisch'),
             family: '',
-            description: t('Terminal-Schrift klassisch, Inter mit Plasma.'),
+            description: t('Inter, die Vorgabe.'),
           },
           ...FONTS,
         ].map((f) => (
@@ -138,19 +109,7 @@ export function BackgroundSection() {
     if (url) apply({ image: url, mode: 'image' })
   }
 
-  // Das bewegte Feld malt der WebGL-Canvas — ohne ihn gibt es die Wahl nicht.
-  const plasma = plasmaLive(useSettings((st) => st.settings.plasma))
   const modes: { v: Bg['mode']; title: string; d: string }[] = [
-    // Das bewegte Plasma-Feld gibt es nur mit eingeschaltetem Plasma.
-    ...(plasma
-      ? [
-          {
-            v: 'plasma' as const,
-            title: t('Plasma-Feld (bewegt)'),
-            d: t('Lebendiges Farbfeld in den Farben der Farbwelt, durch das Glas gebrochen.'),
-          },
-        ]
-      : []),
     { v: 'matrix', title: t('Matrix-Regen'), d: t('Die Vorgabe. Kostet etwas Rechenleistung.') },
     {
       v: 'image',

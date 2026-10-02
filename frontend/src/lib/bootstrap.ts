@@ -7,8 +7,6 @@ export type ThemeName =
 
 export interface Settings {
   theme: ThemeName
-  /** Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt. */
-  plasma: boolean
   /** Schrift (lib/fonts.ts); "" = automatisch. */
   font: string
   lang: Lang
@@ -16,8 +14,7 @@ export interface Settings {
   avatars: { user: string; assistant: string }
   hermes: { home: string }
   tiles: { skills: boolean; kalender: boolean; mail: boolean; mcp: boolean }
-  /** plasma = bewegtes Plasma-Feld (nur mit Plasma; sonst gilt es als Regen). */
-  background: { mode: 'matrix' | 'plain' | 'image' | 'plasma'; image: string; dim: number }
+  background: { mode: 'matrix' | 'plain' | 'image'; image: string; dim: number }
   updates: { auto: boolean; interval_h: number; construct: boolean }
   tts: {
     auto: boolean
@@ -45,7 +42,6 @@ declare global {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'matrix',
-  plasma: false,
   font: '',
   lang: 'en',
   names: { user: '', assistant: 'Cody' },

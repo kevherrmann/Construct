@@ -52,24 +52,14 @@ def test_tts_einstellungen_je_sprache_und_alte_werte():
     assert cur["model"] == config.DEFAULT_SETTINGS["tts"]["model"]
 
 
-def test_plasma_ist_ein_schalter_fuer_alle_themes(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
-    cur = config.apply_patch({"theme": "bernstein", "plasma": True})
-    assert (cur["theme"], cur["plasma"]) == ("bernstein", True)
-    assert config.apply_patch({"plasma": False})["plasma"] is False
-
-
-def test_altes_plasma_theme_wird_umgestellt(tmp_path, monkeypatch):
+def test_alte_plasma_einstellungen_werden_umgestellt(tmp_path, monkeypatch):
     f = tmp_path / "settings.json"
-    f.write_text('{"theme": "plasma"}')
+    f.write_text('{"theme": "plasma", "plasma": true, "background": {"mode": "plasma"}}')
     monkeypatch.setattr(config, "SETTINGS_FILE", f)
     cur = config.load_settings()
-    assert (cur["theme"], cur["plasma"]) == ("space", True)
-
-
-def test_hintergrund_plasma_feld(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
-    assert config.apply_patch({"background": {"mode": "plasma"}})["background"]["mode"] == "plasma"
+    assert cur["theme"] == "space"
+    assert cur["background"]["mode"] == "matrix"
+    assert "plasma" not in cur
 
 
 def test_schriftwahl(tmp_path, monkeypatch):

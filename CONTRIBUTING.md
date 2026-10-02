@@ -44,7 +44,7 @@ npm run check    # types, lint, format, tests, build
   (`node scripts/add-en.mjs '{"Deutsch":"English"}'`). A test catches missing
   translations.
 - **Colors only through theme variables** (`var(--green)`, …) so all eight
-  themes and Plasma keep working.
+  themes keep working.
 - **User data stays out of git.** Settings, keys, mail accounts, calendar and
   uploads live in the project folder but are gitignored. Modules in `server/`
   find them through `BASE_DIR` (the project folder), which a test checks.

@@ -1,4 +1,3 @@
-import { Surface } from './Surface'
 import { Suspense } from 'react'
 import { NavLink } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +16,7 @@ export function Sidebar({ view, open, onNavigate }: Props) {
   const tiles = useSettings((st) => st.settings.tiles)
   const assistant = useSettings((st) => st.boot.assistant)
   return (
-    <Surface as="aside" className={`${s.side} ${open ? s.open : ''}`}>
+    <aside className={`${s.side} ${open ? s.open : ''}`}>
       {/* Der Ort heißt CONSTRUCT, der Assistent Cody. Beides gleich zu benennen
           ließ die App aussehen, als WÄRE sie er. */}
       <h1 className={s.brand}>◢◤ CONSTRUCT</h1>
@@ -42,6 +41,6 @@ export function Sidebar({ view, open, onNavigate }: Props) {
           <view.Side />
         </Suspense>
       </div>
-    </Surface>
+    </aside>
   )
 }

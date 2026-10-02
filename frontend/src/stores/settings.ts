@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { apiPost } from '@/lib/api'
 import { readBootstrap, type Bootstrap, type Settings } from '@/lib/bootstrap'
-import { applyPlasma, applyTheme } from '@/lib/themes'
+import { applyTheme } from '@/lib/themes'
 import { applyFont } from '@/lib/fonts'
 
 /** Teil-Update wie beim Server (config.apply_patch): verschachtelte Objekte teilweise. */
@@ -57,7 +57,6 @@ export const useSettings = create<SettingsStore>((set, get) => ({
     const next = merge(get().settings, patch)
     set({ settings: next, saveState: 'saving' })
     if (patch.theme) applyTheme(next.theme)
-    if (patch.plasma !== undefined) applyPlasma(next.plasma)
     if (patch.font !== undefined) applyFont(next.font)
     try {
       const fresh = await apiPost<Settings>('/api/settings', patch)

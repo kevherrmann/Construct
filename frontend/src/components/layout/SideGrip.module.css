@@ -1,8 +1,8 @@
-/* Liegt mit negativem Rand halb über der Kante: 7px Trefferfläche, ohne dass
-   zwischen Leiste und Inhalt eine Lücke entsteht. */
+/* Der Abstand zwischen den Flächen ist selbst die Griffzone: die negativen
+   Ränder heben den Abstand (gap) der App auf. */
 .grip {
-  flex: 0 0 7px;
-  margin: 0 -4px 0 -3px;
+  flex: 0 0 14px;
+  margin: 0 -14px 0 -14px;
   cursor: col-resize;
   position: relative;
   z-index: 20;
@@ -30,10 +30,4 @@
   .grip {
     display: none;
   }
-}
-
-/* Plasma: der Abstand zwischen den Flächen ist selbst die Griffzone. */
-:global(html[data-plasma]) .grip {
-  margin: 0 -14px 0 -14px;
-  flex-basis: 14px;
 }

@@ -25,11 +25,9 @@ SETTINGS_FILE = BASE_DIR / "settings.json"
 # eine Oberfläche ohne ihren Hauptzweck wäre eine Sackgasse, aus der man sich
 # nicht mehr herausklicken kann.
 OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp")
-# "plasma" = das bewegte Plasma-Feld — nur mit eingeschaltetem Plasma sinnvoll,
-# ohne Plasma zeigt die Oberfläche dafür den Regen.
-BG_MODES = ("matrix", "image", "plain", "plasma")
+BG_MODES = ("matrix", "image", "plain")
 # Schriften, die das Frontend mitbringt (frontend/src/lib/fonts.ts).
-# "" = automatisch: Terminal-Schrift klassisch, Inter mit Plasma.
+# "" = automatisch: Inter.
 FONTS = ("", "share-tech-mono", "jetbrains-mono", "ibm-plex-mono", "space-grotesk", "exo-2", "inter")
 # Die Farben selbst stehen im CSS. Hier nur die erlaubten Schlüssel — der
 # Server soll nicht mitentscheiden, wie etwas aussieht, nur was gewählt ist.
@@ -40,8 +38,6 @@ LANGS = ("en", "de")
 
 DEFAULT_SETTINGS = {
     "theme": "matrix",
-    # Flüssiges Glas (Plasma UI) — unabhängig von der Farbwelt, gilt für alle Themes.
-    "plasma": False,
     "font": "",
     "lang": "en",
     # Leerer Nutzername = neutrale Anrede. Ein voreingestellter Vorname wäre in
@@ -144,11 +140,9 @@ def load_settings() -> dict:
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
     elif raw.get("theme") == "plasma":
-        # Kurzzeitig war Plasma ein eigenes Theme (violett) — heute ein Schalter
-        # plus Farbwelt; "space" kommt dem damaligen Violett am nächsten.
-        out["theme"], out["plasma"] = "space", True
-    if "plasma" in raw:
-        out["plasma"] = bool(raw["plasma"])
+        # Kurzzeitig war Plasma ein eigenes Theme (violett); "space" kommt dem
+        # damaligen Violett am nächsten.
+        out["theme"] = "space"
     if raw.get("font") in FONTS:
         out["font"] = raw["font"]
     if raw.get("lang") in LANGS:
@@ -168,6 +162,10 @@ def load_settings() -> dict:
     bg = raw.get("background") or {}
     if bg.get("mode") in BG_MODES:
         out["background"]["mode"] = bg["mode"]
+    elif bg.get("mode") == "plasma":
+        # Das bewegte Plasma-Feld (WebGL) gibt es nicht mehr; ohne Grafikkarte
+        # zeigte die Oberfläche dafür schon immer den Regen.
+        out["background"]["mode"] = "matrix"
     out["background"]["image"] = _clean_image(bg.get("image"))
     try:
         out["background"]["dim"] = max(0, min(100, int(bg.get("dim"))))
@@ -191,8 +189,6 @@ def apply_patch(patch: dict) -> dict:
     cur = load_settings()
     if patch.get("theme") in THEMES:
         cur["theme"] = patch["theme"]
-    if "plasma" in patch:
-        cur["plasma"] = bool(patch["plasma"])
     if patch.get("font") in FONTS:
         cur["font"] = patch["font"]
     if patch.get("lang") in LANGS:

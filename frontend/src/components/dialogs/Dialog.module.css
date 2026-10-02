@@ -15,9 +15,7 @@
   width: min(600px, 94vw);
   max-height: 88vh;
   overflow: auto;
-  background: var(--popup);
-  border: 1px solid var(--green-dim);
-  box-shadow: 0 0 34px rgba(var(--accent-rgb), 0.3);
+  border: 1px solid transparent;
   padding: 22px 26px;
   font-size: 13.5px;
   line-height: 1.65;
@@ -31,7 +29,6 @@
   margin: 0 0 10px;
   letter-spacing: 3px;
   color: var(--green);
-  text-shadow: 0 0 10px var(--green);
 }
 .box p {
   margin: 9px 0;

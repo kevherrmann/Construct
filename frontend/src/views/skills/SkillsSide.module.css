@@ -15,7 +15,6 @@
   letter-spacing: 1px;
   color: var(--green);
   border-bottom: 1px solid var(--green-faint);
-  text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
   user-select: none;
 }
 .folder:hover {

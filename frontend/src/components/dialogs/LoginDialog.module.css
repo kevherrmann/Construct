@@ -27,7 +27,6 @@
   letter-spacing: 2px;
   padding: 11px 20px;
   font-size: 13px;
-  text-shadow: none;
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
   margin-top: 6px;
 }
@@ -46,5 +45,4 @@
 }
 .bad {
   color: #ff5c5c;
-  text-shadow: none;
 }

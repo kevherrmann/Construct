@@ -50,7 +50,7 @@ export const FONTS: FontInfo[] = [
   },
 ]
 
-/** Gewählte Schrift setzen; "" = automatisch (die Vorgabe des Themes bzw. von Plasma). */
+/** Gewählte Schrift setzen; "" = automatisch (Inter, die Vorgabe). */
 export function applyFont(key: string) {
   const f = FONTS.find((x) => x.key === key)
   const root = document.documentElement.style

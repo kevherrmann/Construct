@@ -91,15 +91,12 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   not versioned and survives updates, so you can give your assistant a
   different name and character without touching the code.
 - **Look.** Eight color themes (Matrix, Amber, Ice, Space, Ash, Blood, Paper,
-  Mist). **Plasma** switches any of them to liquid glass
-  ([Plasma UI](https://github.com/CruxGarden/plasma-ui), WebGL) and adds a
-  moving plasma field as a background option. Where WebGL can't run smoothly
-  (no WebGL2, or software rendering, e.g. NVIDIA under Wayland), the same
-  switch offers a **rounded glass design** in plain CSS instead: borderless
-  panels over a calm, static gradient. Background:
-  Matrix rain, your own image or plain. Six bundled fonts, no internet needed.
+  Mist), all in a rounded glass design written in plain CSS: borderless
+  panels over a calm, static gradient. No WebGL, so it also runs smoothly with
+  software rendering (e.g. NVIDIA under Wayland). Background: Matrix rain,
+  your own image or plain. Six bundled fonts, no internet needed.
 - **Settings panel (⚙).** Choose which tiles are visible, the language, theme,
-  Plasma, font, background, display names and avatars, read-aloud voice, the
+  font, background, display names and avatars, read-aloud voice, the
   Hermes home directory, and update behavior.
 - **Usage limits.** Shows your subscription's 5-hour and 7-day usage in the
   header, including the reset time when you hit a limit.
@@ -209,12 +206,11 @@ when it writes it.
 |---|---|
 | `lang` | `"en"` (default) or `"de"` |
 | `theme` | `matrix`, `bernstein`, `eis`, `space`, `asche`, `blut`, `papier`, `nebel` |
-| `plasma` | `false` (default) or `true`: liquid glass for any theme |
-| `font` | `""` (automatic), `share-tech-mono`, `jetbrains-mono`, `ibm-plex-mono`, `space-grotesk`, `exo-2`, `inter` |
+| `font` | `""` (automatic: Inter), `share-tech-mono`, `jetbrains-mono`, `ibm-plex-mono`, `space-grotesk`, `exo-2`, `inter` |
 | `names` | `{"user": "", "assistant": "Cody"}` |
 | `avatars` | `{"user": "", "assistant": ""}`: uploaded image paths |
 | `tiles` | `skills`, `kalender`, `mail`, `mcp` (on/off; the chat tile is always shown) |
-| `background` | `{"mode": "matrix" \| "image" \| "plain" \| "plasma", "image": "", "dim": 60}` |
+| `background` | `{"mode": "matrix" \| "image" \| "plain", "image": "", "dim": 60}` |
 | `tts` | `{"auto": false, "model": "gemini-3.8-flash-lite-tts", "voice": {"de": …, "en": …}, "style": {"de": "", "en": ""}}` |
 | `hermes` | `{"home": ""}`: empty means `~/.hermes` |
 | `updates` | `{"auto": true, "interval_h": 6, "construct": true}` |

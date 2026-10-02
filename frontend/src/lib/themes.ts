@@ -69,10 +69,3 @@ export function applyTheme(theme: ThemeName) {
   if (theme === 'matrix') root.removeAttribute('data-theme')
   else root.setAttribute('data-theme', theme)
 }
-
-/** Plasma an/aus: steuert die Glas-Regeln im CSS (html[data-plasma]). */
-export function applyPlasma(on: boolean) {
-  const root = document.documentElement
-  if (on) root.setAttribute('data-plasma', '')
-  else root.removeAttribute('data-plasma')
-}

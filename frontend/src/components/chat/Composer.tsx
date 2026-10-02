@@ -1,6 +1,5 @@
 import { canDictate, startDictation, type Dictation } from '@/lib/dictation'
 import { trServer } from '@/lib/serverText'
-import { Surface } from '@/components/layout/Surface'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
@@ -229,7 +228,7 @@ export function Composer() {
   }
 
   return (
-    <Surface className={s.composer}>
+    <div className={s.composer}>
       {!!conv?.queue.length && (
         <div className={s.queue}>
           ⏳ <b>{conv.queue.length}</b>{' '}
@@ -375,6 +374,6 @@ export function Composer() {
         }}
       />
       {dragging && <div className={s.dropmask}>{t('⌬ BILD HIER ABLEGEN ⌬')}</div>}
-    </Surface>
+    </div>
   )
 }

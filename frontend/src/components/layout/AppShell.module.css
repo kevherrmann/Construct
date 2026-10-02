@@ -1,36 +1,23 @@
+/* Schwebende Flächen mit Abstand. */
 .app {
   position: relative;
   z-index: 10;
   display: flex;
   height: 100vh;
+  padding: 14px;
+  gap: 14px;
 }
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   min-width: 0;
 }
 .content {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding: 22px 8%;
-  scroll-behavior: smooth;
-}
-@media (max-width: 900px) {
-  .content {
-    padding: 18px 16px;
-  }
-}
-
-/* ---------- Plasma: schwebende Flächen mit Abstand ---------- */
-:global(html[data-plasma]) .app {
-  padding: 14px;
-  gap: 14px;
-}
-:global(html[data-plasma]) .main {
-  gap: 14px;
-}
-:global(html[data-plasma]) .content {
   padding: 8px 6%;
+  scroll-behavior: smooth;
 }

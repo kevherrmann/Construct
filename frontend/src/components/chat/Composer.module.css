@@ -1,7 +1,7 @@
+/* Randlos und durchsichtig wie die Seitenleiste. */
 .composer {
-  border-top: 1px solid var(--green-faint);
-  padding: 10px 18px;
-  background: var(--panel);
+  border-radius: 26px;
+  padding: 14px 20px;
   position: relative;
 }
 .queue {
@@ -10,7 +10,7 @@
   border: 1px dashed var(--green-faint);
   padding: 7px 11px;
   margin-bottom: 9px;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   background: var(--box);
 }
 .queue b {
@@ -84,6 +84,7 @@
 .attach {
   background: transparent;
   border: 1px solid var(--green-dim);
+  border-radius: 14px;
   color: var(--green);
   cursor: pointer;
   font-size: 18px;
@@ -96,48 +97,47 @@
 .input {
   flex: 1;
   background: var(--field);
-  border: 1px solid var(--green-dim);
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 14px;
   color: var(--green);
   font-size: 14.5px;
   padding: 11px 13px;
   resize: none;
   outline: none;
   max-height: 180px;
-  text-shadow: inherit;
   line-height: 1.4;
 }
 .input:focus {
   box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.35);
-  border-color: var(--green);
 }
 .input::placeholder {
   color: var(--green-dim);
   opacity: 0.6;
 }
 .send {
-  background: var(--green);
+  background: linear-gradient(135deg, var(--green), rgba(var(--accent-rgb), 0.65));
   color: var(--on-accent);
   border: none;
+  border-radius: 14px;
   cursor: pointer;
   font-weight: bold;
   letter-spacing: 2px;
   padding: 0 22px;
   height: 44px;
   font-size: 14px;
-  text-shadow: none;
-  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 6px 22px rgba(var(--accent-rgb), 0.45);
 }
 .stop {
   background: #2a0606;
   color: #ff5c5c;
   border: 1px solid #ff5c5c;
+  border-radius: 14px;
   cursor: pointer;
   font-weight: bold;
   letter-spacing: 1px;
   padding: 0 16px;
   height: 44px;
   font-size: 13px;
-  text-shadow: none;
   box-shadow: 0 0 12px rgba(255, 60, 60, 0.4);
 }
 .stop:hover {
@@ -165,33 +165,6 @@
   font-size: 22px;
   letter-spacing: 4px;
   pointer-events: none;
-}
-
-/* ---------- Plasma ---------- */
-:global(html[data-plasma]) .composer {
-  border-radius: 26px;
-  border-top: none;
-  padding: 14px 20px;
-}
-/* Ohne WebGL (rundes Glas-Design): wie mit Canvas randlos und durchsichtig —
-   die Fläche geht in den Seitenverlauf über, statt als Kasten dazustehen. */
-:global(html[data-plasma]) .composer {
-  background: transparent;
-}
-:global(html[data-plasma]) .input {
-  border-radius: 14px;
-  border-color: rgba(var(--accent-rgb), 0.18);
-  background: var(--field);
-  color: var(--green);
-}
-:global(html[data-plasma]) .send {
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--green), rgba(var(--accent-rgb), 0.65));
-  box-shadow: 0 6px 22px rgba(var(--accent-rgb), 0.45);
-}
-:global(html[data-plasma]) .attach,
-:global(html[data-plasma]) .stop {
-  border-radius: 14px;
 }
 
 /* Spracheingabe: läuft die Aufnahme, pulsiert der Knopf rot. */

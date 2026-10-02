@@ -1,19 +1,20 @@
+/* Randlos und durchsichtig: die Fläche geht in den Seitenverlauf über, statt
+   als Kasten dazustehen. */
 .side {
   width: var(--side-w, 300px);
   flex: 0 0 var(--side-w, 300px);
-  border-right: 1px solid var(--green-faint);
-  background: var(--panel);
+  border-radius: 26px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(2px);
 }
 .brand {
   font-size: 18px;
-  letter-spacing: 3px;
   margin: 0;
   padding: 15px 16px 2px;
   color: var(--green);
-  text-shadow: 0 0 10px var(--green);
+  font-weight: 650;
+  letter-spacing: 4px;
 }
 /* Wer hier Dienst hat. Der Name des Assistenten gehört unter den des Ortes,
    nicht an dessen Stelle. */
@@ -22,7 +23,6 @@
   font-size: 10px;
   letter-spacing: 2.5px;
   color: var(--green-dim);
-  text-shadow: none;
 }
 .dot {
   color: var(--green);
@@ -34,10 +34,10 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   margin: 0 10px 12px;
-  border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 5px);
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 14px;
   overflow: hidden;
-  background: var(--box);
+  background: rgba(255, 255, 255, 0.05);
 }
 .item {
   min-width: 0;
@@ -54,7 +54,6 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  text-shadow: none;
   text-decoration: none;
   transition: 0.12s;
 }
@@ -65,8 +64,8 @@
   border-top: none;
 }
 .item span {
-  font-size: 8.5px;
-  letter-spacing: 0.4px;
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
   max-width: 100%;
@@ -77,7 +76,7 @@
 }
 .active {
   color: var(--green);
-  background: rgba(var(--accent-rgb), 0.1);
+  background: rgba(var(--accent-rgb), 0.16);
   box-shadow: inset 0 -2px 0 var(--green);
 }
 .panel {
@@ -99,34 +98,4 @@
   .open {
     transform: none;
   }
-}
-
-/* ---------- Plasma ---------- */
-:global(html[data-plasma]) .side {
-  border-radius: 26px;
-  border-right: none;
-  overflow: hidden;
-}
-/* Ohne WebGL (rundes Glas-Design): wie mit Canvas randlos und durchsichtig —
-   die Fläche geht in den Seitenverlauf über, statt als Kasten dazustehen. */
-:global(html[data-plasma]) .side {
-  background: transparent;
-  backdrop-filter: none;
-}
-:global(html[data-plasma]) .brand {
-  font-weight: 650;
-  letter-spacing: 4px;
-}
-:global(html[data-plasma]) .menu {
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(var(--accent-rgb), 0.18);
-}
-:global(html[data-plasma]) .item span {
-  font-size: 9.5px;
-  letter-spacing: 0.3px;
-}
-:global(html[data-plasma]) .active {
-  box-shadow: inset 0 -2px 0 var(--green);
-  background: rgba(var(--accent-rgb), 0.16);
 }

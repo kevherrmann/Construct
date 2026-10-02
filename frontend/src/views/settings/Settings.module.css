@@ -11,10 +11,10 @@
 }
 .sec {
   composes: glass-card from global;
-  border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 4px);
+  border: 1px solid transparent;
+  border-radius: 20px;
+  overflow: hidden;
   margin: 0 0 16px;
-  background: var(--box);
 }
 .sec > h3 {
   margin: 0;
@@ -92,7 +92,7 @@
   background: transparent;
   color: var(--green);
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .btn + .btn {
@@ -118,7 +118,7 @@ select.btn {
   font-size: 10px;
   letter-spacing: 1px;
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 2px);
+  border-radius: var(--radius);
   padding: 2px 6px;
   opacity: 0.85;
   white-space: nowrap;
@@ -150,7 +150,7 @@ select.btn {
 .in {
   background: var(--shade);
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   color: var(--green);
   font-family: inherit;
   font-size: 13px;
@@ -168,7 +168,7 @@ select.btn {
   background: var(--shade);
   color: var(--green);
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   font-family: inherit;
   font-size: 12.5px;
   line-height: 1.55;
@@ -189,7 +189,7 @@ select.btn {
   background: var(--shade);
   padding: 8px;
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   white-space: pre-wrap;
 }
 .avPick {
@@ -228,7 +228,7 @@ select.btn {
   background: transparent;
   color: var(--green-dim);
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
 }
 .tab.on {
   color: var(--green);
@@ -238,7 +238,7 @@ select.btn {
 .prev {
   height: 74px;
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   margin-top: 8px;
   background-size: cover;
   background-position: center;
@@ -253,7 +253,6 @@ select.btn {
   justify-content: center;
   font-size: 12px;
   letter-spacing: 2px;
-  text-shadow: 0 0 6px #000;
 }
 /* Theme-Auswahl als Kärtchen mit echten Farbtupfern: eine Liste mit
    Namen wie "Bernstein" sagt niemandem, wie das aussieht. */
@@ -264,7 +263,7 @@ select.btn {
 }
 .th {
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius, 4px);
+  border-radius: var(--radius);
   padding: 9px 10px;
   cursor: pointer;
   transition: 0.12s;
@@ -272,7 +271,6 @@ select.btn {
   text-align: left;
   color: inherit;
   font-family: inherit;
-  text-shadow: inherit;
 }
 .th:hover {
   border-color: var(--green-dim);
@@ -289,7 +287,7 @@ select.btn {
 .sw i {
   width: 20px;
   height: 20px;
-  border-radius: var(--radius, 3px);
+  border-radius: var(--radius);
   display: block;
   border: 1px solid rgba(var(--accent-rgb), 0.18);
 }
@@ -332,16 +330,6 @@ select.btn {
 }
 .actionsFlex .btn + .btn {
   margin-left: 0;
-}
-
-/* ---------- Plasma ---------- */
-:global(html[data-plasma]) .sec {
-  border-radius: 20px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(var(--accent-rgb), 0.18);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 /* Schrift-Auswahl unter den Farbwelten: Karten wie die Farbwelten, jede in

@@ -15,7 +15,6 @@
   font-family: inherit;
   font-size: 13px;
   letter-spacing: 2px;
-  text-shadow: inherit;
 }
 .add:hover {
   background: var(--green-faint);

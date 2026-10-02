@@ -1,6 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { fxLevel } from '@/lib/fx'
-import { plasmaLive } from '@/lib/plasma'
 import { useSettings } from '@/stores/settings'
 import s from './Backdrop.module.css'
 
@@ -11,17 +10,7 @@ const RAIN_SCALE = 0.5
 const CELL = 14
 const GLYPHS = 'ｱｲｳｴｵｶｷｸ0123456789ABCDEFﾊﾋﾌﾍﾎ$+*=<>'
 
-interface RainProps {
-  slow: boolean
-  /** Als Bildquelle fürs Plasma-Glas: unsichtbar, Zeichen gedämpft (die CSS-
-   *  Deckkraft von 28 % gilt dort nicht — das Glas liest die rohen Pixel). */
-  source?: boolean
-  /** Nicht zeichnen (Canvas bleibt bestehen) — spart Rechenzeit. */
-  paused?: boolean
-  onCanvas?: (c: HTMLCanvasElement | null) => void
-}
-
-export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
+function MatrixRain({ slow }: { slow: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const theme = useSettings((st) => st.settings.theme)
   // Canvas versteht keine CSS-Variablen: einmal pro Theme auslesen, nicht pro
@@ -47,11 +36,6 @@ export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
       cv.height = Math.max(1, Math.round(innerHeight * RAIN_SCALE))
       step = CELL * RAIN_SCALE
       drops = Array<number>(Math.floor(cv.width / step)).fill(1)
-      // Plasma-Glas lädt Quellen mit UNPACK_FLIP_Y und dreht sie dabei
-      // senkrecht um — als Quelle darum gespiegelt zeichnen, dann steht der
-      // Regen wieder richtig (fällt von oben, Zeichen aufrecht). Neues Maß
-      // setzt die Transformation zurück, darum hier bei jedem Größenwechsel.
-      if (source) cx.setTransform(1, 0, 0, -1, 0, cv.height)
     }
     size()
     addEventListener('resize', size)
@@ -65,15 +49,12 @@ export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
     // Fenster unsichtbar ist, und staut nie Frames auf.
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop)
-      if (paused) return
       if (t - last < every) return
       last = t
       const { color, fade } = colors.current
-      cx.globalAlpha = 1
       cx.fillStyle = fade
       cx.fillRect(0, 0, cv.width, cv.height)
       cx.fillStyle = color
-      cx.globalAlpha = source ? 0.55 : 1
       cx.font = `${step}px monospace`
       for (let i = 0; i < drops.length; i++) {
         cx.fillText(GLYPHS[Math.floor(Math.random() * GLYPHS.length)]!, i * step, drops[i]! * step)
@@ -86,25 +67,16 @@ export function MatrixRain({ slow, source, paused, onCanvas }: RainProps) {
       cancelAnimationFrame(raf)
       removeEventListener('resize', size)
     }
-  }, [slow, source, paused])
+  }, [slow])
 
-  useEffect(() => {
-    onCanvas?.(ref.current)
-    return () => onCanvas?.(null)
-  }, [onCanvas])
-
-  return <canvas ref={ref} className={source ? s.source : s.rain} />
+  return <canvas ref={ref} className={s.rain} />
 }
 
-// Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild, schlicht — und mit
-// Plasma das bewegte Plasma-Feld. Mit echtem Plasma (WebGL) malt PlasmaRoot
-// den Hintergrund selbst durchs Glas; hier bleibt dann nichts zu tun.
+// Hintergrund: Matrix-Regen (Vorgabe), eigenes Bild oder schlicht — dann
+// bleibt der ruhige Farbverlauf des Seitengrunds (styles/global.css) stehen.
 export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
-  const plasma = useSettings((st) => st.settings.plasma)
   const fx = fxLevel()
-  if (plasmaLive(plasma)) return null
-  // Das Plasma-Feld gibt es nur mit WebGL — sonst gilt die Wahl als Regen.
   if (bg.mode === 'image' && bg.image)
     return (
       <div
@@ -117,7 +89,6 @@ export function Backdrop() {
         }
       />
     )
-  if ((bg.mode === 'matrix' || bg.mode === 'plasma') && fx !== 'off')
-    return <MatrixRain slow={fx === 'low'} />
+  if (bg.mode === 'matrix' && fx !== 'off') return <MatrixRain slow={fx === 'low'} />
   return null
 }
