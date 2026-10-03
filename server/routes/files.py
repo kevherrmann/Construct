@@ -8,6 +8,7 @@ from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from server import attach
+from server import config as cfg
 
 from server.core import WORKSPACE, claude_bin, claude_env
 
@@ -119,7 +120,7 @@ def skills():
                 nm, desc = _parse_skill_md(str(md))
                 gitems.append({"name": nm, "desc": desc, "path": str(md), "kind": "md"})
         if gitems:
-            groups["★ global (alle Projekte)"] = gitems
+            groups[cfg.L("★ global (alle Projekte)", "★ global (all projects)")] = gitems
     if not os.path.isdir(WORKSPACE):
         return groups
     for proj in sorted(os.listdir(WORKSPACE), key=str.lower):

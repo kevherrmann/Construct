@@ -41,8 +41,10 @@ export function AppShell() {
         <section className={s.main}>
           <Topbar onBurger={() => setSideOpen(!sideOpen)} />
           {/* Scroll-Container für alle Ansichten (früher #chat). Die Eingabe steht
-            immer darunter — wer aus dem Kalender schreibt, landet im Chat. */}
-          <div className={s.content} data-scroll>
+            immer darunter — wer aus dem Kalender schreibt, landet im Chat.
+            key je Ansicht: sonst behielt z.B. der Kalender die Scrollposition
+            des Chats und begann mittendrin. */}
+          <div key={current.key} className={s.content} data-scroll>
             <Suspense fallback={null}>
               <current.Main />
             </Suspense>

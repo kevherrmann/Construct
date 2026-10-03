@@ -2,6 +2,23 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.0.1 — 2026-10-03
+
+### Added
+- **Demo video and screenshots in the README**, recorded in a demo
+  installation with made-up data (`docs/screenshots/`).
+
+### Fixed
+- **Switching views starts at the top.** The content area kept the chat's
+  scroll position, so the calendar opened halfway down and cut off the
+  current week.
+- **Skill names are readable in the list.** Name and description shared the
+  row equally, so short names shrank to "d…". The name now comes first.
+- **A skill's YAML header shows as a code block.** Read as Markdown, the
+  `---` line turned `description: …` into a huge heading.
+- **"★ global (all projects)"** in the English skill list instead of the
+  German label.
+
 ## 6.0.0 — 2026-10-02
 
 ### Changed

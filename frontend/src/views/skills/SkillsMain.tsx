@@ -6,6 +6,13 @@ import { useSkillFile, useSkills, type Skill } from '@/api/skills'
 import { MarkdownBubble } from '@/components/chat/MarkdownBubble'
 import s from './SkillsMain.module.css'
 
+// YAML-Kopf einer SKILL.md als Codeblock zeigen. Als Markdown gelesen wurde
+// aus "---" + "description: …" eine riesige Setext-Überschrift.
+function frontmatterAsCode(md: string) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(md)
+  return m ? '```yaml\n' + m[1] + '\n```\n' + md.slice(m[0].length) : md
+}
+
 // Angeklickter Skill im Hauptbereich. Der Pfad steht in der URL (?path=…), so
 // überlebt die Ansicht ein Neuladen; Name und Art kommen aus der Liste.
 export function SkillsMain() {
@@ -51,7 +58,7 @@ export function SkillsMain() {
       </div>
       <MarkdownBubble
         key={path}
-        text={kind === 'py' ? '```python\n' + content + '\n```' : content}
+        text={kind === 'py' ? '```python\n' + content + '\n```' : frontmatterAsCode(content)}
       />
     </div>
   )

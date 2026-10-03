@@ -2,6 +2,17 @@
 
 **A local desktop and web interface for Claude Code, with an AI assistant called Cody.**
 
+https://github.com/user-attachments/assets/63b38b9a-d838-49ab-bc4a-97718ef83d0c
+
+<p align="center">
+  <img src="docs/screenshots/chat.webp" width="49%" alt="Chat: Cody writes files and starts a preview server, every tool call is shown live">
+  <img src="docs/screenshots/calendar.webp" width="49%" alt="Calendar with upcoming events, shared with Cody and the Telegram bot">
+</p>
+<p align="center">
+  <img src="docs/screenshots/mail.webp" width="49%" alt="E-mail: several accounts in one inbox, with local categories">
+  <img src="docs/screenshots/themes.webp" width="49%" alt="Settings: eight color themes and six bundled fonts">
+</p>
+
 > **Which file do I run?** Only the start script for your system — everything
 > else sets itself up.
 >

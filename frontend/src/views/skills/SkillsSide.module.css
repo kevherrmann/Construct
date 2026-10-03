@@ -59,8 +59,12 @@
   background: rgba(var(--accent-rgb), 0.06);
   color: var(--green);
 }
+/* Der Name hat Vorrang: frueher teilten sich Name und Beschreibung den
+   Platz gleich auf, und kurze Namen schrumpften zu "d…". */
 .t {
   display: block;
+  flex: 0 1 auto;
+  max-width: 70%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -73,4 +77,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
+  flex: 1 1 0;
+  min-width: 0;
 }
