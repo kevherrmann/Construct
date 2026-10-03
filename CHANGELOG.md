@@ -13,6 +13,14 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   take turns writing it (a lock held until Hermes has read it); tested with a
   Bonsai and a Gemini run started at the same moment.
 
+### Fixed
+- **Replies no longer appear twice.** Streamed text is drawn on the next
+  animation frame; an immediate redraw (stats, done) did not cancel that
+  pending frame, so it fired after the run had finished and wrote the reply
+  back into the live run — it stood twice until the next message. Showed up
+  when the last text and "done" arrived together and the browser draws frames
+  late: Bonsai in the desktop app (WebKitGTK). Reproduced and verified there.
+
 ## 6.1.1 — 2026-10-04
 
 ### Fixed

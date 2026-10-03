@@ -202,7 +202,13 @@ export const useChat = create<ChatStore>((set, get) => {
       // Bei jedem (Re)Connect frisch aus dem Replay aufbauen.
       let rs = initialRun()
       let frame = 0
+      // Ein noch geplantes Zeichnen immer mit abbestellen: sonst feuerte es
+      // nach finishRun und schrieb die fertige Antwort zurück in den Lauf —
+      // sie stand dann doppelt da (Verlauf + Lauf), bis zur nächsten Nachricht.
+      // Trat auf, wenn letzter Text und "done" im selben Paket kamen und der
+      // Browser Bilder spät aufbaut (WebKitGTK, Bonsai).
       const flush = () => {
+        if (frame) cancelAnimationFrame(frame)
         frame = 0
         patch(key, { run: rs })
       }
