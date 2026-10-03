@@ -12,6 +12,11 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   key". Bonsai runs now set `CUSTOM_BASE_URL` to the local server, and a
   session that already stored the wrong address is repaired on its next
   message.
+- **Small local models answer instead of repeating the context.** Bonsai
+  often echoed the calendar and image instructions CONSTRUCT attaches to each
+  message, especially after short requests ("Say only: one"). For local models
+  (Bonsai, Ollama) the context now comes before the message and without the
+  image instructions; session titles still show the actual request.
 
 ## 6.1.0 — 2026-10-03
 

@@ -127,8 +127,13 @@ SOUL_MARK = ("<!-- Von CONSTRUCT geschrieben (SOUL.md + USER.md aus ⚙ Persona)
              "Änderungen bitte dort — diese Datei wird überschrieben. -->")
 HERMES_DEFAULT_SOUL = "You are Hermes Agent, built by Nous Research."
 CTX_OPEN, CTX_CLOSE = "[CONSTRUCT-Kontext]", "[/CONSTRUCT-Kontext]"
-_CTX_RE = re.compile(r"\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*$",
-                     re.S)
+# Vorn (lokale Modelle) oder hinten (alle anderen, ältere Sitzungen).
+_CTX_RE = re.compile(r"(^\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*)"
+                     r"|(\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*$)", re.S)
+# Kleine lokale Modelle: Kontext VOR die Nachricht und ohne Bild-Anleitung.
+# Hinten angehängt plapperte Bonsai bei kurzen Bitten ("Sag nur: eins") den
+# Block nach, statt zu antworten — das Letzte, was es las, war der Kontext.
+LOKAL = ("bonsai", "ollama")
 
 
 def sync_soul() -> bool:
@@ -160,16 +165,20 @@ def sync_soul() -> bool:
     return True
 
 
-def with_context(prompt: str) -> str:
-    """Kalender (und Bild-Anleitung) an die Nachricht hängen — markiert, damit
+def with_context(prompt: str, lokal: bool = False) -> str:
+    """Kalender (und Bild-Anleitung) zur Nachricht legen — markiert, damit
     die Verlaufsansicht ihn wieder abschneiden kann (strip_context)."""
     from server.core import context_text
-    block = context_text()
-    return f"{prompt}\n\n{CTX_OPEN}\n{block}\n{CTX_CLOSE}" if block else prompt
+    block = context_text(bilder=not lokal)
+    if not block:
+        return prompt
+    if lokal:
+        return f"{CTX_OPEN}\n{block}\n{CTX_CLOSE}\n\n{prompt}"
+    return f"{prompt}\n\n{CTX_OPEN}\n{block}\n{CTX_CLOSE}"
 
 
 def strip_context(text: str) -> str:
-    return _CTX_RE.sub("", text)
+    return _CTX_RE.sub("", text).strip()
 
 
 # ---------- Fehlermeldungen von Hermes ----------
@@ -788,13 +797,19 @@ def list_sessions() -> list:
         con = _db()
         rows = con.execute(
             "SELECT id, title, cwd, model, last_activity_at, started_at, "
-            "message_count, model_config "
-            "FROM sessions WHERE source='acp' AND COALESCE(hidden,0)=0 "
+            "message_count, model_config, "
+            "(SELECT content FROM messages m WHERE m.session_id = s.id AND m.role = 'user' "
+            " ORDER BY CAST(m.id AS INTEGER) LIMIT 1) "
+            "FROM sessions s WHERE source='acp' AND COALESCE(hidden,0)=0 "
             "ORDER BY COALESCE(last_activity_at, started_at) DESC LIMIT 300").fetchall()
         con.close()
     except Exception:
         return []
-    for sid, title, cwd, model, last, started, cnt, mcfg in rows:
+    for sid, title, cwd, model, last, started, cnt, mcfg, erste in rows:
+        title = (title or "").strip()
+        if not title or title.startswith(CTX_OPEN):
+            # Titel aus dem Kontext-Block (lokale Modelle) → die eigentliche Bitte.
+            title = (strip_context(erste or "").splitlines() or [""])[0][:80]
         if not cwd:
             # Die eigene Spalte bleibt bei ACP-Sitzungen leer; der Ordner steht
             # in der Konfiguration, die beim Sitzungsstart mitgeschrieben wird.
@@ -806,7 +821,7 @@ def list_sessions() -> list:
             "id": "hermes-" + sid,
             "project": "hermes",
             "cwd": cwd or "(unbekannt)",
-            "title": (title or "").strip() or "(ohne Titel)",
+            "title": title or "(ohne Titel)",
             "mtime": float(last or started or 0),
             "size": int(cnt or 0),
             "model": model or "",

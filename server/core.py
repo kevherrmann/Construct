@@ -92,11 +92,14 @@ def calendar_text() -> str:
         return ""
 
 
-def context_text() -> str:
-    """Was sich laufend ändert: Kalender, dazu die Bild-Anleitung, falls ein Key da ist."""
+def context_text(bilder: bool = True) -> str:
+    """Was sich laufend ändert: Kalender, dazu die Bild-Anleitung, falls ein Key da ist.
+
+    bilder=False für kleine lokale Modelle: jede Zeile Kontext ist für sie
+    eine Zeile, die sie verwechseln oder nachplappern können."""
     try:
         from server import images
-        bilder = images.context_block()
+        bilder = images.context_block() if bilder else ""
     except Exception:
         bilder = ""
     return "\n\n".join(p for p in (calendar_text(), bilder) if p)

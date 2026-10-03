@@ -173,6 +173,6 @@ def start_hermes_run(text, images, pid, model, work_dir, mode, session_id=None):
     # Persona als Hermes-Identität, Kalender frisch an jede Nachricht — wie
     # bei Claude (runs.start_run → load_persona).
     hermesmod.sync_soul()
-    run.task = asyncio.create_task(run_hermes(run, sess, hermesmod.with_context(prompt),
+    run.task = asyncio.create_task(run_hermes(run, sess, hermesmod.with_context(prompt, pid in hermesmod.LOKAL),
                                               mode != "plan"))
     return run

@@ -53,3 +53,16 @@ def test_bonsai_bekommt_seine_adresse_auch_beim_fortsetzen(monkeypatch):
     monkeypatch.delenv("CUSTOM_BASE_URL", raising=False)
     assert hermes.run_env("bonsai:Ternary-Bonsai-8B")["CUSTOM_BASE_URL"] == bonsai.BASE_URL
     assert "CUSTOM_BASE_URL" not in hermes.run_env("gemini:gemini-2.5-flash")
+
+
+def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
+    from server import images
+    monkeypatch.setattr(images, "context_block", lambda: "## Bilder erzeugen\n…")
+    monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
+    lokal = hermes.with_context("Sag nur: eins", lokal=True)
+    assert lokal.startswith(hermes.CTX_OPEN) and lokal.endswith("Sag nur: eins")
+    assert "Bilder erzeugen" not in lokal and "Zahnarzt" in lokal
+    assert hermes.strip_context(lokal) == "Sag nur: eins"
+    sonst = hermes.with_context("Sag nur: eins")
+    assert sonst.startswith("Sag nur: eins") and "Bilder erzeugen" in sonst
+    assert hermes.strip_context(sonst) == "Sag nur: eins"
