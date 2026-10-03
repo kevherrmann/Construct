@@ -286,6 +286,12 @@ export const useChat = create<ChatStore>((set, get) => {
               case 'error':
                 finished = true
                 break
+              // Der Server sagt ausdruecklich: Lauf vorbei. Ohne das galt ein
+              // im Nachlauf beendeter Lauf als abgerissen, und das Andocken
+              // lief in einer Schleife (Verlauf leer, neu, leer …).
+              case 'closed':
+                finished = true
+                break
             }
             if (ev.type === 'text') schedule()
             else flush()

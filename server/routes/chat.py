@@ -124,9 +124,7 @@ async def stream(run_id: str):
         try:
             for ev in run.events[:idx]:
                 yield sse(ev)
-            if already:
-                return                # Backlog enthält bereits done/error
-            while True:
+            while not already:
                 try:
                     ev = await asyncio.wait_for(q.get(), timeout=8)
                 except asyncio.TimeoutError:
@@ -135,6 +133,11 @@ async def stream(run_id: str):
                 if ev is None:
                     break             # Lauf fertig
                 yield sse(ev)
+            # Ausdruecklich: dieser Lauf ist zu Ende. Ein Stream, der einfach
+            # endet, sieht fuer das Frontend aus wie ein Verbindungsabriss -
+            # endete der Lauf im Nachlauf (ohne letztes "done"), dockte es
+            # jede Sekunde neu an und baute den Verlauf leer neu auf.
+            yield sse({"type": "closed"})
         finally:
             run.subs.discard(q)
 

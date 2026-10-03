@@ -16,6 +16,8 @@ export type StreamEvent =
   | { type: 'nachlauf_ende' }
   | { type: 'done'; session_id?: string }
   | { type: 'error'; message: string }
+  /** Der Lauf ist zu Ende (letztes Ereignis jedes Streams). */
+  | { type: 'closed' }
 
 /** Hinweiszeile mit deutschem Quelltext, übersetzt beim Zeichnen. */
 export interface NoteText {

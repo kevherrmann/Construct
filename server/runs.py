@@ -369,6 +369,12 @@ async def run_claude(run, cmd):
         run.emit({"type": "error", "message": f"Server-Fehler: {e}"})
     finally:
         run.stdin_closed = True
+        if run.nachlauf:
+            # claude ist gegangen, waehrend noch Hintergrundaufgaben offen
+            # waren (von selbst oder abgeschossen). Ohne diese Meldung bleibt
+            # die Oberflaeche im Nachlauf haengen.
+            run.nachlauf = False
+            run.emit({"type": "nachlauf_ende"})
         run.finish()
         if not getattr(run, "stopped", False):
             maybe_notify(run)

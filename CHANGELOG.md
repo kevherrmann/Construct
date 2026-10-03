@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.0.2 — 2026-10-03
+
+### Fixed
+- **No more endless flicker after background jobs.** If `claude` exited
+  while background tasks were still open (on its own, after the 30-minute
+  limit, or killed), the run ended without a final event. The UI took that
+  for a dropped connection, reconnected every second and rebuilt the chat
+  from scratch each time: messages appeared, vanished and reappeared until
+  the app was closed. The stream now always ends with an explicit `closed`
+  event, and a run that ends during the wait sends `nachlauf_ende`.
+
 ## 6.0.1 — 2026-10-03
 
 ### Added
