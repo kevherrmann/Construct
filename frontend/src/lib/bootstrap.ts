@@ -22,6 +22,9 @@ export interface Settings {
     voice: Record<Lang, string>
     style: Record<Lang, string>
   }
+  images: { model: string }
+  /** Automatische Modellwahl — vorerst nur Schattenbetrieb, ohne Schalter in der Oberfläche. */
+  auto: { schatten: boolean }
 }
 
 export interface Bootstrap {
@@ -56,6 +59,8 @@ export const DEFAULT_SETTINGS: Settings = {
     voice: { de: 'de-de-podcaster-3', en: 'en-us-podcaster-6' },
     style: { de: '', en: '' },
   },
+  images: { model: 'openai/gpt-image-2' },
+  auto: { schatten: false },
 }
 
 /** Liest window.CONSTRUCT und füllt Lücken mit Vorgaben (z. B. im Vite-Dev-Server). */

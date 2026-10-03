@@ -139,3 +139,13 @@ export function uploadFile(file: File) {
   // Leere headers: der Browser setzt den multipart-Rand selbst.
   return apiPost<Upload>('/api/upload', undefined, { body: fd, headers: {} })
 }
+
+// ---------- Bilder erzeugen (fal.ai) ----------
+export interface ImagesStatus {
+  configured: boolean
+  model: string
+  models: { id: string; label: string; price: string }[]
+}
+export const useImagesStatus = () =>
+  useQuery({ queryKey: ['images'], queryFn: () => apiGet<ImagesStatus>('/api/images') })
+export const saveImagesKey = (api_key: string) => apiPost<ImagesStatus>('/api/images', { api_key })

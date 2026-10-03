@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSettings } from '@/stores/settings'
 import { BackgroundSection, ThemeSection } from './AppearanceSections'
 import { EnginesSection } from './EnginesSection'
+import { ImagesSection } from './ImagesSection'
 import { LanguageSection, MailSection, TilesSection } from './GeneralSections'
 import { NamesSection } from './NamesSection'
 import { Note } from './parts'
@@ -46,6 +47,7 @@ const BY_ID: Record<SectionId, ComponentType> = {
   modelle: EnginesSection,
   mail: MailSection,
   vorlesen: TtsSection,
+  bilder: ImagesSection,
   telegram: TelegramSection,
   updates: UpdatesSection,
   namen: NamesSection,

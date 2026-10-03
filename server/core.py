@@ -47,7 +47,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "6.0.2"
+VERSION = "6.1.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -92,9 +92,19 @@ def calendar_text() -> str:
         return ""
 
 
+def context_text() -> str:
+    """Was sich laufend ändert: Kalender, dazu die Bild-Anleitung, falls ein Key da ist."""
+    try:
+        from server import images
+        bilder = images.context_block()
+    except Exception:
+        bilder = ""
+    return "\n\n".join(p for p in (calendar_text(), bilder) if p)
+
+
 def load_persona() -> str:
-    """Persona + Kalender als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
-    return "\n\n".join(p for p in (persona_text(), calendar_text()) if p).strip()
+    """Persona + Kontext als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
+    return "\n\n".join(p for p in (persona_text(), context_text()) if p).strip()
 
 ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", "dontAsk"}
 

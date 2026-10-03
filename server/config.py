@@ -66,7 +66,16 @@ DEFAULT_SETTINGS = {
     "tts": {"auto": False, "model": "gemini-3.8-flash-lite-tts",
             "voice": {"de": "de-de-podcaster-3", "en": "en-us-podcaster-6"},
             "style": {"de": "", "en": ""}},
+    # Bilder erzeugen (images.py, bild.py) über fal.ai. Der Key liegt wie die
+    # anderen Anbieter-Keys in .llm-config.json, hier nur die Modellwahl.
+    "images": {"model": "openai/gpt-image-2"},
+    # Automatische Modellwahl. Vorerst nur als Schattenbetrieb: ein kleines
+    # Modell schlägt bei jeder neuen Session eins vor, protokolliert wird nur
+    # (auto_modell.py). Ohne Schalter in der Oberfläche, Vorgabe aus.
+    "auto": {"schatten": False},
 }
+
+IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano-banana-pro")
 
 # Ist das gewählte Claude-Modell überlastet oder nicht erreichbar, springt die
 # CLI auf das nächste der Liste (zu Beginn jeder Nachricht wird wieder das
@@ -181,7 +190,18 @@ def load_settings() -> dict:
     except Exception:
         pass
     _clean_tts(raw.get("tts") or {}, out["tts"])
+    _clean_extras(raw, out)
     return out
+
+
+def _clean_extras(src: dict, cur: dict):
+    """Bildmodell und Schattenbetrieb (für Laden und Patch)."""
+    im = src.get("images") or {}
+    if im.get("model") in IMAGE_MODELS:
+        cur["images"]["model"] = im["model"]
+    au = src.get("auto") or {}
+    if "schatten" in au:
+        cur["auto"]["schatten"] = bool(au["schatten"])
 
 
 def apply_patch(patch: dict) -> dict:
@@ -230,6 +250,7 @@ def apply_patch(patch: dict) -> dict:
         except Exception:
             pass
     _clean_tts(patch.get("tts") or {}, cur["tts"])
+    _clean_extras(patch, cur)
     tmp = SETTINGS_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(SETTINGS_FILE)

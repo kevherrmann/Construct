@@ -8,6 +8,7 @@ export const SECTIONS = [
   { id: 'modelle', title: '🧠 MODELLE & ANBIETER' },
   { id: 'mail', title: '📧 E-MAIL-KONTEN' },
   { id: 'vorlesen', title: '🔊 VORLESEN' },
+  { id: 'bilder', title: '🖌 BILDER ERZEUGEN' },
   { id: 'telegram', title: '✈ TELEGRAM' },
   { id: 'updates', title: '🔄 AKTUALISIERUNG' },
   { id: 'namen', title: '🙋 NAMEN' },

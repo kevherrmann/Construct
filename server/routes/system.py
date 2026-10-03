@@ -237,6 +237,23 @@ async def tts_voices(lang: str = "de-DE"):
 
 
 # ---------- Telegram (Einrichtung unter ⚙) ----------
+@router.get("/api/images")
+def images_status():
+    """Bilder erzeugen: Key hinterlegt? Welches Modell? (ohne den Key selbst)"""
+    from server import images
+    return images.status()
+
+
+@router.post("/api/images")
+async def images_save(req: Request):
+    """fal.ai-Key speichern (leer = löschen)."""
+    from server import images
+    body = await req.json()
+    if "api_key" in body:
+        images.save_key(str(body.get("api_key") or ""))
+    return images.status()
+
+
 @router.get("/api/telegram")
 def telegram_get():
     return tgmod.public_conf()

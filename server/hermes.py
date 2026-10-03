@@ -146,10 +146,10 @@ def sync_soul() -> bool:
 
 
 def with_context(prompt: str) -> str:
-    """Kalender an die Nachricht hängen — markiert, damit die Verlaufsansicht
-    ihn wieder abschneiden kann (strip_context)."""
-    from server.core import calendar_text
-    block = calendar_text()
+    """Kalender (und Bild-Anleitung) an die Nachricht hängen — markiert, damit
+    die Verlaufsansicht ihn wieder abschneiden kann (strip_context)."""
+    from server.core import context_text
+    block = context_text()
     return f"{prompt}\n\n{CTX_OPEN}\n{block}\n{CTX_CLOSE}" if block else prompt
 
 

@@ -112,6 +112,10 @@
   margin: 6px 6px 0 0;
   border-radius: var(--radius);
 }
+/* Erzeugte Bilder in Codys Antworten: groß genug zum Ansehen, nicht nur Vorschau. */
+.bot .bubble :global(img) {
+  max-width: min(100%, 560px);
+}
 .bubble :global(pre) {
   background: var(--codebg) !important;
   border: 1px solid rgba(var(--accent-rgb), 0.18);

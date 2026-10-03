@@ -29,6 +29,45 @@ export function ChatView() {
     if (scroller) scroller.scrollTop = scroller.scrollHeight
   }, [signature])
 
+  // Bilder in Antworten laden erst nach dem Hinscrollen und schieben das Ende
+  // dann wieder aus dem Bild. Wer unten war, bleibt unten. "Unten" richtet sich
+  // nach dem, was der Nutzer tut: die Ansicht scrollt weich, und während der
+  // Animation sähe jede Messung so aus, als stünde man mittendrin.
+  useEffect(() => {
+    const scroller = end.current?.closest('[data-scroll]')
+    if (!scroller) return
+    let unten = true
+    const rest = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+    const onScroll = () => {
+      if (rest() < 120) unten = true
+    }
+    const hoch = () => {
+      unten = false
+    }
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) hoch()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (['PageUp', 'ArrowUp', 'Home'].includes(e.key)) hoch()
+    }
+    const onLoad = (e: Event) => {
+      if (unten && (e.target as HTMLElement).tagName === 'IMG' && rest() > 0)
+        scroller.scrollTop = scroller.scrollHeight
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    scroller.addEventListener('wheel', onWheel as EventListener, { passive: true })
+    scroller.addEventListener('touchmove', hoch, { passive: true })
+    scroller.addEventListener('keydown', onKey as EventListener)
+    scroller.addEventListener('load', onLoad, true)
+    return () => {
+      scroller.removeEventListener('scroll', onScroll)
+      scroller.removeEventListener('wheel', onWheel as EventListener)
+      scroller.removeEventListener('touchmove', hoch)
+      scroller.removeEventListener('keydown', onKey as EventListener)
+      scroller.removeEventListener('load', onLoad, true)
+    }
+  }, [])
+
   useEffect(() => {
     const id = setInterval(() => void pollTail(), 3000)
     const vis = () => {

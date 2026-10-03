@@ -34,6 +34,9 @@ def test_eigene_soul_bleibt_unangetastet(home):
 
 
 def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
+    # Unabhängig davon, ob auf diesem Rechner ein fal-Key liegt (Bild-Hinweis).
+    from server import images
+    monkeypatch.setattr(images, "context_block", lambda: "")
     monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
     sent = hermes.with_context("Was steht an?")
     assert "Zahnarzt" in sent and sent.startswith("Was steht an?")

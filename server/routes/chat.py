@@ -5,6 +5,7 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from server import auto_modell
 from server import hermes as hermesmod
 from server import llm as llmmod
 
@@ -77,6 +78,9 @@ async def chat(req: Request):
                 session_id = None
 
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort)
+    if not session_id and not forked_from:
+        # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
+        auto_modell.starte(run, text, model)
     return {"run_id": run.id, "session_id": None if forked_from else session_id,
             "forked_from": forked_from, "rewound": rewound}
 

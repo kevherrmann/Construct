@@ -66,3 +66,6 @@ SOUL.md
 
 # Persoenliches Avatarbild dieser Installation (im ⚙-Dialog einstellbar)
 static/kevin.jpg
+
+# Schattenbetrieb der automatischen Modellwahl (auto_modell.py)
+auto_schatten.jsonl

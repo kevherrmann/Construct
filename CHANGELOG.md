@@ -2,6 +2,26 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.1.0 — 2026-10-03
+
+### Added
+- **Image generation in the chat.** Ask Cody for an image and it shows up in
+  the reply. Runs on fal.ai; key and model under ⚙ Settings → Image
+  generation. Default is GPT Image 2: in a side-by-side test with hands, a
+  fixed layout and German lettering it got everything right, where Flux 1.1
+  Ultra centred the subject and misspelled the sign. Cody uses the new
+  `bild.py`; images are kept in `uploads/` and can be copied into the project.
+- **Automatic model choice, shadow mode (experimental).** For each new
+  session a small model (Haiku) suggests which model would fit; nothing is
+  switched, the suggestion is only logged to `auto_schatten.jsonl`.
+  `scripts/auto_auswertung.py` compares it with what actually ran. Off by
+  default and without a switch in the UI (`"auto": {"schatten": true}` in
+  `settings.json`).
+
+### Fixed
+- **Images no longer push the end of a reply out of view.** The chat scrolls
+  smoothly and images load late; if you were at the bottom, you stay there.
+
 ## 6.0.2 — 2026-10-03
 
 ### Fixed

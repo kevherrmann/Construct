@@ -59,6 +59,12 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   filler words disappear. Enter ends dictation, Esc discards it.
 - **Read-aloud.** 🔊 above every reply reads it out with Gemini TTS, or every
   new reply automatically. Voice and speaking style per UI language.
+- **Image generation.** Ask Cody for an image and it appears right in the
+  reply. Runs on [fal.ai](https://fal.ai) with prepaid credit; add the key under
+  ⚙ Settings → Image generation. GPT Image 2 is the default (about 5 cents per
+  image), Flux 1.1 Ultra and Nano Banana Pro are selectable. Cody calls
+  `bild.py`, which saves the image in `uploads/` and can copy it into the
+  project.
 - **Permission modes.** You choose Claude Code's permission mode per chat
   (`default`, `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`).
   Claude gets real file and terminal access in the selected working folder.
@@ -312,6 +318,8 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
 | `server/gemini.py` | Shared Gemini API client (key, errors) |
 | `server/tts.py` | Read-aloud via Gemini TTS, voice catalog |
+| `server/images.py`, `bild.py` | Image generation via fal.ai; `bild.py` is the CLI Cody uses |
+| `server/auto_modell.py` | Experimental automatic model choice, shadow mode only (off by default, see `scripts/auto_auswertung.py`) |
 | `server/stt.py` | Voice input: relays the microphone stream to Gemini 3.5 Transcribe Live |
 | `server/updates.py` | Background updates for Claude Code and Hermes |
 | `server/attach.py` | Image normalization and PDF text extraction |
