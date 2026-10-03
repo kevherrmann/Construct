@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.2.0 — 2026-10-04
+
+### Added
+- **A persona for local models only.** Under ⚙ Settings → Character a third
+  tab "Local models" appears once Bonsai or Ollama is set up. Whatever you
+  write there replaces the persona for those models only; Cody on Claude and
+  the cloud models through Hermes keep theirs. Empty means the same persona
+  as Cody. Hermes has a single SOUL.md, so runs that need different personas
+  take turns writing it (a lock held until Hermes has read it); tested with a
+  Bonsai and a Gemini run started at the same moment.
+
 ## 6.1.1 — 2026-10-04
 
 ### Fixed

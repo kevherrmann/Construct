@@ -66,3 +66,27 @@ def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
     sonst = hermes.with_context("Sag nur: eins")
     assert sonst.startswith("Sag nur: eins") and "Bilder erzeugen" in sonst
     assert hermes.strip_context(sonst) == "Sag nur: eins"
+
+
+def test_eigene_persona_nur_fuer_lokale_modelle(home, monkeypatch):
+    monkeypatch.setattr(hermes, "lokale_persona", lambda: "Du bist ein grummeliger Pirat.")
+    assert hermes.sync_soul(lokal=True)
+    soul = (home / "SOUL.md").read_text()
+    assert "Pirat" in soul and "Ich bin Cody." not in soul
+    assert hermes.sync_soul(lokal=False)
+    soul = (home / "SOUL.md").read_text()
+    assert "Ich bin Cody." in soul and "Pirat" not in soul
+
+
+def test_ohne_eigene_persona_gilt_auch_lokal_codys(home, monkeypatch):
+    monkeypatch.setattr(hermes, "lokale_persona", lambda: "")
+    assert hermes.sync_soul(lokal=True)
+    assert "Ich bin Cody." in (home / "SOUL.md").read_text()
+
+
+def test_persona_datei_fuer_lokale_modelle_ist_speicherbar(tmp_path, monkeypatch):
+    from server import config
+    monkeypatch.setitem(config.PERSONA_FILES, "lokal", (tmp_path / "SOUL.lokal.md", None))
+    assert config.persona_read("lokal") == ""
+    config.persona_write("lokal", "Arrr.")
+    assert config.persona_read("lokal") == "Arrr."

@@ -170,9 +170,9 @@ def start_hermes_run(text, images, pid, model, work_dir, mode, session_id=None):
         run.emit({"type": "text", "text":
                   "_↪ Modellwechsel: neue Sitzung, bisheriger Verlauf als "
                   "Kontext übernommen._\n\n"})
-    # Persona als Hermes-Identität, Kalender frisch an jede Nachricht — wie
-    # bei Claude (runs.start_run → load_persona).
-    hermesmod.sync_soul()
+    # Persona als Hermes-Identität (schreibt AcpSession.run, je nach Modell),
+    # Kalender frisch an jede Nachricht — wie bei Claude (runs.start_run →
+    # load_persona).
     run.task = asyncio.create_task(run_hermes(run, sess, hermesmod.with_context(prompt, pid in hermesmod.LOKAL),
                                               mode != "plan"))
     return run

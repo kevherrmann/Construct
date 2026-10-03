@@ -28,6 +28,7 @@ import urllib.request
 from pathlib import Path
 
 from server import bonsai as bonsaimod
+from server import config as cfg
 from server import llm as llmmod
 
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
@@ -136,15 +137,38 @@ _CTX_RE = re.compile(r"(^\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLO
 LOKAL = ("bonsai", "ollama")
 
 
-def sync_soul() -> bool:
+def lokale_persona() -> str:
+    """Eigene Persona für lokale Modelle ("" = keine, dann gilt Codys)."""
+    return cfg.persona_read("lokal").strip()
+
+
+def soul_text(lokal: bool = False) -> str:
+    """Was in SOUL.md soll: Codys Persona, bei lokalen Modellen ggf. die eigene."""
+    from server.core import persona_text
+    eigene = lokale_persona() if lokal else ""
+    if not eigene:
+        return persona_text()
+    return eigene + "\n\n" + cfg.L(
+        "Antworte auf Deutsch, außer der Nutzer schreibt in einer anderen Sprache.",
+        "Reply in English unless the user writes in another language.")
+
+
+# Es gibt nur EINE SOUL.md für alle Hermes-Läufe. Mit eigener Persona für
+# lokale Modelle könnten ein Gemini- und ein Bonsai-Lauf, die gleichzeitig
+# starten, die falsche erwischen. Hermes liest die Datei, sobald er die
+# Nachricht verarbeitet (bei ACP-Sitzungen jedes Mal neu) — so lange hält ein
+# Lauf die Sperre, höchstens bis zur ersten Rückmeldung.
+SOUL_LOCK = asyncio.Lock()
+
+
+def sync_soul(lokal: bool = False) -> bool:
     """$HERMES_HOME/SOUL.md auf die CONSTRUCT-Persona bringen.
 
     Überschrieben wird nur, was fehlt, von Hermes vorgegeben ist oder von uns
     stammt — eine SOUL.md, die jemand für Hermes selbst geschrieben hat,
     bleibt unangetastet. True = die Datei trägt jetzt unsere Persona."""
-    from server.core import persona_text
     path = Path(hermes_home()) / "SOUL.md"
-    want = f"{SOUL_MARK}\n\n{persona_text()}\n"
+    want = f"{SOUL_MARK}\n\n{soul_text(lokal)}\n"
     try:
         have = path.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
@@ -480,6 +504,24 @@ class AcpSession:
         Die Ereignisnamen sind dieselben, die run_claude schickt — das Frontend
         merkt keinen Unterschied zwischen den Maschinen dahinter.
         """
+        # Persona für genau diesen Lauf — mit Sperre nur, wenn es überhaupt
+        # zwei verschiedene gibt.
+        self._soul_held = False
+        if lokale_persona():
+            await SOUL_LOCK.acquire()
+            self._soul_held = True
+        try:
+            sync_soul(llmmod.split_model(self.model)[0] in LOKAL)
+            return await self._run(prompt, emit, allow_writes, images)
+        finally:
+            self._soul_freigeben()
+
+    def _soul_freigeben(self):
+        if getattr(self, "_soul_held", False):
+            self._soul_held = False
+            SOUL_LOCK.release()
+
+    async def _run(self, prompt: str, emit, allow_writes: bool, images):
         await self.start()
 
         await self.call("initialize", {
@@ -560,6 +602,7 @@ class AcpSession:
             done, _ = await asyncio.wait({get, prompt_fut}, timeout=60,
                                          return_when=asyncio.FIRST_COMPLETED)
             if not done:
+                self._soul_freigeben()   # 60 s Stille: andere Läufe nicht länger aufhalten
                 # Stille. Solange ein Werkzeug offen ist, ist das normal (langer
                 # Build); OHNE offenes Werkzeug heißt lange Stille, dass der
                 # Modell-Stream hängt — dann abbrechen statt ewig warten.
@@ -575,6 +618,7 @@ class AcpSession:
                 get.cancel()
                 break
             msg = get.result()
+            self._soul_freigeben()     # Hermes arbeitet: Persona ist eingelesen
             if msg is None:            # stdout zu Ende
                 break
             last_event = time.monotonic()

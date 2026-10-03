@@ -107,6 +107,9 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   installation: `SOUL.md` is created from `SOUL.default.md` on first start, is
   not versioned and survives updates, so you can give your assistant a
   different name and character without touching the code.
+  Local models (Bonsai, Ollama) can get a persona of their own under
+  ⚙ Settings → Character → Local models (`SOUL.lokal.md`), for example to try
+  out playful system prompts without touching Cody.
 - **Look.** Eight color themes (Matrix, Amber, Ice, Space, Ash, Blood, Paper,
   Mist), all in a rounded glass design written in plain CSS: borderless
   panels over a calm, static gradient. No WebGL, so it also runs smoothly with

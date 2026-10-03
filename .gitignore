@@ -57,6 +57,8 @@ Thumbs.db
 
 # Persona dieser Installation (Vorlage: SOUL.default.md)
 SOUL.md
+# Persona nur für lokale Modelle (⚙ Charakter)
+SOUL.lokal.md
 
 # Fähigkeits-Datenbank von models.dev — wird bei Bedarf neu geladen
 .models-dev-cache.json
