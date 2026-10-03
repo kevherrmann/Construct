@@ -102,6 +102,21 @@ def child_env() -> dict:
     return env
 
 
+def run_env(model: str) -> dict:
+    """Umgebung für einen Lauf mit diesem Modell.
+
+    Bonsai: Hermes speichert die Sitzung nur als namenlosen Anbieter "custom"
+    und kann ihn beim Fortsetzen nicht auflösen. Dann griff seine Automatik
+    und nahm Gemini (der Key liegt in der Umgebung) — die zweite Nachricht
+    ging an Google ("Please pass a valid API key"). CUSTOM_BASE_URL ist
+    Hermes' eigener Weg, "custom" eine Adresse zu geben.
+    """
+    env = child_env()
+    if llmmod.split_model(model)[0] == "bonsai":
+        env["CUSTOM_BASE_URL"] = bonsaimod.BASE_URL
+    return env
+
+
 # ---------- Persona und Kalender für fremde Modelle ----------
 # Claude bekommt SOUL.md/USER.md und den Kalender bei jedem Lauf per
 # --append-system-prompt. Hermes kennt dafür keinen Schalter, lädt aber
@@ -353,10 +368,11 @@ class AcpSession:
         if not hermes_bin():
             raise AcpError("Hermes ist nicht installiert. Unter ⚙ Einstellungen → "
                            "„Modelle & Anbieter“ lässt es sich einrichten.")
+        env = run_env(self.model)
         if llmmod.split_model(self.model)[0] == "bonsai":
             # Hermes muss den Endpunkt kennen, bevor set_model ihn wählen kann.
             err = await asyncio.to_thread(bonsaimod.ensure_hermes_provider,
-                                          hermes_bin(), child_env())
+                                          hermes_bin(), env)
             if err:
                 raise AcpError(err)
         self._q = asyncio.Queue()
@@ -365,7 +381,7 @@ class AcpSession:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.cwd, env=child_env(),
+            cwd=self.cwd, env=env,
             limit=64 * 1024 * 1024,   # große Werkzeug-Ergebnisse in einer Zeile
         )
         asyncio.create_task(self._reader())

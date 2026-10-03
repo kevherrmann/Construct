@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 6.1.1 — 2026-10-04
+
+### Fixed
+- **Bonsai: the second message no longer goes to Google.** Hermes stores a
+  Bonsai session only as the anonymous provider `custom` and cannot resolve
+  it when the session is continued; its automatic fallback then picked Gemini
+  (whose key CONSTRUCT passes on), and the reply was "Please pass a valid API
+  key". Bonsai runs now set `CUSTOM_BASE_URL` to the local server, and a
+  session that already stored the wrong address is repaired on its next
+  message.
+
 ## 6.1.0 — 2026-10-03
 
 ### Added
