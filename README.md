@@ -21,14 +21,15 @@ https://github.com/user-attachments/assets/63b38b9a-d838-49ab-bc4a-97718ef83d0c
 > | Linux / macOS | `./start.sh` | macOS: `start-mac.command` |
 > | Windows | `start.bat` | `start.bat` |
 >
-> Linux extras (optional): `scripts/linux/install-desktop.sh` adds an application
-> menu entry, `scripts/linux/check-desktop.sh` explains why no window opens.
+> Linux extra (optional): `scripts/linux/install-desktop.sh` adds an application
+> menu entry.
 
 ## What is CONSTRUCT?
 
 CONSTRUCT is the place; **Cody** is the assistant who lives in it. CONSTRUCT is a
 FastAPI backend (`app.py`) and a React frontend (`frontend/`, built into `static/app/`). It
-runs in its own native window through pywebview (`desktop.py`) or in any browser.
+opens in its own window (the app mode of Chrome, Edge, Brave, Chromium, Vivaldi
+or Opera) or in any browser tab.
 
 Chats run through the **Claude Code CLI** (`claude -p`), so CONSTRUCT uses your
 existing Claude subscription. **You do not need an API key.** You can also use
@@ -37,7 +38,7 @@ models from other providers, including local ones, through
 the same kind of file and terminal tools.
 
 ```
-Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p     ──► Claude subscription
+Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p     ──► Claude subscription
                                         │          └─► hermes acp  ──► OpenAI / Gemini / DeepSeek / Ollama / Bonsai
                                         └─ reads ~/.claude/projects/*.jsonl (existing sessions)
 ```
@@ -84,8 +85,7 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
   The server starts on the first prompt and stops after a period of inactivity
   or when CONSTRUCT exits, so it only uses VRAM while it's needed.
 - **Attachments.** You can paste, drag and drop, or upload images and PDFs.
-  Ctrl+V works in the native Linux window too (WebKitGTK does not pass copied
-  images to the page, so `desktop.py` reads them from the clipboard). Images are normalized: EXIF orientation is applied, metadata is removed,
+  Images are normalized: EXIF orientation is applied, metadata is removed,
   images are resized to 2048×2048 or smaller and HEIC is converted. PDFs get a
   text extract.
 - **Rendered replies.** Markdown and code are highlighted, and file paths in
@@ -150,14 +150,9 @@ Browser / native window ──SSE──► FastAPI (app.py) ──► claude -p 
 - **Optional:** a Gemini API key for read-aloud and voice input — free at
   [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The same key
   also unlocks the Gemini models.
-- **Native window on Linux:** WebKitGTK system packages:
-  ```bash
-  sudo dnf install python3-gobject webkit2gtk4.1     # Fedora
-  sudo apt install python3-gi gir1.2-webkit2-4.1     # Debian / Ubuntu
-  ```
-  If these packages are missing, CONSTRUCT opens in your browser instead.
-  `scripts/linux/check-desktop.sh` shows what is missing. macOS and Windows need nothing
-  extra.
+- **Own window (optional):** a Chromium-based browser (Chrome, Edge, Brave,
+  Chromium, Vivaldi or Opera). Windows always has Edge. Without one, CONSTRUCT
+  opens as a tab in your default browser.
 
 ## Installation
 
@@ -183,8 +178,6 @@ xattr -dr com.apple.quarantine .
 chmod +x start.sh start-mac.command
 ```
 
-The window uses the system WKWebView, no extra packages needed.
-
 **Windows:** sign in to Claude Code once in a terminal (`claude`). The web login
 needs a pseudo-terminal, which Windows doesn't provide.
 
@@ -199,7 +192,7 @@ python3 -m uvicorn app:app --host 127.0.0.1 --port 8765
 
 | Command | Effect |
 |---|---|
-| `./start.sh` | Native window (falls back to the browser) |
+| `./start.sh` | Server plus its own window (falls back to a browser tab) |
 | `./start.sh --web` | Server only, at http://127.0.0.1:8765 |
 | `./start.sh --update` | Reinstall Python dependencies |
 | `start.bat [--web\|--update]` | The same on Windows |
@@ -208,13 +201,21 @@ python3 -m uvicorn app:app --host 127.0.0.1 --port 8765
 On the first run, `start.sh` creates a virtual environment named after the
 platform and Python version, for example `.venv-Linux-x86_64-py3.12`. This lets
 one folder be shared between machines. Dependencies are reinstalled only when
-the requirements files change. If CONSTRUCT is already running on the port, the
-window attaches to it. If that instance is older than the code on disk and was
+the requirements file changes. If CONSTRUCT is already running on the port, only
+the window opens. If that instance is older than the code on disk and was
 started from the same folder, it is restarted.
 
+**The window.** CONSTRUCT looks for a Chromium-based browser, your default
+browser first, and opens the interface in its app mode: a window without tabs
+or address bar, with its own taskbar entry. It uses a separate browser profile
+(`.fenster/`), so it never ends up between your other tabs. Links from the chat
+open in your default browser. Closing the window does not stop the server, so
+the Telegram bot and scheduled tasks keep running; starting CONSTRUCT again just
+opens the window. To quit, use ⏻ at the top right (or Settings → System). Without a Chromium-based browser you get a normal tab. You can
+also install CONSTRUCT from Chrome or Edge ("Install" in the address bar).
+
 If something is stuck: `./start.sh --web` runs the server without a window
-(http://127.0.0.1:8765), `CODY_DEBUG=1 ./start.sh` opens the window with the web
-inspector (right-click), and `MATRIX_PORT=8766 ./start.sh` uses another port.
+(http://127.0.0.1:8765), and `MATRIX_PORT=8766 ./start.sh` uses another port.
 
 ## Configuration
 
@@ -251,7 +252,8 @@ when it writes it.
 | `TELEGRAM_TOKEN`, `CODY_CHAT_ID` | Override the Telegram settings, e.g. on a headless server (`python3 telegram_bot.py` runs the bot on its own) |
 | `CODY_NOTIFY_MIN_SECS` | Minimum run length before a Telegram notification is sent (90) |
 | `CODY_WHISPER_MODEL` | faster-whisper model for Telegram voice messages (`small`) |
-| `CODY_DEBUG`, `CODY_GUI`, `CODY_WAYLAND`, `CODY_GPU` | Native window: web inspector, forced pywebview backend, native Wayland, DMA-BUF renderer |
+| `CONSTRUCT_BROWSER` | Browser for the window, e.g. `/usr/bin/chromium` (must be Chromium-based) |
+| `CONSTRUCT_FENSTER` | `0` = always open a normal browser tab instead of a window |
 
 ### User data
 
@@ -264,7 +266,7 @@ The following files belong to your installation. They are listed in
   `SOUL.default.md`), `USER.md`, `events.json`, `mail_meta.json`,
   `mail_attach/`, `uploads/`, `llm_sessions/`, `sessions_meta.json`,
   `telegram_state.json`, `tasks_state.json`
-- **Caches:** `.models-dev-cache.json`, `.update-stamp`, `.venv-*/`, `.webview/`
+- **Caches:** `.models-dev-cache.json`, `.update-stamp`, `.venv-*/`, `.fenster/` (browser profile of the window)
 
 Claude Code sessions stay where Claude Code keeps them (`~/.claude/projects`).
 
@@ -326,11 +328,11 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/stt.py` | Voice input: relays the microphone stream to Gemini 3.5 Transcribe Live |
 | `server/updates.py` | Background updates for Claude Code and Hermes |
 | `server/attach.py` | Image normalization and PDF text extraction |
-| `desktop.py` | Native window through pywebview, with fallback to the browser |
+| `desktop.py` | Starts the server and opens the window (browser app mode, falls back to a tab) |
 | `cal.py` | Calendar store — also a command-line tool Cody calls (`python3 cal.py`) |
 | `selfupdate.py` | Git fast-forward self-update at startup (runs before the virtual environment, standard library only) |
 | `start.sh`, `start.bat`, `start-mac.command` | Launchers |
-| `scripts/linux/` | Optional Linux helpers: application menu entry, native-window diagnostics |
+| `scripts/linux/` | Optional Linux helper: application menu entry |
 | `SOUL.default.md`, `SOUL.default.en.md` | Default persona templates |
 
 ## Frontend development

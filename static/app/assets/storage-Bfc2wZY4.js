@@ -1,0 +1,1 @@
+function e(e){try{return window.localStorage.getItem(e)}catch{return null}}function t(e,t){try{t===null?window.localStorage.removeItem(e):window.localStorage.setItem(e,t)}catch{}}export{t as n,e as t};

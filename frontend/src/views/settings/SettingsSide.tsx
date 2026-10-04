@@ -1,30 +1,26 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SECTIONS, navLabel, sectionDomId, type SectionId } from './sections'
+import { SECTIONS, TABS, navLabel } from './sections'
+import { useSettingsTab } from './tab'
 import s from './SettingsSide.module.css'
 
-// Navigation links: springt zum Abschnitt rechts.
+// Navigation links: ein Tab je Bereich, rechts steht nur dieser Bereich.
 export function SettingsSide() {
   const { t } = useTranslation()
-  const [active, setActive] = useState<SectionId | null>(null)
-  const go = (id: SectionId) => {
-    setActive(id)
-    document
-      .getElementById(sectionDomId(id))
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+  const [tab, setTab] = useSettingsTab()
+  const titel = (id: string) => t(navLabel(SECTIONS.find((x) => x.id === id)!.title))
   return (
     <>
       <div className={s.vhint}>{t('Was du siehst und womit du redest — rechts einstellen')}</div>
       <nav>
-        {SECTIONS.map((sec) => (
+        {TABS.map((x) => (
           <button
-            key={sec.id}
+            key={x.id}
             type="button"
-            className={`${s.item} ${active === sec.id ? s.active : ''}`}
-            onClick={() => go(sec.id)}
+            className={`${s.item} ${tab === x.id ? s.active : ''}`}
+            onClick={() => setTab(x.id)}
           >
-            {t(navLabel(sec.title))}
+            <span className={s.tabName}>{t(x.title)}</span>
+            <span className={s.tabInhalt}>{x.sections.map(titel).join(' · ')}</span>
           </button>
         ))}
       </nav>

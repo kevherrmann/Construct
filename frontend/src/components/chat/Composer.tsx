@@ -8,17 +8,11 @@ import { useProviders } from '@/api/providers'
 import { runCommand } from '@/lib/chat/commands'
 import { isPdf } from '@/lib/format'
 import { useChat, type Attachment } from '@/stores/chat'
+import { useSettings } from '@/stores/settings'
 import { Pickers, type PickerName } from './Pickers'
 import s from './Composer.module.css'
 
 const ATT_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|heic|pdf)$/i
-
-declare global {
-  interface Window {
-    /** desktop.py meldet unter WebKitGTK hereingezogene Dateien hierüber. */
-    __nativeDrop?: (items: Attachment[]) => void
-  }
-}
 
 async function upload(f: File): Promise<Attachment> {
   const fd = new FormData()
@@ -33,7 +27,13 @@ async function upload(f: File): Promise<Attachment> {
   return { path: j.path, url: j.url, name: j.name ?? f.name }
 }
 
-export function Composer() {
+/** `raum`: Fassung für den Construct-Raum — schwebende Sprechzeile ohne
+ *  Auswahlleiste und Hinweis. Ordner, Modus und Modell liegen dort an den
+ *  Stationen; `/model` & Co. öffnen sie über `onPicker`. */
+export function Composer({
+  raum = false,
+  onPicker,
+}: { raum?: boolean; onPicker?: (p: PickerName) => void } = {}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
@@ -56,6 +56,7 @@ export function Composer() {
   const { pending, addPending, removePending, send, stop, removeQueued, focusTick } = useChat()
   const conv = useChat((st) => st.active())
   const busy = !!conv?.busy
+  const assistant = useSettings((st) => st.boot.assistant)
 
   // Höhe mitwachsen lassen — höchstens einmal pro Bild. Die Folge "height=auto
   // schreiben → scrollHeight lesen" erzwingt ein Neu-Layout der ganzen Seite;
@@ -86,11 +87,8 @@ export function Composer() {
     [addPending, t],
   )
 
-  // Ziehen & Ablegen überall im Fenster. Im Desktop-Fenster unter WebKitGTK
-  // kommen Dateien hier nur als Name an, nicht lesbar — dort übernimmt
-  // desktop.py den Drop und meldet die Anhänge über __nativeDrop.
+  // Ziehen & Ablegen überall im Fenster.
   useEffect(() => {
-    const native = () => window.pywebview?.platform === 'gtkwebkit2'
     const over = (e: DragEvent) => {
       e.preventDefault()
       setDragging(true)
@@ -101,14 +99,12 @@ export function Composer() {
     const drop = (e: DragEvent) => {
       e.preventDefault()
       setDragging(false)
-      if (native()) return
       addFiles(
         [...(e.dataTransfer?.files ?? [])].filter(
           (f) => f.type.startsWith('image/') || ATT_EXT.test(f.name),
         ),
       )
     }
-    window.__nativeDrop = (items) => items.forEach(addPending)
     addEventListener('dragover', over)
     addEventListener('dragleave', leave)
     addEventListener('drop', drop)
@@ -116,9 +112,8 @@ export function Composer() {
       removeEventListener('dragover', over)
       removeEventListener('dragleave', leave)
       removeEventListener('drop', drop)
-      delete window.__nativeDrop
     }
-  }, [addFiles, addPending])
+  }, [addFiles])
 
   // Das Gesprochene erscheint schon während des Sprechens im Eingabefeld,
   // hinter dem, was vorher drinstand. Gesendet wird nicht — man soll noch
@@ -220,7 +215,7 @@ export function Composer() {
         providers: providers.data ?? [],
         folders: folders.data ?? [],
         navigate,
-        openPicker: setPicker,
+        openPicker: onPicker ?? setPicker,
       })
       return
     }
@@ -228,7 +223,7 @@ export function Composer() {
   }
 
   return (
-    <div className={s.composer}>
+    <div className={`${s.composer} ${raum ? s.imRaum : ''}`}>
       {!!conv?.queue.length && (
         <div className={s.queue}>
           ⏳ <b>{conv.queue.length}</b>{' '}
@@ -243,7 +238,7 @@ export function Composer() {
           ))}
         </div>
       )}
-      <Pickers open={picker} setOpen={setPicker} />
+      {!raum && <Pickers open={picker} setOpen={setPicker} />}
       {!!pending.length && (
         <div className={s.thumbs}>
           {pending.map((p, i) => (
@@ -266,7 +261,7 @@ export function Composer() {
       <div className={s.row}>
         {busy && (
           <button type="button" className={s.stop} title={t('Cody stoppen')} onClick={stop}>
-            ⏹ STOP
+            {raum ? '■' : '⏹ STOP'}
           </button>
         )}
         <button
@@ -301,7 +296,11 @@ export function Composer() {
           rows={1}
           value={text}
           readOnly={rec.state !== 'idle'}
-          placeholder={t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')}
+          placeholder={
+            raum
+              ? t('Sprich mit {name} …', { name: assistant })
+              : t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')
+          }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -322,25 +321,6 @@ export function Composer() {
               addFiles(imgs)
               return
             }
-            // WebKitGTK (Desktop-Fenster) reicht kopierte Bilder nicht durch —
-            // dann holt desktop.py sie direkt aus der Zwischenablage. Nur wenn
-            // kein Text drin ist: Zellen aus Calc & Co. liegen zusätzlich als
-            // Bild in der Ablage, da soll der Text kommen, kein Anhang.
-            // Auf den Inhalt prüfen, nicht auf types: übernimmt Klipper (KDE)
-            // die Ablage, fehlt dort 'text/plain', der Text ist aber lesbar.
-            // HTML zählt nur mit sichtbarem Text: "Bild kopieren" im Browser
-            // legt neben dem Bild ein bloßes <img> als text/html ab.
-            const api = window.pywebview?.api
-            const cd = e.clipboardData
-            const html = cd.getData('text/html')
-            const htmlText = html
-              ? new DOMParser().parseFromString(html, 'text/html').body.textContent
-              : ''
-            const hasText = !!(cd.getData('text/plain').trim() || htmlText?.trim())
-            if (api?.paste_image && !hasText) {
-              e.preventDefault()
-              void api.paste_image().then((a) => a && addPending(a))
-            }
           }}
         />
         <button
@@ -354,14 +334,17 @@ export function Composer() {
               : undefined
           }
           onClick={submit}
+          aria-label={raum ? (busy ? t('Einwerfen') : t('Senden')) : undefined}
         >
-          {busy ? t('➤ EINWERFEN') : t('SENDEN')}
+          {raum ? '➤' : busy ? t('➤ EINWERFEN') : t('SENDEN')}
         </button>
       </div>
-      <div className={s.hint}>
-        {t('ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Mode · 🧠 Modell ·')}{' '}
-        <code>/help</code> {t('= Befehle')}
-      </div>
+      {!raum && (
+        <div className={s.hint}>
+          {t('ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Mode · 🧠 Modell ·')}{' '}
+          <code>/help</code> {t('= Befehle')}
+        </div>
+      )}
       <input
         ref={file}
         type="file"

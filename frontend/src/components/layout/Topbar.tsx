@@ -5,7 +5,9 @@ import { modelInfo } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
+import { useUi } from '@/stores/ui'
 import { openClaudeAuth } from '@/stores/dialogs'
+import { BeendenKnopf } from './Beenden'
 import { Hud } from './Hud'
 import s from './Topbar.module.css'
 
@@ -20,6 +22,7 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
   const last = conv?.lastModel
   const lastLabel = last ? (modelInfo(last, providers.data)?.l ?? last.replace(/^claude-/, '')) : ''
   const cwd = conv?.cwd ?? workspace
+  const setRaum = useUi((st) => st.setRaum)
   return (
     <div className={s.topbar}>
       <button type="button" className={s.burger} onClick={onBurger} aria-label="Menu">
@@ -40,9 +43,18 @@ export function Topbar({ onBurger }: { onBurger: () => void }) {
         )}
       </span>
       <Hud onAuthClick={openClaudeAuth} />
+      <button
+        type="button"
+        className={s.raum}
+        title={t('In den Construct-Raum wechseln — dieselbe Arbeit, als Raum statt als Text')}
+        onClick={() => setRaum(true)}
+      >
+        ◧ {t('RAUM')}
+      </button>
       <span className={s.sid} title={cwd || t('(unbekannt)')}>
         ▣ {baseName(cwd)}
       </span>
+      <BeendenKnopf className={s.aus} />
     </div>
   )
 }

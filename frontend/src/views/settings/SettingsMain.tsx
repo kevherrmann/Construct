@@ -1,5 +1,6 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { useSettings } from '@/stores/settings'
 import { BackgroundSection, ThemeSection } from './AppearanceSections'
 import { EnginesSection } from './EnginesSection'
@@ -11,7 +12,9 @@ import { PersonaSection } from './PersonaSection'
 import { TelegramSection } from './TelegramSection'
 import { TtsSection } from './TtsSection'
 import { UpdatesSection } from './UpdatesSection'
-import { SECTIONS, type SectionId } from './sections'
+import { TABS, sectionDomId, type SectionId } from './sections'
+import { BeendenSection } from './SystemSection'
+import { useSettingsTab } from './tab'
 import s from './Settings.module.css'
 
 // „✓ gespeichert“ unten rechts nach jedem Speichern über den Store; nur auf
@@ -54,16 +57,29 @@ const BY_ID: Record<SectionId, ComponentType> = {
   charakter: PersonaSection,
   farbwelt: ThemeSection,
   hintergrund: BackgroundSection,
+  beenden: BeendenSection,
 }
 
 // Serverseitig gespeichert (settings.json), nicht im localStorage: die App
 // wird mal aus dem Fenster, mal aus dem Browser bedient, und zwei Browser
 // wären sonst zwei verschiedene Wahrheiten.
 export function SettingsMain() {
+  const [tab] = useSettingsTab()
+  const [params] = useSearchParams()
+  const seite = useRef<HTMLDivElement>(null)
+  const ids = TABS.find((x) => x.id === tab)!.sections
+  // Neuer Tab: nach oben. Zeigt die Adresse auf einen Abschnitt (?tab=telegram),
+  // dorthin scrollen.
+  const ziel = params.get('tab')
+  useEffect(() => {
+    const el = ziel && document.getElementById(sectionDomId(ziel as SectionId))
+    if (el) el.scrollIntoView({ block: 'start' })
+    else seite.current?.scrollIntoView({ block: 'start' })
+  }, [tab, ziel])
   return (
-    <div className={s.page}>
+    <div className={s.page} ref={seite}>
       <div className={s.wrap}>
-        {SECTIONS.map(({ id }) => {
+        {ids.map((id) => {
           const Sec = BY_ID[id]
           return <Sec key={id} />
         })}

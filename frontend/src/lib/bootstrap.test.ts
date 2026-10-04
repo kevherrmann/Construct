@@ -6,6 +6,7 @@ describe('readBootstrap', () => {
     expect(b.assistant).toBe('Cody')
     expect(b.lang).toBe('en')
     expect(b.settings.theme).toBe(DEFAULT_SETTINGS.theme)
+    expect(b.figur).toEqual([])
   })
 
   it('übernimmt Sprache und Einstellungen vom Server', () => {

@@ -1,21 +1,39 @@
-// Externe Links gehören in den Systembrowser, nicht in dieses Fenster. Die
-// WebView (desktop.py) hat weder Adress- noch Zurück-Leiste: ein Klick auf einen
-// Chat-Link navigierte das GANZE Fenster dorthin, ohne Weg zurück zur App. Im
-// Browser ist ein neuer Tab ebenfalls richtig, sonst ist der Chat weg.
+// Externe Links gehören in den Browser, in dem man sonst arbeitet — nicht in
+// dieses Fenster, sonst ist der Chat weg. Im eigenen App-Fenster (desktop.py
+// öffnet es mit ?fenster=1, eigenes Browser-Profil) öffnet sie der Server im
+// Standardbrowser; in einem normalen Tab reicht ein neuer Tab.
 // Bewusst ein globaler Handler statt target="_blank" beim Rendern: so sind auch
 // alle gestreamten Markdown-Links erfasst.
 
-interface PyWebview {
-  api?: {
-    open_url?: (url: string) => void
-    /** Nur im Desktop-Fenster: Bild aus der Zwischenablage (siehe desktop.py). */
-    paste_image?: () => Promise<import('@/stores/chat').Attachment | null>
+// Beim Laden festhalten: der Router leitet / auf /chat um und wirft die Query
+// weg. sessionStorage gilt genau für dieses Fenster.
+function merken() {
+  try {
+    if (new URLSearchParams(location.search).get('fenster') === '1')
+      sessionStorage.setItem('mxfenster', '1')
+  } catch {
+    /* ohne Speicher: dann eben neue Tabs */
   }
-  platform?: string
 }
-declare global {
-  interface Window {
-    pywebview?: PyWebview
+merken()
+const imFenster = () => {
+  try {
+    return sessionStorage.getItem('mxfenster') === '1'
+  } catch {
+    return false
+  }
+}
+
+async function imStandardbrowser(url: string): Promise<boolean> {
+  try {
+    const r = await fetch('/api/open-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+    return r.ok && !!((await r.json()) as { ok?: boolean }).ok
+  } catch {
+    return false
   }
 }
 
@@ -35,9 +53,11 @@ export function installExternalLinkHandler() {
       if (u.protocol !== 'http:' && u.protocol !== 'https:') return // mailto:, #anker, blob:
       if (u.origin === location.origin) return // eigene Seite normal lassen
       e.preventDefault()
-      const api = window.pywebview?.api
-      if (api?.open_url) api.open_url(u.href)
-      else window.open(u.href, '_blank', 'noopener')
+      if (!imFenster()) {
+        window.open(u.href, '_blank', 'noopener')
+        return
+      }
+      void imStandardbrowser(u.href).then((ok) => ok || window.open(u.href, '_blank', 'noopener'))
     },
     true,
   )

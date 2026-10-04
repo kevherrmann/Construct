@@ -21,7 +21,7 @@ from server import tts as ttsmod
 from server import updates as updmod
 
 from server.core import (BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, auth_ok,
-                         claude_bin)
+                         beenden, claude_bin)
 from server.runs import RUNS
 
 router = APIRouter()
@@ -200,7 +200,7 @@ async def tts_speak(req: Request):
     return Response(wav, media_type="audio/wav")
 
 
-def _same_origin(ws: WebSocket) -> bool:
+def _same_origin(ws: WebSocket | Request) -> bool:
     """WebSockets kennen keine Same-Origin-Policy: sonst könnte jede Webseite,
     die man gerade offen hat, über localhost das Mikrofon-Diktat (und damit den
     Gemini-Key) mitbenutzen. Erlaubt: gleiche Adresse oder localhost (Vite)."""
@@ -210,6 +210,45 @@ def _same_origin(ws: WebSocket) -> bool:
     netloc = urlsplit(origin).netloc
     host = urlsplit(origin).hostname or ""
     return netloc == ws.headers.get("host") or host in ("localhost", "127.0.0.1", "::1")
+
+
+@router.post("/api/open-url")
+async def open_url(req: Request):
+    """Externen Link im Standardbrowser öffnen.
+
+    Das App-Fenster (desktop.py) ist ein eigenes Browser-Profil: ein Link mit
+    target=_blank ginge dort in einem nackten Fenster dieses Profils auf, nicht
+    im Browser, in dem man sonst arbeitet. Darum öffnet ihn der Server, der ja
+    auf demselben Rechner läuft. Nur von hier (Loopback, gleiche Herkunft) und
+    nur http(s) — sonst könnte jede offene Webseite Fenster aufreißen.
+    """
+    if not _von_hier(req):
+        return JSONResponse({"ok": False}, status_code=403)
+    try:
+        url = str((await req.json()).get("url", ""))
+    except Exception:
+        url = ""
+    if not re.match(r"^https?://", url, re.I):
+        return JSONResponse({"ok": False}, status_code=400)
+    import webbrowser
+    return {"ok": bool(await asyncio.to_thread(webbrowser.open, url))}
+
+
+def _von_hier(req: Request) -> bool:
+    """Anfrage vom eigenen Rechner und aus CONSTRUCT selbst (nicht von einer
+    fremden Webseite, die über localhost hereinfunkt)."""
+    host = req.client.host if req.client else ""
+    return host in ("127.0.0.1", "::1") and _same_origin(req)
+
+
+@router.post("/api/shutdown")
+async def shutdown(req: Request):
+    """CONSTRUCT beenden (⏻). Nur vom eigenen Rechner: aus der Ferne ließe
+    sich der Server danach nicht wieder starten."""
+    if not _von_hier(req):
+        return JSONResponse({"ok": False}, status_code=403)
+    asyncio.get_running_loop().call_later(0.4, beenden)   # erst antworten
+    return {"ok": True}
 
 
 @router.websocket("/api/stt/live")

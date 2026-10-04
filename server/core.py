@@ -47,7 +47,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "6.2.0"
+VERSION = "7.0.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -220,3 +220,29 @@ def code_stamp() -> str:
 # Beim Import festhalten, nicht bei jeder Abfrage: gefragt ist der Stand, mit
 # dem der Server hochgefahren ist, nicht der auf der Platte von jetzt.
 CODE_STAMP = code_stamp()
+
+
+# ---------- Beenden ----------
+# Seit das Fenster ein Browser ist, läuft der Server nach dem Schließen weiter.
+# Beenden geht darum über die Oberfläche (⏻). Wer den Server startet, meldet
+# hier, wie er sauber herunterfährt (desktop.py: uvicorn.should_exit); dann
+# laufen die Aufräumarbeiten aus app.lifespan (Bonsai, Telegram) noch durch.
+_beim_beenden: list = []
+
+
+def beim_beenden(fn) -> None:
+    _beim_beenden.append(fn)
+
+
+def beenden() -> None:
+    if _beim_beenden:
+        for fn in _beim_beenden:
+            fn()
+        return
+    # Ohne Starter (python app.py, uvicorn direkt): wie Strg+C — uvicorn fährt
+    # dann selbst sauber herunter. Windows kennt das Signal für sich selbst
+    # nicht verlässlich; dort hart.
+    import signal
+    if os.name == "nt":
+        os._exit(0)
+    os.kill(os.getpid(), signal.SIGINT)

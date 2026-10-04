@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { apiGet } from '@/lib/api'
+import { apiGet, apiPost } from '@/lib/api'
 
 export interface Version {
   version: string
@@ -55,3 +55,9 @@ export const useUsage = (enabled: boolean) =>
     refetchInterval: FIVE_MIN,
     enabled,
   })
+
+/** CONSTRUCT beenden (⏻). Der Server nimmt das nur vom eigenen Rechner an. */
+export const beenden = () => apiPost<{ ok: boolean }>('/api/shutdown')
+
+/** Läuft die Oberfläche auf demselben Rechner wie der Server? Nur dann gibt es ⏻. */
+export const istLokal = () => ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)

@@ -12,7 +12,7 @@ together and what a change needs before it goes in.
 | `frontend/` | The interface: React 19 + TypeScript + Vite ([conventions](frontend/README.md)) |
 | `static/app/` | The **built** interface — committed on purpose, see below |
 | `tests/` | Backend tests (pytest) |
-| `desktop.py`, `start.sh`, `start.bat` | Native window and launchers |
+| `desktop.py`, `start.sh`, `start.bat` | Launchers: server plus browser app window |
 
 ## Getting started
 
@@ -48,8 +48,8 @@ npm run check    # types, lint, format, tests, build
 - **User data stays out of git.** Settings, keys, mail accounts, calendar and
   uploads live in the project folder but are gitignored. Modules in `server/`
   find them through `BASE_DIR` (the project folder), which a test checks.
-- **Comments explain why**, not what. Workarounds for WebKitGTK, pywebview or
-  the reconnect logic keep their explanation.
+- **Comments explain why**, not what. Workarounds for browser quirks or the
+  reconnect logic keep their explanation.
 - After updating frontend dependencies, refresh the notices:
   `cd frontend && npm run notices`.
 

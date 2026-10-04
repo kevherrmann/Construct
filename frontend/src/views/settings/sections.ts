@@ -15,11 +15,32 @@ export const SECTIONS = [
   { id: 'charakter', title: '📜 CHARAKTER' },
   { id: 'farbwelt', title: '🎨 FARBWELT' },
   { id: 'hintergrund', title: '🖼 HINTERGRUND' },
+  { id: 'beenden', title: '⏻ BEENDEN' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
 
 export const sectionDomId = (id: SectionId) => `set-${id}`
+
+// Tabs: links wählt man einen Bereich, rechts steht nur der — statt einer
+// langen Liste, durch die man scrollt. Jeder Abschnitt gehört genau einem Tab.
+export const TABS = [
+  { id: 'allgemein', title: '⚙ ALLGEMEIN', sections: ['sprache', 'kacheln', 'namen'] },
+  { id: 'modelle', title: '🧠 MODELLE', sections: ['modelle', 'bilder'] },
+  { id: 'assistent', title: '📜 ASSISTENT', sections: ['charakter', 'vorlesen'] },
+  { id: 'verbindungen', title: '🔌 VERBINDUNGEN', sections: ['mail', 'telegram'] },
+  { id: 'aussehen', title: '🎨 AUSSEHEN', sections: ['farbwelt', 'hintergrund'] },
+  { id: 'system', title: '🖥 SYSTEM', sections: ['updates', 'beenden'] },
+] as const satisfies readonly { id: string; title: string; sections: readonly SectionId[] }[]
+
+export type TabId = (typeof TABS)[number]['id']
+
+/** Tab aus der Adresse (?tab=…): ein Tab-Name oder ein Abschnitt (dessen Tab). */
+export function tabAus(wert: string | null): TabId | null {
+  if (!wert) return null
+  const tab = TABS.find((x) => x.id === wert || (x.sections as readonly string[]).includes(wert))
+  return tab?.id ?? null
+}
 
 /** „🧠 MODELLE & ANBIETER“ → „Modelle & Anbieter“ (deutscher Schlüssel fürs Menü). */
 export const navLabel = (title: string) =>

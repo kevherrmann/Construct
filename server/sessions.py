@@ -119,6 +119,68 @@ def _parse_transcript_lines(data: bytes):
     return msgs
 
 
+SCHREIB_WERKZEUGE = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+BEFEHL_WERKZEUGE = ("Bash",)
+
+
+def _ergebnis_text(content) -> str:
+    """tool_result-Inhalt (String oder Block-Liste) -> Text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+    return ""
+
+
+def werkstatt_aus_transcript(data: bytes, max_befehle: int = 80) -> dict:
+    """Was in einer Session an Dateien geschrieben und im Terminal ausgeführt
+    wurde — für Werkbank und Fernseher im Construct-Raum. Der Verlauf, den die
+    Oberfläche beim Öffnen lädt, enthält nur Text; die Werkzeuge stehen hier.
+
+    dateien: je Pfad einmal, neueste zuletzt; befehle: die letzten max_befehle
+    mit gekürzter Ausgabe; cwd: Arbeitsordner der Session.
+    """
+    dateien: dict[str, dict] = {}
+    befehle: list[dict] = []
+    offen: dict[str, dict] = {}
+    cwd = ""
+    for line in data.split(b"\n"):
+        if not line.strip():
+            continue
+        try:
+            ev = json.loads(line.decode("utf-8", "replace"))
+        except Exception:
+            continue
+        if not cwd and isinstance(ev.get("cwd"), str):
+            cwd = ev["cwd"]
+        content = ev.get("message", {}).get("content") if isinstance(ev.get("message"), dict) else None
+        if not isinstance(content, list):
+            continue
+        ts = ev.get("timestamp") if isinstance(ev.get("timestamp"), str) else ""
+        for b in content:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use":
+                name, inp = b.get("name", ""), b.get("input") or {}
+                if name in SCHREIB_WERKZEUGE:
+                    pfad = inp.get("file_path") or inp.get("notebook_path") or inp.get("path")
+                    if isinstance(pfad, str) and pfad:
+                        alt = dateien.pop(pfad, None)
+                        dateien[pfad] = {"path": pfad, "neu": (alt or {}).get("neu", name == "Write"),
+                                         "mal": (alt or {}).get("mal", 0) + 1, "ts": ts}
+                elif name in BEFEHL_WERKZEUGE and isinstance(inp.get("command"), str):
+                    eintrag = {"command": inp["command"], "description": inp.get("description") or "",
+                               "output": None, "isError": False, "ts": ts}
+                    befehle.append(eintrag)
+                    if b.get("id"):
+                        offen[b["id"]] = eintrag
+            elif b.get("type") == "tool_result" and b.get("tool_use_id") in offen:
+                eintrag = offen.pop(b["tool_use_id"])
+                eintrag["output"] = _ergebnis_text(b.get("content"))[-4000:]
+                eintrag["isError"] = bool(b.get("is_error"))
+    return {"cwd": cwd, "dateien": list(dateien.values()), "befehle": befehle[-max_befehle:]}
+
+
 def model_short(mid: str) -> str:
     """Modell-ID aus einem Transkript -> der Wert, den die Auswahlliste kennt.
 

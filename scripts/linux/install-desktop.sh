@@ -19,14 +19,14 @@ if [ "${1:-}" = "--remove" ]; then
 fi
 
 mkdir -p "$APPS"
-chmod +x start.sh desktop.py 2>/dev/null || true
+chmod +x start.sh 2>/dev/null || true
 
 cat > "$FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=CONSTRUCT
 GenericName=Cody
-Comment=Cody — Kevins KI-Assistent
+Comment=KI-Assistent im eigenen Fenster
 Exec=$DIR/start.sh
 Path=$DIR
 Icon=$DIR/static/icon-256.png
@@ -34,7 +34,7 @@ Terminal=false
 Categories=Development;Utility;
 Keywords=cody;claude;chat;ki;construct;
 StartupNotify=true
-StartupWMClass=cody
+StartupWMClass=construct
 EOF
 
 chmod +x "$FILE"

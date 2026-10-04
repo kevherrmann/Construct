@@ -49,6 +49,8 @@ server.log
 __pycache__/
 *.py[cod]
 .webview/
+# Browser-Profil des App-Fensters (desktop.py)
+.fenster/
 node_modules/
 
 # --- Betriebssystem ---
@@ -68,6 +70,9 @@ SOUL.lokal.md
 
 # Persoenliches Avatarbild dieser Installation (im ⚙-Dialog einstellbar)
 static/kevin.jpg
+
+# Eigene Figur im Raum statt Cody (Dateinamen: frontend/src/views/raum/RaumView.tsx)
+static/figur/
 
 # Schattenbetrieb der automatischen Modellwahl (auto_modell.py)
 auto_schatten.jsonl

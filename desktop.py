@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
 """
-CONSTRUCT als eigenes Desktop-Fenster — ohne Browser-Tab, ohne Docker.
+CONSTRUCT starten: Server hoch, dann ein eigenes Fenster im Browser.
 
 Startet den FastAPI-Server (app.py) in einem Hintergrund-Thread auf 127.0.0.1
-und legt ein natives Fenster darüber (pywebview -> WebKitGTK auf Linux,
-WKWebView auf dem Mac). Damit taucht Cody als eigene App in der Taskleiste auf
-statt als 27. Browser-Tab.
+und öffnet die Oberfläche als App-Fenster eines Chromium-Browsers (Chrome,
+Edge, Brave, Chromium, Vivaldi, Opera): eigenes Fenster ohne Tabs und
+Adressleiste, eigener Eintrag in der Taskleiste. Der Standardbrowser hat
+Vorrang, sofern er einer davon ist; sonst nimmt CONSTRUCT irgendeinen
+installierten. Gibt es keinen, öffnet sich ein normaler Tab im Standardbrowser.
+
+Früher war das ein eigenes WebKitGTK-Fenster (pywebview). Das war unter
+Wayland + NVIDIA nur im Software-Rendering stabil und entsprechend zäh; im
+Browser läuft dieselbe Oberfläche mit Grafikkarte flüssig.
 
 Aufruf normalerweise über ./start.sh (kümmert sich um venv + Abhängigkeiten):
 
-    ./start.sh              Fenster
+    ./start.sh              Server + Fenster
     ./start.sh --web        nur Server, kein Fenster (Autostart/Server)
 
-Läuft auf Port 8765 schon eine Instanz, wird
-KEIN zweiter Server gestartet — das Fenster hängt sich an die laufende an.
+Läuft auf dem Port schon eine Instanz, wird KEIN zweiter Server gestartet —
+es öffnet sich nur das Fenster. Das Fenster zu schließen beendet den Server
+nicht: der Telegram-Bot und geplante Aufgaben laufen weiter.
+
+    CONSTRUCT_BROWSER=/pfad/zum/browser   bestimmten Chromium-Browser nehmen
+    CONSTRUCT_FENSTER=0                   immer nur einen Tab öffnen
 """
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -36,36 +47,6 @@ sys.stdout.reconfigure(line_buffering=True)   # Meldungen sofort im journal/Log
 HOST = os.environ.get("MATRIX_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MATRIX_PORT", "8765"))
 URL = f"http://{HOST}:{PORT}/"
-ICON = BASE_DIR / "static" / "icon-256.png"
-
-def _needs_software_render() -> bool:
-    """Muss WebKit auf der CPU rastern statt auf der GPU?
-
-    NVIDIAs GBM-Implementierung und WebKits DMA-BUF-Renderer vertragen sich
-    unter Wayland nicht: "Failed to create GBM buffer of size ..." und das
-    Fenster bleibt komplett leer. Betrifft nur die Kombination Wayland +
-    NVIDIA-Treiber; überall sonst (Intel/AMD, X11, macOS) bleibt die GPU an.
-
-    Erzwingen lässt sich beides:  CODY_GPU=1  /  CODY_SOFTWARE_RENDER=1
-    """
-    if os.environ.get("CODY_GPU") == "1":
-        return False
-    if os.environ.get("CODY_SOFTWARE_RENDER") == "1":
-        return True
-    return (sys.platform.startswith("linux")
-            and os.environ.get("XDG_SESSION_TYPE") == "wayland"
-            and Path("/proc/driver/nvidia/version").exists())
-
-
-# Muss VOR dem GTK-Import stehen, darum hier oben.
-SOFTWARE_RENDER = _needs_software_render()
-if SOFTWARE_RENDER:
-    # NUR den DMA-BUF-Renderer abschalten. WEBKIT_DISABLE_COMPOSITING_MODE
-    # gehört hier ausdrücklich NICHT hin: ohne Compositing legt WebKitGTK die
-    # Klickflächen von `position: fixed`-Elementen woanders hin, als es sie
-    # zeichnet — die Buttons sind dann sichtbar, aber nicht treffbar.
-    os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"] = "1"
-
 
 def port_busy() -> bool:
     with socket.socket() as s:
@@ -91,13 +72,13 @@ def server_alive() -> bool:
 
 
 def code_version() -> str:
-    """Version aus app.py auf der PLATTE — ohne app.py zu importieren.
+    """Version aus server/core.py auf der PLATTE — ohne sie zu importieren.
 
     Der Import würde Abhängigkeiten laden und dauert; hier reicht die eine
     Zeile. Findet sie sich nicht, wird eben nicht verglichen.
     """
     try:
-        for line in (Path(__file__).parent / "app.py").read_text(
+        for line in (Path(__file__).parent / "server" / "core.py").read_text(
                 encoding="utf-8", errors="replace").splitlines():
             if line.startswith("VERSION"):
                 return line.split("=", 1)[1].strip().strip('"\'')
@@ -201,10 +182,19 @@ def _pid_on_port(port: int):
     return None
 
 
+_SERVER = None
+_THREAD = None
+
+
 def serve() -> None:
     import uvicorn
     from app import app
-    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    from server import core
+    global _SERVER
+    _SERVER = uvicorn.Server(uvicorn.Config(app, host=HOST, port=PORT, log_level="warning"))
+    # ⏻ in der Oberfläche: sauber herunterfahren (app.lifespan räumt auf)
+    core.beim_beenden(lambda: setattr(_SERVER, "should_exit", True))
+    _SERVER.run()
 
 
 def start_server() -> bool:
@@ -221,7 +211,9 @@ def start_server() -> bool:
             return False
         # Alte Instanz ist weg, Port frei — unten wird neu gestartet.
 
-    threading.Thread(target=serve, daemon=True).start()
+    global _THREAD
+    _THREAD = threading.Thread(target=serve, daemon=True)
+    _THREAD.start()
     for _ in range(150):              # bis 30 s — der erste Start liest Skills ein
         if server_alive():
             print(f"🟢 CONSTRUCT läuft auf {URL}")
@@ -230,268 +222,216 @@ def start_server() -> bool:
     sys.exit("!! Server ist nicht hochgekommen. Details:  ./start.sh --web")
 
 
-def browser_fallback(grund: str) -> None:
-    import webbrowser
-    print(
-        f"» Fenster-Modus geht nicht ({grund}) — öffne stattdessen den Browser.\n"
-        f"  Was genau fehlt, sagt dir:  ./check-desktop.sh\n"
-        f"  Der Chat funktioniert davon unabhängig."
-    )
-    webbrowser.open(URL)
-    idle()
+# ---------------------------------------------------------------------------
+# Fenster: App-Modus eines Chromium-Browsers
+
+# Woran ein Chromium-Browser zu erkennen ist (Name der .desktop-Datei, des
+# Programms oder der Windows-ProgId).
+CHROMIUM = re.compile(r"chrom|brave|edge|vivaldi|opera|thorium|yandex", re.I)
+
+# Linux: .desktop-IDs in der Reihenfolge, in der sie ohne passenden
+# Standardbrowser probiert werden.
+LINUX_IDS = [
+    "google-chrome", "com.google.Chrome", "chromium", "chromium-browser",
+    "org.chromium.Chromium", "brave-browser", "com.brave.Browser",
+    "microsoft-edge", "com.microsoft.Edge", "vivaldi-stable",
+    "com.vivaldi.Vivaldi", "opera", "com.opera.Opera",
+]
+LINUX_PROGRAMME = [
+    "google-chrome-stable", "google-chrome", "chromium", "chromium-browser",
+    "brave-browser", "microsoft-edge-stable", "microsoft-edge", "vivaldi-stable",
+    "vivaldi", "opera",
+]
 
 
-def _open_browser(url: str) -> None:
-    """Systembrowser öffnen, ohne unsere Fenster-Einstellungen zu vererben.
-
-    Startet der Link den Browser, erbt er sonst GDK_BACKEND=x11: Firefox lief
-    dann über XWayland ohne Grafikkarte, und schon YouTube ruckelte.
-    """
-    ours = os.environ.get("CODY_SET_GDK_BACKEND") == "1"  # von spawn_window
-    if not (ours and shutil.which("xdg-open")):
-        webbrowser.open(url)
-        return
-    env = {k: v for k, v in os.environ.items()
-           if k not in ("GDK_BACKEND", "CODY_SET_GDK_BACKEND")}
-    subprocess.Popen(["xdg-open", url], env=env, start_new_session=True,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def _desktop_dirs() -> list[Path]:
+    home = Path.home()
+    dirs = [Path(os.environ.get("XDG_DATA_HOME", home / ".local/share"))]
+    dirs += [Path(d) for d in os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":") if d]
+    dirs += [home / ".local/share/flatpak/exports/share", Path("/var/lib/flatpak/exports/share")]
+    return [d / "applications" for d in dirs]
 
 
-class _Bridge:
-    """Wird dem Frontend als window.pywebview.api bereitgestellt.
-
-    Die WebView hat keine Adress- und keine Zurueck-Leiste. Klickt man darin
-    einen externen Link, navigiert das GANZE Fenster dorthin und es gibt keinen
-    Weg zurueck zur App. Externe Links muessen deshalb an den Systembrowser.
-    """
-
-    def open_url(self, url: str) -> bool:
-        # Nur echte Web-Links weiterreichen: file://, javascript: usw. haetten
-        # hier nichts verloren.
-        if not isinstance(url, str) or not url.lower().startswith(("http://", "https://")):
-            return False
-        _open_browser(url)
-        return True
-
-    def paste_image(self):
-        """Bild aus der Zwischenablage als Anhang ablegen (Strg+V im Fenster).
-
-        WebKitGTK reicht kopierte Bilder beim paste-Ereignis nicht an die
-        Seite weiter - clipboardData enthält dort nur Text. Darum fragt das
-        Frontend hier nach, und wir holen das Bild über GTK selbst. Kopierte
-        Bilddateien (Dateimanager) zählen auch. None, wenn kein Bild drin ist.
-        """
-        from server import attach
-        got = _clipboard_image()
-        if not got:
-            return None
-        data, ext, name = got
-        try:
-            return attach.store(data, ext, name)
-        except (OSError, ValueError) as e:
-            print(f"!! Einfügen: Bild nicht übernommen ({e})")
-            return None
+def exec_aus_desktop(text: str) -> list[str]:
+    """Befehl aus dem Exec= einer .desktop-Datei (Abschnitt [Desktop Entry]),
+    ohne Platzhalter wie %U und die @@-Marken von Flatpak."""
+    abschnitt = ""
+    for zeile in text.splitlines():
+        zeile = zeile.strip()
+        if zeile.startswith("["):
+            abschnitt = zeile
+        elif abschnitt == "[Desktop Entry]" and zeile.startswith("Exec="):
+            teile = shlex.split(zeile[5:])
+            return [t for t in teile if not t.startswith("%") and not t.startswith("@@")]
+    return []
 
 
-def _clipboard_image():
-    """(bytes, ext, name) des Bildes in der Zwischenablage, sonst None.
-
-    Die js_api läuft in einem eigenen Thread, GTK aber nur im Hauptthread:
-    darum per idle_add dort ausführen und hier auf das Ergebnis warten.
-    """
-    import threading
-    from gi.repository import Gdk, GLib, Gtk
-
-    out = {}
-    done = threading.Event()
-
-    def grab():
-        try:
-            cb = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-            pb = cb.wait_for_image()
-            if pb is not None:
-                ok, buf = pb.save_to_bufferv("png", [], [])
-                if ok:
-                    out["img"] = (bytes(buf), ".png", "Zwischenablage.png")
-                    return False
-            for uri in cb.wait_for_uris() or []:
-                p = Path(GLib.filename_from_uri(uri)[0])
-                if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp") and p.is_file():
-                    out["img"] = (p.read_bytes(), p.suffix, p.name)
-                    break
-        except Exception as e:
-            print(f"!! Zwischenablage nicht lesbar ({e})")
-        finally:
-            done.set()
-        return False
-
-    GLib.idle_add(grab)
-    done.wait(5)
-    return out.get("img")
-
-
-# Bilder, die von aussen ins Fenster gezogen werden (Dateimanager, Bildbetrachter).
-# Im Browser reicht dafuer das drop-Ereignis der Oberflaeche. In WebKitGTK kommt
-# eine hereingezogene Datei beim JavaScript aber nur als Name an, nicht als
-# lesbare Datei - das Frontend laedt sie hoch und bekommt nichts. pywebview
-# hat dafuer den eigenen Weg: der Python-Handler erhaelt den vollen Pfad
-# (pywebviewFullPath), wir kopieren die Datei selbst in uploads/ und melden sie
-# dem Frontend als Anhang - über dieselbe Ablage wie /api/upload (attach.py).
-def _install_native_drop(window) -> None:
-    import json
-    from server import attach
-
-    def on_drop(event):
-        files = (event.get("dataTransfer") or {}).get("files") or []
-        angenommen = []
-        for f in files:
-            src = f.get("pywebviewFullPath")
-            if not src or not Path(src).is_file():
-                continue
+def _linux_desktop(desktop_id: str) -> list[str]:
+    name = desktop_id if desktop_id.endswith(".desktop") else desktop_id + ".desktop"
+    for d in _desktop_dirs():
+        f = d / name
+        if f.is_file():
             try:
-                angenommen.append(attach.store(Path(src).read_bytes(),
-                                               Path(src).suffix, Path(src).name))
-            except (OSError, ValueError) as e:
-                print(f"!! Drop: {src} nicht übernommen ({e})")
-        if angenommen:
-            window.evaluate_js(
-                f"window.__nativeDrop && window.__nativeDrop({json.dumps(angenommen)})")
-
-    def register():
-        try:
-            window.dom.document.events.drop += on_drop
-        except Exception as e:           # aeltere pywebview ohne DOM-API: Browserweg bleibt
-            print(f"!! Drag-and-drop nativ nicht verfuegbar ({e})")
-
-    window.events.loaded += register
+                cmd = exec_aus_desktop(f.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                continue
+            if cmd and (shutil.which(cmd[0]) or Path(cmd[0]).exists()):
+                return cmd
+    return []
 
 
-def show_window() -> None:
-    """Baut das Fenster und blockiert, bis es geschlossen wird.
-
-    Läuft im KINDPROZESS (--window-only). Grund: GDK beendet den Prozess bei
-    einem Wayland-Protokollfehler hart von innen heraus — das ist keine
-    Python-Exception und mit try/except nicht auffangbar. Nur als eigener
-    Prozess lässt sich so ein Absturz überhaupt bemerken und beantworten.
-    """
+def _linux_browser() -> list[str]:
     try:
-        import webview
-    except ImportError:
-        print("!! pywebview ist nicht installiert.")
-        raise SystemExit(2)          # 2 = aussichtslos, anderes Backend hilft nicht
+        std = subprocess.run(["xdg-settings", "get", "default-web-browser"],
+                             capture_output=True, text=True, timeout=3).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        std = ""
+    if std and CHROMIUM.search(std):
+        cmd = _linux_desktop(std)
+        if cmd:
+            return cmd
+    for prog in LINUX_PROGRAMME:
+        if shutil.which(prog):
+            return [prog]
+    for did in LINUX_IDS:
+        cmd = _linux_desktop(did)
+        if cmd:
+            return cmd
+    return []
 
-    # Damit die Taskleiste das Fenster der .desktop-Datei zuordnet und unser
-    # Icon zeigt (StartupWMClass=cody), statt es "python3" zu nennen.
+
+def _windows_browser() -> list[str]:
+    env = os.environ
+    orte = {
+        "chrome": [r"Google\Chrome\Application\chrome.exe"],
+        "edge": [r"Microsoft\Edge\Application\msedge.exe"],
+        "brave": [r"BraveSoftware\Brave-Browser\Application\brave.exe"],
+        "vivaldi": [r"Vivaldi\Application\vivaldi.exe"],
+    }
+    wurzeln = [env.get(k) for k in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA") if env.get(k)]
+
+    def finde(name: str) -> list[str]:
+        for w in wurzeln:
+            for rel in orte[name]:
+                p = Path(w) / rel
+                if p.is_file():
+                    return [str(p)]
+        return []
+
+    reihe = ["chrome", "brave", "vivaldi", "edge"]   # Edge zuletzt: ist immer da
     try:
-        from gi.repository import GLib
-        GLib.set_prgname("cody")
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\Shell"
+                            r"\Associations\UrlAssociations\https\UserChoice") as k:
+            progid = str(winreg.QueryValueEx(k, "ProgId")[0]).lower()
+        for name in list(reihe):
+            if name in progid or (name == "edge" and "msedge" in progid):
+                reihe.remove(name)
+                reihe.insert(0, name)
     except Exception:
         pass
-
-    # Ohne GPU-Beschleunigung den Sparmodus anfordern: das Frontend lässt dann
-    # den Vollbild-Canvas (Matrix-Regen) und die Scanlines weg. Auf 4K frisst
-    # der Canvas sonst über die Hälfte eines Kerns und die Eingabe hakt.
-    win_url = URL + "?fx=low" if SOFTWARE_RENDER else URL
-
-    window = webview.create_window(
-        "CONSTRUCT",
-        win_url,
-        width=1280,
-        height=860,
-        min_size=(900, 600),
-        text_select=True,
-        js_api=_Bridge(),
-    )
-    _install_native_drop(window)
-
-    # GTK explizit: sonst fällt pywebview stillschweigend auf Qt zurück und der
-    # Fehler lautet "kein Modul qtpy" — was mit der echten Ursache (fehlendes
-    # WebKit-Typelib) nichts zu tun hat und beim Suchen nur in die Irre führt.
-    gui = os.environ.get("CODY_GUI") or ("gtk" if sys.platform.startswith("linux") else None)
-    # CODY_DEBUG=1 schaltet den Web-Inspector frei (Rechtsklick -> Element
-    # untersuchen). Der einzige Weg, JS-Fehler im Fenster überhaupt zu sehen.
-    debug = os.environ.get("CODY_DEBUG") == "1"
-
-    # private_mode=False ist PFLICHT, nicht Komfort: pywebview startet sonst im
-    # Private Mode, und darin existiert in WebKitGTK gar kein localStorage —
-    # nicht leer, sondern nicht vorhanden. Die Oberfläche übersteht das
-    # (frontend/src/lib/storage.ts), vergäße aber Modell, Modus und Breite der
-    # Seitenleiste bei jedem Start.
-    # storage_path liegt beim Projekt, damit Einstellungen auf dem USB-Stick
-    # mitwandern statt am Rechner zu kleben.
-    store = BASE_DIR / ".webview"
-    store.mkdir(exist_ok=True)
-    try:
-        webview.start(gui=gui, debug=debug,       # blockiert, bis das Fenster zu ist
-                      private_mode=False, storage_path=str(store))
-    except TypeError:
-        # Ältere pywebview-Versionen kennen storage_path noch nicht.
-        webview.start(gui=gui, debug=debug, private_mode=False)
+    for name in reihe:
+        cmd = finde(name)
+        if cmd:
+            return cmd
+    return []
 
 
-def window_attempts() -> list:
-    """Welche GDK-Backends in welcher Reihenfolge probiert werden.
+def _mac_browser() -> list[str]:
+    apps = ["Google Chrome", "Brave Browser", "Microsoft Edge", "Chromium", "Vivaldi", "Opera"]
+    for basis in (Path("/Applications"), Path.home() / "Applications"):
+        for app in apps:
+            p = basis / f"{app}.app" / "Contents" / "MacOS" / app
+            if p.is_file():
+                return [str(p)]
+    return []
 
-    Unter Wayland zuerst X11 (via XWayland): WebKitGTK wirft dort sonst gern
-    "Error 71 (Protokollfehler)" und reißt den Prozess mit. XWayland ist der
-    stabile Pfad; native Wayland-Darstellung ist bei HiDPI etwas schärfer,
-    darum bleibt sie per CODY_WAYLAND=1 erreichbar.
+
+def chromium_browser() -> list[str]:
+    """Befehl eines Chromium-Browsers für das App-Fenster, [] = keiner da."""
+    eigen = os.environ.get("CONSTRUCT_BROWSER", "").strip()
+    if eigen:
+        return shlex.split(eigen)
+    if sys.platform.startswith("win"):
+        return _windows_browser()
+    if sys.platform == "darwin":
+        return _mac_browser()
+    return _linux_browser()
+
+
+def _profil(cmd: list[str]) -> Path:
+    """Eigenes Browser-Profil für das Fenster.
+
+    Eigenes Profil heißt eigener Browser-Prozess: das Fenster bekommt so seine
+    eigene Fensterklasse (Taskleiste zeigt CONSTRUCT, nicht den Browser) und
+    hängt sich nicht in ein offenes Browserfenster mit 30 Tabs. Ein Flatpak-
+    Browser darf meist nicht in den Projektordner schreiben — dort liegt das
+    Profil in seinem eigenen Datenordner.
     """
-    if os.environ.get("GDK_BACKEND"):
-        return [("", "GDK_BACKEND aus der Umgebung")]
-    if not os.environ.get("WAYLAND_DISPLAY"):
-        return [("", "System-Standard")]
-    if os.environ.get("CODY_WAYLAND") == "1":
-        return [("wayland", "Wayland"), ("x11", "X11/XWayland")]
-    return [("x11", "X11/XWayland"), ("wayland", "Wayland")]
+    if cmd and "flatpak" in Path(cmd[0]).name:
+        app_id = next((t for t in reversed(cmd) if re.fullmatch(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2,}", t)), "")
+        if app_id:
+            return Path.home() / ".var" / "app" / app_id / "data" / "construct-fenster"
+    return BASE_DIR / ".fenster"
 
 
-def spawn_window(backend: str) -> int:
-    """Startet das Fenster als eigenen Prozess und gibt dessen Exit-Code zurück."""
-    env = dict(os.environ)
-    if backend:
-        env["GDK_BACKEND"] = backend
-        env["CODY_SET_GDK_BACKEND"] = "1"
-    return subprocess.call(
-        [sys.executable, str(Path(__file__).resolve()), "--window-only"], env=env
-    )
+def fenster_befehl(cmd: list[str], url: str) -> list[str]:
+    return cmd + [
+        f"--app={url}",
+        f"--user-data-dir={_profil(cmd)}",
+        "--class=construct",          # Fensterklasse = StartupWMClass der .desktop-Datei
+        "--window-size=1440,920",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ]
+
+
+def open_window() -> None:
+    """Oberfläche öffnen: App-Fenster, sonst Tab im Standardbrowser."""
+    url = URL + "?fenster=1"
+    cmd = [] if os.environ.get("CONSTRUCT_FENSTER") == "0" else chromium_browser()
+    if cmd:
+        try:
+            subprocess.Popen(fenster_befehl(cmd, url), start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            print(f"» Fenster geöffnet ({Path(cmd[0]).name}).")
+            return
+        except OSError as e:
+            print(f"⚠  {cmd[0]} ließ sich nicht starten ({e}) — öffne einen Tab.")
+    elif os.environ.get("CONSTRUCT_FENSTER") == "0":
+        print("» Fenster abgeschaltet (CONSTRUCT_FENSTER=0) — öffne einen Tab.")
+    else:
+        print("» Kein Chromium-Browser gefunden (Chrome, Edge, Brave …) — öffne einen Tab.")
+    webbrowser.open(URL)
 
 
 def idle() -> None:
-    """Server am Leben halten, wenn kein Fenster den Prozess blockiert."""
+    """Warten, solange der Server läuft — bis ⏻ in der Oberfläche oder Strg+C."""
     try:
-        while True:
-            time.sleep(3600)
+        while _THREAD is not None and _THREAD.is_alive():
+            _THREAD.join(1)
     except KeyboardInterrupt:
-        print("\n» beendet.")
+        if _SERVER is not None:
+            _SERVER.should_exit = True
+        if _THREAD is not None:
+            _THREAD.join(15)
+    print("» CONSTRUCT beendet.")
 
 
 def main() -> None:
-    # Kindprozess: nur das Fenster, der Server läuft im Elternprozess.
-    if "--window-only" in sys.argv:
-        show_window()
-        return
-
     web_only = "--web" in sys.argv
     started = start_server()
 
-    if web_only:
-        if started:
-            idle()
-        else:
-            print("» Es lief schon eine Instanz — nichts zu tun.")
-        return
-
-    for backend, label in window_attempts():
-        code = spawn_window(backend)
-        if code == 0:
-            print("» Fenster geschlossen, CONSTRUCT beendet.")
-            return
-        if code == 2:                 # pywebview fehlt — Backend-Wechsel zwecklos
-            break
-        print(f"   ⚠  Fenster über {label} abgestürzt (Code {code}) — nächster Versuch …")
-
-    browser_fallback("kein Fenster-Backend hat durchgehalten")
+    if not web_only:
+        open_window()
+    if started:
+        # Der Server läuft in diesem Prozess: am Leben halten, auch wenn das
+        # Fenster zugeht (Telegram-Bot, geplante Aufgaben). Beenden: Strg+C
+        # bzw. Abmelden; ein erneuter Start öffnet nur das Fenster.
+        idle()
+    elif web_only:
+        print("» Es lief schon eine Instanz — nichts zu tun.")
 
 
 if __name__ == "__main__":

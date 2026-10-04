@@ -35,6 +35,8 @@ export interface Bootstrap {
   lang: Lang
   workspace: string
   settings: Settings
+  /** Dateien einer eigenen Figur im Raum (static/figur); leer = Cody. */
+  figur: string[]
 }
 
 declare global {
@@ -76,5 +78,6 @@ export function readBootstrap(src: Partial<Bootstrap> | undefined = window.CONST
     lang,
     workspace: s.workspace ?? '',
     settings: { ...settings, lang },
+    figur: s.figur ?? [],
   }
 }

@@ -11,6 +11,7 @@ import { Backdrop } from './Backdrop'
 import { UpdateCard } from './UpdateCard'
 import { LoginDialog, ClaudeSetupDialog } from '@/components/dialogs/LoginDialog'
 import { ProvidersDialog } from '@/components/dialogs/ProvidersDialog'
+import { RaumView } from '@/views/raum/RaumView'
 import s from './AppShell.module.css'
 
 export function AppShell() {
@@ -19,6 +20,7 @@ export function AppShell() {
   const assistant = useSettings((st) => st.boot.assistant)
   const sideOpen = useUi((st) => st.sideOpen)
   const setSideOpen = useUi((st) => st.setSideOpen)
+  const raum = useUi((st) => st.raum)
 
   useEffect(() => {
     document.title = `CONSTRUCT // ${assistant}`
@@ -31,6 +33,19 @@ export function AppShell() {
     const known = VIEWS.some((v) => v.key === view)
     return <Navigate to={known ? '/settings' : `/${VIEWS[0]!.key}`} replace />
   }
+
+  // Construct-Raum: dieselben Stores, andere Bühne. Ohne Matrix-Regen
+  // dahinter — der Raum ist weiß und deckt alles ab.
+  if (raum)
+    return (
+      <>
+        <RaumView />
+        <UpdateCard />
+        <ProvidersDialog />
+        <LoginDialog />
+        <ClaudeSetupDialog />
+      </>
+    )
 
   return (
     <>

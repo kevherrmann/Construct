@@ -60,3 +60,29 @@ export const useFolderTree = () =>
     queryKey: ['folders', 'tree'],
     queryFn: () => apiGet<FolderNode>('/api/folders/tree'),
   })
+
+export interface Werkstatt {
+  cwd: string
+  dateien: { path: string; neu: boolean; mal: number; ts: string }[]
+  befehle: {
+    command: string
+    description: string
+    output: string | null
+    isError: boolean
+    ts: string
+  }[]
+  git: { repo: boolean; root: string; dateien: { path: string; status: string }[] }
+}
+
+/** Werkbank und Fernseher im Construct-Raum: Dateien und Befehle der ganzen
+ *  Session, aus dem Protokoll (der geladene Verlauf kennt nur Text). Läuft
+ *  gerade etwas, alle paar Sekunden neu — claude schreibt das Protokoll mit. */
+export const useWerkstatt = (sid: string | null | undefined, busy: boolean, stand: number) =>
+  useQuery({
+    queryKey: ['werkstatt', sid, stand],
+    queryFn: () => apiGet<Werkstatt>(`/api/werkstatt/${encodeURIComponent(sid!)}`),
+    enabled: !!sid && !sid.startsWith('llm-') && !sid.startsWith('hermes-'),
+    refetchInterval: busy ? 4000 : false,
+    placeholderData: (alt) => alt,
+    retry: false,
+  })

@@ -1,0 +1,69 @@
+.knoepfe {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.nein,
+.ja {
+  padding: 7px 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.nein {
+  border: 1px solid var(--green-faint);
+  background: transparent;
+  color: var(--soft);
+}
+.ja {
+  border: 1px solid #ff5c5c;
+  background: rgba(255, 60, 60, 0.12);
+  color: #ff7a7a;
+}
+.ja:hover:not(:disabled) {
+  background: rgba(255, 60, 60, 0.22);
+}
+.ja:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.fehler {
+  color: #ff7a7a !important;
+}
+/* Nach dem Beenden: nur noch ein ruhiger Hinweis, sonst nichts mehr bedienbar. */
+.ende {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg, #000);
+  color: var(--green, #8ef0b0);
+  font-family: var(--font);
+  letter-spacing: 2px;
+  animation: ein 0.4s ease-out;
+}
+.ende b {
+  font-size: 44px;
+  font-weight: 300;
+  opacity: 0.7;
+}
+.ende p {
+  margin: 0;
+  font-size: 18px;
+}
+.ende span {
+  font-size: 13px;
+  opacity: 0.6;
+}
+@keyframes ein {
+  from {
+    opacity: 0;
+  }
+}

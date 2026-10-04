@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 rem ============================================================
 rem   CONSTRUCT starten - Windows
 rem
-rem     start.bat            eigenes Fenster
+rem     start.bat            Server + eigenes Fenster (im Browser)
 rem     start.bat --web      nur Server auf http://127.0.0.1:8765
 rem     start.bat --update   Abhaengigkeiten neu installieren
 rem
@@ -67,7 +67,7 @@ rem ---- Abhaengigkeiten nur bei Aenderung ----
 rem  Die Pruefsumme der requirements-Dateien als Stempel: sonst laeuft bei
 rem  jedem Start ein pip-Durchlauf, und der kostet auf Windows spuerbar.
 set "STAMP=%VENV%\deps-stamp"
-for /f "usebackq delims=" %%h in (`%VPY% -c "import zlib,pathlib;d=b''.join(pathlib.Path(f).read_bytes() for f in ('requirements.txt','requirements-desktop.txt') if pathlib.Path(f).exists());print(zlib.crc32(d))"`) do set "NOW=%%h"
+for /f "usebackq delims=" %%h in (`%VPY% -c "import zlib,pathlib;d=b''.join(pathlib.Path(f).read_bytes() for f in ('requirements.txt',) if pathlib.Path(f).exists());print(zlib.crc32(d))"`) do set "NOW=%%h"
 set "OLD="
 if exist "%STAMP%" set /p OLD=<"%STAMP%"
 if "%UPDATE%"=="1" goto install
@@ -78,8 +78,6 @@ goto run
 echo ^> installiere Abhaengigkeiten ... ^(dauert beim ersten Mal ein, zwei Minuten^)
 "%VPY%" -m pip install -q --upgrade pip
 "%VPY%" -m pip install -q -r requirements.txt || (echo !! Installation fehlgeschlagen. & pause & exit /b 1)
-rem  Fenster-Modus ist Kuer: schlaegt das fehl, laeuft CONSTRUCT im Browser.
-"%VPY%" -m pip install -q -r requirements-desktop.txt || echo    ^(pywebview liess sich nicht installieren - es oeffnet sich stattdessen der Browser.^)
 > "%STAMP%" echo %NOW%
 
 :run

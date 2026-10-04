@@ -1,0 +1,1556 @@
+/* Der Construct-Raum: hell, ruhig, fast leer. Eigene Farben, unabhängig von
+   der Farbwelt — nur der Akzent kommt von dort, in einer dunklen Fassung, die
+   auf Weiß lesbar bleibt (Neon-Grün auf Weiß wäre es nicht).
+
+   Die Variablen sind dieselben, die jede Farbwelt setzt: so erscheinen die
+   vorhandenen Bausteine (Eingabe, Verlauf, Sessions, Kalender, Mail) im Raum
+   von selbst hell — volle Funktion ohne Nachbau. Werte wie Farbwelt "Papier". */
+.raum {
+  --raum-akzent: 29, 122, 72;
+  --ink: #2a2f2c;
+  --ink-soft: #6b726e;
+  --paper: #f3f4f4;
+  --green: rgb(var(--raum-akzent));
+  --green-dim: #6f8a7c;
+  --green-faint: #d6e0da;
+  --accent-rgb: var(--raum-akzent);
+  --bg: #f3f4f4;
+  --user: #34506b;
+  --soft: #4f5a54;
+  --link: #1b6aa8;
+  --text: #1f2a24;
+  --field: #ffffff;
+  --popup: #ffffff;
+  --box: rgba(255, 255, 255, 0.78);
+  --user-line: #c9d3cd;
+  --deep: #fafbfa;
+  --deep-hi: #eef2ef;
+  --codebg: #20272a;
+  --on-accent: #ffffff;
+  --accent2: rgb(var(--raum-akzent));
+  --code: #a2401a;
+  --shade: rgba(40, 50, 45, 0.06);
+  --mask: rgba(50, 55, 52, 0.3);
+  color-scheme: light;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 50% 45%, #fbfbfb 0%, var(--paper) 70%, #e9eaea 100%);
+  color: var(--ink);
+  font-family: var(--font);
+}
+/* Akzent je Farbwelt, dunkel genug für Weiß. Matrix hat kein data-theme. */
+:global(html[data-theme='bernstein']) .raum {
+  --raum-akzent: 168, 98, 10;
+}
+:global(html[data-theme='eis']) .raum {
+  --raum-akzent: 18, 112, 140;
+}
+:global(html[data-theme='space']) .raum {
+  --raum-akzent: 96, 66, 180;
+}
+:global(html[data-theme='asche']) .raum {
+  --raum-akzent: 70, 78, 92;
+}
+:global(html[data-theme='blut']) .raum {
+  --raum-akzent: 170, 34, 34;
+}
+:global(html[data-theme='papier']) .raum {
+  --raum-akzent: 29, 107, 69;
+}
+:global(html[data-theme='nebel']) .raum {
+  --raum-akzent: 39, 87, 184;
+}
+/* Glaskarten der vorhandenen Bausteine: hell wie in den hellen Farbwelten. */
+.raum :global(.glass-card.glass-card) {
+  background: linear-gradient(160deg, #ffffff, #f6f8f7);
+  border: 1px solid #e3e8e5;
+  box-shadow:
+    0 6px 18px rgba(40, 50, 45, 0.06),
+    inset 0 1px 0 #fff;
+}
+
+/* Kopfleiste: schmal, auf dem Weiß, ohne Kasten. */
+.kopf {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 26px 6px;
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+.marke {
+  font-weight: 600;
+  color: var(--ink);
+}
+.marke b {
+  color: rgb(var(--accent-rgb));
+  margin-right: 6px;
+  letter-spacing: 0;
+}
+.knopf {
+  padding: 6px 14px;
+  border: 1px solid #d6d9d7;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+.knopf:hover {
+  border-color: rgba(var(--accent-rgb), 0.6);
+  color: var(--green);
+}
+
+/* Fläche nimmt den Rest; die Bühne ist 16:9 und passt sich ein. */
+.flaeche {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.buehne {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
+}
+/* Ausschnitt, durch den die Kamera schaut. Ränder laufen weich ins Papier aus. */
+.fenster {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mask-image:
+    linear-gradient(to right, transparent, #000 3%, #000 97%, transparent),
+    linear-gradient(to bottom, #000 0, #000 96%, transparent);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+/* Die Welt: Raumbild mit allem, was darin steht. Die Kamera bewegt nur sie. */
+.welt {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  transition: transform 0.9s cubic-bezier(0.62, 0, 0.24, 1);
+}
+.weltFokus {
+  cursor: zoom-out;
+}
+.weltFokus :is(.station, .figurKnopf) {
+  pointer-events: none;
+}
+.weltFokus .station:not(.stationAn) .schild {
+  opacity: 0;
+}
+.weltFokus :is(.blase, .denkpunkte) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.bild {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+/* Figur: alle Posen übereinander, die aktive ist sichtbar — Wechsel als
+   sanfte Überblendung. Leinwand 760×1000, Fußpunkt unten Mitte. */
+.figur {
+  position: absolute;
+  aspect-ratio: 760 / 1000;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 18px 14px rgba(40, 50, 45, 0.28));
+  pointer-events: none;
+  user-select: none;
+  animation: atem 5s ease-in-out infinite;
+  transition:
+    filter 0.6s,
+    opacity 0.45s ease;
+}
+.figur img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+.figur img.poseAn {
+  opacity: 1;
+}
+/* Figur steht an der Werkbank: Podest leer. */
+.figur.weg {
+  opacity: 0;
+}
+/* Unter dem laufenden Ruhe-Video: Standbild erst weg, wenn das Video voll da ist. */
+.figur.still {
+  opacity: 0;
+  transition: opacity 0s linear 0.45s;
+}
+
+/* Ebenen in Ausschnitten des Raumbilds (Werkbank, Posen-Videos). */
+.ebene,
+.video {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+.amWerk {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.amWerkDa {
+  opacity: 1;
+}
+/* Das Video bringt sein Stück Raum mit. Gezeigt wird davon nur die Figur
+   mit weichem Rand (Maske je Video, Inline-Stil): Fernseher, Klemmbrett und
+   die Hover-Unschärfe drumherum bleiben so, wie sie sind. */
+.video {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+.videoAn {
+  opacity: 1;
+}
+/* Kaum sichtbares Atmen, damit sie nicht wie ein Standbild wirkt. */
+@keyframes atem {
+  50% {
+    transform: translateX(-50%) scale(1.006, 1.012);
+  }
+}
+:global(body.fx-off) .figur {
+  animation: none;
+}
+
+/* Stationen: unsichtbare Flächen; beim Überfahren Licht und ein Schild. */
+.station {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.station:focus-visible {
+  outline: none;
+}
+/* Beim Überfahren stellt die Kamera auf das Objekt scharf: der Rest des
+   Raums wird unscharf und tritt ins Weiß zurück. Beides ist eine Ebene mit
+   der Maske „alles außer dieser Station“ (Inline-Stil aus RaumView). */
+.unschaerfe,
+.fokusSchleier {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+.fokusSchleier {
+  background: rgba(247, 248, 248, 0.38);
+}
+/* Uhrzeiger, Projektname, Fernseher: liegen über dem Raumbild und werden
+   deshalb selbst weichgezeichnet. */
+.weich {
+  filter: blur(3px);
+  opacity: 0.6;
+}
+/* Perspektivisch verzerrte Ebenen: WebKitGTK legt sie mit Filter flach hin —
+   dort nur ausblenden. */
+.regalSchild.weich,
+.kontingent.weich,
+.tvRahmen.weich {
+  filter: none;
+  opacity: 0.3;
+}
+.uhr,
+.regalSchild,
+.kontingent,
+.tvRahmen {
+  transition:
+    filter 0.35s ease,
+    opacity 0.35s ease;
+}
+.fokusAn {
+  opacity: 1;
+}
+.schild {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 22px rgba(30, 40, 35, 0.14);
+  white-space: nowrap;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.schild b {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+.schild span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+/* Stationen ganz oben: Schild innen, sonst ragt es aus dem Bild. */
+.schildUnten .schild {
+  bottom: auto;
+  top: 10%;
+}
+.station:hover .schild,
+.station:focus-visible .schild {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Inhalte der Karten */
+.einspaltig {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.zweispaltig {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  gap: 18px;
+  height: 100%;
+}
+.spalteLinks,
+.spalteRechts {
+  min-height: 0;
+  overflow-y: auto;
+}
+.spalteRechts {
+  padding-right: 4px;
+}
+.hinweis {
+  margin: 4px 0 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.zeile {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.zeile:hover {
+  background: rgba(var(--accent-rgb), 0.07);
+}
+.zeileIcon {
+  color: var(--green);
+}
+.zeilePfad {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+/* Terminal-Karte: dunkle Schrift auf hellem Grund, Befehle wie im Protokoll. */
+.terminal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.befehl {
+  border-radius: 12px;
+  background: #1e2422;
+  color: #d8e6dd;
+  padding: 12px 14px;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 12px;
+}
+.befehlZweck {
+  margin-bottom: 6px;
+  color: #8fa79a;
+  font-family: var(--font);
+}
+.befehlZeile {
+  margin: 0;
+  color: #8ef0b0;
+  white-space: pre-wrap;
+}
+.ausgabe {
+  margin: 8px 0 0;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #c9d6ce;
+}
+.fehler {
+  color: #ff9a9a;
+}
+.laeuft {
+  margin-top: 6px;
+  color: #8ef0b0;
+  animation: atmen 1.6s ease-in-out infinite;
+}
+
+/* Ausrüstung: Modell, Modus, Aufwand als Kacheln. */
+.gruppe h3 {
+  margin: 14px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+.kachel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #e1e5e2;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kachel b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.kachel span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.kachel:hover {
+  border-color: rgba(var(--accent-rgb), 0.5);
+}
+.kachelAn {
+  border-color: rgb(var(--accent-rgb));
+  box-shadow:
+    0 0 0 1px rgb(var(--accent-rgb)),
+    0 4px 14px rgba(var(--accent-rgb), 0.15);
+}
+@keyframes auf {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Figur: arbeitet sie, bekommt ihr Lichtsaum etwas mehr Kraft. */
+.figurAktiv {
+  filter: drop-shadow(0 18px 14px rgba(40, 50, 45, 0.28))
+    drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.35));
+}
+
+/* Station, an der gerade gearbeitet wird: Figur und Sprechblase zeigen es. */
+.stationAn .schild span {
+  color: var(--green);
+}
+@keyframes atmen {
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(var(--accent-rgb), 0.25),
+      0 0 10px rgba(var(--accent-rgb), 0.15);
+  }
+}
+
+/* Sprechblase neben der Figur. Wächst nach oben (unten verankert auf
+   Schulterhöhe), scrollt ab einer Höhe. Steht die Figur an der Werkbank,
+   wechselt die Blase auf die linke Seite. */
+.blase {
+  position: absolute;
+  z-index: 2;
+  left: 52%;
+  bottom: 48%;
+  width: min(34%, 560px);
+  /* oben bleibt Luft: dort läuft der Raum ins Papier aus */
+  max-height: 43%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px 18px 18px 6px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow:
+    0 18px 50px rgba(30, 40, 35, 0.18),
+    0 0 0 1px rgba(30, 40, 35, 0.06);
+  color: var(--text);
+  animation: blaseAuf 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  transform-origin: 0 100%;
+  transition:
+    left 0.45s ease,
+    box-shadow 0.4s;
+}
+/* Zipfel zur Figur */
+.blase::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  bottom: -9px;
+  width: 18px;
+  height: 18px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.blaseLinks {
+  left: 26%;
+  border-radius: 18px 18px 6px 18px;
+  transform-origin: 100% 100%;
+}
+.blaseLinks::after {
+  left: auto;
+  right: 18px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+/* Läuft eine Antwort, glimmt der Rand in der Akzentfarbe. */
+.blaseLive {
+  box-shadow:
+    0 18px 50px rgba(30, 40, 35, 0.18),
+    0 0 0 1.5px rgba(var(--accent-rgb), 0.45),
+    0 0 24px rgba(var(--accent-rgb), 0.18);
+}
+@keyframes blaseAuf {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+.blasenKopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #eef1ef;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.blasenKopf b {
+  flex: none;
+  font-weight: 700;
+  color: var(--green);
+}
+.blasenKopf b::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.35);
+  vertical-align: 1px;
+}
+.blaseLive .blasenKopf b::before {
+  background: rgb(var(--accent-rgb));
+  box-shadow: 0 0 8px rgb(var(--accent-rgb));
+  animation: punkt 1.2s ease-in-out infinite;
+}
+@keyframes punkt {
+  50% {
+    opacity: 0.35;
+  }
+}
+.status {
+  min-width: 0;
+  color: var(--ink-soft);
+  letter-spacing: 0.3px;
+  text-transform: none;
+  font-size: 12px;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blasenKnopf {
+  flex: none;
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid #dfe4e1;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+}
+.blasenKnopf:hover {
+  border-color: rgba(var(--accent-rgb), 0.6);
+  color: var(--green);
+}
+.blasenText {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 18px 14px;
+  font-size: clamp(13px, 1vw, 15px);
+  line-height: 1.6;
+  overscroll-behavior: contain;
+}
+/* Markdown in der Blase: ruhig, ohne Terminal-Optik. */
+.blasenText :global(p) {
+  margin: 0 0 0.6em;
+}
+.blasenText :global(:is(h1, h2, h3, h4)) {
+  margin: 0.8em 0 0.3em;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--ink);
+}
+.blasenText :global(:is(ul, ol)) {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+}
+.blasenText :global(li) {
+  margin: 0.15em 0;
+}
+.blasenText :global(li::marker) {
+  color: rgb(var(--accent-rgb));
+}
+.blasenText :global(code) {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--green);
+  font-size: 0.88em;
+}
+.blasenText :global(table) {
+  width: 100%;
+  margin: 0.4em 0 0.8em;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.blasenText :global(:is(th, td)) {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e7ebe8;
+  text-align: left;
+}
+.blasenText :global(th) {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.blasenText :global(img) {
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 10px;
+}
+.blasenText :global(a) {
+  color: var(--link);
+}
+.blasenText > :global(div > :last-child) {
+  margin-bottom: 0;
+}
+
+.protokollInhalt {
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 6px 4px 0;
+  scroll-behavior: smooth;
+}
+
+/* Kleine Bildschirme: der Raum würde winzig — lieber ein ehrlicher Hinweis. */
+.zuKlein {
+  display: none;
+}
+@media (max-width: 860px), (max-height: 520px) {
+  .flaeche,
+  .sprechzeile {
+    display: none;
+  }
+  .zuKlein {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Projektionen: Klick auf eine Station fährt die Kamera heran, die eine Seite
+   des Raums läuft ins Weiß aus, und dort steht der Inhalt — kein Fenster,
+   keine Karte. Eine feine Linie führt zur Station. */
+.weiss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: auf 0.6s ease-out 0.2s both;
+}
+.projektion {
+  position: absolute;
+  z-index: 3;
+  top: 6%;
+  bottom: 15%;
+  display: flex;
+  flex-direction: column;
+  min-width: 340px;
+  animation: enthuellen 0.55s cubic-bezier(0.3, 0.7, 0.2, 1) 0.32s both;
+}
+/* Lichtkante auf der Seite zur Station. */
+.projektion::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--accent-rgb), 0.9),
+    rgba(var(--accent-rgb), 0.25) 70%,
+    transparent
+  );
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.45);
+}
+.projektionRechts {
+  padding-left: 30px;
+}
+.projektionRechts::before {
+  left: 0;
+}
+.projektionLinks {
+  padding-right: 30px;
+}
+.projektionLinks::before {
+  right: 0;
+}
+@keyframes enthuellen {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.projektionLinks {
+  animation-name: enthuellenLinks;
+}
+@keyframes enthuellenLinks {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.projektionKopf {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 2px 0 18px;
+}
+.projektionKopf h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: 9px;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.projektionKopf p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--ink-soft);
+}
+.projektionKopf button {
+  flex: none;
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dde2df;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(30, 40, 35, 0.08);
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+.projektionKopf button:hover {
+  color: var(--green);
+  border-color: rgba(var(--accent-rgb), 0.6);
+  transform: rotate(90deg);
+}
+.projektionInhalt {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.projektionInhalt:has(> .zweispaltig) {
+  overflow: hidden;
+}
+
+/* Leitlinie von der Projektion zur Station. */
+.leitlinie {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.leitlinie polyline {
+  fill: none;
+  stroke: rgb(var(--accent-rgb));
+  stroke-width: 1.2;
+  opacity: 0.75;
+}
+/* Die Linie zieht sich von der Projektion zur Station. */
+.leitlinie {
+  animation: zeichnen 0.5s ease-out 0.75s both;
+}
+.leitlinieRechts {
+  animation-name: zeichnenRechts;
+}
+@keyframes zeichnen {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes zeichnenRechts {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.leitpunkt {
+  position: absolute;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb));
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.8);
+  pointer-events: none;
+  animation: auf 0.3s ease-out 1.15s both;
+}
+.leitpunkt::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.6);
+  border-radius: 50%;
+  animation: ring 2s ease-out 1.2s infinite;
+}
+@keyframes ring {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.zurueck {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 2.5%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 0 8px 26px rgba(30, 40, 35, 0.14);
+  animation: auf 0.3s ease-out 0.7s both;
+}
+.zurueck:hover {
+  color: var(--green);
+}
+
+/* ---------------------------------------------------------------------------
+   Der Fernseher: Terminal direkt auf der Monitorwand. */
+.tvRahmen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+.tv {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 45% 40%, rgba(6, 26, 14, 0.9), rgba(1, 8, 4, 0.95));
+  color: #9af5bd;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  text-shadow: 0 0 6px rgba(70, 255, 140, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+/* Zeilenraster wie auf einem echten Schirm */
+.tv::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+}
+.tvAn {
+  opacity: 1;
+}
+.tvNah {
+  pointer-events: auto;
+  cursor: auto;
+}
+.tvListe {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 30px 40px 40px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 255, 170, 0.3) transparent;
+}
+.tvKopf {
+  position: sticky;
+  top: -30px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin: -30px -40px 14px;
+  padding: 26px 40px 10px;
+  background: rgba(2, 12, 6, 0.92);
+  border-bottom: 1px solid rgba(120, 255, 170, 0.18);
+  letter-spacing: 3px;
+}
+.tvKopf span {
+  font-size: 12px;
+  letter-spacing: 1px;
+  opacity: 0.6;
+}
+.tvLeer {
+  opacity: 0.7;
+}
+.tvBefehl + .tvBefehl {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(120, 255, 170, 0.15);
+}
+.tvZweck {
+  opacity: 0.55;
+}
+.tvPrompt {
+  margin: 0;
+  color: #c9ffd9;
+  font: inherit;
+  white-space: pre-wrap;
+}
+.tvAusgabe {
+  margin: 6px 0 0;
+  font: inherit;
+  color: #8fd9aa;
+  white-space: pre-wrap;
+  max-height: 260px;
+  overflow: auto;
+}
+.tvFehler {
+  color: #ff9f9f;
+  text-shadow: 0 0 6px rgba(255, 90, 90, 0.4);
+}
+.tvLaeuft {
+  animation: punkt 1s steps(2) infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Figur anklicken = Sprechblase ein/aus. */
+.figurKnopf {
+  position: absolute;
+  z-index: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 40% 40% 12px 12px;
+  cursor: pointer;
+}
+.figurKnopf:hover,
+.figurKnopf:focus-visible {
+  outline: none;
+  background: radial-gradient(
+    ellipse 70% 12% at 50% 96%,
+    rgba(var(--accent-rgb), 0.28),
+    transparent 70%
+  );
+}
+/* Blase zu, aber es gibt etwas zu lesen: drei Punkte über dem Kopf. */
+.denkpunkte {
+  position: absolute;
+  z-index: 2;
+  left: 48.6%;
+  top: 31%;
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px 14px 14px 4px;
+  background: #fff;
+  box-shadow:
+    0 6px 18px rgba(30, 40, 35, 0.16),
+    0 0 0 1px rgba(30, 40, 35, 0.05);
+  cursor: pointer;
+  animation: blaseAuf 0.25s ease-out;
+  transition: left 0.45s ease;
+}
+.denkpunkteWerk {
+  left: 66.5%;
+  top: 23%;
+}
+.denkpunkte i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.55);
+}
+.denkpunkteLive i {
+  background: rgb(var(--accent-rgb));
+  animation: huepfen 1.1s ease-in-out infinite;
+}
+.denkpunkteLive i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.denkpunkteLive i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes huepfen {
+  30% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: none;
+  }
+}
+.blasenZu {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #dfe4e1;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 10px;
+  cursor: pointer;
+}
+.blasenZu:hover {
+  color: var(--green);
+  border-color: rgba(var(--accent-rgb), 0.6);
+}
+
+/* ---------------------------------------------------------------------------
+   Sprechzeile: die Eingabe schwebt über dem Boden, ohne Kasten. Ein weicher
+   Lichthof darunter hält den Text auf jedem Untergrund lesbar. */
+.sprechzeile {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 14px;
+  width: min(760px, 62vw);
+  transform: translateX(-50%);
+}
+.sprechzeile::before {
+  content: '';
+  position: absolute;
+  inset: -26px -70px -14px;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 50% 55% at 50% 60%,
+    rgba(250, 251, 250, 0.96) 45%,
+    rgba(250, 251, 250, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Wanduhr: echte Zeiger auf dem gemalten Zifferblatt. */
+.uhr {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.uhr line {
+  stroke-linecap: round;
+}
+.uhrStunde,
+.uhrMinute {
+  stroke: #3b423e;
+}
+.uhrSekunde {
+  stroke: rgb(var(--accent-rgb));
+}
+.uhrSchatten line {
+  stroke: rgba(40, 50, 45, 0.16);
+}
+.uhrMitte {
+  fill: #3b423e;
+}
+
+/* Projektname: unter dem Regal, in der Ebene der Regalfront. */
+.regalSchild {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 4%;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+.regalSchildKlein {
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  letter-spacing: 0.45em;
+  color: rgb(var(--accent-rgb));
+  opacity: 0.85;
+}
+.regalSchildName {
+  font-family: 'Exo 2 Variable', var(--font);
+  font-weight: 250;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #3d4541;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Abschnitte in den Projektionen (Werkbank) */
+.abschnitt {
+  margin: 18px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.abschnitt:first-child {
+  margin-top: 0;
+}
+.abschnitt span {
+  margin-left: 6px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: none;
+  color: rgb(var(--accent-rgb));
+}
+.zeileOrdner {
+  cursor: default;
+  color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   Digitaluhr (Wanduhr aus der Nähe). */
+.digitaluhr {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 6px;
+}
+.ziffern {
+  display: flex;
+  align-items: baseline;
+  font-family: 'Exo 2 Variable', var(--font);
+  font-weight: 150;
+  font-size: clamp(64px, 9vw, 150px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.ziffern i {
+  font-style: normal;
+  margin: 0 0.04em;
+  color: rgb(var(--accent-rgb));
+  transform: translateY(-0.06em);
+  transition: opacity 0.4s;
+}
+.ziffern i.doppelpunktAus {
+  opacity: 0.25;
+}
+.ziffern small {
+  margin-left: 0.3em;
+  font-size: 0.3em;
+  font-weight: 300;
+  color: rgb(var(--accent-rgb));
+}
+.datum {
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  color: var(--ink-soft);
+}
+/* Der Tag als Leiste: vergangener Teil gefüllt, Termine als Punkte. */
+.tagesleiste {
+  position: relative;
+  height: 4px;
+  margin: 18px 0 26px;
+  border-radius: 4px;
+  background: #e4e9e6;
+}
+.tagVorbei {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.25), rgb(var(--accent-rgb)));
+}
+.tagJetzt {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 2px rgb(var(--accent-rgb)),
+    0 0 12px rgba(var(--accent-rgb), 0.6);
+}
+.tagTermin {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid #fff;
+}
+.tagTerminVorbei {
+  background: #b8c0bb;
+}
+.tagStunde {
+  position: absolute;
+  top: 12px;
+  transform: translateX(-50%);
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.naechster {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 0 0 16px;
+  border-left: 2px solid rgb(var(--accent-rgb));
+}
+.naechster span {
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.naechster b {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.naechster em {
+  font-style: normal;
+  font-size: 13px;
+  color: rgb(var(--accent-rgb));
+}
+
+/* Sprechblase in Abschnitten: jeder blendet sanft ein, unten wird geblättert. */
+.blasenSeite {
+  animation: seiteRein 0.35s ease-out;
+}
+@keyframes seiteRein {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.blasenFuss {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 10px;
+  border-top: 1px solid #eef1ef;
+}
+.blasenFuss > button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #dfe4e1;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.blasenFuss > button:hover:not(:disabled) {
+  border-color: rgba(var(--accent-rgb), 0.6);
+  color: var(--green);
+}
+.blasenFuss > button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.punkte {
+  display: flex;
+  gap: 6px;
+}
+.punkte button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #d5dcd8;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    width 0.2s;
+}
+.punkte button.punktAn {
+  width: 18px;
+  border-radius: 4px;
+  background: rgb(var(--accent-rgb));
+}
+.seitenzahl {
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.blasenFuss > button.aktuell {
+  width: auto;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--green);
+}
+
+/* ---------------------------------------------------------------------------
+   Durch den Monitor: die Kamera fährt in die Bildschirme, bis sie alles
+   füllen, ein Vorhang in der Farbe der Chat-Ansicht schließt sich — und
+   umgekehrt beim Betreten des Raums. */
+.weltSofort {
+  transition: none;
+}
+.weltRein {
+  transition: transform 1.05s cubic-bezier(0.55, 0, 0.85, 0.35);
+}
+.tauchen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+.tauchenRein {
+  pointer-events: auto;
+  animation: vorhangZu 1.05s ease-in forwards;
+}
+.tauchenRaus {
+  animation: vorhangAuf 0.8s ease-out forwards;
+}
+@keyframes vorhangZu {
+  0%,
+  55% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes vorhangAuf {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Sparsamer Hover (Sparmodus): weicher Schein in der Akzentfarbe um das
+   Objekt — nur so groß wie das Objekt selbst, kein Bild über den ganzen Raum. */
+.schein {
+  position: absolute;
+  background: rgb(var(--accent-rgb));
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.schein.fokusAn {
+  opacity: 0.7;
+}
+/* Die großen Fokus-Ebenen bekommen eine eigene Ebene: dann kostet das
+   Ein- und Ausblenden nur noch Überblenden, kein Neuzeichnen. */
+.unschaerfe,
+.fokusSchleier {
+  will-change: opacity;
+}
+
+/* ⏻ im Kopf des Raums */
+.knopfAus {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d6d9d7;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+.knopfAus:hover {
+  border-color: #e05a5a;
+  color: #c43c3c;
+}
+
+/* Kontingent an der Wand neben der Uhr: feine Schrift wie der Projektname,
+   Balken als Lichtlinie in der Akzentfarbe. Gezeichnet in 400×320 px und als
+   Ganzes auf die Wand gelegt (Inline-Transform). */
+.kontingent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 4px;
+  white-space: nowrap;
+  line-height: 1;
+  color: #3d4541;
+  pointer-events: none;
+  user-select: none;
+}
+.kontingentKopf {
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  font-size: 22px;
+  letter-spacing: 0.45em;
+  color: rgb(var(--accent-rgb));
+  opacity: 0.85;
+}
+.kontingentZeile {
+  --stufe: var(--accent-rgb);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  row-gap: 9px;
+}
+.kontingentWarn {
+  --stufe: 196, 140, 30;
+}
+.kontingentKrit {
+  --stufe: 200, 60, 60;
+}
+.kontingentZeile b {
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: #6b726e;
+  padding-bottom: 6px;
+}
+.kontingentWert,
+.kontingentLimit {
+  font-family: 'Exo 2 Variable', var(--font);
+  font-size: 54px;
+  font-weight: 250;
+  letter-spacing: 0.02em;
+  text-align: right;
+  color: rgb(var(--stufe));
+}
+.kontingentZeile:not(.kontingentWarn, .kontingentKrit) .kontingentWert {
+  color: #3d4541;
+}
+.kontingentBalken {
+  grid-column: 1 / 3;
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(40, 50, 45, 0.09);
+  overflow: hidden;
+}
+.kontingentBalken i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: rgb(var(--stufe));
+  box-shadow: 0 0 10px rgba(var(--stufe), 0.6);
+  transition: width 0.8s ease;
+}
+.kontingentReset {
+  grid-column: 1 / 3;
+  font-size: 19px;
+  letter-spacing: 0.08em;
+  color: #7d8580;
+}

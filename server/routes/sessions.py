@@ -1,5 +1,7 @@
 """API: Session-Liste, Verlauf, Live-Tail, Umbenennen, Archiv, Löschen."""
 import json
+import subprocess
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -9,7 +11,7 @@ from server import llm as llmmod
 from server import uploads_gc
 
 from server.core import PROJECTS_DIR, extract_text
-from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, save_archived, save_meta
+from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, save_archived, save_meta, werkstatt_aus_transcript
 
 router = APIRouter()
 
@@ -129,6 +131,51 @@ def session_tail(sid: str, offset: int = -1):
         cut = data.rfind(b"\n") + 1
         data, size = data[:cut], offset + cut
     return {"offset": size, "messages": _parse_transcript_lines(data)}
+
+
+def _git_aenderungen(cwd: str) -> dict:
+    """Offene Änderungen im Arbeitsordner laut git (auch, was per Befehl
+    statt per Schreibwerkzeug geändert wurde). Kein Repo: repo=False."""
+    if not cwd or not Path(cwd).is_dir():
+        return {"repo": False, "root": "", "dateien": []}
+    try:
+        root = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, capture_output=True,
+                              text=True, timeout=3)
+        if root.returncode != 0:
+            return {"repo": False, "root": "", "dateien": []}
+        top = root.stdout.strip()
+        st = subprocess.run(["git", "status", "--porcelain=v1", "-z", "--untracked-files=normal"], cwd=top,
+                            capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return {"repo": False, "root": "", "dateien": []}
+    dateien = []
+    teile = st.stdout.decode("utf-8", "replace").split("\0")
+    i = 0
+    while i < len(teile):
+        e = teile[i]
+        i += 1
+        if len(e) < 4:
+            continue
+        code, pfad = e[:2], e[3:]
+        if code[0] in "RC":   # Umbenennung: der alte Name folgt als eigener Eintrag
+            i += 1
+        dateien.append({"path": str(Path(top) / pfad), "status": code.strip() or "?"})
+    return {"repo": True, "root": top, "dateien": dateien[:300]}
+
+
+@router.get("/api/werkstatt/{sid}")
+def session_werkstatt(sid: str):
+    """Werkbank und Fernseher im Construct-Raum: geschriebene Dateien und
+    Befehle der ganzen Session (nicht nur des sichtbaren Laufs) plus die
+    offenen git-Änderungen im Arbeitsordner."""
+    if not SID_RE.match(sid):
+        return JSONResponse({"error": "bad id"}, status_code=400)
+    f = next(iter(PROJECTS_DIR.glob(f"*/{sid}.jsonl")), None)
+    if f is None:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    w = werkstatt_aus_transcript(f.read_bytes())
+    w["git"] = _git_aenderungen(w["cwd"])
+    return w
 
 
 @router.post("/api/sessions/{sid}/archive")

@@ -180,3 +180,113 @@
   color: #ff5c5c;
   margin-bottom: 8px;
 }
+
+/* Construct-Raum: keine Leiste, eine schwebende Sprechzeile über dem Boden.
+   Text in Tinte auf einer Lichtlinie, Knöpfe als kleine runde Marken. */
+.imRaum {
+  padding: 0;
+  border-radius: 0;
+}
+.imRaum .row {
+  position: relative;
+  align-items: flex-end;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+/* Lichtlinie unter der Zeile: ruhig, beim Schreiben wird sie hell. */
+.imRaum .row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--accent-rgb), 0.45) 15%,
+    rgba(var(--accent-rgb), 0.45) 85%,
+    transparent
+  );
+  transition:
+    opacity 0.3s,
+    box-shadow 0.3s;
+  opacity: 0.6;
+}
+.imRaum .row:focus-within::after {
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--accent-rgb)) 12%,
+    rgb(var(--accent-rgb)) 88%,
+    transparent
+  );
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.55);
+}
+.imRaum .input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  padding: 10px 6px 9px;
+  line-height: 1.45;
+}
+.imRaum .input:focus {
+  box-shadow: none;
+}
+.imRaum .input::placeholder {
+  color: var(--ink-soft, var(--green-dim));
+  opacity: 0.75;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+.imRaum .attach,
+.imRaum .send,
+.imRaum .stop {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 3px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+.imRaum .attach {
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(30, 40, 35, 0.08);
+}
+.imRaum .attach:hover {
+  background: #fff;
+  border-color: rgba(var(--accent-rgb), 0.6);
+}
+.imRaum .recording {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.imRaum .send {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 1px;
+  font-size: 16px;
+  box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.4);
+}
+.imRaum .stop {
+  background: #fff;
+  font-size: 13px;
+  box-shadow: 0 0 0 3px rgba(255, 60, 60, 0.12);
+}
+.imRaum .queue,
+.imRaum .micError {
+  background: rgba(255, 255, 255, 0.95);
+}

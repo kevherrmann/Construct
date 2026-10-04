@@ -2,6 +2,49 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 7.0.0 — 2026-10-04
+
+### Added
+- **The Construct room.** A second view next to the chat (◧ ROOM in the top
+  bar): the white loading room from the film, where you see the assistant work
+  instead of reading about it. Every station is a real function: shelf =
+  project folder, cabinet = sessions, workbench = files written in this
+  session plus open git changes, clipboard = transcript, pegboard = skills,
+  wall calendar, clock (digital clock with today as a timeline), mailbox,
+  plug panel = MCP, lectern = model and mode. Next to the clock the wall shows
+  how much of the Claude usage (5 hours, week) is used and when it resets.
+  Clicking a station moves the camera there; its content appears beside it in
+  the white space. Cody changes pose with what is happening and moves in
+  short video loops: breathing while idle, thinking, reading, and typing at
+  the workbench while writing or running commands. An installation can put
+  its own figure in his place (`static/figur/`, not part of the repository).
+  Commands run live on the monitor wall; clicking it dives through the screen
+  into the chat view. Replies appear in a speech bubble one section at a
+  time. The transcript and the chat view are opened through their objects
+  (clipboard, monitor wall).
+
+### Changed
+- **CONSTRUCT opens in a browser window instead of the native window.**
+  `start.sh` / `start.bat` start the server and open the interface in the app
+  mode of a Chromium-based browser (Chrome, Edge, Brave, Chromium, Vivaldi,
+  Opera): its own window without tabs or address bar, with its own taskbar
+  entry and a separate profile (`.fenster/`). The default browser is used
+  first if it is one of these; otherwise any installed one; without one, a
+  normal tab opens. Links from the chat open in the default browser. The old
+  pywebview window ran on WebKitGTK, which under Wayland with NVIDIA was only
+  stable in software rendering and therefore slow; in the browser the same
+  interface runs on the GPU. pywebview, the WebKitGTK packages and the
+  clipboard and drag-and-drop workarounds for it are gone.
+- **Closing the window no longer stops CONSTRUCT.** The server keeps running
+  (Telegram bot, scheduled tasks); starting CONSTRUCT again opens the window.
+  To quit, use ⏻ at the top right (also in the room and under Settings →
+  System). It asks once, then shuts the server down cleanly. Only accepted
+  from the computer CONSTRUCT runs on.
+- **Settings in tabs.** Instead of one long page: General, Models, Assistant,
+  Connections, Appearance, System. The last tab is remembered;
+  `/settings?tab=telegram` opens the tab of that section.
+- CONSTRUCT can be installed from Chrome or Edge (web app manifest).
+
 ## 6.2.0 — 2026-10-04
 
 ### Added

@@ -91,3 +91,13 @@ def test_ordnerbaum_klappt_nur_sammelordner_auf(client, tmp_path, monkeypatch):
     flat = client.get("/api/folders").json()
     assert flat[0] == str(tmp_path)
     assert str(tmp_path / "Firma" / "kunden" / "shop") in flat
+
+
+def test_eigene_figur_im_startpaket(client, tmp_path, monkeypatch):
+    from server.routes import ui
+    monkeypatch.setattr(ui, "FIGUR_DIR", tmp_path / "figur")
+    assert '"figur": []' in client.get("/").text  # ohne Ordner: Cody
+    (tmp_path / "figur" / "video").mkdir(parents=True)
+    (tmp_path / "figur" / "idle.webp").write_bytes(b"x")
+    (tmp_path / "figur" / "video" / "idle.mp4").write_bytes(b"x")
+    assert '"figur": ["idle.webp", "video/idle.mp4"]' in client.get("/").text

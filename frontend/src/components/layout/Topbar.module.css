@@ -33,3 +33,45 @@
 .sid {
   opacity: 0.5;
 }
+
+/* Wechsel in den Construct-Raum. */
+.raum {
+  margin-left: auto;
+  margin-right: 14px;
+  padding: 3px 12px;
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--green);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+.raum:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+@media (max-width: 860px) {
+  .raum {
+    display: none;
+  }
+}
+
+/* ⏻ CONSTRUCT beenden: klein und ruhig, rot erst beim Drüberfahren. */
+.aus {
+  margin-left: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--green-faint);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--green-dim);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.aus:hover {
+  border-color: #ff5c5c;
+  color: #ff7a7a;
+}

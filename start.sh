@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────────────────────
 #  CONSTRUCT starten — nativ, ohne Docker.
 #
-#    ./start.sh            eigenes Fenster (Taskleiste)
+#    ./start.sh            Server + eigenes Fenster (im Browser, Taskleiste)
 #    ./start.sh --web      nur Server auf http://127.0.0.1:8765
 #    ./start.sh --update   Abhängigkeiten neu installieren
 #    ./start.sh --setup-only  nur einrichten, nicht starten
@@ -54,13 +54,7 @@ fi
 # ---- venv anlegen ----
 if [ ! -d "$VENV" ]; then
   echo "» lege Python-Umgebung an ($VENV) …"
-  if [ "$OS" = "Linux" ]; then
-    # --system-site-packages: das WebKitGTK-Binding (python3-gobject) kommt aus
-    # der Distribution und lässt sich nicht sinnvoll ins venv pippen.
-    "$PY" -m venv --system-site-packages "$VENV"
-  else
-    "$PY" -m venv "$VENV"
-  fi
+  "$PY" -m venv "$VENV"
   UPDATE=1
 fi
 
@@ -69,14 +63,11 @@ VPY="$VENV/bin/python"
 
 # ---- Abhängigkeiten (nur bei Änderung) ----
 STAMP="$VENV/.deps-stamp"
-NOW=$(cat requirements.txt requirements-desktop.txt 2>/dev/null | cksum | tr -d ' ')
+NOW=$(cat requirements.txt 2>/dev/null | cksum | tr -d ' ')
 if [ "$UPDATE" = "1" ] || [ "$(cat "$STAMP" 2>/dev/null || true)" != "$NOW" ]; then
   echo "» installiere Abhängigkeiten … (dauert beim ersten Mal ein, zwei Minuten)"
   "$VPY" -m pip install -q --upgrade pip
   "$VPY" -m pip install -q -r requirements.txt
-  # Fenster-Modus ist Kür: schlägt das fehl, läuft CONSTRUCT trotzdem im Browser.
-  "$VPY" -m pip install -q -r requirements-desktop.txt \
-    || echo "   ⚠  pywebview ließ sich nicht installieren — Fenster-Modus fällt auf den Browser zurück."
   echo "$NOW" > "$STAMP"
 fi
 
@@ -91,19 +82,6 @@ fi
 # sagt das auch selbst (Schluessel-Chip oben rechts).
 command -v claude >/dev/null 2>&1 \
   || echo "ℹ  Das 'claude'-CLI ist nicht im PATH — Dateien und Terminal stehen dann nicht zur Verfügung."
-
-if [ "$OS" = "Linux" ] && [ "$WEB" = "0" ]; then
-  # Nicht nur "import gi" prüfen: gi allein ist da, sobald python3-gobject liegt —
-  # entscheidend ist das WebKit-Typelib. Fehlt das, fällt pywebview sonst auf Qt
-  # zurück und meldet "kein Modul qtpy", was in die falsche Richtung zeigt.
-  "$VPY" -c "import gi; gi.require_version('WebKit2','4.1')" >/dev/null 2>&1 || cat <<'EOF'
-⚠  Für das eigene Fenster fehlt WebKitGTK:
-     Fedora/Nobara:   sudo dnf install python3-gobject webkit2gtk4.1
-     Debian/Ubuntu:   sudo apt install python3-gi gir1.2-webkit2-4.1
-   Danach reicht ein normales ./start.sh (kein venv-Neubau nötig).
-   Details:  ./scripts/linux/check-desktop.sh     — bis dahin öffnet sich der Browser.
-EOF
-fi
 
 # ${ARGS[@]+...} statt "${ARGS[@]}": macOS liefert bash 3.2, wo ein leeres Array
 # unter `set -u` sonst ein leeres Argument durchreicht.

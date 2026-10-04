@@ -10,9 +10,21 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from server import config as cfg
 
-from server.core import APP_DIR, WEB_LOGIN_OK, WORKSPACE, claude_bin
+from server.core import APP_DIR, STATIC_DIR, WEB_LOGIN_OK, WORKSPACE, claude_bin
 
 router = APIRouter()
+
+# Eigene Figur für den Raum: liegt nur in DIESER Installation (gitignored) und
+# ersetzt dort Cody. Welche Dateien es sind, steht in frontend/src/views/raum.
+FIGUR_DIR = STATIC_DIR / "figur"
+
+
+def _eigene_figur() -> list[str]:
+    """Dateien der eigenen Figur, relativ zu static/figur; leer = Cody."""
+    if not FIGUR_DIR.is_dir():
+        return []
+    return sorted(f.relative_to(FIGUR_DIR).as_posix()
+                  for f in FIGUR_DIR.rglob("*") if f.is_file())
 
 
 def _inject_bootstrap(html: str) -> str:
@@ -33,6 +45,7 @@ def _inject_bootstrap(html: str) -> str:
         "lang": cfg.lang(),
         "workspace": WORKSPACE,
         "settings": cfg.load_settings(),
+        "figur": _eigene_figur(),
     }, ensure_ascii=False) + ";"
     # Ersatz als Funktion, nicht als Zeichenkette: in einem Ersatz-String wären
     # Backslashes und \g Steuerzeichen, und genau die stecken in JSON.

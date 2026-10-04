@@ -3,8 +3,8 @@ import { getItem } from './storage'
 // Sparmodus. Ohne GPU-Beschleunigung ist der Vollbild-Canvas auf einem
 // 4K-Schirm der mit Abstand teuerste Teil der Oberfläche — er kostet dann mehr
 // als die halbe CPU eines Kerns und verzögert sichtbar die Texteingabe.
-// desktop.py hängt ?fx=low an, wenn es auf Software-Rendering ausweichen
-// musste. Selbst übersteuern (Browser-Konsole):
+// Mit ?fx=low in der Adresse (z.B. ein Browser ohne GPU) oder selbst
+// übersteuern (Browser-Konsole):
 //   localStorage.setItem('mxfx','full')  → volle Optik, mehr Last
 //   localStorage.setItem('mxfx','low')   → sparsam, auch im Browser
 //   localStorage.setItem('mxfx','off')   → Regen ganz aus
@@ -12,8 +12,7 @@ import { getItem } from './storage'
 export type FxLevel = 'full' | 'low' | 'off'
 
 // ?fx=low beim Laden festhalten: der Router leitet / sofort auf /chat um und
-// wirft die Query dabei weg. Später gelesen, lief sonst doch die volle Optik
-// (Unschärfe hinter den Glasflächen) im Software-Rendering — flackert in WebKitGTK.
+// wirft die Query dabei weg. Später gelesen, lief sonst doch die volle Optik.
 const urlLow = new URLSearchParams(location.search).get('fx') === 'low'
 
 export function fxLevel(): FxLevel {
