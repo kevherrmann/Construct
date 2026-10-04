@@ -1491,9 +1491,13 @@
   will-change: opacity;
 }
 
-/* ⏻ im Kopf des Raums */
-.knopfAus {
+/* ⚙ und ⏻ im Kopf des Raums */
+.kopfRechts {
+  display: flex;
+  gap: 10px;
   margin-left: auto;
+}
+.knopfRund {
   width: 30px;
   height: 30px;
   padding: 0;
@@ -1503,6 +1507,11 @@
   color: var(--ink-soft);
   font-size: 13px;
   cursor: pointer;
+}
+.knopfRund:hover,
+.knopfRundAn {
+  border-color: rgba(var(--accent-rgb), 0.6);
+  color: var(--green);
 }
 .knopfAus:hover {
   border-color: #e05a5a;

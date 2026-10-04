@@ -45,6 +45,8 @@ export type PanelId =
   | 'werkbank'
   | 'mail'
   | 'ausruestung'
+  /** Ohne eigene Station: ⚙ oben rechts, die Kamera geht zum Pult. */
+  | 'einstellungen'
 
 // Reihenfolge = Stapelung: spätere liegen oben (Werkzeugwand über Werkbank).
 export const STATIONEN: Station[] = [
@@ -161,8 +163,24 @@ export const STATIONEN: Station[] = [
   },
 ]
 
-/** Wo die Figur steht: Fußpunkt (Mitte unten) und Höhe, in Prozent der Bühne. */
-export const FIGUR = { x: 45.65, y: 75.7, h: 40.8 }
+/** Wo die Figur in den Quellbildern steht: Fußpunkt (Mitte unten) und Höhe,
+ *  in Prozent der Bühne. Danach sind die Posen-Videos geschnitten. */
+const FIGUR_QUELLE = { x: 45.65, y: 75.7, h: 40.8 }
+/** So gerechnet wäre die Figur auf dem Podest kleiner als an der Werkbank
+ *  (466 statt 546 px im Raumbild). Standbild und Video wachsen darum
+ *  gemeinsam um den Fußpunkt, die Füße bleiben auf dem Podest. */
+const PODEST_ZOOM = 1.15
+
+/** Wo die Figur auf dem Podest steht: Fußpunkt und Höhe in Prozent der Bühne. */
+export const FIGUR = { ...FIGUR_QUELLE, h: FIGUR_QUELLE.h * PODEST_ZOOM }
+
+/** Ausschnitt um den Fußpunkt vergrößern (wie die Figur). */
+const umFuss = (r: Rechteck): Rechteck => ({
+  l: FIGUR_QUELLE.x + (r.l - FIGUR_QUELLE.x) * PODEST_ZOOM,
+  t: FIGUR_QUELLE.y + (r.t - FIGUR_QUELLE.y) * PODEST_ZOOM,
+  w: r.w * PODEST_ZOOM,
+  h: r.h * PODEST_ZOOM,
+})
 
 /** Form je Station (assets/form/<id>.webp): Bereich in Prozent. Beim
  *  Überfahren stellt die Kamera darauf scharf, der Rest wird unscharf. */
@@ -199,7 +217,7 @@ export const REGAL_SCHILD: readonly [Punkt, Punkt, Punkt, Punkt] = [
 // Posen-Videos am Podest (655,300 – 1215,1000) und die Werkbank-Ebenen mit
 // Figur bzw. Monitor + Tastatur (1120,266 – 1888,1098; oben Platz für den
 // Kopf). Das Tipp-Video an der Werkbank hat denselben Ausschnitt.
-export const PODEST_VIDEO: Rechteck = { l: 31.982, t: 26.042, w: 27.344, h: 60.764 }
+export const PODEST_VIDEO: Rechteck = umFuss({ l: 31.982, t: 26.042, w: 27.344, h: 60.764 })
 export const WERKBANK: Rechteck = { l: 54.688, t: 23.09, w: 37.5, h: 72.222 }
 
 /** Kontingent-Anzeige an der Wand links neben der Uhr, über der Lochwand
@@ -257,6 +275,14 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
+  einstellungen: {
+    z: 1.2,
+    f: [50.2, 58],
+    p: [25, 60],
+    seite: 'rechts',
+    breite: 54,
+    ziel: [50.2, 58],
+  },
   // Protokoll: die Kamera geht zum Klemmbrett auf der Werkbank
   protokoll: {
     z: 1.55,

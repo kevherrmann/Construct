@@ -21,7 +21,7 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   Commands run live on the monitor wall; clicking it dives through the screen
   into the chat view. Replies appear in a speech bubble one section at a
   time. The transcript and the chat view are opened through their objects
-  (clipboard, monitor wall).
+  (clipboard, monitor wall); ⚙ next to ⏻ opens the settings at the lectern.
 
 ### Changed
 - **CONSTRUCT opens in a browser window instead of the native window.**

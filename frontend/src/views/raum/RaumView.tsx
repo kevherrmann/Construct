@@ -306,6 +306,7 @@ const TITEL: Record<Ansicht, string> = {
   werkbank: 'Werkbank',
   mail: 'E-Mails',
   ausruestung: 'Modell & Modus',
+  einstellungen: 'Einstellungen',
 }
 
 // Statuszeile der Sprechblase; {d} = Datei, Befehl, Suchbegriff …
@@ -459,7 +460,18 @@ export function RaumView() {
         <span className={s.marke}>
           <b>◢◤</b> CONSTRUCT
         </span>
-        <BeendenKnopf className={s.knopfAus} />
+        <span className={s.kopfRechts}>
+          <button
+            type="button"
+            className={`${s.knopfRund} ${ansicht === 'einstellungen' ? s.knopfRundAn : ''}`}
+            onClick={() => setAnsicht(ansicht === 'einstellungen' ? null : 'einstellungen')}
+            title={t('Einstellungen')}
+            aria-label={t('Einstellungen')}
+          >
+            ⚙
+          </button>
+          <BeendenKnopf className={`${s.knopfRund} ${s.knopfAus}`} />
+        </span>
       </header>
       <div className={s.zuKlein}>
         <p>{t('Der Raum braucht einen größeren Bildschirm.')}</p>
@@ -640,7 +652,9 @@ export function RaumView() {
                 hinweis={
                   ansicht === 'protokoll'
                     ? t('Der ganze Verlauf dieser Session')
-                    : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
+                    : ansicht === 'einstellungen'
+                      ? t('Was du siehst und womit du redest')
+                      : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
                 }
                 onClose={schliessen}
               >

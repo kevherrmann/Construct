@@ -4,13 +4,16 @@ import { useSettingsTab } from './tab'
 import s from './SettingsSide.module.css'
 
 // Navigation links: ein Tab je Bereich, rechts steht nur dieser Bereich.
-export function SettingsSide() {
+export function SettingsSide({ ohneHinweis = false }: { ohneHinweis?: boolean }) {
   const { t } = useTranslation()
   const [tab, setTab] = useSettingsTab()
   const titel = (id: string) => t(navLabel(SECTIONS.find((x) => x.id === id)!.title))
   return (
     <>
-      <div className={s.vhint}>{t('Was du siehst und womit du redest — rechts einstellen')}</div>
+      {/* Im Raum steht derselbe Satz schon als Untertitel der Projektion. */}
+      {!ohneHinweis && (
+        <div className={s.vhint}>{t('Was du siehst und womit du redest — rechts einstellen')}</div>
+      )}
       <nav>
         {TABS.map((x) => (
           <button

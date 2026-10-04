@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useEvents } from '@/api/calendar'
@@ -28,6 +28,14 @@ import s from './Raum.module.css'
 // Mail, Skills, MCP), steht hier genau der — dieselbe Funktion wie im Chat.
 // Terminal, Werkbank und Ausrüstung sind Raum-eigene Übersichten aus dem
 // Gesprächszustand.
+
+// Einstellungen erst beim Öffnen laden, wie in der Chat-Ansicht.
+const SettingsMain = lazy(() =>
+  import('@/views/settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
+)
+const SettingsSide = lazy(() =>
+  import('@/views/settings/SettingsSide').then((m) => ({ default: m.SettingsSide })),
+)
 
 /** Zwei Spalten wie in der Chat-Ansicht: Liste links, Inhalt rechts. */
 function Zweispaltig({ links, rechts }: { links: ReactNode; rechts: ReactNode }) {
@@ -381,6 +389,12 @@ export function KartenInhalt({ panel, onDone }: { panel: PanelId; onDone: () => 
         <div className={s.einspaltig}>
           <McpSide />
         </div>
+      )
+    case 'einstellungen':
+      return (
+        <Suspense fallback={null}>
+          <Zweispaltig links={<SettingsSide ohneHinweis />} rechts={<SettingsMain />} />
+        </Suspense>
       )
   }
 }
