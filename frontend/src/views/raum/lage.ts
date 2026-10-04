@@ -118,14 +118,22 @@ export function klartext(md: string): string {
   )
 }
 
-/** Markdown für die Sprechblase: Code-Blöcke werden zu einem kleinen Chip
- *  (der ganze Code steht im Protokoll), der Rest bleibt, wie er ist. */
+/** Bis zu so vielen Zeilen bleibt ein Code-Block in der Sprechblase stehen
+ *  (mit Kopier-Knopf); längere werden zum Chip. */
+const BLASE_CODE_MAX = 12
+
+/** Markdown für die Sprechblase: lange Code-Blöcke werden zu einem kleinen
+ *  Chip (der ganze Code steht im Protokoll), der Rest bleibt, wie er ist. */
 export function blasenMd(md: string): string {
-  return md.replace(/```([^\n`]*)\n?([\s\S]*?)(```|$)/g, (_, sprache: string, code: string) => {
-    const n = code.replace(/\n$/, '').split('\n').length
-    const was = sprache.trim() || 'Code'
-    return `\n\n\`⌗ ${was} · ${n} ${n === 1 ? 'Zeile' : 'Zeilen'}\`\n\n`
-  })
+  return md.replace(
+    /```([^\n`]*)\n?([\s\S]*?)(```|$)/g,
+    (block: string, sprache: string, code: string) => {
+      const n = code.replace(/\n$/, '').split('\n').length
+      if (n <= BLASE_CODE_MAX) return block
+      const was = sprache.trim() || 'Code'
+      return `\n\n\`⌗ ${was} · ${n} Zeilen\`\n\n`
+    },
+  )
 }
 
 /**
@@ -135,10 +143,7 @@ export function blasenMd(md: string): string {
  * nächsten zusammengelegt. Tabellen und Listen bleiben am Stück.
  */
 export function abschnitte(md: string, min = 220): string[] {
-  const bloecke = md
-    .split(/\n[ \t]*\n+/)
-    .map((b) => b.trim())
-    .filter(Boolean)
+  const bloecke = bloeckeVon(md)
   const out: string[] = []
   let acc = ''
   for (const b of bloecke) {
@@ -155,6 +160,25 @@ export function abschnitte(md: string, min = 220): string[] {
     if (out.length && acc.length < min / 2) out[out.length - 1] += `\n\n${acc}`
     else out.push(acc)
   }
+  return out
+}
+
+/** An Leerzeilen teilen, aber nie innerhalb eines Code-Blocks. */
+function bloeckeVon(md: string): string[] {
+  const out: string[] = []
+  let akt: string[] = []
+  let imCode = false
+  const fertig = () => {
+    const b = akt.join('\n').trim()
+    if (b) out.push(b)
+    akt = []
+  }
+  for (const zeile of md.split('\n')) {
+    if (/^\s*```/.test(zeile)) imCode = !imCode
+    if (!imCode && !zeile.trim()) fertig()
+    else akt.push(zeile)
+  }
+  fertig()
   return out
 }
 

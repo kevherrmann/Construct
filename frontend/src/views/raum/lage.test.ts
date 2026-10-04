@@ -104,15 +104,21 @@ describe('Hilfen', () => {
 })
 
 describe('blasenMd', () => {
-  it('macht aus Code-Blöcken einen Chip und lässt den Rest stehen', () => {
-    const md = blasenMd('Schau:\n\n```python\nprint(1)\nprint(2)\n```\n\n**fertig**')
-    expect(md).toContain('`⌗ python · 2 Zeilen`')
+  it('lässt kurzen Code zum Kopieren stehen', () => {
+    const md = 'Schau:\n\n```bash\nnpm run build\n```\n\n**fertig**'
+    expect(blasenMd(md)).toBe(md)
+  })
+
+  it('macht aus langen Code-Blöcken einen Chip und lässt den Rest stehen', () => {
+    const code = Array.from({ length: 20 }, (_, i) => `print(${i})`).join('\n')
+    const md = blasenMd(`Schau:\n\n\`\`\`python\n${code}\n\`\`\`\n\n**fertig**`)
+    expect(md).toContain('`⌗ python · 20 Zeilen`')
     expect(md).not.toContain('print(1)')
     expect(md).toContain('**fertig**')
   })
 
   it('kommt mit einem noch offenen Block beim Streamen klar', () => {
-    expect(blasenMd('Gleich:\n```\nnoch nicht fertig')).toContain('`⌗ Code · 1 Zeile`')
+    expect(blasenMd('Gleich:\n```\nnoch nicht fertig')).toContain('noch nicht fertig')
   })
 })
 
@@ -129,6 +135,12 @@ describe('abschnitte', () => {
     const a = abschnitte(`## Plan\n\nSo gehts:\n\n- eins\n- zwei\n\n${absatz(80)}`, 20)
     expect(a[0]).toContain('## Plan')
     expect(a[0]).toContain('- zwei')
+  })
+
+  it('teilt nicht mitten im Code-Block', () => {
+    const code = '```python\na = 1\n\n\nb = 2\n```'
+    const a = abschnitte(`${absatz(60)}\n\n${code}\n\n${absatz(60)}`)
+    expect(a.some((t) => t.includes(code))).toBe(true)
   })
 
   it('ein kurzer Rest hängt am letzten Abschnitt', () => {

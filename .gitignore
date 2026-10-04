@@ -72,7 +72,7 @@ SOUL.lokal.md
 static/kevin.jpg
 
 # Eigene Figur im Raum statt Cody (Dateinamen: frontend/src/views/raum/RaumView.tsx)
-static/figur/
+static/figur*/
 
 # Schattenbetrieb der automatischen Modellwahl (auto_modell.py)
 auto_schatten.jsonl
