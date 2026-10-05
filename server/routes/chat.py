@@ -77,7 +77,9 @@ async def chat(req: Request):
             if not resume_at:
                 session_id = None
 
-    run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort)
+    vorgabe = body.get("ticket") if isinstance(body.get("ticket"), dict) else None
+    run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort,
+                    tickets=True, ticket_vorgabe=vorgabe)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
         auto_modell.starte(run, text, model)

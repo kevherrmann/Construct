@@ -35,6 +35,7 @@ mail_meta.json
 mail_attach/
 llm_sessions/
 sessions_meta.json
+tickets/
 telegram_state.json
 tasks_state.json
 uploads/

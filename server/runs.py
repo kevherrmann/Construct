@@ -12,9 +12,10 @@ from pathlib import Path
 
 from server import config as cfg
 from server import telegram_bot as tgmod
+from server import tickets as tickmod
 
-from server.core import claude_bin, claude_env, friendly_claude_error, load_persona
-from server.sessions import model_short
+from server.core import claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
+from server.sessions import model_short, nutzer_uuids_bis
 
 
 # ---------- Entkoppelte Läufe (überleben Verbindungsabbruch/Reload) ----------
@@ -37,7 +38,8 @@ SSE_HEADERS = {
 
 
 class Run:
-    def __init__(self, run_id, cwd, session_id=None, model="", initial_prompt=""):
+    def __init__(self, run_id, cwd, session_id=None, model="", initial_prompt="",
+                 tickets=False, fork=None):
         self.id = run_id
         self.cwd = cwd
         self.model = model               # gewähltes Modell ("" = Konto-Standard)
@@ -60,6 +62,13 @@ class Run:
         self.last_text = ""              # Text des letzten Turns (für Telegram-Notify)
         self.notify_always = False       # geplante Aufgaben melden sich immer per Telegram
         self.task_title = ""             # Titel der geplanten Aufgabe (für die Meldung)
+        # Tickets (server/tickets.py): nur Läufe aus dem Chat ordnen zu. `fork` =
+        # (alte Session, Stelle) bei einer bearbeiteten Nachricht; `ticket_vorgabe`
+        # Kevins Wahl (/ticket) für eine Session, die es noch nicht gab.
+        self.tickets = tickets
+        self.fork = fork
+        self.ticket_vorgabe = None
+        self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
 
     def emit(self, ev):
         if ev.get("type") == "text":
@@ -238,6 +247,7 @@ async def run_claude(run, cmd):
             if t == "system" and ev.get("subtype") == "init":
                 run.session_id = ev.get("session_id", run.session_id)
                 run.emit({"type": "session", "session_id": run.session_id})
+                _tickets_abzweigen(run)
             elif t == "system" and ev.get("subtype") == "background_tasks_changed":
                 # Die eine verlaessliche Liste: claude schickt sie bei jedem
                 # Start und Ende einer Hintergrundaufgabe komplett.
@@ -265,6 +275,8 @@ async def run_claude(run, cmd):
                         })
             elif t == "user":
                 content = ev.get("message", {}).get("content")
+                if run.tickets:
+                    _tickets_zuordnen(run, ev, content)
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_result":
@@ -380,6 +392,41 @@ async def run_claude(run, cmd):
             maybe_notify(run)
 
 
+def _tickets_zuordnen(run, ev, content):
+    """Kevins Nachricht ist angenommen (claude meldet sie dank
+    --replay-user-messages samt uuid zurück): sie bekommt ein Ticket.
+
+    Fehler hier dürfen den Lauf nie stören — Tickets sind Buchhaltung.
+    """
+    try:
+        uuid = ev.get("uuid")
+        if not uuid or not run.session_id or ev.get("parent_tool_use_id") or ev.get("isSynthetic"):
+            return
+        text = extract_text(content).strip()
+        # Tool-Ergebnisse (kein Text) und Meldungen des Systems (Hintergrundaufgabe
+        # fertig, <task-notification> …) sind keine Nachricht von Kevin.
+        if not text or text.startswith("<") or text.startswith("Caveat"):
+            return
+        run.letzte_uuid = uuid
+        vorgabe, run.ticket_vorgabe = run.ticket_vorgabe, None
+        tickmod.nachricht(run.session_id, uuid, text, run.cwd, vorgabe)
+    except Exception as e:
+        print(f"[tickets] Zuordnung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+
+
+def _tickets_abzweigen(run):
+    """Bearbeitete Nachricht: die neue Session übernimmt die Tickets der alten
+    bis zu der Stelle, an der abgezweigt wurde."""
+    if not (run.tickets and run.fork and run.session_id):
+        return
+    try:
+        alt, stelle = run.fork
+        if alt != run.session_id:
+            tickmod.abzweigen(alt, run.session_id, nutzer_uuids_bis(alt, stelle))
+    except Exception as e:
+        print(f"[tickets] Abzweigen fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+
+
 # So lange darf ein Prozess nach seinem Zug hoechstens auf Hintergrundaufgaben
 # warten. Ein `tail -f` im Hintergrund wuerde ihn sonst fuer immer festhalten.
 NACHLAUF_MAX = 1800
@@ -405,14 +452,20 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
 def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
-              effort=""):
-    """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben."""
+              effort="", tickets=False, ticket_vorgabe=None):
+    """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben.
+
+    tickets: ob die Nachrichten dieses Laufs Tickets bekommen — nur im Chat,
+    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist."""
     cmd = [
         claude_bin() or "claude", "-p",
         "--output-format", "stream-json",
         "--input-format", "stream-json",   # Nachricht via stdin -> Inject möglich
         "--verbose",
         "--include-partial-messages",
+        # Meldet jede angenommene Nachricht samt uuid zurück: so findet
+        # server/tickets.py sie im Transkript wieder.
+        "--replay-user-messages",
         "--permission-mode", mode,
         "--chrome",   # Claude in Chrome: im -p-Modus nicht automatisch aktiv
     ]
@@ -433,7 +486,11 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
 
     gc_runs()
     run_id = uuid.uuid4().hex
-    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt)
+    tickets = tickets and cfg.load_settings()["tiles"]["tickets"]
+    fork = (session_id, resume_at) if (resume_at and session_id) else None
+    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt,
+              tickets=tickets, fork=fork)
+    run.ticket_vorgabe = ticket_vorgabe
     RUNS[run_id] = run
     run.task = asyncio.create_task(run_claude(run, cmd))
     return run

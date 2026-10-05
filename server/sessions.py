@@ -95,6 +95,11 @@ def _fremde_firma(ev: dict) -> str:
     return ""
 
 
+# Die Ticket-Zeile, die an Kevins Nachricht hängt (tickets.hinweis): für den
+# Assistenten, nicht für die Anzeige.
+TICKETZEILE_RE = re.compile(r"\n\n\[Tickets: [^\n]*\]\s*$")
+
+
 def _parse_transcript_lines(data: bytes):
     """JSONL-Bytes -> Anzeige-Nachrichten (wie die Verlaufs-Ansicht sie braucht)."""
     msgs = []
@@ -112,7 +117,11 @@ def _parse_transcript_lines(data: bytes):
         # Meta-Rauschen fremder Sessions (System-Reminder, CLI-Wrapper) ausblenden
         if not txt or (t == "user" and (txt.startswith("<") or txt.startswith("Caveat"))):
             continue
+        if t == "user":
+            txt = TICKETZEILE_RE.sub("", txt)
         m = {"role": t, "text": txt}
+        if isinstance(ev.get("uuid"), str):
+            m["uuid"] = ev["uuid"]            # Anker für Tickets: dorthin springt die Übersicht
         if isinstance(ev.get("timestamp"), str):
             m["ts"] = ev["timestamp"]     # ISO-Zeit, die UI zeigt sie neben der Nachricht
         msgs.append(m)
@@ -251,3 +260,23 @@ def find_prompt(session_id: str, text: str, occurrence: int = 0):
             seen += 1
     return None
 
+
+
+def nutzer_uuids_bis(session_id: str, bis_uuid: str) -> set:
+    """Uuids aller Nutzer-Nachrichten, die in der Session VOR der Zeile mit
+    bis_uuid stehen — das, was eine abgezweigte Session (--resume-session-at)
+    von ihrer Vorgängerin behält."""
+    f = next(iter(PROJECTS_DIR.glob(f"*/{session_id}.jsonl")), None) if SID_RE.match(session_id or "") else None
+    out: set = set()
+    if f is None:
+        return out
+    for line in f.read_bytes().split(b"\n"):
+        try:
+            ev = json.loads(line.decode("utf-8", "replace"))
+        except Exception:
+            continue
+        if ev.get("uuid") == bis_uuid:
+            break
+        if ev.get("type") == "user" and ev.get("uuid"):
+            out.add(ev["uuid"])
+    return out

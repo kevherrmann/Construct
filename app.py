@@ -25,7 +25,7 @@ from server import uploads_gc
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, load_persona)
 from server.scheduler import scheduler_loop
-from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, ui
+from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, tickets, ui
 
 
 @asynccontextmanager
@@ -70,7 +70,7 @@ app.mount("/assets", StaticFiles(directory=str(APP_DIR / "assets"), check_dir=Fa
 
 # Router in fester Reihenfolge. ui zuletzt: seine Direktlinks je Ansicht
 # (/{view}) würden sonst die /api-Routen verschlucken.
-for r in (auth, files, providers, system, calendar, mail, sessions, chat, ui):
+for r in (auth, files, providers, system, calendar, mail, sessions, chat, tickets, ui):
     app.include_router(r.router)
 
 
