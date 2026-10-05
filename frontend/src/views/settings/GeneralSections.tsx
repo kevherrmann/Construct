@@ -48,6 +48,14 @@ type Tile = keyof Settings['tiles']
 // Als Funktion mit t()-Aufrufen, damit der Übersetzungstest die Texte sieht.
 const tileList = (t: TFunction): { k: Tile; i: string; label: string; d: string }[] => [
   {
+    k: 'tickets',
+    i: '🎫',
+    label: t('Tickets'),
+    d: t(
+      'Gliedert eine Session in Aufgaben: Chip über der Eingabe, /ticket und diese Übersicht. Aus = es wird nichts mitgeschrieben.',
+    ),
+  },
+  {
     k: 'kalender',
     i: '📅',
     label: t('Kalender'),

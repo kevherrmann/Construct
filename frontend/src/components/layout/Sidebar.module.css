@@ -29,10 +29,12 @@
   animation: global(blink) 1.2s infinite;
   margin-right: 4px;
 }
-/* Menü als EINE zusammenhängende Segment-Fläche, 3er-Raster. */
+/* Menü als EINE zusammenhängende Segment-Fläche. Die Spaltenzahl richtet sich
+   nach der Zahl der Kacheln (Sidebar.tsx), damit keine einzelne allein in der
+   letzten Reihe steht. */
 .menu {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(var(--spalten, 3), 1fr);
   margin: 0 10px 12px;
   border: 1px solid rgba(var(--accent-rgb), 0.18);
   border-radius: 14px;
@@ -57,10 +59,10 @@
   text-decoration: none;
   transition: 0.12s;
 }
-.item:nth-child(3n + 1) {
+.item.links {
   border-left: none;
 }
-.item:nth-child(-n + 3) {
+.item.oben {
   border-top: none;
 }
 .item span {

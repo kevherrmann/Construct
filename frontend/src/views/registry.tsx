@@ -20,6 +20,12 @@ const SkillsSide = lazy(() =>
 )
 const MailMain = lazy(() => import('./mail/MailMain').then((m) => ({ default: m.MailMain })))
 const MailSide = lazy(() => import('./mail/MailSide').then((m) => ({ default: m.MailSide })))
+const TicketsMain = lazy(() =>
+  import('./tickets/TicketsMain').then((m) => ({ default: m.TicketsMain })),
+)
+const TicketsSide = lazy(() =>
+  import('./tickets/TicketsSide').then((m) => ({ default: m.TicketsSide })),
+)
 const SettingsMain = lazy(() =>
   import('./settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
 )
@@ -27,7 +33,7 @@ const SettingsSide = lazy(() =>
   import('./settings/SettingsSide').then((m) => ({ default: m.SettingsSide })),
 )
 
-export type ViewKey = 'chat' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
+export type ViewKey = 'chat' | 'tickets' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
 
 export interface ViewDef {
   key: ViewKey
@@ -45,6 +51,14 @@ export interface ViewDef {
 // Reihenfolge = Reihenfolge im Menü.
 export const VIEWS: ViewDef[] = [
   { key: 'chat', icon: '💬', label: 'Chats', Side: SessionsSide, Main: ChatView },
+  {
+    key: 'tickets',
+    icon: '🎫',
+    label: 'Tickets',
+    tile: 'tickets',
+    Side: TicketsSide,
+    Main: TicketsMain,
+  },
   {
     key: 'skills',
     icon: '⚡',
