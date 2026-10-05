@@ -579,6 +579,25 @@
 .blase.blaseUnten::after {
   display: none;
 }
+/* Selbst hingeschoben: kein Zeiger mehr zur Figur, sie steht ja nicht mehr daneben. */
+.blase.blaseFrei {
+  border-radius: 18px;
+}
+.blase.blaseFrei::after {
+  display: none;
+}
+.blaseZieht {
+  animation: none;
+  user-select: none;
+  box-shadow: 0 24px 60px rgba(30, 40, 35, 0.26);
+}
+.blasenGriff {
+  cursor: grab;
+  touch-action: none;
+}
+.blaseZieht .blasenGriff {
+  cursor: grabbing;
+}
 .blaseLive {
   box-shadow:
     0 18px 50px rgba(30, 40, 35, 0.18),
@@ -1996,23 +2015,38 @@
 .sitzKnopf.sitzRechts {
   right: 0;
 }
-/* Wer arbeitet, aber nicht an der Werkbank steht (sie ist besetzt): ein pulsierender Punkt. */
-.arbeitPunkt {
+/* Wer arbeitet, aber nicht an der Werkbank steht (sie ist besetzt): ein Aufsteller
+   „BUSY“ auf dem Tisch, Lage in Prozent des Tischbildes (vor der Tastatur). */
+.busy {
   position: absolute;
-  top: 4%;
-  width: 3.2%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgb(126, 231, 135);
-  box-shadow: 0 0 8px rgba(126, 231, 135, 0.8);
-  animation: tischGlimmt 1.4s ease-in-out infinite;
+  top: 51%;
+  width: 9%;
   pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(30, 40, 35, 0.28));
+  animation: blaseAuf 0.3s ease;
 }
-.arbeitPunkt.sitzLinks {
-  left: 14%;
+.busyLinks {
+  left: 32%;
 }
-.arbeitPunkt.sitzRechts {
-  right: 14%;
+.busyRechts {
+  left: 59%;
+}
+.busyKarte {
+  fill: #fff;
+  stroke: #d3d9d5;
+  stroke-width: 1;
+}
+.busy text {
+  font:
+    700 12.5px 'Share Tech Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 1px;
+  fill: #26302b;
+}
+.busyLicht {
+  fill: #e5484d;
+  animation: tischGlimmt 1.4s ease-in-out infinite;
 }
 @keyframes tischGlimmt {
   50% {

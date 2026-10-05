@@ -47,7 +47,8 @@ import { RegalSchild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
 import { useTeamBlase } from './useTeamBlase'
-import { useAuftraege, useTeamStand } from '@/api/team'
+import { useBlasenOrt, verschoben, type BlasenOrt } from './blasenOrt'
+import { ungelesen, useAuftrag, useAuftraege, useTeamStand } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
@@ -442,11 +443,38 @@ export function RaumView() {
   const team = useTeamBlase(buero?.werk ?? null)
   const teamSpricht = !!team && !lage.live
   const teamAmWerk = teamSpricht && team.slug === buero?.werk
-  // Wartet ein Auftrag auf dich, stellt die Chefin die Frage in ihrer Blase, sobald
-  // gerade niemand anderes spricht. „Antworten“ öffnet den Auftrag.
+  // Deine wievielte Frage in dieser Session (Schlüssel der Sprechblase, siehe unten).
+  const fragen = conv ? conv.history.filter((i) => i.kind === 'user').length : 0
+  // Meldungen der Firma trägt die Chefin in ihrer Blase vor, sobald gerade niemand
+  // anderes spricht: eine Rückfrage („Antworten“ öffnet den Auftrag) oder das
+  // Ergebnis eines fertigen Auftrags, den du noch nicht angesehen hast. Jede nur, bis
+  // du dem Assistenten die nächste Nachricht schreibst: dann gehört die Blase wieder
+  // eurem Gespräch (das Schild am Büro und die Aufträge zeigen es weiter).
   const auftraege = useAuftraege()
   const wartet = buero ? auftraege.data?.find((a) => a.status === 'wartet_auf_kevin') : undefined
-  const rueckfrage = !teamSpricht && !lage.live && wartet?.eskalation ? wartet : null
+  const fertigNeu = buero
+    ? auftraege.data?.find((a) => a.status === 'fertig' && ungelesen(a) > 0)
+    : undefined
+  const meldungKey = wartet?.eskalation
+    ? `frage:${wartet.id}:${wartet.eskalation.seit}`
+    : fertigNeu
+      ? `fertig:${fertigNeu.id}`
+      : null
+  const [meldung, setMeldung] = useState<{ key: string; fragen: number } | null>(null)
+  if (meldungKey && meldung?.key !== meldungKey) setMeldung({ key: meldungKey, fragen })
+  const meldungGilt = !!meldungKey && meldung?.key === meldungKey && meldung.fragen === fragen
+  const frei = !teamSpricht && !lage.live && meldungGilt
+  const rueckfrage = frei && wartet?.eskalation ? wartet : null
+  const abschlussId = frei && !rueckfrage && fertigNeu ? fertigNeu.id : null
+  const abschlussDetail = useAuftrag(abschlussId).data
+  const abschluss =
+    abschlussId && abschlussDetail?.ticket.ergebnis
+      ? {
+          id: abschlussId,
+          titel: abschlussDetail.ticket.titel,
+          text: abschlussDetail.ticket.ergebnis,
+        }
+      : null
   // Getippt wird hörbar, wer auch immer an der Werkbank steht: du oder ein Mitarbeiter.
   useRaumKlang({ ansicht, fokus, tauchen, amWerk: amWerk || !!buero?.werk })
   // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
@@ -468,7 +496,6 @@ export function RaumView() {
   // nur für diese Antwort — kommt eine neue, geht sie von selbst wieder auf.
   // Schlüssel = deine wievielte Frage: bleibt stehen, wenn der Lauf endet
   // und die Antwort in den Verlauf wandert.
-  const fragen = conv ? conv.history.filter((i) => i.kind === 'user').length : 0
   const blasenLage = teamSpricht
     ? team.lage
     : rueckfrage?.eskalation
@@ -476,23 +503,28 @@ export function RaumView() {
           ...lage,
           md: `**${rueckfrage.titel}**\n\n${rueckfrage.eskalation.frage || rueckfrage.eskalation.grund}`,
         }
-      : lage
+      : abschluss
+        ? { ...lage, md: `**${abschluss.titel}**\n\n${abschluss.text}` }
+        : lage
   const blasenStatus = teamSpricht
     ? blasenLage.phase === 'ruht'
       ? ''
       : t(PHASE_TEXT[blasenLage.phase], { d: blasenLage.detail })
     : rueckfrage
       ? `⏸ ${t('wartet auf dich')}`
-      : status
+      : abschluss
+        ? `✓ ${t('Auftrag abgeschlossen')}`
+        : status
   const antwortKey = teamSpricht
     ? `team:${team.run}`
-    : rueckfrage
-      ? `frage:${rueckfrage.id}:${rueckfrage.eskalation?.seit ?? ''}`
+    : (rueckfrage || abschluss) && meldungKey
+      ? meldungKey
       : `${conv?.key ?? ''}:${fragen}`
   const [zuFuer, setZuFuer] = useState<string | null>(null)
   const blaseZu = zuFuer === antwortKey
   const hatBlase = !!(blasenLage.md || blasenStatus)
   const blaseUmschalten = () => setZuFuer(blaseZu ? null : antwortKey)
+  const [blasenOrt, setBlasenOrt] = useBlasenOrt()
 
   // Schilder der Stationen zeigen, was gerade eingestellt ist.
   const model = conv?.model ?? ''
@@ -564,10 +596,12 @@ export function RaumView() {
         rechts={teamSpricht ? teamAmWerk : amWerk}
         team={teamAmWerk}
         unten={kompakt}
-        knopf={rueckfrage ? `↩ ${t('Antworten')}` : undefined}
+        knopf={rueckfrage ? `↩ ${t('Antworten')}` : abschluss ? `☰ ${t('Auftrag')}` : undefined}
+        ort={kompakt ? null : blasenOrt}
+        onOrt={kompakt ? undefined : setBlasenOrt}
         onVerlauf={() => {
-          if (rueckfrage) {
-            useAuftraegeAnsicht.getState().oeffne(rueckfrage.id)
+          if (rueckfrage || abschluss) {
+            useAuftraegeAnsicht.getState().oeffne((rueckfrage?.id ?? abschluss?.id)!)
             setAnsicht('auftraege')
           } else if (teamSpricht) {
             // Der ganze Zug steht in den Aufträgen, bei der Person
@@ -992,6 +1026,8 @@ function Sprechblase({
   team = false,
   unten = false,
   knopf,
+  ort = null,
+  onOrt,
   onVerlauf,
   onZu,
 }: {
@@ -1008,6 +1044,10 @@ function Sprechblase({
   unten?: boolean
   /** Beschriftung des Knopfs oben (sonst „☰ Verlauf“). */
   knopf?: string
+  /** Selbst hingeschoben (Prozent des Raums); null = Platz neben der Figur. */
+  ort?: BlasenOrt | null
+  /** Ziehen am Kopf verschiebt, Doppelklick gibt den Platz wieder frei. */
+  onOrt?: (o: BlasenOrt | null) => void
   onVerlauf: () => void
   onZu: () => void
 }) {
@@ -1023,13 +1063,63 @@ function Sprechblase({
     if (el && live && nr === letzter) el.scrollTop = el.scrollHeight
   }, [md, live, nr, letzter])
   const gehe = (n: number) => setWahl(n >= letzter ? null : Math.max(0, n))
+  const blase = useRef<HTMLElement>(null)
+  const [ziehen, setZiehen] = useState<BlasenOrt | null>(null)
+  // Ziehen am Kopf: Start in Prozent des Raums (der Elternfläche), jede Bewegung in
+  // Prozent umrechnen. So stimmt es bei jedem Kamera-Zoom.
+  const zieheLos = (e: React.PointerEvent<HTMLElement>) => {
+    const el = blase.current
+    const raum = el?.offsetParent as HTMLElement | null
+    if (!onOrt || !el || !raum || e.button !== 0) return
+    if ((e.target as HTMLElement).closest('button')) return
+    const r = raum.getBoundingClientRect()
+    const b = el.getBoundingClientRect()
+    const start: BlasenOrt = {
+      l: ((b.left - r.left) / r.width) * 100,
+      b: ((r.bottom - b.bottom) / r.height) * 100,
+    }
+    const groesse = { w: (b.width / r.width) * 100, h: (b.height / r.height) * 100 }
+    const x0 = e.clientX
+    const y0 = e.clientY
+    let jetzt = start
+    const bewegt = (m: PointerEvent) => {
+      jetzt = verschoben(
+        start,
+        ((m.clientX - x0) / r.width) * 100,
+        ((m.clientY - y0) / r.height) * 100,
+        groesse,
+      )
+      setZiehen(jetzt)
+    }
+    const fertig = () => {
+      window.removeEventListener('pointermove', bewegt)
+      window.removeEventListener('pointerup', fertig)
+      setZiehen(null)
+      if (jetzt !== start) onOrt(jetzt)
+    }
+    window.addEventListener('pointermove', bewegt)
+    window.addEventListener('pointerup', fertig)
+    e.preventDefault()
+  }
+  const lage = ziehen ?? ort
   return (
     <section
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''}`}
-      style={farbe ? { ['--accent-rgb' as string]: farbe } : undefined}
+      ref={blase}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen ? s.blaseZieht : ''}`}
+      style={{
+        ...(farbe ? { ['--accent-rgb' as string]: farbe } : {}),
+        ...(lage ? { left: `${lage.l}%`, bottom: `${lage.b}%` } : {}),
+      }}
       onClick={(e) => e.stopPropagation()}
     >
-      <header className={s.blasenKopf}>
+      <header
+        className={`${s.blasenKopf} ${onOrt ? s.blasenGriff : ''}`}
+        onPointerDown={zieheLos}
+        onDoubleClick={(e) => {
+          if (!(e.target as HTMLElement).closest('button')) onOrt?.(null)
+        }}
+        title={onOrt ? t('Ziehen verschiebt die Blase, Doppelklick stellt sie zurück') : undefined}
+      >
         <b>{name}</b>
         {status && <span className={s.status}>{status}</span>}
         <button type="button" className={s.blasenKnopf} onClick={onVerlauf}>

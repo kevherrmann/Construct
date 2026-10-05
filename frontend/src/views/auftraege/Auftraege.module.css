@@ -311,7 +311,27 @@
   padding: 10px 12px 4px;
 }
 .alle,
-.zurueck,
+.leiste {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 -6px 12px;
+  padding: 8px 6px;
+  background: color-mix(in srgb, var(--deep) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--green-faint);
+}
+.leisteTitel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--green-dim);
+}
 .mehr,
 .spur {
   background: none;
@@ -324,7 +344,6 @@
   letter-spacing: 0.5px;
 }
 .alle:hover,
-.zurueck:hover,
 .mehr:hover,
 .spur:hover {
   color: var(--green);

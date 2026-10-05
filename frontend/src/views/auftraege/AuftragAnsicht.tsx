@@ -163,10 +163,15 @@ export function AuftragAnsicht({ id }: { id: string }) {
   const z = ZUSTAND[tk.status]
   const laeuftNoch = tk.status !== 'fertig' && tk.status !== 'abgebrochen'
 
+  // Bleibt beim Scrollen oben stehen: aus einem langen Verlauf kommt man mit einem
+  // Klick zurück, ohne erst ganz nach oben zu müssen.
   const zurueck = (
-    <button type="button" className={s.zurueck} onClick={() => sichtWechseln('uebersicht')}>
-      ‹ {t('zurück zur Übersicht')}
-    </button>
+    <div className={s.leiste}>
+      <button type="button" className={s.knopf} onClick={() => sichtWechseln('uebersicht')}>
+        ‹ {t('ÜBERSICHT')}
+      </button>
+      <span className={s.leisteTitel}>{tk.titel}</span>
+    </div>
   )
   let buehne: React.ReactNode
   if (sicht === 'verlauf')

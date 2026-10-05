@@ -147,14 +147,23 @@ function DoppelTisch({
         </span>
       </button>
     )
-  const punkt = (x: Sitz | undefined, seite: 'links' | 'rechts') =>
+  // Wer arbeitet, aber nicht an der Werkbank steht (sie ist besetzt): ein Aufsteller
+  // „BUSY“ mit roter Lampe auf seinem Tisch, neben der Tastatur.
+  const schild = (x: Sitz | undefined, seite: 'links' | 'rechts') =>
     x &&
     stand.arbeiten.has(x.agent.slug) &&
     stand.werk !== x.agent.slug && (
-      <i
-        className={`${s.arbeitPunkt} ${seite === 'links' ? s.sitzLinks : s.sitzRechts}`}
+      <svg
+        className={`${s.busy} ${seite === 'links' ? s.busyLinks : s.busyRechts}`}
+        viewBox="0 0 64 34"
         aria-hidden
-      />
+      >
+        <path className={s.busyKarte} d="M7 3 H57 L62 31 H2 Z" />
+        <circle className={s.busyLicht} cx="14" cy="17" r="3.4" />
+        <text x="37" y="21.5" textAnchor="middle">
+          BUSY
+        </text>
+      </svg>
     )
   return (
     <div className={s.tisch} style={rahmen(platz)}>
@@ -167,8 +176,8 @@ function DoppelTisch({
           className={`${s.zustand} ${b === gezeigt ? s.zustandAn : ''}`}
         />
       ))}
-      {punkt(links, 'links')}
-      {punkt(rechts, 'rechts')}
+      {schild(links, 'links')}
+      {schild(rechts, 'rechts')}
       {knopf(links, 'links')}
       {knopf(rechts, 'rechts')}
     </div>
