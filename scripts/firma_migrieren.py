@@ -12,12 +12,14 @@ Was geschieht (und ist nach `--ausfuehren` in `firma/` zu finden):
     Namen aus ⚙ Einstellungen. Ihr Foto kommt nicht mit: die Chefin ist die Figur des
     Assistenten.
   * Umbenannt werden (--umbenennen) die Kürzel, die CONSTRUCT mitliefert, damit Raum und
-    Vorlagen sie wiederfinden: css-spezialist -> selma, qa -> tessa, auditor -> veritas,
-    druck -> voxel. Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, cody,
+    Vorlagen sie wiederfinden: css-spezialist -> selma, qa -> tessa, auditor -> veritas.
+    Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, cody,
     selma, tessa, veritas), gilt dieser; Gedächtnis und Historie bleiben die Factoria-Fassung.
   * Zusammengelegt (--zusammenlegen) wird, wer künftig nicht mehr einzeln arbeitet: chanti
     geht in die Chefin, design (Rauke) in Selma. Akte und Charakter kommen nicht mit, aber
     Gedächtnis und Historie wandern an das Ziel, damit nichts verloren geht.
+  * Weggelassen (--weglassen) wird, wen die Firma nicht mehr braucht: druck (3D-Druck).
+    Seine Akte kommt nicht mit, und aus `delegates_to` der anderen verschwindet er.
   * `reports_to` zeigt danach auf `chef`; das Einstellen gibt es nicht mehr (`can_hire`
     fällt weg).
   * Anleitungen, bisherige Aufträge (mit umbenannten Absendern) und die Regelwerke
@@ -62,10 +64,12 @@ def main():
     ap.add_argument("--aus", required=True, help="Ordner der FACTORIA-Installation")
     ap.add_argument("--nach", default=str(BASE / "firma"), help="Ziel (Vorgabe: firma/ hier)")
     ap.add_argument("--chef-aus", default="lumina", help="Wessen Akte zur Geschäftsführung wird")
-    ap.add_argument("--umbenennen", default="css-spezialist=selma,qa=tessa,auditor=veritas,druck=voxel",
+    ap.add_argument("--umbenennen", default="css-spezialist=selma,qa=tessa,auditor=veritas",
                     help="alt=neu, kommagetrennt")
     ap.add_argument("--zusammenlegen", default="chanti=chef,design=selma",
                     help="alt=ziel: nur Gedächtnis und Historie wandern, kommagetrennt")
+    ap.add_argument("--weglassen", default="druck",
+                    help="Kürzel, die gar nicht übernommen werden, kommagetrennt")
     ap.add_argument("--ausfuehren", action="store_true", help="wirklich kopieren (sonst nur zeigen)")
     ap.add_argument("--ersetzen", action="store_true", help="vorhandene Dateien überschreiben")
     args = ap.parse_args()
@@ -76,6 +80,7 @@ def main():
     chef_quelle = args.chef_aus
     umbenennen = {chef_quelle: "chef", **paare(args.umbenennen)}
     zusammen = paare(args.zusammenlegen)
+    weg = {x.strip() for x in args.weglassen.split(",") if x.strip()}
     namen = {**umbenennen, **zusammen}        # alt -> neu, überall, wo ein Kürzel steht
     tu = args.ausfuehren
     plan: list[str] = []
@@ -103,6 +108,10 @@ def main():
             text = re.sub(rf"(?m)^(reports_to:\s*){re.escape(alt)}\s*$", rf"\g<1>{neu}", text)
             # delegates_to: kommagetrennte Liste — den Namen als ganzes Wort ersetzen
             text = re.sub(rf"(?m)^(delegates_to:.*?)\b{re.escape(alt)}\b", rf"\g<1>{neu}", text)
+        for alt in weg:
+            # aus der Liste streichen, samt Komma davor oder danach
+            text = re.sub(rf"(?m)^(delegates_to:.*?)(,\s*\b{re.escape(alt)}\b|\b{re.escape(alt)}\b,?\s*)",
+                          r"\g<1>", text)
         return re.sub(r"(?m)^can_hire:.*\n", "", text)
 
     # ---- Mitarbeiter
@@ -112,6 +121,9 @@ def main():
         if not (d / "AGENT.md").is_file():
             continue
         slug = d.name
+        if slug in weg:
+            print(f"  {slug}: wird weggelassen")
+            continue
         if slug in zusammen:
             print(f"  {slug}: wird nicht einzeln übernommen (Gedächtnis und Historie gehen an {zusammen[slug]})")
             continue
@@ -145,7 +157,7 @@ def main():
     # ---- Gedächtnis und Historie: jede Akte bekommt ihre eigenen und die der Zusammengelegten
     heute = date.today().strftime("%d.%m.%Y")
     ziele = {umbenennen.get(d.name, d.name) for d in (quelle / "agents").iterdir()
-             if (d / "AGENT.md").is_file() and d.name not in zusammen}
+             if (d / "AGENT.md").is_file() and d.name not in zusammen and d.name not in weg}
     for slug_neu in sorted(ziele):
         alle = sorted(d.name for d in (quelle / "agents").iterdir() if (d / "AGENT.md").is_file())
         # Die eigene Akte zuerst, danach die zusammengelegten.

@@ -1,3 +1,4 @@
+import type { Settings } from '@/lib/bootstrap'
 import type { Kamera, Punkt } from './kamera'
 
 // Stationen des Construct-Raums: Flächen auf dem Raumbild (assets/raum.webp,
@@ -327,6 +328,30 @@ export const KASTEN: Rechteck = { l: 58.032, t: 38.715, w: 9.912, h: 22.569 }
  *  Gebaut mit construct-raum-art/team/postkorb.py 1848 738 0.58. */
 export const POSTKORB: Rechteck = { l: 87.657, t: 57.769, w: 5.154, h: 6.998 }
 
+/** Lochwand (Skills), Kalender und Steckdosenleiste (MCP) samt Schatten: eigene
+ *  Ebenen, die Wand dahinter ist leer. Gelöst aus dem Raumbild mit
+ *  construct-raum-art/team/kacheln.py. Den Teil der Lochwand hinter dem Monitor
+ *  hat die Ebene nicht, sie liegt also auch über der Unschärfe richtig. */
+export const LOCHWAND: Rechteck = { l: 79.541, t: 25.521, w: 12.695, h: 25.174 }
+export const WANDKALENDER: Rechteck = { l: 91.553, t: 32.986, w: 7.227, h: 18.229 }
+export const STECKFELD: Rechteck = { l: 92.92, t: 49.566, w: 6.543, h: 14.583 }
+
+/** Stationen, die zu einer abschaltbaren Kachel (⚙ → Kacheln) gehören. Ist die
+ *  Kachel aus, fehlen im Raum Station und Objekt. */
+export const KACHEL_VON: Partial<Record<StationId, keyof Settings['tiles']>> = {
+  tafel: 'tickets',
+  werkzeug: 'skills',
+  kalender: 'kalender',
+  postfach: 'mail',
+  steckfeld: 'mcp',
+}
+
+/** Ist die Station da, wenn die Kacheln so stehen? */
+export const stationDa = (id: StationId, tiles: Settings['tiles']) => {
+  const k = KACHEL_VON[id]
+  return !k || tiles[k] !== false
+}
+
 /** Der Bildschirm auf der Werkbank: Fläche, auf der der Terminal-Text liegt (oben links,
  *  oben rechts, unten rechts, unten links; Prozent). Die genaue Form gibt
  *  assets/fernseher-maske.webp vor. */
@@ -482,6 +507,6 @@ export const RANDPLAETZE: readonly Platz[] = [
   { x: 1510, y: 380, s: 1 },
 ]
 
-/** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort läuft ein
- *  Mitarbeiter hin, wenn er arbeitet. */
+/** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort steht ein
+ *  Mitarbeiter, wenn er arbeitet. */
 export const WERKBANK_FUSS = { x: 1470, y: 892 }

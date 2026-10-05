@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useBelegschaft, useTeamAn, useTeamStand, type Agent } from '@/api/team'
 import { RANDPLAETZE, SITZE, sitzFuss, type PaarId, type Platz, type Seite } from './stationen'
 
-/** Dauer von Hin- und Rückweg (ms); muss zur Übergangszeit im CSS passen. */
-export const WEG_MS = 1100
+/** Wechsel zwischen zwei Orten (ms): ausblenden hier, einblenden dort, kein Laufen.
+ *  Muss zur Übergangszeit im CSS (.laeufer, .besucher) passen. */
+export const WEG_MS = 450
 /** So lange redet die Chefin am Tisch mit dem Mitarbeiter, bevor er aufsteht. */
 const BESUCH_BLEIBT_MS = 3200
 
 export interface Besuch {
   slug: string
-  /** 'start' = steht noch am Podest, 'hin' = geht zum Tisch, 'da' = redet mit ihm,
-   *  'zurueck' = geht heim (und der Mitarbeiter geht an die Werkbank). */
+  /** 'start' = steht noch am Podest, 'hin' = erscheint am Tisch, 'da' = redet mit ihm,
+   *  'zurueck' = verschwindet dort (und der Mitarbeiter erscheint an der Werkbank). */
   phase: 'start' | 'hin' | 'da' | 'zurueck'
 }
 

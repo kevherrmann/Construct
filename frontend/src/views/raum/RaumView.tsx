@@ -36,6 +36,9 @@ import unscharfBild from './assets/raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
 import kastenBild from './assets/kasten.webp'
 import postkorbBild from './assets/postkorb.webp'
+import lochwandBild from './assets/lochwand.webp'
+import wandkalenderBild from './assets/wandkalender.webp'
+import steckfeldBild from './assets/steckfeld.webp'
 import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
@@ -58,8 +61,12 @@ import {
   STATIONEN,
   FORM,
   KASTEN,
+  LOCHWAND,
   POSTKORB,
+  STECKFELD,
+  WANDKALENDER,
   WERKBANK,
+  stationDa,
   type Ansicht,
   type Auftritt,
   type PanelId,
@@ -427,7 +434,9 @@ export function RaumView() {
   const amWerk = pose === 'arbeiten'
   // Team-Modus: das Büro hinten im Raum; null, wenn der Modus aus ist.
   const buero = useBuero(!amWerk)
-  const besucht = !!buero?.besuch
+  // Ist die Chefin am Tisch, ist das Podest leer. Beim Abschied blendet sie dort
+  // schon wieder ein, während sie am Tisch verschwindet.
+  const besucht = !!buero?.besuch && buero.besuch.phase !== 'zurueck'
   // Arbeitet die Firma und redest du gerade nicht mit dem Assistenten, gehört die
   // Sprechblase dem, der dort spricht (sonst wie immer deine letzte Antwort).
   const team = useTeamBlase(buero?.werk ?? null)
@@ -436,6 +445,9 @@ export function RaumView() {
   useRaumKlang({ ansicht, fokus, tauchen, amWerk })
   // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
   const sound = useSettings((st) => st.settings.sound)
+  // Abgeschaltete Kacheln gibt es auch im Raum nicht: weder Objekt noch Station.
+  const tiles = useSettings((st) => st.settings.tiles)
+  const da = (id: StationId) => stationDa(id, tiles)
   const saveSettings = useSettings((st) => st.save)
   const stumm = !sound.effekte && !sound.musik
   // Das Standbild am Podest verschwindet erst, wenn das Video der Pose wirklich
@@ -641,20 +653,27 @@ export function RaumView() {
               <Fernseher welt={weltGroesse} voll={!!tauchen} weich={weichAusser('monitore')} />
               <WandBinaeruhr welt={weltGroesse} weich={weichAusser('uhr')} />
               <WandKontingent welt={weltGroesse} weich={weichAusser('uhr')} />
-              <img
-                className={`${s.ebene} ${weichAusser('tafel') ? s.kastenWeich : ''}`}
-                style={platz(KASTEN)}
-                src={kastenBild}
-                alt=""
-                draggable={false}
-              />
-              <img
-                className={`${s.ebene} ${weichAusser('postfach') ? s.kastenWeich : ''}`}
-                style={platz(POSTKORB)}
-                src={postkorbBild}
-                alt=""
-                draggable={false}
-              />
+              {(
+                [
+                  ['werkzeug', LOCHWAND, lochwandBild, s.wandWeich],
+                  ['kalender', WANDKALENDER, wandkalenderBild, s.wandWeich],
+                  ['steckfeld', STECKFELD, steckfeldBild, s.wandWeich],
+                  ['tafel', KASTEN, kastenBild, s.kastenWeich],
+                  ['postfach', POSTKORB, postkorbBild, s.kastenWeich],
+                ] as const
+              ).map(
+                ([id, ort, bild, weich]) =>
+                  da(id) && (
+                    <img
+                      key={id}
+                      className={`${s.ebene} ${weichAusser(id) ? weich : ''}`}
+                      style={platz(ort)}
+                      src={bild}
+                      alt=""
+                      draggable={false}
+                    />
+                  ),
+              )}
               {buero && (
                 <>
                   <Buero
@@ -743,7 +762,7 @@ export function RaumView() {
                   style={ohneStation(form)}
                 />
               )}
-              {STATIONEN.filter((st) => st.id !== 'firma' || buero).map((st) => {
+              {STATIONEN.filter((st) => (st.id !== 'firma' || buero) && da(st.id)).map((st) => {
                 const an = lage.station === st.id
                 const zeigen = () => {
                   setFokus(st.id)
