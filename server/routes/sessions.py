@@ -11,7 +11,7 @@ from server import llm as llmmod
 from server import uploads_gc
 
 from server.core import PROJECTS_DIR, extract_text
-from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, save_archived, save_meta, werkstatt_aus_transcript
+from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, ohne_ticketzeile, save_archived, save_meta, werkstatt_aus_transcript
 
 router = APIRouter()
 
@@ -57,7 +57,7 @@ def sessions():
                     if cwd is None and isinstance(ev.get("cwd"), str):
                         cwd = ev["cwd"]
                     if title is None and ev.get("type") == "user":
-                        txt = extract_text(ev.get("message", {}).get("content")).strip()
+                        txt = ohne_ticketzeile(extract_text(ev.get("message", {}).get("content")).strip())
                         # System-/Befehls-Wrapper überspringen
                         if txt and not txt.startswith("<") and not txt.startswith("Caveat"):
                             title = txt.replace("\n", " ")[:80]

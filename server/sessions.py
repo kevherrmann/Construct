@@ -100,6 +100,12 @@ def _fremde_firma(ev: dict) -> str:
 TICKETZEILE_RE = re.compile(r"\n\n\[Tickets: [^\n]*\]\s*$")
 
 
+def ohne_ticketzeile(txt: str) -> str:
+    """Nutzertext aus einem Transkript ohne die Ticket-Zeile am Ende — für
+    Titel, Anzeige und alles, was Kevins Worte lesen soll."""
+    return TICKETZEILE_RE.sub("", txt)
+
+
 def _parse_transcript_lines(data: bytes):
     """JSONL-Bytes -> Anzeige-Nachrichten (wie die Verlaufs-Ansicht sie braucht)."""
     msgs = []
@@ -118,7 +124,7 @@ def _parse_transcript_lines(data: bytes):
         if not txt or (t == "user" and (txt.startswith("<") or txt.startswith("Caveat"))):
             continue
         if t == "user":
-            txt = TICKETZEILE_RE.sub("", txt)
+            txt = ohne_ticketzeile(txt)
         m = {"role": t, "text": txt}
         if isinstance(ev.get("uuid"), str):
             m["uuid"] = ev["uuid"]            # Anker für Tickets: dorthin springt die Übersicht

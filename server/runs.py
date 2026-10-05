@@ -518,7 +518,14 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
         # Fester Text: ändert sich nie während einer Session und bleibt so im
         # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
         persona = (persona + "\n\n" + tickmod.regeln()).strip()
-        cmd += ["--mcp-config", bus_config(run, bus_base)]
+        # --strict-mcp-config ist Pflicht, nicht Zierde: ohne es lädt `claude -p`
+        # mit einer --mcp-config ALLE MCP-Server des Nutzers mit (Gmail, Drive,
+        # Browser …) — gemessen 05.10.2026: +1,3k Tokens Kontext je Aufruf und
+        # Werkzeuge, die der Chat bisher nicht hatte. So bleibt alles wie vorher
+        # und es kommen nur unsere zwei Werkzeuge dazu.
+        cmd += ["--mcp-config", bus_config(run, bus_base), "--strict-mcp-config",
+                # Auch in Modi, die sonst nachfragen würden (im -p-Modus niemand antwortet).
+                "--allowedTools", "mcp__construct__ticket_neu", "mcp__construct__ticket_zuordnen"]
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:

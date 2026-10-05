@@ -311,3 +311,20 @@ def test_hinweiszeile():
     assert "\n" not in z
     assert tk.hinweis("abcd1234-0000-0000-0000-00000000ffff") == "[Tickets: noch keins]"
     assert "#1 „Vorab“" in tk.hinweis("abcd1234-0000-0000-0000-00000000ffff", "Vorab")
+
+
+def test_ticketzeile_bleibt_aus_titel_und_anzeige(tmp_path, monkeypatch):
+    from server import sessions
+    from server.routes import sessions as rs
+    sid = "abcd1234-0000-0000-0000-0000000000cc"
+    proj = tmp_path / "-tmp-x"
+    proj.mkdir()
+    (proj / f"{sid}.jsonl").write_text(json.dumps({
+        "type": "user", "uuid": "u1", "cwd": "/home/k/p",
+        "message": {"content": "Mach das Ding\n\n[Tickets: aktuell #1 „Ding“]"}}) + "\n")
+    monkeypatch.setattr(rs, "PROJECTS_DIR", tmp_path)
+    monkeypatch.setattr(sessions, "PROJECTS_DIR", tmp_path)
+    liste = [x for x in rs.sessions() if x["id"] == sid]
+    assert liste[0]["title"] == "Mach das Ding"
+    anzeige = sessions._parse_transcript_lines((proj / f"{sid}.jsonl").read_bytes())
+    assert anzeige == [{"role": "user", "text": "Mach das Ding", "uuid": "u1"}]
