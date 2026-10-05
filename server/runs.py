@@ -2,7 +2,6 @@
 Nachlauf, Benachrichtigung wenn ein langer Lauf unbeobachtet fertig wird.
 """
 import asyncio
-import base64
 import json
 import os
 import re
@@ -17,7 +16,7 @@ from server import config as cfg
 from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
-from server.core import AUTH_PASS, AUTH_USER, BASE_DIR, claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
+from server.core import LIMIT_HIT, BASE_DIR, bus_auth_header, claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
 from server.sessions import model_short, nutzer_uuids_bis
 
 
@@ -73,15 +72,55 @@ class Run:
         self.fork = fork
         self.ticket_vorgabe = None
         self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
+        # Team-Modus (server/team/): Läufe, die einem Mitarbeiter gehören — ein
+        # Zug in einem Auftrag oder ein Gespräch mit ihm. Im Chat bleibt alles leer.
+        self.agent_slug = ""             # gehört der Lauf einem Mitarbeiter?
+        self.auftrag_id = ""             # läuft er in einem Auftrag?
+        self.bus_token = ""              # Einmal-Token für den Firmen-Bus
+        # Lebenszeichen für die Hänger-Erkennung — MONOTON, nicht Wanduhr: time.time()
+        # springt nach einem Standby des Rechners um die Schlafzeit nach vorn,
+        # und zwei Züge galten als "30 Minuten still", die sechs Minuten alt waren
+        # (05.09.2026 in FACTORIA). CLOCK_MONOTONIC zählt den Standby unter Linux
+        # nicht mit.
+        self.letztes_ereignis = time.monotonic()
+        self.cost_usd = 0.0              # echte Kosten aus dem result-Ereignis
+        # Wie viel vom Systemprompt aus dem Zwischenspeicher kam: nur damit lässt
+        # sich belegen, ob eine Änderung am Prompt das Zwischenspeichern
+        # verbessert oder kaputt macht.
+        self.cache_read = 0
+        self.cache_write = 0
+        self.frisch = 0
+        self.fehler = ""                 # letzte Fehlermeldung (Limit, Login, Absturz)
+        self.limit_bis = 0               # Nutzungslimit gerissen: ab wann es weitergeht
+        self.bus_calls = 0               # geroutete Nachrichten dieses Zuges
+        self.bus_letztes = ""            # welches Werkzeug das war (für die Fehlermeldung)
+        self.bus_ziele = []              # wen er in diesem Zug schon beauftragt hat
 
     def emit(self, ev):
+        self.letztes_ereignis = time.monotonic()
         if ev.get("type") == "text":
             # hier statt in run_claude, damit auch Hermes-Läufe eine
             # Telegram-Zusammenfassung (maybe_notify) bekommen
             self.last_text += ev.get("text", "")
+        elif ev.get("type") == "error":
+            # Für den Dispatcher der Firma: ein Zug, der mit Fehler endete, ist
+            # kein "stiller Zug" — und ein gerissenes Limit ist gar kein Fehler
+            # des Mitarbeiters, sondern eine Wartezeit.
+            self.fehler = str(ev.get("message") or "")
+            if LIMIT_HIT["resets_at"] > time.time() and "Nutzungs-Limit" in self.fehler:
+                self.limit_bis = LIMIT_HIT["resets_at"]
+        elif ev.get("type") == "tool" and self.last_text and not self.last_text.endswith("\n"):
+            # Zwischen zwei Textblöcken lag ein Werkzeugaufruf. Ohne Trenner klebte
+            # im Verlauf "Ich schau erst nach.Passt, ich baue." zusammen.
+            self.last_text += "\n\n"
         # aufeinanderfolgende Text-Events zusammenfassen -> Puffer/Replay schlank
         if ev.get("type") == "text" and self.events and self.events[-1].get("type") == "text":
-            self.events[-1]["text"] += ev.get("text", "")
+            # NEUES Objekt statt += am alten: ein Client, der gerade den Rückstand
+            # nachspielt, hält Verweise auf die alten Objekte — in-place
+            # angehängter Text käme bei ihm doppelt an (einmal im Rückstand, einmal
+            # live aus der Warteschlange).
+            alt = self.events[-1]
+            self.events[-1] = {**alt, "text": alt.get("text", "") + ev.get("text", "")}
         else:
             self.events.append(ev)
         for q in list(self.subs):
@@ -307,6 +346,12 @@ async def run_claude(run, cmd):
                 ctx = ((u.get("input_tokens") or 0)
                        + (u.get("cache_read_input_tokens") or 0)
                        + (u.get("cache_creation_input_tokens") or 0))
+                run.cache_read = u.get("cache_read_input_tokens") or 0
+                run.cache_write = u.get("cache_creation_input_tokens") or 0
+                run.frisch = u.get("input_tokens") or 0
+                # total_cost_usd ist die einzige echte Geldzahl im System — die
+                # Firma zeigt sie je Auftrag an, also mitnehmen statt wegwerfen.
+                run.cost_usd = ev.get("total_cost_usd") or 0.0
                 # `run.model` ist nur die AUSWAHL — bei "Standard" ist sie leer,
                 # und ein Alias wie "fable" sagt nicht, welches Fable lief.
                 # `modelUsage` im Ergebnis nennt die tatsaechlich benutzte ID
@@ -322,10 +367,21 @@ async def run_claude(run, cmd):
                     "duration_ms": ev.get("duration_ms"),
                     "out": u.get("output_tokens") or 0,
                     "ctx": ctx,
+                    "cache_read": run.cache_read,
+                    "cost": run.cost_usd,
                     "model": echt or run.model,
                 })
                 run.zug_offen = False
-                if run.hintergrund and time.time() - run.started < NACHLAUF_MAX:
+                if run.agent_slug and run.session_id and not run.auftrag_id:
+                    # Langlebige Sitzung im Direktgespräch mit einem Mitarbeiter:
+                    # beim nächsten Mal wird fortgesetzt. Züge in einem Auftrag
+                    # gehören dem Auftrag — sie dürfen diese Beziehung nicht
+                    # überschreiben, sonst landet das nächste Gespräch mitten im
+                    # Auftragskontext.
+                    from server.team import gedaechtnis
+                    gedaechtnis.set_chat_session(run.agent_slug, run.session_id)
+                if (run.hintergrund and not run.auftrag_id
+                        and time.time() - run.started < NACHLAUF_MAX):
                     # NACHLAUF. Der Zug ist fertig, aber claude hat noch
                     # Hintergrundaufgaben laufen. Bleibt stdin offen, bleibt
                     # der Prozess am Leben und meldet sich von selbst wieder,
@@ -338,7 +394,8 @@ async def run_claude(run, cmd):
                     #
                     # Schreibt Kevin in dieser Zeit, geht seine Nachricht per
                     # /api/inject in DIESEN Prozess statt per --resume in einen
-                    # zweiten auf derselben Sitzung.
+                    # zweiten auf derselben Sitzung. Züge in einem Auftrag bleiben
+                    # außen vor: dort wartet der Dispatcher auf das Prozessende.
                     run.nachlauf = True
                     run.emit({"type": "nachlauf", "tasks": list(run.hintergrund.values())})
                     run.emit({"type": "done", "session_id": run.session_id})
@@ -385,6 +442,10 @@ async def run_claude(run, cmd):
         run.emit({"type": "error", "message": f"Server-Fehler: {e}"})
     finally:
         run.stdin_closed = True
+        if run.bus_token:
+            # Der Firmen-Bus nimmt von diesem Zug nichts mehr an.
+            from server.team import engine
+            engine.BUS_TOKENS.pop(run.bus_token, None)
         if run.nachlauf:
             # claude ist gegangen, waehrend noch Hintergrundaufgaben offen
             # waren (von selbst oder abgeschossen). Ohne diese Meldung bleibt
@@ -392,7 +453,9 @@ async def run_claude(run, cmd):
             run.nachlauf = False
             run.emit({"type": "nachlauf_ende"})
         run.finish()
-        if not getattr(run, "stopped", False):
+        if not getattr(run, "stopped", False) and not run.agent_slug:
+            # Züge der Firma melden sich nicht einzeln — sonst pingt jeder Schritt
+            # das Telefon.
             maybe_notify(run)
 
 
@@ -404,9 +467,8 @@ def bus_config(run, base: str) -> str:
     Einstellungen des Nutzers bleiben, wir kommen dazu.
     """
     env = {"CONSTRUCT_RUN": run.id, "CONSTRUCT_TOKEN": run.token, "CONSTRUCT_BASE": base}
-    if AUTH_PASS:
-        env["CONSTRUCT_AUTH"] = "Basic " + base64.b64encode(
-            f"{AUTH_USER}:{AUTH_PASS}".encode()).decode()
+    if bus_auth_header():
+        env["CONSTRUCT_AUTH"] = bus_auth_header()
     return json.dumps({"mcpServers": {"construct": {
         "command": sys.executable, "args": [str(BASE_DIR / "construct_mcp.py")], "env": env,
         # Ohne das bleiben die Werkzeuge hinter ToolSearch versteckt, sobald der

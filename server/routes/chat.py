@@ -11,7 +11,7 @@ from server import hermes as hermesmod
 from server import llm as llmmod
 from server import tickets as tickmod
 
-from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
+from server.core import ALLOWED_MODES, DEFAULT_CWD, bus_base, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
 from server.runs import EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
@@ -85,8 +85,7 @@ async def chat(req: Request):
     base, mit_hinweis = "", False
     conf = cfg.load_settings()
     if conf["tiles"]["tickets"] and conf["tickets"]["assistent"]:
-        host, port = (req.scope.get("server") or ("127.0.0.1", 8765))[:2]
-        base, mit_hinweis = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}", True
+        base, mit_hinweis = bus_base(), True
         if resume_at is None:
             titel = str((vorgabe or {}).get("titel") or "")[:80]
             prompt = f"{prompt}\n\n{tickmod.hinweis(session_id, titel)}"

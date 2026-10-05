@@ -49,7 +49,9 @@ def save_archived(ids):
 # nie `mcp__factoria__*` als Werkzeug bekommen. Und die Liste steht im
 # Transkript, egal ob der Agent die Werkzeuge am Ende benutzt hat — auch ein
 # Zug, der nichts an den Bus gab, wird so erkannt.
-FREMDE_MCP = ("factoria",)
+# "firma" ist der Bus des Team-Modus (server/team/); "factoria" die Sitzungen aus
+# der Zeit, als die Firma noch ein eigenes Programm war.
+FREMDE_MCP = ("firma", "factoria")
 
 
 MCP_RE = re.compile(r"^mcp__([a-z0-9_-]+)__")
@@ -74,7 +76,7 @@ def _verborgen(cwd: str) -> bool:
 # deshalb eine Kennzeile an den Anfang ihres Prompts, die im Transkript landet.
 # Das ist ein Textmerkmal — aber eines, das die andere Seite absichtlich setzt,
 # und kein Erraten anhand des Inhalts.
-INTERN_MARKEN = {"[factoria-intern]": "factoria"}
+INTERN_MARKEN = {"[firma-intern]": "firma", "[factoria-intern]": "factoria"}
 
 
 def _fremde_firma(ev: dict) -> str:

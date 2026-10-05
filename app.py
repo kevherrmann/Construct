@@ -17,15 +17,17 @@ from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
 from server import bonsai as bonsaimod
+from server import config as cfg
 from server import llm as llmmod
 from server import telegram_bot as tgmod
 from server import updates as updmod
 from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
-                         auth_ok, claude_bin, claude_env, load_persona)
+                         auth_ok, claude_bin, claude_env, load_persona, remember_server)
 from server.scheduler import scheduler_loop
-from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, tickets, ui
+from server.team import engine
+from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, team, tickets, ui
 
 
 @asynccontextmanager
@@ -44,7 +46,10 @@ async def lifespan(_app: FastAPI):
         updmod.boot_check()
     except Exception as e:
         print(f"[updates] Start-Prüfung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+    if cfg.load_settings()["team"]["aktiv"]:
+        engine.starten()      # offene Aufträge nach einem Neustart wieder aufnehmen
     yield
+    engine.stoppen()
     bonsaimod.stop()   # sonst hielte der Server die GPU, obwohl CONSTRUCT weg ist
     tgmod.stop()
 
@@ -58,6 +63,7 @@ async def basic_auth(request: Request, call_next):
     WebSockets laufen an Middleware vorbei und prüfen selbst (auth_ok)."""
     if not auth_ok(request.headers.get("Authorization", "")):
         return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
+    remember_server(request.scope)
     return await call_next(request)
 
 
@@ -70,7 +76,7 @@ app.mount("/assets", StaticFiles(directory=str(APP_DIR / "assets"), check_dir=Fa
 
 # Router in fester Reihenfolge. ui zuletzt: seine Direktlinks je Ansicht
 # (/{view}) würden sonst die /api-Routen verschlucken.
-for r in (auth, files, providers, system, calendar, mail, sessions, chat, tickets, ui):
+for r in (auth, files, providers, system, calendar, mail, sessions, chat, tickets, team, ui):
     app.include_router(r.router)
 
 

@@ -80,12 +80,19 @@ DEFAULT_SETTINGS = {
     # jeder Nachricht. Aus = nur die Vorgabe des Servers und deine eigenen
     # Eingriffe (kostet keine Tokens). Ein/Aus der Kachel selbst: tiles.tickets.
     "tickets": {"assistent": True},
+    # Team-Modus (server/team/): eine Firma aus KI-Mitarbeitern neben dem
+    # einzelnen Assistenten. aktiv = es gibt Belegschaft und Aufträge; modus =
+    # wer entscheidet, ob eine Aufgabe an die Firma geht: "zuruf" nur auf
+    # Wunsch (/firma, Knopf am Ticket), "auto" darf der Assistent selbst
+    # vorschlagen, wenn eine Aufgabe groß ist.
+    "team": {"aktiv": False, "modus": "zuruf"},
     # Klänge im Construct-Raum (frontend/src/lib/klang.ts), alles im Browser
     # erzeugt: Effekte = Tippen, Öffnen/Schließen, Uhr; Musik = leise Coding-
     # Musik im Hintergrund. lautstaerke in Prozent, gilt für beides.
     "sound": {"effekte": True, "musik": True, "lautstaerke": 40},
 }
 
+TEAM_MODI = ("zuruf", "auto")
 IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano-banana-pro")
 
 # Ist das gewählte Claude-Modell überlastet oder nicht erreichbar, springt die
@@ -206,13 +213,18 @@ def load_settings() -> dict:
 
 
 def _clean_extras(src: dict, cur: dict):
-    """Bildmodell, Schattenbetrieb, Tickets und Klang (für Laden und Patch)."""
+    """Bildmodell, Schattenbetrieb, Tickets, Team und Klang (für Laden und Patch)."""
     im = src.get("images") or {}
     if im.get("model") in IMAGE_MODELS:
         cur["images"]["model"] = im["model"]
     au = src.get("auto") or {}
     if "schatten" in au:
         cur["auto"]["schatten"] = bool(au["schatten"])
+    te = src.get("team") or {}
+    if "aktiv" in te:
+        cur["team"]["aktiv"] = bool(te["aktiv"])
+    if te.get("modus") in TEAM_MODI:
+        cur["team"]["modus"] = te["modus"]
     ti = src.get("tickets") or {}
     if "assistent" in ti:
         cur["tickets"]["assistent"] = bool(ti["assistent"])
