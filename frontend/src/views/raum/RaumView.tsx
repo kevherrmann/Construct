@@ -35,6 +35,7 @@ import geraeteBild from './assets/werkbank-geraete.webp'
 import unscharfBild from './assets/raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
 import kastenBild from './assets/kasten.webp'
+import postkorbBild from './assets/postkorb.webp'
 import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
@@ -57,6 +58,7 @@ import {
   STATIONEN,
   FORM,
   KASTEN,
+  POSTKORB,
   WERKBANK,
   type Ansicht,
   type Auftritt,
@@ -314,7 +316,7 @@ function useGroesse(ref: React.RefObject<HTMLElement | null>) {
 
 // Wo man die Figur anklicken kann (Prozent): am Podest bzw. an der Werkbank.
 const FIGUR_PODEST: Rechteck = { l: FIGUR.x - 4, t: FIGUR.y - FIGUR.h + 3, w: 8, h: FIGUR.h - 3 }
-const FIGUR_WERKBANK: Rechteck = { l: 62.5, t: 28.5, w: 8.5, h: 46 }
+const FIGUR_WERKBANK: Rechteck = { l: 66.8, t: 26.6, w: 9.2, h: 51 }
 
 // Picker der Eingabe (/model, /mode …) → passende Station im Raum.
 const PICKER_ANSICHT: Record<PickerName, Ansicht> = {
@@ -643,6 +645,13 @@ export function RaumView() {
                 className={`${s.ebene} ${weichAusser('tafel') ? s.kastenWeich : ''}`}
                 style={platz(KASTEN)}
                 src={kastenBild}
+                alt=""
+                draggable={false}
+              />
+              <img
+                className={`${s.ebene} ${weichAusser('postfach') ? s.kastenWeich : ''}`}
+                style={platz(POSTKORB)}
+                src={postkorbBild}
                 alt=""
                 draggable={false}
               />

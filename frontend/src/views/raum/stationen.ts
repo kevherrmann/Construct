@@ -224,22 +224,24 @@ export const STATIONEN: Station[] = [
     hint: 'Verbundene Dienste',
     panel: 'mcp',
   },
+  // Postkorb am rechten Ende der Werkbank: liegt über ihr, darum danach.
   {
     id: 'postfach',
-    l: 10.2,
-    t: 67,
-    w: 12.8,
-    h: 26,
+    l: 87.8,
+    t: 57.4,
+    w: 5.2,
+    h: 7.4,
     label: 'E-Mails',
     hint: 'Posteingang',
     panel: 'mail',
   },
+  // Karteikasten auf seinem Schränkchen links neben der Werkbank.
   {
     id: 'tafel',
-    l: 23.462,
-    t: 54.688,
-    w: 8.74,
-    h: 21.701,
+    l: 59.497,
+    t: 41.319,
+    w: 6.982,
+    h: 17.361,
     label: 'Tickets',
     hint: 'Aufgaben nach Tag und Projekt',
     panel: 'tickets',
@@ -287,10 +289,9 @@ export const FORM: Record<StationId, Rechteck> = {
   uhr: BINAER_FLAECHE, // ohne Bild: siehe VIELECK
   kalender: { l: 91.113, t: 32.378, w: 8.008, h: 19.271 },
   steckfeld: { l: 93.408, t: 48.698, w: 6.592, h: 16.233 },
-  postfach: { l: 8.984, t: 64.844, w: 15.234, h: 30.295 },
+  postfach: { l: 88.054, t: 58.474, w: 4.361, h: 5.589 },
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
-  // Hologramm ohne Bildmaske (kein Gegenstand im Raumbild): nur die Fläche.
-  tafel: { l: 23.462, t: 54.688, w: 8.74, h: 21.701 },
+  tafel: { l: 59.497, t: 41.319, w: 6.982, h: 17.361 },
   firma: { l: 27, t: 9, w: 40, h: 26 },
 }
 
@@ -316,8 +317,15 @@ export const REGAL_SCHILD: readonly [Punkt, Punkt, Punkt, Punkt] = [
 export const PODEST_VIDEO: Rechteck = umFuss({ l: 31.982, t: 26.042, w: 27.344, h: 60.764 })
 export const WERKBANK: Rechteck = { l: 54.688, t: 23.09, w: 37.5, h: 72.222 }
 
-/** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne). */
-export const KASTEN: Rechteck = { l: 21.997, t: 52.083, w: 11.67, h: 26.91 }
+/** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne).
+ *  Steht links neben der Werkbank, etwas nach hinten versetzt: dort, wo man an
+ *  der Werkbank arbeitet, verdeckt man ihn nicht. Gebaut mit
+ *  construct-raum-art/team/kasten.py 1290 676 200. */
+export const KASTEN: Rechteck = { l: 58.032, t: 38.715, w: 9.912, h: 22.569 }
+
+/** Der Postkorb der E-Mails samt Schatten (Ebene) am rechten Ende der Werkbank.
+ *  Gebaut mit construct-raum-art/team/postkorb.py 1848 738 0.58. */
+export const POSTKORB: Rechteck = { l: 87.657, t: 57.769, w: 5.154, h: 6.998 }
 
 /** Der Bildschirm auf der Werkbank: Fläche, auf der der Terminal-Text liegt (oben links,
  *  oben rechts, unten rechts, unten links; Prozent). Die genaue Form gibt
@@ -363,9 +371,9 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   kalender: { z: 1.6, f: [94, 38], p: [84, 46], seite: 'links', breite: 60, ziel: [95.1, 42] },
   uhr: { z: 2.2, f: BINAER_MITTE, p: [80, 40], seite: 'links', breite: 50, ziel: BINAER_MITTE },
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
-  mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
+  mail: { z: 1.6, f: [90.2, 61.3], p: [82, 56], seite: 'links', breite: 62, ziel: [90.2, 61.3] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
-  tickets: { z: 1.5, f: [27.5, 66], p: [21, 52], seite: 'rechts', breite: 50, ziel: [27.5, 66] },
+  tickets: { z: 1.5, f: [63, 50], p: [76, 52], seite: 'links', breite: 54, ziel: [63, 50] },
   personal: { z: 1.6, f: [47, 24], p: [22, 50], seite: 'rechts', breite: 62, ziel: [47, 24] },
   auftraege: { z: 1.6, f: [47, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [47, 24] },
   einstellungen: {
