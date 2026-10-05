@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useBelegschaft } from '@/api/team'
+import { useUi } from '@/stores/ui'
 import { Avatar } from './Person'
 import { usePersonal } from './store'
 import s from './Personal.module.css'
@@ -8,7 +9,12 @@ import s from './Personal.module.css'
 export function PersonalSide() {
   const { t } = useTranslation()
   const { data, isPending } = useBelegschaft()
-  const { ansicht, slug, zeigeOrg, zeigeAkte, zeigeUser } = usePersonal()
+  const { ansicht, slug, zeigeOrg: org, zeigeAkte: akte, zeigeUser: user } = usePersonal()
+  // Schmal: wer etwas wählt, will es sehen — die Seitenleiste klappt zu.
+  const zu = useUi((st) => st.setSideOpen)
+  const zeigeOrg = () => (org(), zu(false))
+  const zeigeAkte = (sl: string) => (akte(sl), zu(false))
+  const zeigeUser = () => (user(), zu(false))
   return (
     <div>
       <button

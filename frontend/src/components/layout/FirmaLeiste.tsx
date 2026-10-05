@@ -76,23 +76,28 @@ export function FirmaLeiste() {
           <span className={s.rk}>{t('ANSEHEN')}</span>
         </button>
       )}
-      {fertig.slice(0, 2).map((x) => (
+      {fertig[0] && (
         <button
-          key={x.id}
           type="button"
           className={`${s.ruf} ${s.fertig}`}
           onClick={() => {
-            oeffne(x.id)
+            oeffne(fertig[0]!.id)
             navigate('/auftraege')
           }}
         >
           <span>✓</span>
           <span className={s.rt}>
-            <b>{x.titel.length > 44 ? `${x.titel.slice(0, 44)}…` : x.titel}</b> — {t('ist fertig')}
+            <b>
+              {fertig[0].titel.length > 44 ? `${fertig[0].titel.slice(0, 44)}…` : fertig[0].titel}
+            </b>{' '}
+            — {t('ist fertig')}
+            {fertig.length > 1 && (
+              <span className={s.leise}> ({t('und {n} weitere', { n: fertig.length - 1 })})</span>
+            )}
           </span>
           <span className={s.rk}>{t('ANSEHEN')}</span>
         </button>
-      ))}
+      )}
       {zeigenAktiv && (
         <div className={s.aktiv}>
           {aktiv.map((a) => (

@@ -1,12 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import { useAuftragActions, useAuftraege, ungelesen, type AuftragKurz } from '@/api/team'
+import { useUi } from '@/stores/ui'
 import { useAuftraegeAnsicht } from './store'
 import { ZUSTAND } from './zustand'
 import s from './Auftraege.module.css'
 
 function Zeile({ auftrag }: { auftrag: AuftragKurz }) {
   const { t } = useTranslation()
-  const { auswahl, oeffne, schliessen } = useAuftraegeAnsicht()
+  const { auswahl, oeffne: oeffneAuftrag, schliessen } = useAuftraegeAnsicht()
+  const zu = useUi((st) => st.setSideOpen)
+  const oeffne = (id: string) => (oeffneAuftrag(id), zu(false))
   const loeschen = useAuftragActions(auftrag.id).loeschen
   const z = ZUSTAND[auftrag.status]
   const n = auswahl === auftrag.id ? 0 : ungelesen(auftrag)
@@ -42,7 +45,9 @@ function Zeile({ auftrag }: { auftrag: AuftragKurz }) {
 export function AuftraegeSide() {
   const { t } = useTranslation()
   const { data, isPending } = useAuftraege()
-  const neu = useAuftraegeAnsicht((st) => st.neu)
+  const neuer = useAuftraegeAnsicht((st) => st.neu)
+  const zu = useUi((st) => st.setSideOpen)
+  const neu = () => (neuer(), zu(false))
   const auswahl = useAuftraegeAnsicht((st) => st.auswahl)
   return (
     <div>
