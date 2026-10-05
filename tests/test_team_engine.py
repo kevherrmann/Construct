@@ -38,6 +38,7 @@ def firma(tmp_path, monkeypatch):
     monkeypatch.setattr(ag, "FIRMA_DIR", tmp_path / "firma")
     monkeypatch.setattr(ag, "AGENTS_DIR", tmp_path / "firma" / "agents")
     monkeypatch.setattr(ag, "USER_FILE", tmp_path / "USER.md")
+    monkeypatch.setattr(ag, "ERGAENZUNGEN_FILE", tmp_path / "firma" / "USER-ergaenzungen.md")
     monkeypatch.setattr(anl, "DIR", tmp_path / "firma" / "anleitungen")
     monkeypatch.setattr(auf, "AUFTRAEGE_DIR", tmp_path / "firma" / "auftraege")
     auf._UEBERSICHT.clear()
@@ -218,19 +219,43 @@ def test_ticket_geht_an_die_firma_und_wird_mit_dem_auftrag_erledigt(firma, tmp_p
     t = tickmod.laden(sid)["tickets"][0]
     assert t["status"] == "erledigt"
     # die Ticket-Zeile zeigt dem Assistenten den Stand
-    assert "(Firma: fertig)" in tickmod.hinweis(sid)
+    zeile = tickmod.hinweis(sid)
+    assert f"(Firma {tid}: fertig)" in zeile
 
 
-def test_ticketbus_firma_werkzeuge(firma, tmp_path):
+def test_marker_firma_am_zugende_gibt_das_ticket_an_die_firma(firma, tmp_path, monkeypatch):
+    from server import runs
     from server import tickets as tickmod
-    from server.routes import tickets as rt
+    from server.team import engine
     sid = "abcd1234-0000-0000-0000-0000000000f2"
     tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
 
     class Lauf:
-        session_id, cwd = sid, str(tmp_path)
+        session_id, letzte_uuid, marke_ab = sid, "u1", 0
+        last_text = "Ich gebe das weiter.\n\n[[ticket firma]]"
+        events = []
 
-    antwort = rt._firma("firma_auftrag", {"titel": "Ding", "brief": "[klein] Bau das Ding"}, Lauf)
-    assert "bei der Firma" in antwort
-    assert "→" in rt._firma("firma_stand", {}, Lauf)
-    assert rt._firma("firma_auftrag", {"titel": "x", "brief": ""}, Lauf) == "leer"
+        def emit(self, ev):
+            self.events.append(ev)
+
+    angelegt = []
+    monkeypatch.setattr(engine, "starten", lambda: None)
+    monkeypatch.setattr(engine, "auftrag_aus_ticket", lambda s_, nr: angelegt.append((s_, nr)) or {})
+    lauf = Lauf()
+    runs._tickets_marken(lauf)
+    assert angelegt == [(sid, 1)] and lauf.marke_ab == len(lauf.last_text)
+    assert lauf.events == [{"type": "tickets"}]
+    runs._tickets_marken(lauf)                    # zweites Zugende ohne neuen Text: nichts doppelt
+    assert angelegt == [(sid, 1)]
+
+
+def test_ticket_darf_nach_abbruch_erneut_an_die_firma(firma, tmp_path):
+    from server import tickets as tickmod
+    sid = "abcd1234-0000-0000-0000-0000000000f3"
+    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
+    erst = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})["ticket"]["id"]
+    warte(firma, erst, ("fertig",))
+    tickmod.aendern(sid, 1, status="offen")
+    zweit = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})["ticket"]["id"]
+    assert zweit != erst                           # ein fertiger Auftrag blockiert nicht
+    warte(firma, zweit, ("fertig",))

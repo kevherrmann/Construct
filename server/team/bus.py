@@ -37,7 +37,14 @@ def _bus_fehler(text):
 
 
 async def bus_aufruf(body: dict) -> dict:
-    """Ein Werkzeugaufruf eines Mitarbeiters. Gibt {"text", "error"?} zurück."""
+    """Ein Werkzeugaufruf eines Mitarbeiters. Gibt {"text", "error"?} zurück. Der Text
+    geht an ein Modell und spricht den Nutzer mit seinem Namen an (ag.anrede)."""
+    antwort = await _bus_aufruf(body)
+    antwort["text"] = ag.anrede(str(antwort.get("text") or ""))
+    return antwort
+
+
+async def _bus_aufruf(body: dict) -> dict:
     token = str(body.get("token") or "")
     if token not in engine.BUS_TOKENS:
         return _bus_fehler("Dieser Zug ist beendet. Der Bus nimmt nichts mehr an.")
@@ -55,7 +62,7 @@ async def bus_aufruf(body: dict) -> dict:
         return _bus_fehler(f"„{werkzeug}\u201c geht nur in einem Auftrag. "
                            f"Hier redest du direkt mit Kevin.")
 
-    run = next((r for r in RUNS.values() if getattr(r, "bus_token", "") == token), None)
+    run = next((r for r in list(RUNS.values()) if getattr(r, "bus_token", "") == token), None)
 
     def zaehl():
         if run is not None:
@@ -320,7 +327,10 @@ async def bus_aufruf(body: dict) -> dict:
                                    "text": text[:20000], "dateien": dateien})
             engine.feed(tid).emit({"type": "msg", **e})
             engine.feed(tid).emit({"type": "fertig"})
-            engine.bruecke_abschluss(t)
+            try:
+                engine.bruecke_abschluss(t)
+            except Exception as e:           # das Ticket ist Beigabe: der Auftrag bleibt fertig
+                print(f"[bus] Ticket nicht abgeschlossen: {type(e).__name__}: {e}", flush=True)
             titel = t["titel"]
             engine.tg_send(f"\u2705 Auftrag \u201e{titel}\u201c ist fertig\n\n{text[:600]}")
             zaehl()
@@ -360,7 +370,7 @@ async def bus_aufruf(body: dict) -> dict:
         t = await engine.auftrag_aendern(tid, _einstellung) or t
         engine.feed(tid).emit({"type": "einstellung", **t["einstellung"]})
         rolle = t["einstellung"]["rolle"]
-        engine.tg_send(f"\U0001f465 Auftrag \u201e{t['titel']}\u201c: Lumina moechte "
+        engine.tg_send(f"\U0001f465 Auftrag \u201e{t['titel']}\u201c: {a['name']} moechte "
                 f"jemanden fuer \u201e{rolle}\u201c einstellen.")
         return {"text": "Anfrage gestellt. Kevin waehlt aus. Beende deinen Zug."}
 

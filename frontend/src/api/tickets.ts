@@ -75,10 +75,11 @@ export const useSessionTickets = (sid: string | null | undefined) => {
   })
 }
 
-export const useTicketUebersicht = () =>
+export const useTicketUebersicht = (aktiv = true) =>
   useQuery({
     queryKey: ['tickets', 'uebersicht'],
     queryFn: () => apiGet<Uebersicht>('/api/tickets'),
+    enabled: aktiv,
     refetchOnMount: 'always',
     // Der Assistent und die Nachrichten ändern laufend etwas.
     refetchInterval: 10_000,
@@ -93,8 +94,9 @@ export function useTicketActions(sid: string) {
     qc.setQueryData(['tickets', 'session', sid], d)
     void qc.invalidateQueries({ queryKey: ['tickets'] })
   }
+  // Ein Fehlschlag soll nicht stumm bleiben: dann sähe es aus, als hätte der Klick nichts getan.
   const useAktion = <V>(fn: (v: V) => Promise<SessionTickets>) =>
-    useMutation({ mutationFn: fn, onSuccess: fertig })
+    useMutation({ mutationFn: fn, onSuccess: fertig, onError: (e) => alert(e.message) })
   return {
     schnitt: useAktion((v: { titel: string; cwd?: string }) =>
       apiPost<SessionTickets>(url(sid, '/schnitt'), v),

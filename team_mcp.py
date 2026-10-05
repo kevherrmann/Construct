@@ -19,7 +19,6 @@ Agent kann sich damit nicht als jemand anderes ausgeben:
     FIRMA_AUFTRAG  Auftrag, in dem er gerade arbeitet (leer im Direktgespraech)
     FIRMA_TOKEN    Einmal-Token dieses Laufs
     FIRMA_BASE     http://127.0.0.1:<port>
-    FIRMA_AUTH     fertiger Authorization-Header, falls der Server ein Passwort hat
 """
 import json
 import os
@@ -31,7 +30,6 @@ AGENT = os.environ.get("FIRMA_AGENT", "")
 TICKET = os.environ.get("FIRMA_AUFTRAG", "")
 TOKEN = os.environ.get("FIRMA_TOKEN", "")
 BASE = os.environ.get("FIRMA_BASE", "http://127.0.0.1:8765")
-AUTH = os.environ.get("FIRMA_AUTH", "")
 NUTZER = os.environ.get("FIRMA_NUTZER", "Kevin")
 
 # Die Werkzeuge des Busses. Bewusst KEIN Rundruf: ein Broadcast ist der
@@ -184,10 +182,8 @@ def an_server(werkzeug: str, args: dict) -> tuple:
     """Aufruf an den Server weiterreichen. Gibt (text, fehler) zurueck."""
     daten = json.dumps({"tool": werkzeug, "args": args, "agent": AGENT,
                         "ticket": TICKET, "token": TOKEN}).encode()
-    kopf = {"Content-Type": "application/json"}
-    if AUTH:
-        kopf["Authorization"] = AUTH
-    req = urllib.request.Request(f"{BASE}/api/team/bus", data=daten, headers=kopf)
+    req = urllib.request.Request(f"{BASE}/api/team/bus", data=daten,
+                                 headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_LANG.get(werkzeug, TIMEOUT)) as r:
             j = json.loads(r.read().decode("utf-8", "replace"))

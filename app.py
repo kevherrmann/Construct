@@ -61,7 +61,10 @@ app = FastAPI(title="CONSTRUCT", lifespan=lifespan)
 async def basic_auth(request: Request, call_next):
     """HTTP-Basic-Auth vor ALLEM — aber nur wenn ein Passwort konfiguriert ist.
     WebSockets laufen an Middleware vorbei und prüfen selbst (auth_ok)."""
-    if not auth_ok(request.headers.get("Authorization", "")):
+    # Der Firmen-Bus ist der Rückweg der Mitarbeiter-Prozesse an den Server. Er weist
+    # sich mit einem Einmal-Token je Zug aus (server/team/bus.py) und hat kein
+    # Passwort: das stünde sonst in der Prozessliste jedes Rechners, auf dem er läuft.
+    if request.url.path != "/api/team/bus" and not auth_ok(request.headers.get("Authorization", "")):
         return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
     remember_server(request.scope)
     return await call_next(request)

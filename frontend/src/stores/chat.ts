@@ -515,11 +515,22 @@ export const useChat = create<ChatStore>((set, get) => {
 
     async openAgent(slug) {
       const hier = Object.values(get().convs).find((c) => c.agent?.slug === slug)
+      // Immer frisch holen: das Gespräch kann inzwischen geleert, verdichtet oder die
+      // Akte geändert worden sein — die offene Unterhaltung kennt nur den alten Stand.
+      const j = await apiGet<AgentGespraech>(`/api/team/agent/${encodeURIComponent(slug)}/chat`)
       if (hier) {
         get().activate(hier.key)
+        if (!hier.busy)
+          patch(hier.key, {
+            agent: j.agent,
+            sessionId: j.session_id || null,
+            fileOffset: null,
+            history: j.messages.length
+              ? transcriptItems(j.messages)
+              : [note(tk('⌁ Neues Gespräch ⌁'), true)],
+          })
         return
       }
-      const j = await apiGet<AgentGespraech>(`/api/team/agent/${encodeURIComponent(slug)}/chat`)
       const c = makeConv({
         key: `agent:${slug}`,
         sessionId: j.session_id || null,

@@ -178,7 +178,12 @@ def settings_get():
 
 @router.post("/api/settings")
 async def settings_set(req: Request):
-    return cfg.apply_patch(await req.json())
+    vorher = cfg.load_settings()["team"]["aktiv"]
+    neu = cfg.apply_patch(await req.json())
+    if vorher and not neu["team"]["aktiv"]:
+        from server.team import engine
+        engine.abschalten()
+    return neu
 
 
 # ---------- Vorlesen (Gemini TTS) ----------

@@ -13,10 +13,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from server import config as cfg
-from server import tickets as tickmod
 from server.core import PROJECTS_DIR, WORKSPACE, claude_bin, claude_env, sse
 from server.runs import RUNS, SSE_HEADERS, build_prompt, stdin_message
-from server.sessions import SID_RE, _parse_transcript_lines, nachrichtentexte
+from server.sessions import SID_RE, _parse_transcript_lines
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import bus, engine, hiring
@@ -190,20 +189,14 @@ async def auftrag_neu(req: Request):
 async def auftrag_aus_ticket(req: Request):
     """Der Knopf am Ticket: aus den Nachrichten eines Tickets wird ein Auftrag."""
     body = await req.json()
-    sid, nr = str(body.get("session") or ""), body.get("nr")
     try:
-        d = tickmod.laden(sid)
-        tk = next(x for x in d["tickets"] if x["nr"] == int(nr))
-    except (ValueError, StopIteration, TypeError):
-        return JSONResponse({"error": "Dieses Ticket gibt es nicht."}, status_code=404)
-    if tk.get("auftrag") and auf.laden(tk["auftrag"]):
-        return JSONResponse({"error": "Dieses Ticket ist schon bei der Firma.",
-                             "auftrag": tk["auftrag"]}, status_code=409)
-    brief = tickmod.briefing(tk, nachrichtentexte(sid, {m["id"] for m in tk["nachrichten"]}))
-    try:
-        t = engine.auftrag_anlegen(tk["titel"], brief, d["cwd"], bruecke={"session": sid, "nr": tk["nr"]})
+        t = engine.auftrag_aus_ticket(str(body.get("session") or ""), int(body.get("nr") or 0))
+    except engine.AuftragVorhanden as e:
+        return JSONResponse({"error": str(e), "auftrag": e.auftrag_id}, status_code=409)
     except engine.AuftragFehler as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    except ValueError:
+        return JSONResponse({"error": "ungültige Angabe"}, status_code=400)
     return {"ok": True, "ticket": t}
 
 
@@ -305,11 +298,11 @@ async def auftrag_say(tid: str, req: Request):
     run = RUNS.get(lauf.get("run_id") or "")
     if run and not run.done and not run.stdin_closed and run.proc:
         try:
-            run.proc.stdin.write(stdin_message(
+            run.proc.stdin.write(stdin_message(ag.anrede(
                 "[Kevin wirft ein, waehrend du arbeitest. Das ist eine ERGAENZUNG zu "
                 "deiner laufenden Aufgabe, kein neuer Auftrag: arbeite sie in DIESEN "
                 "Zug ein und liefere danach EINMAL. Gib sie nicht zusaetzlich noch "
-                "einmal weiter.]\n\n" + text))
+                "einmal weiter.]") + "\n\n" + text))
             await run.proc.stdin.drain()
             e = auf.anhaengen(tid, {"von": "kevin", "an": run.agent_slug,
                                    "art": "einwurf", "text": text})
@@ -489,18 +482,23 @@ async def team_pause(req: Request):
 
 @router.get("/api/team/user-md")
 def user_md_get():
-    """Die gemeinsame USER.md — was die Firma ueber den Nutzer weiss."""
-    return {"text": ag.user_read(), "protocol": ag.protocol_read()}
+    """Was die Firma über den Nutzer weiss: seine USER.md und, getrennt, was die
+    Mitarbeiter ergänzt haben."""
+    return {"text": ag._read_capped(ag.USER_FILE, ag.MAX_USER) if ag.USER_FILE.exists() else ag.user_read(),
+            "ergaenzungen": ag.ergaenzungen_read(), "protocol": ag.protocol_read()}
 
 
 @router.post("/api/team/user-md")
 async def user_md_set(req: Request):
     """Vollstaendiges Ueberschreiben — das darf NUR der Nutzer, nicht ein Agent.
-    Die Mitarbeiter haengen ueber user_merken an (ab M3), sie ersetzen nie."""
+    Die Mitarbeiter haengen ueber user_merken an die Ergaenzungen an, sie ersetzen nie."""
     body = await req.json()
     async with bus.USER_LOCK:
-        ag._atomic(ag.USER_FILE, str(body.get("text") or "")[:ag.MAX_USER])
-    return {"ok": True, "text": ag.user_read()}
+        if "text" in body:
+            ag._atomic(ag.USER_FILE, str(body.get("text") or "")[:ag.MAX_USER])
+        if "ergaenzungen" in body:
+            ag._atomic(ag.ERGAENZUNGEN_FILE, str(body.get("ergaenzungen") or "")[:ag.MAX_USER])
+    return {"ok": True}
 
 
 @router.post("/api/team/bus")

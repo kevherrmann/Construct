@@ -57,7 +57,7 @@ function Karte({ k, leute }: { k: Knoten; leute: Record<string, Person> }) {
   )
 }
 
-function Stand({ d }: { d: AuftragDetail }) {
+function Stand({ d, ende }: { d: AuftragDetail; ende: number }) {
   const { t } = useTranslation()
   const v = d.ticket.verbraucht
   // Die Laufzeit tickt, ohne dass sich sonst etwas ändert — Zeit gehört in einen
@@ -67,7 +67,10 @@ function Stand({ d }: { d: AuftragDetail }) {
     const i = setInterval(() => setJetzt(Date.now()), 30_000)
     return () => clearInterval(i)
   }, [])
-  const min = Math.max(0, Math.round((jetzt / 1000 - (v.start || 0)) / 60))
+  // Ein fertiger oder abgebrochener Auftrag zählt nicht weiter: seine Laufzeit reicht bis zur
+  // letzten Nachricht.
+  const aus = d.ticket.status === 'fertig' || d.ticket.status === 'abgebrochen'
+  const min = Math.max(0, Math.round(((aus && ende ? ende : jetzt / 1000) - (v.start || 0)) / 60))
   const je = Object.entries(v.je_agent ?? {})
     .sort((a, b) => b[1] - a[1])
     .map(([sl, c]) => `${d.agents[sl]?.name ?? sl} ${c.toFixed(2)} $`)
@@ -151,7 +154,7 @@ export function AuftragAnsicht({ id }: { id: string }) {
     void qc.invalidateQueries({ queryKey: ['team', 'auftraege'] })
   }, [id, anzahl, d, qc])
 
-  if (isError)
+  if (isError && !d)
     return (
       <div className={s.wrap}>
         <div className={s.fehler}>{t('Auftrag gerade nicht ladbar — nochmal draufklicken.')}</div>
@@ -231,7 +234,7 @@ export function AuftragAnsicht({ id }: { id: string }) {
         🎫 {tk.titel}
         <span className={`${s.chip} ${z.art ? s[z.art] : ''}`}>{z.zeichen}</span>
       </h2>
-      <Stand d={d} />
+      <Stand d={d} ende={verlauf[verlauf.length - 1]?.ts ?? 0} />
       {buehne}
       <Einstellung auftrag={tk} />
       <Eskalation auftrag={tk} leute={leute} />

@@ -254,6 +254,12 @@
 .schere.offen {
   opacity: 0.85;
 }
+/* Ohne Maus gibt es kein Überfahren: auf Touch-Geräten steht der Knopf immer da. */
+@media (hover: none) {
+  .schere {
+    opacity: 0.7;
+  }
+}
 .schere:hover {
   color: var(--green);
   opacity: 1;

@@ -11,7 +11,7 @@ from server import hermes as hermesmod
 from server import llm as llmmod
 from server import tickets as tickmod
 
-from server.core import ALLOWED_MODES, DEFAULT_CWD, bus_base, sse
+from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
 from server.runs import EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
@@ -81,16 +81,17 @@ async def chat(req: Request):
 
     vorgabe = body.get("ticket") if isinstance(body.get("ticket"), dict) else None
     # Hinweis auf die Tickets hinten an der Nachricht (nicht im Systemprompt, siehe
-    # tickets.hinweis), und die Adresse, unter der die Werkzeuge den Server erreichen.
-    base, mit_hinweis = "", False
+    # tickets.hinweis). Er ist Beigabe: scheitert er (kaputte Ticket-Datei), geht die
+    # Nachricht trotzdem ab.
     conf = cfg.load_settings()
-    if conf["tiles"]["tickets"] and conf["tickets"]["assistent"]:
-        base, mit_hinweis = bus_base(), True
-        if resume_at is None:
+    if conf["tiles"]["tickets"] and conf["tickets"]["assistent"] and resume_at is None:
+        try:
             titel = str((vorgabe or {}).get("titel") or "")[:80]
             prompt = f"{prompt}\n\n{tickmod.hinweis(session_id, titel)}"
+        except Exception as e:
+            print(f"[tickets] Hinweis fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort,
-                    tickets=True, ticket_vorgabe=vorgabe, bus_base=base if mit_hinweis else "")
+                    tickets=True, ticket_vorgabe=vorgabe)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
         auto_modell.starte(run, text, model)

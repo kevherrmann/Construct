@@ -35,6 +35,12 @@ from server import config as cfg
 from server.team.pfade import FIRMA_DIR, USER_FILE
 
 AGENTS_DIR = FIRMA_DIR / "agents"
+# Was Mitarbeiter über den Nutzer lernen (`user_merken`), landet NICHT in USER.md: die
+# steht im Persona-Prompt des Assistenten in jedem Chat, bei Telegram und im
+# Scheduler. Ein Mitarbeiter mit Web-Zugriff, den eine Webseite zu einem Eintrag
+# überredet, würde sonst dort dauerhaft Anweisungen hinterlassen. Die Firma liest
+# beides; was der Nutzer für richtig hält, übernimmt er selbst in USER.md.
+ERGAENZUNGEN_FILE = FIRMA_DIR / "USER-ergaenzungen.md"
 VORLAGEN_DIR = Path(__file__).parent / "vorlagen"
 DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 # USER_FILE: dieselbe USER.md wie die des Assistenten im Chat (eine Person, eine
@@ -70,7 +76,7 @@ MAX_SOUL = 32_000
 MAX_MEMORY = 8_000        # gedeckelt: das Ding hängt an JEDEM Systemprompt
 MAX_HISTORIE = 25         # so viele Aufträge bleiben in der Akte
 MAX_USER = 32_000
-MAX_VORLAGE = 8_000
+MAX_VORLAGE = 16_000      # PROTOCOL.md ist knapp 9 000 Zeichen; mit 8 000 fehlte sein Ende in jedem Prompt
 
 # Vorerst laeuft alles ueber Claude. Das Feld bleibt, damit spaeter eine zweite
 # Maschine dazukann, ohne das Format zu brechen.
@@ -575,15 +581,26 @@ macht der Nutzer selbst. Jede Zeile trägt, von wem sie stammt.
 
 
 def user_read() -> str:
+    """Was die Firma über den Nutzer weiß: seine USER.md, dahinter die Ergänzungen der
+    Mitarbeiter (mit Herkunft)."""
     if not USER_FILE.exists():
         _atomic(USER_FILE, _USER_HEADER)
-    return _read_capped(USER_FILE, MAX_USER)
+    haupt = _read_capped(USER_FILE, MAX_USER)
+    zusatz = _read_capped(ERGAENZUNGEN_FILE, MAX_USER) if ERGAENZUNGEN_FILE.exists() else ""
+    if zusatz.strip():
+        haupt = haupt.rstrip("\n") + "\n\n## Von Mitarbeitern ergänzt\n\n" + zusatz.strip() + "\n"
+    return haupt
+
+
+def ergaenzungen_read() -> str:
+    return _read_capped(ERGAENZUNGEN_FILE, MAX_USER) if ERGAENZUNGEN_FILE.exists() else ""
 
 
 def user_append(fact: str, by: str) -> tuple:
-    """Eine Zeile anhaengen. Gibt (ok, Meldung) zurueck.
+    """Eine Zeile anhaengen — an die Ergänzungen, nicht an USER.md. Gibt (ok, Meldung)
+    zurueck.
 
-    Der Aufrufer muss die Sperre halten (siehe app.py) — hier steht nur die
+    Der Aufrufer muss die Sperre halten (siehe bus.py) — hier steht nur die
     Datei-Arbeit, damit die Funktion auch ohne laufende Ereignisschleife
     testbar bleibt.
     """
@@ -593,18 +610,13 @@ def user_append(fact: str, by: str) -> tuple:
     cur = user_read()
     if fact.lower() in cur.lower():
         return False, "steht schon drin"
+    zusatz = ergaenzungen_read()
     if len(cur) + len(fact) + 60 > MAX_USER:
-        return False, ("USER.md ist voll (%d Zeichen). Der Nutzer muss aufräumen — "
+        return False, ("Die Datei über den Nutzer ist voll (%d Zeichen). Der Nutzer muss aufräumen — "
                        "ich kürze nicht selbst." % len(cur))
     line = f"- {fact}  <!-- {by}, {date.today().isoformat()} -->\n"
-    _atomic(USER_FILE, cur.rstrip("\n") + "\n" + line)
+    _atomic(ERGAENZUNGEN_FILE, zusatz.rstrip("\n") + ("\n" if zusatz.strip() else "") + line)
     return True, "gemerkt"
-
-
-def user_snapshot() -> str:
-    """Schattenkopie fuer die Missbrauchspruefung: wer die Datei mit Write
-    umgeht statt user_merken zu benutzen, faellt damit auf."""
-    return hashlib.sha1(user_read().encode("utf-8")).hexdigest()
 
 
 def style_read() -> str:

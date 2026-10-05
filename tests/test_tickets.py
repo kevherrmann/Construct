@@ -106,15 +106,15 @@ def test_zuordnen_unbekanntes_ticket_aendert_nichts():
     assert ids(tk.laden(SID), 1) == ["u1"]
 
 
-def test_leeres_server_ticket_verschwindet_wenn_die_nachricht_umzieht():
+def test_leeres_assistenten_ticket_verschwindet_wenn_die_nachricht_umzieht():
     tk.nachricht(SID, "u1", "A")
-    tk.werkzeug_neu(SID, "u1", "Eigenes A")      # Kevin-lose Benennung, Ticket 1
+    tk.werkzeug_neu(SID, "u1", "Eigenes A")
     tk.nachricht(SID, "u2", "B")
-    tk.werkzeug_neu(SID, "u2", "B")               # Ticket 2
+    tk.werkzeug_neu(SID, "u2", "B")
     tk.werkzeug_zuordnen(SID, "u2", 1)
     d = tk.laden(SID)
     assert ids(d, 1) == ["u1", "u2"]
-    assert [t["nr"] for t in d["tickets"]] == [1, 2]   # vom Assistenten angelegt: bleibt
+    assert [t["nr"] for t in d["tickets"]] == [1]      # das leere #2 hat niemand gewollt
 
 
 def test_schnitt_mit_vorgabe_fuer_neue_session():
@@ -212,11 +212,13 @@ out({"type": "user", "uuid": "u-tool", "message": {"role": "user", "content": [
      {"type": "tool_result", "tool_use_id": "t", "content": "ok"}]}})
 out({"type": "user", "uuid": "u-bg", "message": {"role": "user", "content": [
      {"type": "text", "text": "<task-notification>fertig</task-notification>"}]}})
+out({"type": "stream_event", "event": {"type": "content_block_delta",
+     "delta": {"type": "text_delta", "text": "Fertig.\n\n[[ticket neu: Gelungen]]"}}})
 out({"type": "result", "subtype": "success", "session_id": "abcd1234-0000-0000-0000-0000000000aa", "usage": {}})
 '''
 
 
-def _lauf(tmp_path, monkeypatch, **kw):
+def _lauf(tmp_path, monkeypatch, marker=False, **kw):
     import asyncio
     import sys
 
@@ -266,6 +268,7 @@ def test_api_roundtrip(client):
     assert client.get("/api/tickets").json()["tage"]
     assert client.get("/api/tickets/..%2Fx").status_code in (400, 404)
     assert client.delete(f"/api/tickets/{sid}/2").status_code == 200
+    assert client.post("/api/ticketbus", json={}).status_code in (404, 405)
 
 
 def test_neues_ticket_schliesst_das_vorige():
@@ -290,14 +293,6 @@ def test_schnitt_schliesst_das_vorige_aber_nicht_ein_leeres():
     d = tk.laden(SID)
     assert [t["titel"] for t in d["tickets"]] == ["A", "C"]
     assert d["tickets"][0]["status"] == "erledigt"
-
-
-def test_bus_nur_zwei_werkzeuge():
-    tk.nachricht(SID, "u1", "A")
-    assert tk.bus("ticket_neu", {"titel": "Neu"}, SID, "u1") == "#1"
-    assert tk.bus("ticket_erledigt", {}, SID, "u1").startswith("Unbekannt")
-    assert "gibt es in dieser Session nicht" in tk.bus("ticket_zuordnen", {"nr": 9}, SID, "u1")
-    assert tk.bus("ticket_neu", {"titel": "x"}, SID, "")        # ohne Nachricht: Hinweistext, kein Absturz
 
 
 def test_hinweiszeile():
@@ -328,3 +323,122 @@ def test_ticketzeile_bleibt_aus_titel_und_anzeige(tmp_path, monkeypatch):
     assert liste[0]["title"] == "Mach das Ding"
     anzeige = sessions._parse_transcript_lines((proj / f"{sid}.jsonl").read_bytes())
     assert anzeige == [{"role": "user", "text": "Mach das Ding", "uuid": "u1"}]
+
+
+# ---------- Marker statt Werkzeuge ----------
+def test_marker_nur_ganz_unten():
+    text, m = tk.marken_am_ende("Erledigt.\n\n[[ticket neu: Kachel bauen]]\n[[ticket zu: 2]]\n")
+    assert text == "Erledigt." and m == [("neu", "Kachel bauen"), ("zu", "2")]
+    # mitten im Text, als Beispiel oder Zitat: wirkungslos
+    text, m = tk.marken_am_ende("Schreib `[[ticket neu: X]]`, wenn …\n[[ticket neu: Y]] steht mitten drin.\nEnde.")
+    assert m == [] and text.endswith("Ende.")
+    # englisch und Firma
+    assert tk.marken_am_ende("ok\n[[ticket new: Title]]")[1] == [("neu", "Title")]
+    assert tk.marken_am_ende("ok\n[[ticket to: 3]]")[1] == [("zu", "3")]
+    assert tk.marken_am_ende("ok\n[[ticket company]]")[1] == [("firma", "")]
+    assert tk.marken_am_ende("ok\n[[ticket firma]]")[1] == [("firma", "")]
+
+
+def test_marker_anwenden():
+    tk.nachricht(SID, "u1", "A")
+    tk.nachricht(SID, "u2", "ganz was anderes")
+    rest = tk.marken_anwenden(SID, "u2", [("neu", "Anderes"), ("firma", "")])
+    d = tk.laden(SID)
+    assert rest == ["firma"] and ids(d, 1) == ["u1"] and ids(d, 2) == ["u2"]
+    # Kevins Wahl und unbekannte Tickets: nichts passiert, kein Absturz
+    tk.schnitt(SID, "Mein Schnitt")
+    tk.nachricht(SID, "u3", "x")
+    assert tk.marken_anwenden(SID, "u3", [("neu", "Nein"), ("zu", "9")]) == []
+    assert ids(tk.laden(SID), 3) == ["u3"]
+
+
+def test_zweimal_neu_laesst_kein_leeres_ticket_zurueck():
+    tk.nachricht(SID, "u1", "A")
+    tk.nachricht(SID, "u2", "B")
+    tk.werkzeug_neu(SID, "u2", "Zwei")
+    tk.werkzeug_neu(SID, "u2", "Zweitens")            # Wiederholung zur selben Nachricht
+    d = tk.laden(SID)
+    assert [(t["nr"], t["titel"], len(t["nachrichten"])) for t in d["tickets"]] == [(1, "A", 1), (3, "Zweitens", 1)]
+    # und nach neu + zuordnen
+    tk.nachricht(SID, "u3", "C")
+    tk.werkzeug_neu(SID, "u3", "Drei")
+    tk.werkzeug_zuordnen(SID, "u3", 1)
+    assert all(t["nachrichten"] for t in tk.laden(SID)["tickets"])
+
+
+def test_nummern_werden_nie_wiederverwendet():
+    tk.nachricht(SID, "u1", "A")
+    tk.schnitt(SID, "B")
+    tk.nachricht(SID, "u2", "b")
+    tk.loeschen(SID, 2)
+    tk.schnitt(SID, "C")
+    assert [t["nr"] for t in tk.laden(SID)["tickets"]] == [1, 3]      # nicht wieder die 2
+
+
+def test_wiederoeffnen_wird_zurueckgenommen_wenn_die_nachricht_umzieht():
+    tk.nachricht(SID, "u1", "A")
+    tk.aendern(SID, 1, status="erledigt")
+    tk.nachricht(SID, "u2", "etwas ganz Neues")           # landet im erledigten #1: öffnet es
+    assert tk.laden(SID)["tickets"][0]["status"] == "offen"
+    tk.werkzeug_neu(SID, "u2", "Neues")                   # war keine Korrektur
+    d = tk.laden(SID)
+    assert d["tickets"][0]["status"] == "erledigt" and ids(d, 1) == ["u1"] and ids(d, 2) == ["u2"]
+
+
+def test_bearbeiten_setzt_dort_fort_wo_die_letzte_behaltene_nachricht_stand():
+    NEU = "abcd1234-0000-0000-0000-000000000009"
+    tk.nachricht(SID, "e1", "A")
+    tk.nachricht(SID, "e2", "Korrektur zu A")
+    tk.schnitt(SID, "B")
+    tk.nachricht(SID, "e3", "B1")
+    tk.abzweigen(SID, NEU, {"e1"})                                    # e2 wird bearbeitet
+    d = tk.laden(NEU)
+    assert d["aktuell"] == 1 and d["tickets"][0]["status"] == "offen" and len(d["tickets"]) == 1
+
+
+def test_kaputte_ticketdatei_wird_gesichert_statt_ueberschrieben():
+    tk.TICKETS_DIR.mkdir(parents=True, exist_ok=True)
+    p = tk.TICKETS_DIR / f"{SID}.json"
+    p.write_text('{"tickets": [{"nr": 1,}')                           # Komma zu viel
+    assert tk.laden(SID)["tickets"] == []
+    assert (tk.TICKETS_DIR / f"{SID}.json.kaputt").read_text().startswith('{"tickets"')
+    # eine Fremddatei im Ordner zerlegt die Übersicht nicht
+    (tk.TICKETS_DIR / "kopie von x.json").write_text("{}")
+    assert tk.uebersicht() == {"tage": []}
+
+
+def test_nachricht_ohne_text_vor_dem_anhang_und_kontextblock():
+    assert tk.kevins_text("[Vom Nutzer hochgeladenes Bild: /a/b.png]\n(Bitte sieh …)") == ""
+    block = "[Kontext: Dieses Gespräch lief bisher mit X.]\n\nNutzer: a\n\n[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]\n\nMein Text"
+    assert tk.kevins_text(block) == "Mein Text"
+    assert tk.titel_aus("[Vom Nutzer hochgeladenes Bild: /x.png]") == "Ohne Titel"
+
+
+def test_zusammenfuehren_nimmt_den_auftrag_mit():
+    tk.nachricht(SID, "u1", "A")
+    tk.schnitt(SID, "B")
+    tk.nachricht(SID, "u2", "b")
+    tk.verknuepfen(SID, 2, "abc12345")
+    d = tk.zusammenfuehren(SID, 2, 1)
+    assert d["tickets"][0]["auftrag"] == "abc12345"
+
+
+def test_entfernen_raeumt_die_ticketdatei_der_session_weg():
+    tk.nachricht(SID, "u1", "A")
+    assert tk.vorhanden(SID)
+    tk.entfernen(SID)
+    assert not tk.vorhanden(SID)
+
+
+def test_antwort_des_assistenten_wird_ohne_marker_angezeigt():
+    from server import sessions
+    data = json.dumps({"type": "assistant", "uuid": "a1",
+                       "message": {"content": [{"type": "text", "text": "Erledigt.\n\n[[ticket neu: Etwas]]"}]}}).encode()
+    assert sessions._parse_transcript_lines(data) == [{"role": "assistant", "text": "Erledigt.", "uuid": "a1"}]
+
+
+def test_lauf_wendet_marker_am_zugende_an(tmp_path, monkeypatch):
+    run = _lauf(tmp_path, monkeypatch, tickets=True, marker=True)
+    d = tk.laden("abcd1234-0000-0000-0000-0000000000aa")
+    assert [t["titel"] for t in d["tickets"]] == ["Mach die Tafel", "Gelungen"] or d["tickets"][-1]["titel"] == "Gelungen"
+    assert run.marke_ab == len(run.last_text)

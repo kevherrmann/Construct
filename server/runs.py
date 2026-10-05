@@ -5,8 +5,6 @@ import asyncio
 import json
 import os
 import re
-import secrets
-import sys
 import threading
 import time
 import uuid
@@ -16,7 +14,7 @@ from server import config as cfg
 from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
-from server.core import LIMIT_HIT, BASE_DIR, bus_auth_header, claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
+from server.core import LIMIT_HIT, claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
 from server.sessions import model_short, nutzer_uuids_bis
 
 
@@ -68,7 +66,7 @@ class Run:
         # (alte Session, Stelle) bei einer bearbeiteten Nachricht; `ticket_vorgabe`
         # Kevins Wahl (/ticket) für eine Session, die es noch nicht gab.
         self.tickets = tickets
-        self.token = secrets.token_hex(16)   # Einmal-Token der Ticket-Werkzeuge dieses Laufs
+        self.marke_ab = 0                # bis wohin last_text schon auf Ticket-Marker gelesen ist
         self.fork = fork
         self.ticket_vorgabe = None
         self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
@@ -352,6 +350,8 @@ async def run_claude(run, cmd):
                 # total_cost_usd ist die einzige echte Geldzahl im System — die
                 # Firma zeigt sie je Auftrag an, also mitnehmen statt wegwerfen.
                 run.cost_usd = ev.get("total_cost_usd") or 0.0
+                if run.tickets:
+                    _tickets_marken(run)
                 # `run.model` ist nur die AUSWAHL — bei "Standard" ist sie leer,
                 # und ein Alias wie "fable" sagt nicht, welches Fable lief.
                 # `modelUsage` im Ergebnis nennt die tatsaechlich benutzte ID
@@ -459,26 +459,6 @@ async def run_claude(run, cmd):
             maybe_notify(run)
 
 
-def bus_config(run, base: str, firma: bool = False) -> str:
-    """--mcp-config für die Ticket-Werkzeuge dieses Laufs (construct_mcp.py).
-
-    Als Zeichenkette statt Datei: das Token gilt nur für diesen Lauf und
-    gehört auf keine Platte. Ohne --strict-mcp-config — die MCP-Server aus den
-    Einstellungen des Nutzers bleiben, wir kommen dazu.
-    """
-    env = {"CONSTRUCT_RUN": run.id, "CONSTRUCT_TOKEN": run.token, "CONSTRUCT_BASE": base}
-    if bus_auth_header():
-        env["CONSTRUCT_AUTH"] = bus_auth_header()
-    if firma:
-        env["CONSTRUCT_FIRMA"] = "1"
-    return json.dumps({"mcpServers": {"construct": {
-        "command": sys.executable, "args": [str(BASE_DIR / "construct_mcp.py")], "env": env,
-        # Ohne das bleiben die Werkzeuge hinter ToolSearch versteckt, sobald der
-        # Nutzer viele MCP-Werkzeuge hat (gemessen 05.10.2026) — dann kostet jeder
-        # Gebrauch einen eigenen Zug.
-        "alwaysLoad": True}}})
-
-
 def _tickets_zuordnen(run, ev, content):
     """Kevins Nachricht ist angenommen (claude meldet sie dank
     --replay-user-messages samt uuid zurück): sie bekommt ein Ticket.
@@ -503,6 +483,33 @@ def _tickets_zuordnen(run, ev, content):
         run.emit({"type": "ticket", "uuid": uuid, "nr": r["nr"], "titel": r["titel"]})
     except Exception as e:
         print(f"[tickets] Zuordnung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+
+
+def _tickets_marken(run):
+    """Der Zug ist fertig: steht am Ende der Antwort eine Markerzeile
+    (`[[ticket neu: …]]`, `[[ticket zu: 2]]`, `[[ticket firma]]`), wird sie auf die
+    Nachricht angewendet, auf die geantwortet wurde. Fehler hier stören den Lauf nie."""
+    try:
+        neu = run.last_text[run.marke_ab:]
+        run.marke_ab = len(run.last_text)
+        if not run.session_id or not run.letzte_uuid or "[[ticket" not in neu:
+            return
+        _text, marken = tickmod.marken_am_ende(neu)
+        if not marken:
+            return
+        rest = tickmod.marken_anwenden(run.session_id, run.letzte_uuid, marken)
+        if "firma" in rest and cfg.load_settings()["team"]["aktiv"]:
+            from server.team import engine
+            engine.starten()               # zuerst: der Dispatcher nimmt Altes wieder auf, dann kommt Neues
+            d = tickmod.laden(run.session_id)
+            if d.get("aktuell"):
+                try:
+                    engine.auftrag_aus_ticket(run.session_id, d["aktuell"])
+                except engine.AuftragFehler as e:
+                    print(f"[tickets] Firma: {e}", flush=True)
+        run.emit({"type": "tickets"})      # die Oberfläche lädt Chip, Trenner und Aufträge neu
+    except Exception as e:
+        print(f"[tickets] Marker fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
 
 
 def _tickets_abzweigen(run):
@@ -543,13 +550,11 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
 def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
-              effort="", tickets=False, ticket_vorgabe=None, bus_base=""):
+              effort="", tickets=False, ticket_vorgabe=None):
     """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben.
 
     tickets: ob die Nachrichten dieses Laufs Tickets bekommen — nur im Chat,
-    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist. bus_base:
-    unter dieser Adresse erreichen die Ticket-Werkzeuge den Server (leer = der
-    Assistent bekommt keine Werkzeuge, die Zuordnung läuft trotzdem)."""
+    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist."""
     gc_runs()
     run_id = uuid.uuid4().hex
     conf = cfg.load_settings()
@@ -558,7 +563,7 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt,
               tickets=tickets, fork=fork)
     run.ticket_vorgabe = ticket_vorgabe
-    mit_werkzeugen = tickets and bool(bus_base) and conf["tickets"]["assistent"]
+    mit_assistent = tickets and conf["tickets"]["assistent"]
 
     cmd = [
         claude_bin() or "claude", "-p",
@@ -578,22 +583,10 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     if effort in EFFORTS:
         cmd += ["--effort", effort]
     persona = load_persona()
-    if mit_werkzeugen:
+    if mit_assistent:
         # Fester Text: ändert sich nie während einer Session und bleibt so im
         # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
         persona = (persona + "\n\n" + tickmod.regeln()).strip()
-        # --strict-mcp-config ist Pflicht, nicht Zierde: ohne es lädt `claude -p`
-        # mit einer --mcp-config ALLE MCP-Server des Nutzers mit (Gmail, Drive,
-        # Browser …) — gemessen 05.10.2026: +1,3k Tokens Kontext je Aufruf und
-        # Werkzeuge, die der Chat bisher nicht hatte. So bleibt alles wie vorher
-        # und es kommen nur unsere zwei Werkzeuge dazu.
-        firma = conf["team"]["aktiv"]
-        erlaubt = ["mcp__construct__ticket_neu", "mcp__construct__ticket_zuordnen"]
-        if firma:
-            erlaubt += ["mcp__construct__firma_auftrag", "mcp__construct__firma_stand"]
-        cmd += ["--mcp-config", bus_config(run, bus_base, firma), "--strict-mcp-config",
-                # Auch in Modi, die sonst nachfragen würden (im -p-Modus niemand antwortet).
-                "--allowedTools", *erlaubt]
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:

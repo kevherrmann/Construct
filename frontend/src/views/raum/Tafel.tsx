@@ -25,7 +25,7 @@ export function Tafel({
   const { t } = useTranslation()
   const an = useTicketsAn()
   const cwd = useChat((st) => st.active()?.cwd ?? st.folder)
-  const { data } = useTicketUebersicht()
+  const { data } = useTicketUebersicht(an)
   if (!welt.w || !an) return null
   const k = welt.w / 2048
   const [ol, or, ul] = WAND_TAFEL.map(([x, y]) => [x * k, y * k] as const)

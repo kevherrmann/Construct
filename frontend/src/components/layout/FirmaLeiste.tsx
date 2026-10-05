@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { ungelesen, useAuftraege, useNotAus, useTeamAn, useTeamStand } from '@/api/team'
 import { BREMSEN } from '@/lib/team'
 import { useAuftraegeAnsicht } from '@/views/auftraege/store'
@@ -18,6 +18,7 @@ export function FirmaLeiste() {
   const { t } = useTranslation()
   const an = useTeamAn()
   const navigate = useNavigate()
+  const imAuftragBereich = useLocation().pathname.startsWith('/auftraege')
   const { data: liste } = useAuftraege()
   const { data: stand } = useTeamStand()
   const notAus = useNotAus()
@@ -36,7 +37,8 @@ export function FirmaLeiste() {
 
   if (!an) return null
   // Den gerade geöffneten Auftrag nicht anmahnen — man sieht ihn ja.
-  const rufe = wartend.filter((x) => x.id !== auswahl)
+  // (nur dort sieht man ihn ja; in anderen Ansichten bleibt die Meldung stehen)
+  const rufe = wartend.filter((x) => !(imAuftragBereich && x.id === auswahl))
   const ruf = rufe[0]
   const was = ruf
     ? ruf.einstellung
@@ -50,7 +52,7 @@ export function FirmaLeiste() {
   // Fertige Aufträge, die man noch nicht gesehen hat — sonst fällt eine Lieferung
   // durch, während man woanders ist.
   const fertig = (liste ?? []).filter(
-    (x) => x.status === 'fertig' && x.id !== auswahl && ungelesen(x) > 0,
+    (x) => x.status === 'fertig' && !(imAuftragBereich && x.id === auswahl) && ungelesen(x) > 0,
   )
   const aktiv = stand?.aktiv ?? []
   const zeigenAktiv = aktiv.length > 0 || !!stand?.pausiert

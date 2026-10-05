@@ -19,7 +19,14 @@ function Zeile({ auftrag }: { auftrag: AuftragKurz }) {
       tabIndex={0}
       className={`${s.tk} ${z.art ? s[z.art] : ''} ${auswahl === auftrag.id ? s.on : ''} ${n > 0 ? s.neu : ''}`}
       onClick={() => oeffne(auftrag.id)}
-      onKeyDown={(e) => e.key === 'Enter' && oeffne(auftrag.id)}
+      onKeyDown={(e) => {
+        // Nur die Zeile selbst: Enter oder Leertaste auf dem ✕ darf nicht zusätzlich öffnen.
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          oeffne(auftrag.id)
+        }
+      }}
     >
       <span>{z.zeichen}</span>
       <span className={s.tn}>{auftrag.titel}</span>

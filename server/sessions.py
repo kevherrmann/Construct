@@ -99,7 +99,13 @@ def _fremde_firma(ev: dict) -> str:
 
 # Die Ticket-Zeile, die an Kevins Nachricht hängt (tickets.hinweis): für den
 # Assistenten, nicht für die Anzeige.
-TICKETZEILE_RE = re.compile(r"\n\n\[Tickets: [^\n]*\]\s*$")
+TICKETZEILE_RE = re.compile(r"\n\n\[Tickets: [\s\S]*?\]\s*$")
+
+
+def ohne_ticketmarker(txt: str) -> str:
+    """Antwort des Assistenten ohne die Markerzeilen am Ende (`[[ticket neu: …]]`)."""
+    from server.tickets import marken_am_ende
+    return marken_am_ende(txt)[0].strip() if "[[ticket" in txt else txt
 
 
 def ohne_ticketzeile(txt: str) -> str:
@@ -127,6 +133,10 @@ def _parse_transcript_lines(data: bytes):
             continue
         if t == "user":
             txt = ohne_ticketzeile(txt)
+        else:
+            txt = ohne_ticketmarker(txt)
+            if not txt:
+                continue
         m = {"role": t, "text": txt}
         if isinstance(ev.get("uuid"), str):
             m["uuid"] = ev["uuid"]            # Anker für Tickets: dorthin springt die Übersicht
@@ -283,10 +293,10 @@ def nutzer_uuids_bis(session_id: str, bis_uuid: str) -> set:
             ev = json.loads(line.decode("utf-8", "replace"))
         except Exception:
             continue
-        if ev.get("uuid") == bis_uuid:
-            break
         if ev.get("type") == "user" and ev.get("uuid"):
             out.add(ev["uuid"])
+        if ev.get("uuid") == bis_uuid:
+            break          # die Zeile selbst bleibt (ist sie eine Nutzer-Nachricht, steht sie schon drin)
     return out
 
 

@@ -245,14 +245,15 @@ export function useAgentActions() {
 export const useUserMd = () =>
   useQuery({
     queryKey: ['team', 'user-md'],
-    queryFn: () => apiGet<{ text: string; protocol: string }>(`${P}/user-md`),
+    queryFn: () => apiGet<{ text: string; ergaenzungen: string; protocol: string }>(`${P}/user-md`),
     refetchOnMount: 'always',
   })
 
 export function useUserMdSpeichern() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (text: string) => apiPost<{ ok: boolean; text: string }>(`${P}/user-md`, { text }),
+    mutationFn: (v: { text?: string; ergaenzungen?: string }) =>
+      apiPost<{ ok: boolean }>(`${P}/user-md`, v),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['team', 'user-md'] }),
   })
 }

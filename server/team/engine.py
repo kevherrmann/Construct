@@ -24,7 +24,8 @@ import uuid
 from pathlib import Path
 
 from server import telegram_bot as tgmod
-from server.core import BASE_DIR, WORKSPACE, bus_auth_header, bus_base
+from server.core import BASE_DIR, WORKSPACE, bus_base
+from server.runs import RUNS
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import guards
@@ -232,6 +233,7 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
                  f"WEITERMACHEN — ohne Text bekommt {wer} \u201eMach bitte weiter\u201c und die "
                  f"Bremsen zählen von vorn. Willst du etwas ändern, schreib es {wer} in "
                  f"einem Satz; abbrechen geht auch.")
+    grund, frage = ag.anrede(grund), ag.anrede(frage)
     frisch["eskalation"] = {"bremse": bremse, "grund": grund, "frage": frage,
                             "seit": time.time(), "an": an}
     frisch["in_arbeit"] = None
@@ -546,7 +548,6 @@ def bus_config(slug: str, token: str, ticket_id: str = "") -> str:
         "args": [str(BASE_DIR / "team_mcp.py")],
         "env": {"FIRMA_AGENT": slug, "FIRMA_AUFTRAG": ticket_id,
                 "FIRMA_TOKEN": token, "FIRMA_BASE": bus_base(),
-                "FIRMA_AUTH": bus_auth_header(),
                 "FIRMA_NUTZER": ag.anrede("Kevin")}}}})
 
 
@@ -638,7 +639,7 @@ async def kevin_weiter(tid: str, an_wunsch: str, text: str) -> dict | None:
     t = await auftrag_aendern(tid, _weiter)
     if t:
         nachliefern(tid)
-        bus_einreihen(t, "kevin", ziel["an"], ziel["art"], text or "Mach bitte weiter.")
+        bus_einreihen(t, "kevin", ziel["an"], ziel["art"], text or ag.anrede("Mach bitte weiter."))
     return t
 
 # ---------- Aufträge anlegen und abschließen ----------
@@ -667,19 +668,53 @@ def auftrag_anlegen(titel: str, brief: str, cwd: str = "", owner: str = "",
     ordner = ag._clean_cwd(cwd or chef["cwd"], WORKSPACE)
     if not ordner:
         raise AuftragFehler(f"Der Arbeitsordner muss in {WORKSPACE} liegen.")
+    ziel = None
+    if isinstance(bruecke, dict) and bruecke.get("session") and bruecke.get("nr"):
+        try:
+            ziel = {"session": str(bruecke["session"]), "nr": int(bruecke["nr"])}
+        except (TypeError, ValueError):
+            raise AuftragFehler("ungültige Angabe zum Ticket")
     t = auf.neu(str(titel or "").strip() or brief[:80], brief, owner=chef["slug"], cwd=ordner)
     t["status"] = "laeuft"
-    if bruecke and bruecke.get("session") and bruecke.get("nr"):
-        t["bruecke"] = {"session": str(bruecke["session"]), "nr": int(bruecke["nr"])}
+    if ziel:
+        t["bruecke"] = ziel
     auf.speichern(t)
     bus_einreihen(t, "kevin", chef["slug"], "auftrag", brief)
     if t.get("bruecke"):
         from server import tickets as tickmod
         try:
             tickmod.verknuepfen(t["bruecke"]["session"], t["bruecke"]["nr"], t["id"])
-        except KeyError:
+        except (KeyError, ValueError, OSError):
             pass          # das Ticket gibt es nicht (mehr): der Auftrag läuft trotzdem
     return t
+
+
+class AuftragVorhanden(AuftragFehler):
+    """Dieses Ticket ist schon bei der Firma."""
+
+    def __init__(self, auftrag_id: str):
+        super().__init__("Dieses Ticket ist schon bei der Firma.")
+        self.auftrag_id = auftrag_id
+
+
+def auftrag_aus_ticket(sid: str, nr: int) -> dict:
+    """Aus den Nachrichten eines Tickets einen Auftrag machen (Knopf am Ticket,
+    Markerzeile `[[ticket firma]]` des Assistenten). Das Briefing ist der Wortlaut
+    des Nutzers, nicht der Auszug aus der Ticket-Datei."""
+    from server import tickets as tickmod
+    from server.sessions import nachrichtentexte
+    d = tickmod.laden(sid)
+    tk = next((x for x in d["tickets"] if x["nr"] == int(nr)), None)
+    if tk is None:
+        raise AuftragFehler("Dieses Ticket gibt es nicht.")
+    alt = auf.laden(tk["auftrag"]) if tk.get("auftrag") else None
+    if alt and alt["status"] not in ("fertig", "abgebrochen"):
+        # Ein laufender oder wartender Auftrag blockiert; ein fertiger oder
+        # abgebrochener nicht — nach einer Korrektur oder einem Abbruch darf das
+        # Ticket neu an die Firma.
+        raise AuftragVorhanden(tk["auftrag"])
+    brief = tickmod.briefing(tk, nachrichtentexte(sid, {m["id"] for m in tk["nachrichten"]}))
+    return auftrag_anlegen(tk["titel"], brief, d["cwd"], bruecke={"session": sid, "nr": tk["nr"]})
 
 
 def bruecke_abschluss(t: dict):
@@ -729,3 +764,20 @@ def stoppen():
     if t is not None and not t.done():
         t.cancel()
     _DISPATCHER["task"] = None
+
+
+def abschalten():
+    """Der Nutzer hat den Team-Modus ausgeschaltet: nichts Neues wird mehr zugestellt,
+    und laufende Züge enden (sie bekämen am Bus sonst nur noch 404). Die Aufträge
+    bleiben, wo sie sind — ein Zug, der so endet, hält seinen Auftrag an, und nach dem
+    Wiedereinschalten lässt er sich fortsetzen. Aus einem beliebigen Thread aufrufbar."""
+    loop = _DISPATCHER["loop"]
+    if loop is None:
+        return
+
+    def los():
+        stoppen()
+        for r in list(RUNS.values()):
+            if r.auftrag_id and not r.done and r.task:
+                r.task.cancel()
+    loop.call_soon_threadsafe(los)

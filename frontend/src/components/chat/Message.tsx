@@ -5,6 +5,7 @@ import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/li
 import { fmtDur, fmtMsgTime, fmtNum, isPdf } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
+import { ohneMarke } from '@/lib/chat/marken'
 import { speakableText } from '@/lib/chat/speak'
 import { useSettings } from '@/stores/settings'
 import { useAgentKontext } from './AgentKontext'
@@ -143,6 +144,9 @@ function Attachments({ urls }: { urls: string[] }) {
 // gestoppt hat und den Auftrag nur korrigieren will.
 function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
   const { t } = useTranslation()
+  // Im Gespräch mit einem Mitarbeiter gibt es kein Zurückspulen (er führt eine
+  // langlebige Sitzung, siehe stores/chat.ts openAgent).
+  const imAgentChat = !!useAgentKontext()
   const resend = useChat((st) => st.resend)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(item.text)
@@ -199,7 +203,7 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
             <Markdown text={item.text} />
             <Attachments urls={item.urls} />
             {item.uuid && !busy && <TicketCut uuid={item.uuid} />}
-            {item.editable && !busy && (
+            {item.editable && !busy && !imAgentChat && (
               <button
                 type="button"
                 className={s.edit}
@@ -224,7 +228,7 @@ export function BlockView({ block }: { block: Block }) {
   const note = useNote()
   switch (block.t) {
     case 'text':
-      return <Markdown className={s.seg} text={block.text} streaming={block.streaming} />
+      return <Markdown className={s.seg} text={ohneMarke(block.text)} streaming={block.streaming} />
     case 'thinkmark':
       return <div className={s.thinkmark}>{t('💭 nachgedacht')}</div>
     case 'tool':

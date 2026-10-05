@@ -57,8 +57,8 @@ AUTH_PASS = os.environ.get("MATRIX_PASS", "")
 
 
 # Unter welcher Adresse der Server auf diesem Rechner erreichbar ist — gebraucht
-# von den MCP-Werkzeugen, die als Unterprozess von claude zurück an den Server
-# telefonieren (Tickets, Firma). Der Port steht erst fest, wenn der Server läuft
+# vom Firmen-Bus (team_mcp.py), der als Unterprozess von claude zurück an den Server
+# telefoniert. Der Port steht erst fest, wenn der Server läuft
 # und die erste Anfrage kommt (uvicorn kennt ihn, wir nicht), deshalb merkt die
 # Middleware in app.py ihn sich dort.
 _SERVER = {"base": ""}
@@ -69,19 +69,12 @@ def remember_server(scope: dict):
         return
     host, port = (scope.get("server") or ("127.0.0.1", 0))[:2]
     if port:
-        _SERVER["base"] = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::', '') else host}:{port}"
+        ziel = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+        _SERVER["base"] = f"http://[{ziel}]:{port}" if ":" in ziel else f"http://{ziel}:{port}"
 
 
 def bus_base() -> str:
     return _SERVER["base"] or f"http://127.0.0.1:{os.environ.get('MATRIX_PORT', '8765')}"
-
-
-def bus_auth_header() -> str:
-    """Authorization-Header für die MCP-Unterprozesse, falls der Server ein
-    Passwort hat — sie telefonieren an denselben Server zurück."""
-    if not AUTH_PASS:
-        return ""
-    return "Basic " + base64.b64encode(f"{AUTH_USER}:{AUTH_PASS}".encode()).decode()
 
 
 def auth_ok(header: str) -> bool:

@@ -203,7 +203,12 @@ export function TicketChip() {
               }}
             />
           )}
-          <Eingabe platz={t('＋ Neues Ticket (Titel) …')} knopf={t('Anlegen')} onOk={neu} />
+          <Eingabe
+            platz={t('＋ Neues Ticket (Titel) …')}
+            knopf={t('Anlegen')}
+            onOk={neu}
+            onEsc={zu}
+          />
         </div>
       )}
       <button

@@ -4,5 +4,6 @@ export function speakableText(blocks: { t: string; text?: string }[]): string {
     .filter((b) => b.t === 'text' && b.text)
     .map((b) => b.text)
     .join('\n')
+    .replace(/\n*[ \t]*\[\[[^\n]*$/, '') // Ticket-Marker (lib/chat/marken.ts) wird nicht vorgelesen
     .trim()
 }

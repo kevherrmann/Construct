@@ -44,7 +44,7 @@ def _dir(tid: str) -> Path:
     return AUFTRAEGE_DIR / tid
 
 
-def neu(titel: str, brief: str, owner: str = "lumina", cwd: str = "") -> dict:
+def neu(titel: str, brief: str, owner: str = "chef", cwd: str = "") -> dict:
     tid = uuid.uuid4().hex[:8]
     t = {
         "id": tid,

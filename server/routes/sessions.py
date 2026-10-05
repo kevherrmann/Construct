@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from server import hermes as hermesmod
 from server import llm as llmmod
+from server import tickets as tickmod
 from server import uploads_gc
 
 from server.core import PROJECTS_DIR, extract_text
@@ -232,6 +233,7 @@ def session_delete(project: str, sid: str):
         attached = uploads_gc.names_in(rp.read_bytes())
         rp.unlink()
     uploads_gc.drop_later(attached)
+    tickmod.entfernen(sid)
     meta = load_meta()
     changed = False
     if sid in meta.get("archived", []):

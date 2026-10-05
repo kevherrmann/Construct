@@ -71,48 +71,55 @@ function Formular({ a }: { a: Agent }) {
   const { data: chat } = useAgentGespraech(slug)
   const act = useAgentActions()
   const [e, setE] = useState<Entwurf>(() => ausAkte(a))
+  // Der Stand, den der Server zuletzt kannte — Grundlage für „was habe ich geändert“.
+  const [basis, setBasis] = useState<Entwurf>(() => ausAkte(a))
   const [msg, setMsg] = useState<{ text: string; warn?: boolean }>({ text: '' })
   const set = <K extends keyof Entwurf>(k: K, v: Entwurf[K]) =>
     setE((x) => (x ? { ...x, [k]: v } : x))
   const uf = chat?.umfang
   const hatChat = !!uf?.msgs
 
+  // Gesendet wird nur, was DU geändert hast. Das Gedächtnis schreibt auch der Mitarbeiter
+  // selbst, während die Akte offen ist; ein blindes Zurückschreiben des Formulars würde
+  // seine neuen Einträge überschreiben.
   const speichern = () => {
     setMsg({ text: `⟲ ${t('speichere …')}` })
-    act.speichern.mutate(
-      {
-        slug,
-        name: e.name,
-        title: e.title,
-        reports_to: e.reports_to,
-        model: e.model,
-        effort: e.effort,
-        model_grund: e.model_grund,
-        permission_mode: e.permission_mode,
-        cwd: e.cwd,
-        allowed_tools: e.allowed_tools.join(', '),
-        can_delegate: e.can_delegate,
-        can_hire: e.can_hire,
-        max_stille_s: Math.round((Number(e.stille_min) || 30) * 60),
-        soul: e.soul,
-        memory: e.memory,
+    const neu: Record<string, unknown> = { slug }
+    const alt = basis
+    const d = e
+    if (d.name !== alt.name) neu.name = d.name
+    if (d.title !== alt.title) neu.title = d.title
+    if (d.reports_to !== alt.reports_to) neu.reports_to = d.reports_to
+    if (d.model !== alt.model) neu.model = d.model
+    if (d.effort !== alt.effort) neu.effort = d.effort
+    if (d.model_grund !== alt.model_grund) neu.model_grund = d.model_grund
+    if (d.permission_mode !== alt.permission_mode) neu.permission_mode = d.permission_mode
+    if (d.cwd !== alt.cwd) neu.cwd = d.cwd
+    if (d.allowed_tools.join() !== alt.allowed_tools.join())
+      neu.allowed_tools = d.allowed_tools.join(', ')
+    if (d.can_delegate !== alt.can_delegate) neu.can_delegate = d.can_delegate
+    if (d.can_hire !== alt.can_hire) neu.can_hire = d.can_hire
+    if (d.stille_min !== alt.stille_min)
+      neu.max_stille_s = Math.round((Number(d.stille_min) || 30) * 60)
+    if (d.soul !== alt.soul) neu.soul = d.soul
+    if (d.memory !== alt.memory) neu.memory = d.memory
+    act.speichern.mutate(neu as { slug: string }, {
+      onSuccess: (j) => {
+        // Was der Server korrigiert hat, steht danach im Formular.
+        const frisch = ausAkte(j.agent)
+        setE(frisch)
+        setBasis(frisch)
+        setMsg(
+          j.problems.length
+            ? {
+                text: `⚠ ${t('gespeichert, aber korrigiert:')} ${j.problems.join('; ')}`,
+                warn: true,
+              }
+            : { text: `✓ ${t('gespeichert')}` },
+        )
       },
-      {
-        onSuccess: (j) => {
-          // Was der Server korrigiert hat, steht danach im Formular.
-          setE(ausAkte(j.agent))
-          setMsg(
-            j.problems.length
-              ? {
-                  text: `⚠ ${t('gespeichert, aber korrigiert:')} ${j.problems.join('; ')}`,
-                  warn: true,
-                }
-              : { text: `✓ ${t('gespeichert')}` },
-          )
-        },
-        onError: () => setMsg({ text: t('Fehler beim Speichern'), warn: true }),
-      },
-    )
+      onError: () => setMsg({ text: t('Fehler beim Speichern'), warn: true }),
+    })
   }
 
   // Bild: eigener Sofort-Speicherweg, nicht über SPEICHERN — ein Bild auszuwählen
@@ -340,7 +347,10 @@ function Formular({ a }: { a: Agent }) {
               type="button"
               className={s.knopf}
               onClick={() => {
-                void openAgent(slug).then(() => navigate('/chat'))
+                openAgent(slug).then(
+                  () => navigate('/chat'),
+                  (e: Error) => alert(e.message),
+                )
               }}
             >
               💬 {t('Mit {n} reden', { n: a.name })}

@@ -15,6 +15,7 @@ def firma(tmp_path, monkeypatch):
     monkeypatch.setattr(ag, "FIRMA_DIR", tmp_path / "firma")
     monkeypatch.setattr(ag, "AGENTS_DIR", tmp_path / "firma" / "agents")
     monkeypatch.setattr(ag, "USER_FILE", tmp_path / "USER.md")
+    monkeypatch.setattr(ag, "ERGAENZUNGEN_FILE", tmp_path / "firma" / "USER-ergaenzungen.md")
     monkeypatch.setattr(anl, "DIR", tmp_path / "firma" / "anleitungen")
     monkeypatch.setattr(auf, "AUFTRAEGE_DIR", tmp_path / "firma" / "auftraege")
     (tmp_path / "settings.json").write_text(json.dumps(
@@ -92,6 +93,14 @@ def test_historie_nur_fuer_vorhandene_akten():
     ag.historie_eintragen("gibtsnicht", "egal", "geleitet")
     assert "Login-Fix" in ag.historie_text("entwickler")
     assert not (ag.AGENTS_DIR / "gibtsnicht").exists()
+
+
+def test_user_merken_landet_in_den_ergaenzungen_nicht_in_user_md(firma):
+    ag.user_read()
+    ok, _ = ag.user_append("mag Kaffee", "entwickler")
+    assert ok and "mag Kaffee" in ag.user_read()                 # die Firma liest es
+    assert "mag Kaffee" not in (firma / "USER.md").read_text()   # der Chat-Assistent nicht
+    assert "mag Kaffee" in ag.ergaenzungen_read()
 
 
 def test_user_md_nur_anhaengen():

@@ -190,7 +190,7 @@ export function TeamSection() {
             <span className={s.t}>🎫 {t('Assistent ordnet Tickets mit')}</span>
             <span className={s.d}>
               {t(
-                'Er legt neue Tickets an und ordnet Korrekturen zu (zwei kleine Werkzeuge, etwa 1 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
+                'Er legt neue Tickets an und ordnet Korrekturen zu — mit einer Zeile am Ende seiner Antwort, nur wenn nötig (etwa 0,5 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
               )}
             </span>
           </span>

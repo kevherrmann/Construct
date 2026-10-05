@@ -14,13 +14,17 @@ Wer zuordnet, in dieser Reihenfolge:
 
   1. Kevin, ohne Tokens: `/ticket Titel`, der Chip über der Eingabe, ✂ an einer
      Nachricht. Seine Wahl sperrt die nächste Nachricht gegen den Assistenten.
-  2. Der Assistent, mit zwei billigen Werkzeugen (construct_mcp.py), die er nur
-     NEBEN einem ohnehin fälligen Werkzeugaufruf benutzt. Ein "erledigt" gibt es
-     für ihn nicht: es käme am Ende eines Zuges, wo sonst kein Werkzeug mehr
-     läuft, und kostete einen eigenen Durchgang über den ganzen Kontext
-     (gemessen 05.10.2026). Stattdessen schließt jedes NEUE Ticket das vorige.
+  2. Der Assistent, mit einer Markerzeile als LETZTER Zeile seiner Antwort
+     (`[[ticket neu: Titel]]`, `[[ticket zu: 2]]`, `[[ticket firma]]`). Kein
+     Werkzeug und kein MCP-Server: ein MCP-Server kostet gemessen 2–3 s je Nachricht
+     und +1,3k Tokens Kontext, oder — mit --strict-mcp-config — die MCP-Server des
+     Nutzers (05.10.2026). Eine Markerzeile kostet nur, wenn sie gebraucht wird,
+     funktioniert in Antworten ohne Werkzeugaufruf und braucht keine Berechtigung.
   3. Die Vorgabe, ohne Modell: eine Nachricht gehört zum aktuellen Ticket. Gibt
      es keins, entsteht eins mit dem Anfang der Nachricht als Titel.
+
+Ein "erledigt" gibt es für den Assistenten nicht: jedes NEUE Ticket schließt das
+vorige.
 
 Die Nachrichten werden über ihre uuid im Claude-Code-Transkript gefunden; der
 Lauf meldet sie dank --replay-user-messages, sobald sie angenommen sind. Text
@@ -29,6 +33,7 @@ lesen muss.
 """
 import json
 import re
+import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -76,7 +81,7 @@ def _jetzt() -> str:
 
 def _leer(sid: str) -> dict:
     return {"session": sid, "cwd": "", "project": "", "aktuell": None,
-            "gesperrt": False, "tickets": []}
+            "gesperrt": False, "zaehler": 0, "tickets": []}
 
 
 def _bereinigt(d: dict, sid: str) -> dict:
@@ -87,8 +92,12 @@ def _bereinigt(d: dict, sid: str) -> dict:
         if isinstance(d.get(k), str):
             out[k] = d[k]
     out["gesperrt"] = bool(d.get("gesperrt"))
+    try:
+        out["zaehler"] = max(0, int(d.get("zaehler") or 0))
+    except (TypeError, ValueError):
+        pass
     gesehen: set[str] = set()
-    for t in d.get("tickets") or []:
+    for t in d.get("tickets") if isinstance(d.get("tickets"), list) else []:
         if not isinstance(t, dict):
             continue
         try:
@@ -98,15 +107,18 @@ def _bereinigt(d: dict, sid: str) -> dict:
         if nr < 1 or any(x["nr"] == nr for x in out["tickets"]):
             continue
         msgs = []
-        for m in t.get("nachrichten") or []:
+        for m in t.get("nachrichten") if isinstance(t.get("nachrichten"), list) else []:
             if isinstance(m, str):
                 m = {"id": m}
             if not isinstance(m, dict) or not isinstance(m.get("id"), str) or m["id"] in gesehen:
                 continue
             gesehen.add(m["id"])
-            msgs.append({"id": m["id"], "ts": str(m.get("ts") or ""),
-                         "text": str(m.get("text") or "")[:AUSZUG_MAX],
-                         "von": m.get("von") if m.get("von") in VON else "auto"})
+            msg = {"id": m["id"], "ts": str(m.get("ts") or ""),
+                   "text": str(m.get("text") or "")[:AUSZUG_MAX],
+                   "von": m.get("von") if m.get("von") in VON else "auto"}
+            if m.get("oeffnete"):
+                msg["oeffnete"] = str(m["oeffnete"])
+            msgs.append(msg)
         out["tickets"].append({
             "nr": nr,
             "titel": str(t.get("titel") or f"Ticket {nr}")[:TITEL_MAX],
@@ -119,7 +131,9 @@ def _bereinigt(d: dict, sid: str) -> dict:
             "nachrichten": msgs,
         })
     nrs = {t["nr"] for t in out["tickets"]}
-    out["aktuell"] = d.get("aktuell") if d.get("aktuell") in nrs else None
+    out["zaehler"] = max([out["zaehler"], *nrs])
+    aktuell = d.get("aktuell")
+    out["aktuell"] = aktuell if isinstance(aktuell, int) and aktuell in nrs else None
     return out
 
 
@@ -127,9 +141,30 @@ def laden(sid: str) -> dict:
     p = _pfad(sid)
     try:
         d = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError:
+        return _leer(sid)
+    except ValueError:
+        # Von Hand kaputtgespeichert (fehlendes Komma): NICHT stillschweigend durch
+        # eine leere Datei ersetzen, die der nächste Speichervorgang darüber
+        # schriebe — erst eine Sicherung, damit sich die Datei reparieren lässt.
+        sicher = p.with_name(p.name + ".kaputt")
+        try:
+            if not sicher.exists():
+                shutil.copy2(p, sicher)
+        except OSError:
+            pass
         return _leer(sid)
     return _bereinigt(d if isinstance(d, dict) else {}, sid)
+
+
+def entfernen(sid: str):
+    """Die Tickets einer gelöschten Session wegräumen."""
+    try:
+        with _lock(sid):
+            _pfad(sid).unlink(missing_ok=True)
+            _CACHE.pop(sid, None)
+    except ValueError:
+        pass
 
 
 def speichern(d: dict):
@@ -157,12 +192,15 @@ def projekt_ordner(cwd: str) -> str:
 
 # Was build_prompt hinter Kevins Text hängt: Datei-Hinweise und die Ticketzeile.
 # Für Auszug und Titel zählt nur, was er geschrieben hat.
-_ANHANG_RE = re.compile(r"\n\n\[(?:Vom Nutzer hochgeladene|Image uploaded|PDF uploaded"
+_ANHANG_RE = re.compile(r"(?:^|\n\n)\[(?:Vom Nutzer hochgeladene|Image uploaded|PDF uploaded"
                         r"|Tickets:)[\s\S]*$")
+# Beim Wechsel von einem anderen Modell steht vor Kevins Text ein Verlaufsblock
+# (hermes_runs.carry_over_block, llm.history_block), der mit dieser Zeile endet.
+_KONTEXT_RE = re.compile(r"^\[(?:Kontext|Context):[\s\S]*?\[(?:Ende des Verlaufs|End of history)[^\]]*\]\s*")
 
 
 def kevins_text(text: str) -> str:
-    return _ANHANG_RE.sub("", text or "").strip()
+    return _ANHANG_RE.sub("", _KONTEXT_RE.sub("", text or "")).strip()
 
 
 def titel_aus(text: str) -> str:
@@ -180,7 +218,11 @@ def _ticket(d: dict, nr) -> dict | None:
 
 
 def _naechste_nr(d: dict) -> int:
-    return max((t["nr"] for t in d["tickets"]), default=0) + 1
+    """Nummern werden nie wiederverwendet: ein Auftrag der Firma verweist über
+    (Session, Nummer) auf sein Ticket, und eine gelöschte oder zusammengeführte
+    Nummer darf nicht ein späteres, fremdes Ticket treffen."""
+    d["zaehler"] = max(d.get("zaehler", 0), *(t["nr"] for t in d["tickets"]), 0) + 1
+    return d["zaehler"]
 
 
 def verknuepfen(sid: str, nr: int, auftrag_id: str | None) -> dict:
@@ -224,15 +266,20 @@ def _heraus(d: dict, uuid: str) -> dict | None:
     if t is None:
         return None
     t["nachrichten"].remove(m)
+    if m.get("oeffnete"):
+        # Diese Nachricht hatte das erledigte Ticket wieder aufgemacht — zieht sie in
+        # ein anderes, war es keine Korrektur und das Ticket bleibt zu.
+        t["status"], t["erledigt_am"] = "erledigt", m.pop("oeffnete")
     _aufraeumen(d, t)
     return m
 
 
 def _aufraeumen(d: dict, t: dict):
-    """Ein Ticket, das der Server selbst angelegt hat und das leer geworden ist,
-    hat niemand gewollt — weg damit. Von Kevin oder dem Assistenten angelegte
-    bleiben, auch leer: das ist ein Schnitt, der auf seine Nachricht wartet."""
-    if not t["nachrichten"] and t["von"] == "auto" and t in d["tickets"]:
+    """Ein Ticket, das der Server oder der Assistent angelegt hat und das leer
+    geworden ist (die Nachricht zog in ein anderes), hat niemand gewollt — weg
+    damit. Von Kevin angelegte bleiben, auch leer: das ist ein Schnitt, der auf
+    seine Nachricht wartet."""
+    if not t["nachrichten"] and t["von"] != "kevin" and t in d["tickets"]:
         d["tickets"].remove(t)
         if d["aktuell"] == t["nr"]:
             d["aktuell"] = None
@@ -251,7 +298,7 @@ def _anlegen(d: dict, titel: str, von: str) -> dict:
     alt = _ticket(d, d["aktuell"])
     if alt is not None and alt["nachrichten"]:
         _abschliessen(alt)
-    t = {"nr": _naechste_nr(d), "titel": (titel or "").strip()[:TITEL_MAX] or titel_aus(""),
+    t = {"nr": _naechste_nr(d), "titel": " ".join((titel or "").split())[:TITEL_MAX] or titel_aus(""),
          "status": "offen", "von": von, "erstellt": _jetzt(), "erledigt_am": None,
          "nachrichten": []}
     d["tickets"].append(t)
@@ -292,19 +339,22 @@ def nachricht(sid: str, uuid: str, text: str, cwd: str = "", vorgabe: dict | Non
         if neu:
             ziel = _anlegen(d, titel_aus(text), "auto")
         # Eine Nachricht auf ein erledigtes Ticket ist eine Korrektur dazu: es
-        # geht wieder auf. War sie etwas Neues, legt der Assistent ein neues an.
+        # geht wieder auf. War sie etwas Neues, legt der Assistent ein neues an
+        # (und das alte schließt sich wieder, siehe _heraus).
+        msg = {"id": uuid, "ts": _jetzt(), "text": kevins_text(text)[:AUSZUG_MAX],
+               "von": "kevin" if gesperrt else "auto"}
+        if ziel["status"] == "erledigt" and ziel["erledigt_am"]:
+            msg["oeffnete"] = ziel["erledigt_am"]
         _oeffnen(ziel)
-        ziel["nachrichten"].append({"id": uuid, "ts": _jetzt(),
-                                    "text": kevins_text(text)[:AUSZUG_MAX],
-                                    "von": "kevin" if gesperrt else "auto"})
+        ziel["nachrichten"].append(msg)
         d["gesperrt"] = False
         speichern(d)
         return {"nr": ziel["nr"], "titel": ziel["titel"], "neu": neu}
 
 
-# ---------- Die Werkzeuge des Assistenten ----------
+# ---------- Die Marker des Assistenten ----------
 class Abgelehnt(Exception):
-    """Ein Werkzeugaufruf, der nichts ändert — der Text geht an den Assistenten."""
+    """Eine Zuordnung, die nichts ändert (Kevin hat gewählt, Ticket unbekannt …)."""
 
 
 def _letzte_frei(d: dict, uuid: str) -> tuple:
@@ -371,6 +421,50 @@ def _als_nr(v):
         return None
 
 
+# Die Markerzeilen stehen ganz unten in der Antwort. `[[ticket neu: Titel]]`,
+# `[[ticket zu: 2]]`, `[[ticket firma]]`.
+MARKE_RE = re.compile(r"^\[\[ticket (neu|new|zu|to|firma|company)(?::[ \t]*(.*?))?\]\][ \t]*$", re.I)
+
+
+def marken_am_ende(text: str) -> tuple:
+    """Zerlegt eine Antwort in (Text ohne Marker, [(art, wert), …]).
+
+    Nur zusammenhängende Markerzeilen GANZ UNTEN zählen: ein Marker mitten im Text
+    (ein Beispiel, ein Zitat, eine Erklärung dieser Funktion) tut nichts."""
+    zeilen = (text or "").rstrip().split("\n")
+    marken = []
+    while zeilen:
+        z = zeilen[-1].strip()
+        if not z:
+            zeilen.pop()
+            continue
+        m = MARKE_RE.match(z)
+        if not m:
+            break
+        art = {"new": "neu", "to": "zu", "company": "firma"}.get(m.group(1).lower(), m.group(1).lower())
+        marken.append((art, (m.group(2) or "").strip()))
+        zeilen.pop()
+    marken.reverse()
+    return "\n".join(zeilen).rstrip(), marken
+
+
+def marken_anwenden(sid: str, uuid: str, marken: list) -> list:
+    """Setzt die Marker einer Antwort um. Gibt zurück, was die Firma betrifft
+    (["firma"]) — das macht der Aufrufer, hier steht nur die Ticket-Arbeit."""
+    rest = []
+    for art, wert in marken:
+        try:
+            if art == "neu":
+                werkzeug_neu(sid, uuid, wert)
+            elif art == "zu":
+                werkzeug_zuordnen(sid, uuid, wert)
+            elif art == "firma":
+                rest.append("firma")
+        except Abgelehnt:
+            pass          # Kevins Wahl oder unbekanntes Ticket: es bleibt, wie es ist
+    return rest
+
+
 # ---------- Was der Assistent sieht ----------
 def hinweis(sid: str | None, vorgabe: str = "") -> str:
     """Die Zeile, die an Kevins Nachricht gehängt wird.
@@ -396,7 +490,7 @@ def hinweis(sid: str | None, vorgabe: str = "") -> str:
 
     def kurz(t):
         z = firma(t.get("auftrag"))
-        return f"#{t['nr']} „{t['titel']}“" + (f" (Firma: {z})" if z else "")
+        return f"#{t['nr']} „{t['titel']}“" + (f" (Firma {t['auftrag']}: {z})" if z else "")
 
     if ak:
         zusatz = []
@@ -441,7 +535,7 @@ def regeln() -> str:
     """Der feste Teil im Systemprompt. Ändert sich nie während einer Session —
     nur so bleibt er im Zwischenspeicher."""
     wer = cfg.user_name() or cfg.L("der Nutzer", "the user")
-    return _tickets_regeln(wer) + _firma_regeln(wer)
+    return _tickets_regeln(wer) + _firma_regeln(wer) + _tickets_schluss(wer)
 
 
 def _firma_regeln(wer: str) -> str:
@@ -454,33 +548,40 @@ def _firma_regeln(wer: str) -> str:
     if team["modus"] == "auto":
         wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, eine Oberfläche, Tests) "
                 f"schlägst du {wer} für die Firma vor und fragst, ob sie sie übernehmen soll — "
-                f"erst nach seinem Ja `firma_auftrag`. Alles Kleine erledigst du selbst.")
+                f"erst nach seinem Ja schreibst du die Zeile. Alles Kleine erledigst du selbst.")
+        when = (f"Big tasks (several files or steps, an interface, tests) you suggest to {wer} "
+                f"for the company and ask whether it should take them — only after a yes do you "
+                f"write the line. Small things you do yourself.")
     else:
         wann = (f"Die Firma bekommt nur etwas, wenn {wer} es ausdrücklich verlangt "
                 f"(„gib das an die Firma“); alles andere erledigst du selbst.")
+        when = (f"The company only gets something when {wer} explicitly asks for it "
+                f"(“give this to the company”); everything else you do yourself.")
     return cfg.L(
         f"""
-
-## Firma
-Neben dir arbeitet eine Firma aus KI-Mitarbeitern im Hintergrund. {wann} `firma_auftrag` braucht ein Briefing, das ohne diesen Verlauf verständlich ist (Ziel, Pfade, woran man „fertig“ erkennt); danach arbeitest du nicht selbst daran weiter. Den Stand siehst du in der Ticket-Zeile, Genaueres mit `firma_stand`.""",
+- `[[ticket firma]]` — gib dieses Ticket an die Firma (mehrere KI-Mitarbeiter, arbeiten im Hintergrund); ihr Briefing sind {wer}s Nachrichten des Tickets. {wann} Sag {wer} im selben Text, dass du es getan hast, und arbeite nicht selbst daran weiter. Den Stand zeigt die Ticket-Zeile; das Ergebnis steht, wenn es fertig ist, in `firma/auftraege/<Kennung aus der Ticket-Zeile>/ticket.json` (Feld `ergebnis`) — nur lesen, wenn {wer} danach fragt.""",
         f"""
-
-## Company
-Next to you a company of AI employees works in the background. Hand a task to the company only as follows: {wann} `firma_auftrag` needs a briefing that makes sense without this conversation (goal, paths, how to tell it is done); afterwards do not keep working on it yourself. You see the state in the ticket line, details with `firma_stand`.""")
+- `[[ticket firma]]` — give this ticket to the company (several AI employees, working in the background); their briefing is {wer}'s messages of the ticket. {when} Tell {wer} in the same text that you did it, and do not keep working on it yourself. The ticket line shows the state; when done, the result is in `firma/auftraege/<id from the ticket line>/ticket.json` (field `ergebnis`) — only read it when {wer} asks.""")
 
 
 def _tickets_regeln(wer: str) -> str:
     return cfg.L(
         f"""## Tickets
-Jede Nachricht von {wer} gehört zu einem Ticket dieser Session. Welche es gibt, steht am Ende seiner Nachricht in eckigen Klammern; ohne dein Zutun landet sie im aktuellen.
-- Eine neue, eigenständige Aufgabe: `ticket_neu` mit einem kurzen Titel (3–6 Wörter). Das vorige Ticket gilt damit als erledigt.
-- Gehört sie zu einem anderen der genannten Tickets: `ticket_zuordnen`.
-Rufe diese Werkzeuge NUR im selben Schritt wie einen anderen Werkzeugaufruf auf, nie als eigenen Schritt, und erwähne sie nicht. Ist {wer}s Wahl vermerkt oder bist du unsicher: nichts tun.""",
+Jede Nachricht von {wer} gehört zu einem Ticket dieser Session; welche es gibt, steht am Ende seiner Nachricht in eckigen Klammern. Ohne dein Zutun landet sie im aktuellen. Willst du das ändern, schreibst du als allerletzte Zeile deiner Antwort:
+- `[[ticket neu: Kurztitel]]` — eine neue, eigenständige Aufgabe (3–6 Wörter; das vorige Ticket gilt damit als erledigt)
+- `[[ticket zu: 2]]` — die Nachricht gehört zu einem anderen der genannten Tickets""",
         f"""## Tickets
-Every message from {wer} belongs to a ticket in this session. The tickets are listed in square brackets at the end of the message; without action from you it goes to the current one.
-- A new, separate task: `ticket_neu` with a short title (3–6 words). The previous ticket then counts as done.
-- It belongs to another listed ticket: `ticket_zuordnen`.
-Call these tools ONLY in the same step as another tool call, never as a step of their own, and don't mention them. If {wer}'s choice is noted or you are unsure: do nothing.""")
+Every message from {wer} belongs to a ticket in this session; the tickets are listed in square brackets at the end of the message. Without action from you it goes to the current one. To change that, write as the very last line of your answer:
+- `[[ticket new: short title]]` — a new, separate task (3–6 words; the previous ticket then counts as done)
+- `[[ticket to: 2]]` — the message belongs to another listed ticket""")
+
+
+def _tickets_schluss(wer: str) -> str:
+    return cfg.L(
+        f"""
+Sonst schreibst du nichts davon. Die Zeile wird vor der Anzeige entfernt: erwähne sie nicht. Ist {wer}s Wahl in der Ticket-Zeile vermerkt oder bist du unsicher: nichts.""",
+        f"""
+Otherwise write none of this. The line is removed before display: do not mention it. If {wer}'s choice is noted in the ticket line or you are unsure: nothing.""")
 
 
 # ---------- Kevins Eingriffe ----------
@@ -581,6 +682,8 @@ def zusammenfuehren(sid: str, von_nr: int, in_nr: int) -> dict:
         if a is None or b is None or a is b:
             raise KeyError(von_nr if a is None else in_nr)
         b["nachrichten"] = sorted(b["nachrichten"] + a["nachrichten"], key=lambda x: x["ts"])
+        if a.get("auftrag") and not b.get("auftrag"):
+            b["auftrag"] = a["auftrag"]       # der Auftrag der Firma bleibt dem Ticket erhalten
         d["tickets"].remove(a)
         if d["aktuell"] == a["nr"]:
             d["aktuell"] = b["nr"]
@@ -622,6 +725,13 @@ def abzweigen(alt: str, neu: str, behalten: set):
             d["tickets"].remove(t)
             if d["aktuell"] == t["nr"]:
                 d["aktuell"] = None
+    # Es geht dort weiter, wo die letzte behaltene Nachricht stand — und das Ticket
+    # ist wieder offen, auch wenn die verworfene Fortsetzung es geschlossen hatte.
+    rest = [(m["ts"], t) for t in d["tickets"] for m in t["nachrichten"]]
+    if rest:
+        letztes = max(rest, key=lambda x: x[0])[1]
+        d["aktuell"] = letztes["nr"]
+        _oeffnen(letztes)
     d["gesperrt"] = False
     with _lock(neu):
         speichern(d)
@@ -637,6 +747,8 @@ def _alle() -> list:
     if not TICKETS_DIR.exists():
         return out
     for p in TICKETS_DIR.glob("*.json"):
+        if not SID_RE.match(p.stem):
+            continue                      # eine Kopie oder Sicherung von Hand — gehört nicht dazu
         try:
             st = p.stat()
         except OSError:
@@ -644,7 +756,10 @@ def _alle() -> list:
         stand = (st.st_mtime_ns, st.st_size)
         hit = _CACHE.get(p.stem)
         if not hit or hit[0] != stand:
-            hit = (stand, laden(p.stem))
+            try:
+                hit = (stand, laden(p.stem))
+            except Exception:
+                continue                  # eine kaputte Datei darf die Übersicht nicht zerlegen
             _CACHE[p.stem] = hit
         out.append(hit[1])
     return out
@@ -695,22 +810,3 @@ def uebersicht(namen: dict | None = None) -> dict:
                                          else t["erstellt"]) for t in p["tickets"]), reverse=True)
         out.append({"tag": tag, "projekte": projekte})
     return {"tage": out}
-
-
-# ---------- Der Bus der Werkzeuge ----------
-def bus(werkzeug: str, args: dict, sid: str, uuid: str) -> str:
-    """Ein Aufruf des Assistenten (construct_mcp.py). Gibt den Text zurück, den er
-    als Ergebnis sieht. Was nichts ändert, sagt es ihm — als Text, nicht als
-    Fehler: ein Fehler lädt zum Wiederholen ein."""
-    try:
-        if werkzeug == "ticket_neu":
-            if not uuid:
-                raise Abgelehnt(cfg.L("Noch keine Nachricht zugeordnet.", "No message assigned yet."))
-            return werkzeug_neu(sid, uuid, str(args.get("titel") or ""))
-        if werkzeug == "ticket_zuordnen":
-            if not uuid:
-                raise Abgelehnt(cfg.L("Noch keine Nachricht zugeordnet.", "No message assigned yet."))
-            return werkzeug_zuordnen(sid, uuid, args.get("nr"))
-        return cfg.L("Unbekanntes Werkzeug.", "Unknown tool.")
-    except Abgelehnt as e:
-        return str(e)

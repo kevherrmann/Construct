@@ -89,6 +89,8 @@ def main():
     def umbenennen(text: str) -> str:
         for alt, neu in namen.items():
             text = re.sub(rf"(?m)^(reports_to:\s*){re.escape(alt)}\s*$", rf"\g<1>{neu}", text)
+            # delegates_to: kommagetrennte Liste — den Namen als ganzes Wort ersetzen
+            text = re.sub(rf"(?m)^(delegates_to:.*?)\b{re.escape(alt)}\b", rf"\g<1>{neu}", text)
         return text
 
     # ---- Mitarbeiter
@@ -167,6 +169,17 @@ def main():
             continue                       # Testaufträge des Prüfstands gehören nicht zur Geschichte
         if t.get("owner") in namen:
             t["owner"] = "chef"
+        esk = t.get("eskalation")
+        if isinstance(esk, dict) and esk.get("an") in namen:
+            esk["an"] = "chef"             # sonst ginge die Antwort an eine Akte, die es nicht mehr gibt
+        if t.get("status") in ("laeuft", "neu"):
+            # Ein Auftrag, der in FACTORIA noch lief, startet hier nicht von allein: seine
+            # Sitzung gehörte einer anderen Person. Der Nutzer entscheidet, ob es weitergeht.
+            t["status"] = "wartet_auf_kevin"
+            t["in_arbeit"] = None
+            t["eskalation"] = {"bremse": "neustart", "seit": 0, "an": "chef",
+                               "grund": "Dieser Auftrag lief noch, als die Firma aus FACTORIA übernommen wurde.",
+                               "frage": "Soll es weitergehen? Dann WEITERMACHEN — oder abbrechen."}
         sessions = t.get("sessions") or {}
         t["sessions"] = {("chef" if k in namen else k): v for k, v in sessions.items()}
         schreiben(zd / "ticket.json", json.dumps(t, ensure_ascii=False, indent=1))
