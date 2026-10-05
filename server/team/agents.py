@@ -32,15 +32,13 @@ from datetime import date
 from pathlib import Path
 
 from server import config as cfg
-from server.core import BASE_DIR
+from server.team.pfade import FIRMA_DIR, USER_FILE
 
-FIRMA_DIR = BASE_DIR / "firma"
 AGENTS_DIR = FIRMA_DIR / "agents"
 VORLAGEN_DIR = Path(__file__).parent / "vorlagen"
 DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
-# Die Firma kennt den Nutzer aus derselben USER.md wie der Assistent im Chat:
-# eine Person, eine Datei.
-USER_FILE = cfg.PERSONA_FILES["user"][0]
+# USER_FILE: dieselbe USER.md wie die des Assistenten im Chat (eine Person, eine
+# Datei) — siehe pfade.py.
 
 # Die Geschäftsführung ist der Assistent selbst — er nimmt Aufträge an, verteilt
 # sie und fasst zusammen. Ihr Name ist der Name des Assistenten (⚙ Einstellungen),

@@ -2,6 +2,33 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 7.3.0 — unreleased (branch `team`)
+
+### Added
+- **Tickets inside a session.** A ticket is a section of a session; it collects
+  all messages of one task, with gaps. Messages go to the current ticket without
+  anyone doing anything. Chip above the input, `/ticket Title`, ✂ on a message,
+  the **Tickets** tile (per day and project, jump to the message) and a
+  holographic board on the room's back wall. The assistant can file messages
+  with two small tools; a new ticket closes the previous one. Stored as JSON in
+  `tickets/`. Measured overhead: about 360 tokens per request (0.3–1.4 % of a
+  short session, less in long ones); the tools are never called as a step of
+  their own.
+- **Team mode (off by default).** A company of AI employees in CONSTRUCT, ported
+  from FACTORIA: staff files, jobs with an internal bus, safety brakes, hiring,
+  shared instructions, direct conversations with employees, **Staff** and
+  **Jobs** tiles, a stop-everything button and a call bar when a job needs you.
+  The assistant is the managing director; per task you choose between "only the
+  assistant" and "the whole company" (`/firma`, 🏢 on a ticket, or the assistant
+  suggests it). A finished job completes its ticket. Test bench:
+  `scripts/pruefstand.py`.
+
+### Changed
+- Moving a chat's run engine into one place: runs now carry cost, cache numbers
+  and a monotonic heartbeat (needed by the company's hang detection), and the
+  replay buffer no longer mutates events in place.
+- The sidebar menu adapts its column count to the number of tiles.
+
 ## 7.2.0 — 2026-10-05
 
 ### Added

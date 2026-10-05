@@ -161,9 +161,9 @@ def load_settings() -> dict:
     try:
         raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
-        return out
+        return _env(out)
     if not isinstance(raw, dict):
-        return out
+        return _env(out)
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
     elif raw.get("theme") == "plasma":
@@ -209,6 +209,14 @@ def load_settings() -> dict:
         pass
     _clean_tts(raw.get("tts") or {}, out["tts"])
     _clean_extras(raw, out)
+    return _env(out)
+
+
+def _env(out: dict) -> dict:
+    """Der Prüfstand startet einen eigenen Server, in dem der Team-Modus an sein muss,
+    ohne dass settings.json der Installation angefasst wird."""
+    if os.environ.get("CONSTRUCT_TEAM") == "1":
+        out["team"]["aktiv"] = True
     return out
 
 

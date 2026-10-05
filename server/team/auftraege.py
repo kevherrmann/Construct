@@ -23,9 +23,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from server.core import BASE_DIR
+from server.team.pfade import FIRMA_DIR
 
-AUFTRAEGE_DIR = BASE_DIR / "firma" / "auftraege"
+AUFTRAEGE_DIR = FIRMA_DIR / "auftraege"
 
 # Woran man einen Auftrag des Pruefstands erkennt — vorn im Titel. Steht hier
 # und nicht nur in eval.py, weil app.py danach entscheidet, was in die

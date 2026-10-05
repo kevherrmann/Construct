@@ -38,6 +38,10 @@ sessions_meta.json
 tickets/
 # Die Firma (Team-Modus): Belegschaft, Aufträge, Anleitungen dieser Installation.
 firma/
+scripts/pruefstand/firma/
+scripts/pruefstand/arbeit/
+scripts/pruefstand/laeufe/*
+!scripts/pruefstand/laeufe/*-factoria.json
 telegram_state.json
 tasks_state.json
 uploads/

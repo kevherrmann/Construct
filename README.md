@@ -91,6 +91,29 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **Rendered replies.** Markdown and code are highlighted, and file paths in
   replies are clickable. Clicking one opens a preview or download of that file
   from the workspace.
+- **Tickets.** A ticket is a section *inside* a session, not the session: you
+  work all day in one session per project and give it many tasks, and a ticket
+  collects every message that belongs to one task — even with gaps (task,
+  correction, new task, another correction to the first = two tickets). Messages
+  go to the current ticket on their own; the chip above the input, `/ticket
+  Title` and ✂ on a message cut or reassign them without costing tokens, and the
+  assistant can file messages itself with two small tools (about 1 % extra
+  usage; switch it off in ⚙ Settings → Team). A new ticket closes the previous
+  one, a correction reopens a closed one. The **Tickets** tile shows, per day and
+  project, what is done and what is open; a click jumps to the message in the
+  history. In the room a holographic board on the back wall shows today's
+  tickets.
+- **Team mode (optional).** A company of AI employees next to the single
+  assistant: staff files (character, model, effort, tools, permissions, memory),
+  jobs that the staff pass between each other over an internal bus, safety
+  brakes against endless loops, a hiring procedure, shared know-how
+  ("instructions") and a fixed test bench. The assistant is the managing
+  director. You decide per task: small things the assistant does alone, big ones
+  you give to the company (`/firma …`, the 🏢 button on a ticket, or — if you
+  allow it — the assistant suggests it). Off by default; switch on under
+  ⚙ Settings → Team. Employees can also be talked to directly (👥 Staff → Talk to
+  …). Data lives in `firma/` (not versioned). See
+  [`scripts/pruefstand/README.md`](scripts/pruefstand/README.md) for the test bench.
 - **Skills browser.** Shows global skills (`~/.claude/skills`) and per-project
   skills from `.claude/skills`, `.agents/skills` and `skills/*.py`.
 - **Calendar.** Events are stored in `events.json`, which the UI, Cody (through
@@ -254,6 +277,9 @@ when it writes it.
 | `CODY_WHISPER_MODEL` | faster-whisper model for Telegram voice messages (`small`) |
 | `CONSTRUCT_BROWSER` | Browser for the window, e.g. `/usr/bin/chromium` (must be Chromium-based) |
 | `CONSTRUCT_FENSTER` | `0` = always open a normal browser tab instead of a window |
+| `CONSTRUCT_TEAM` | `1` = force team mode on (used by the test bench, which runs its own server) |
+| `CONSTRUCT_FIRMA_DIR` | Move the company folder (default `firma/`); a moved company brings its own `USER.md` |
+| `CONSTRUCT_TEAM_PARALLEL` | How many employee turns run at once (default 2, at most 4) |
 
 ### User data
 
@@ -265,7 +291,9 @@ The following files belong to your installation. They are listed in
 - **Personal data:** `settings.json`, `SOUL.md` (created from
   `SOUL.default.md`), `USER.md`, `events.json`, `mail_meta.json`,
   `mail_attach/`, `uploads/`, `llm_sessions/`, `sessions_meta.json`,
-  `telegram_state.json`, `tasks_state.json`
+  `telegram_state.json`, `tasks_state.json`, `tickets/` (ticket assignment per session)
+- **The company (team mode):** `firma/` — `agents/`, `auftraege/`, `anleitungen/`, and optional
+  overrides of the rules (`HAUSSTIL.md`, `PROTOCOL.md`, `GESTALTUNG.md`, `MODELS.md`)
 - **Caches:** `.models-dev-cache.json`, `.update-stamp`, `.venv-*/`, `.fenster/` (browser profile of the window)
 
 Claude Code sessions stay where Claude Code keeps them (`~/.claude/projects`).
@@ -313,6 +341,9 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/routes/` | HTTP API, one module per area: `auth`, `files`, `providers`, `system`, `calendar`, `mail`, `sessions`, `chat`, `ui` |
 | `server/runs.py`, `server/hermes_runs.py` | Detached chat runs (claude CLI / Hermes): start, stream, inject, background tasks |
 | `server/sessions.py` | Claude Code sessions on disk: metadata, transcripts, filters |
+| `server/tickets.py`, `construct_mcp.py` | Tickets inside a session: storage, assignment, the assistant's two tools (MCP server) |
+| `server/team/`, `team_mcp.py` | Team mode: staff files, jobs, brakes, hiring, dispatcher, the company bus (MCP server) |
+| `scripts/pruefstand.py` | Test bench for the company: fixed jobs, measured results, comparison with the last run |
 | `server/scheduler.py` | Scheduled tasks from calendar events |
 | `tests/` | Backend tests (`pip install -r requirements-dev.txt && pytest`) |
 | `frontend/` | Web interface: React 19 + TypeScript + Vite — see [`frontend/README.md`](frontend/README.md) |

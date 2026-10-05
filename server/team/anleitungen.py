@@ -35,9 +35,9 @@ import re
 from datetime import date
 from pathlib import Path
 
-from server.core import BASE_DIR
+from server.team.pfade import FIRMA_DIR
 
-DIR = BASE_DIR / "firma" / "anleitungen"
+DIR = FIRMA_DIR / "anleitungen"
 
 # Eine einzelne Anleitung. Grosszuegig — hier darf wirklich stehen, wie es
 # geht, samt Befehlszeilen und Fallstricken. Sie liegt ja nicht im Kontext.
