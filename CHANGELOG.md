@@ -2,6 +2,20 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 7.1.0 — 2026-10-05
+
+### Added
+- **Sounds in the Construct room.** Soft key clicks while you type, a breath
+  of air and a quiet chime when a station opens (and the reverse when it
+  closes), a long whoosh when you dive through the monitor, a ticking clock
+  while the clock is open, and Cody typing at the workbench while he works.
+  In the background a quiet lo-fi coding beat plays — generated live in the
+  browser (Web Audio), so there are no audio files, no licences, and it does
+  not loop the same bars. Settings → Appearance → Sounds & music switches
+  effects and music separately and sets the volume; the speaker next to ⚙ in
+  the room turns everything on or off. Browsers only allow sound after the
+  first click, so the room stays silent until then.
+
 ## 7.0.0 — 2026-10-04
 
 ### Added

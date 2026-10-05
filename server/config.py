@@ -73,6 +73,10 @@ DEFAULT_SETTINGS = {
     # Modell schlägt bei jeder neuen Session eins vor, protokolliert wird nur
     # (auto_modell.py). Ohne Schalter in der Oberfläche, Vorgabe aus.
     "auto": {"schatten": False},
+    # Klänge im Construct-Raum (frontend/src/lib/klang.ts), alles im Browser
+    # erzeugt: Effekte = Tippen, Öffnen/Schließen, Uhr; Musik = leise Coding-
+    # Musik im Hintergrund. lautstaerke in Prozent, gilt für beides.
+    "sound": {"effekte": True, "musik": True, "lautstaerke": 40},
 }
 
 IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano-banana-pro")
@@ -195,13 +199,22 @@ def load_settings() -> dict:
 
 
 def _clean_extras(src: dict, cur: dict):
-    """Bildmodell und Schattenbetrieb (für Laden und Patch)."""
+    """Bildmodell, Schattenbetrieb und Klang (für Laden und Patch)."""
     im = src.get("images") or {}
     if im.get("model") in IMAGE_MODELS:
         cur["images"]["model"] = im["model"]
     au = src.get("auto") or {}
     if "schatten" in au:
         cur["auto"]["schatten"] = bool(au["schatten"])
+    so = src.get("sound") or {}
+    for k in ("effekte", "musik"):
+        if k in so:
+            cur["sound"][k] = bool(so[k])
+    if "lautstaerke" in so:
+        try:
+            cur["sound"]["lautstaerke"] = max(0, min(100, int(so["lautstaerke"])))
+        except Exception:
+            pass
 
 
 def apply_patch(patch: dict) -> dict:

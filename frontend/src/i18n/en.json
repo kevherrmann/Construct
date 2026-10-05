@@ -855,5 +855,15 @@
   "5 STD": "5 HRS",
   "WOCHE": "WEEK",
   "Reset {t}": "Reset {t}",
-  "Was du siehst und womit du redest": "What you see and who you talk to"
+  "Was du siehst und womit du redest": "What you see and who you talk to",
+  "🎵 SOUNDS & MUSIK": "🎵 SOUNDS & MUSIC",
+  "Sounds & Musik": "Sounds & Music",
+  "Ton an": "Sound on",
+  "Ton aus": "Sound off",
+  "Geräusche": "Sound effects",
+  "Tippen, Öffnen und Schließen, die tickende Uhr, Cody an der Tastatur.": "Typing, opening and closing, the ticking clock, Cody at the keyboard.",
+  "Coding-Musik": "Coding music",
+  "Leiser Lo-Fi-Beat im Hintergrund — wird live erzeugt, wiederholt sich nicht.": "A quiet lo-fi beat in the background — generated live, never repeats.",
+  "Nur im Construct-Raum. Der Browser gibt Ton erst nach dem ersten Klick frei.": "Only in the Construct room. The browser allows sound only after your first click.",
+  "Lautstärke:": "Volume:"
 }

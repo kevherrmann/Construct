@@ -31,6 +31,7 @@ import codyUnscharf from './assets/cody-raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
 import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
+import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
 import { RegalSchild, WandKontingent, Wanduhr } from './Raumdetails'
 import { aufBuehne, GANZ, weltTransform, type Kamera } from './kamera'
@@ -353,6 +354,31 @@ const PICKER_ANSICHT: Record<PickerName, Ansicht> = {
 }
 
 /** Der Construct-Raum: dieselbe Arbeit wie im Chat, als Raum statt als Text. */
+/** Lautsprecher wie ⚙ und ⏻: eine Linie in der Schriftfarbe, kein buntes Emoji. */
+function Lautsprecher({ aus }: { aus: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ verticalAlign: 'middle' }}
+    >
+      <path d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z" />
+      {aus ? (
+        <path d="M11 6l3.5 4M14.5 6L11 10" />
+      ) : (
+        <path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8" />
+      )}
+    </svg>
+  )
+}
+
 export function RaumView() {
   const { t } = useTranslation()
   const assistant = useSettings((st) => st.boot.assistant)
@@ -420,6 +446,11 @@ export function RaumView() {
   const figur = useMemo(() => eigeneFigur(figurDateien) ?? CODY, [figurDateien])
   const pose = useRuhigePose(POSE_VON[lage.phase])
   const amWerk = pose === 'arbeiten'
+  useRaumKlang({ ansicht, fokus, tauchen, amWerk })
+  // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
+  const sound = useSettings((st) => st.settings.sound)
+  const saveSettings = useSettings((st) => st.save)
+  const stumm = !sound.effekte && !sound.musik
   // Das Standbild am Podest verschwindet erst, wenn das Video der Pose wirklich
   // läuft — spielt es nicht (Codec, Autoplay), bleibt die Figur einfach stehen.
   const [videoPose, setVideoPose] = useState<Pose | null>(null)
@@ -461,6 +492,16 @@ export function RaumView() {
           <b>◢◤</b> CONSTRUCT
         </span>
         <span className={s.kopfRechts}>
+          <button
+            type="button"
+            className={s.knopfRund}
+            onClick={() => void saveSettings({ sound: { effekte: stumm, musik: stumm } })}
+            title={stumm ? t('Ton an') : t('Ton aus')}
+            aria-label={stumm ? t('Ton an') : t('Ton aus')}
+            aria-pressed={!stumm}
+          >
+            <Lautsprecher aus={stumm} />
+          </button>
           <button
             type="button"
             className={`${s.knopfRund} ${ansicht === 'einstellungen' ? s.knopfRundAn : ''}`}

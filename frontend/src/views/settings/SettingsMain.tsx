@@ -5,6 +5,7 @@ import { useSettings } from '@/stores/settings'
 import { BackgroundSection, ThemeSection } from './AppearanceSections'
 import { EnginesSection } from './EnginesSection'
 import { ImagesSection } from './ImagesSection'
+import { KlangSection } from './KlangSection'
 import { LanguageSection, MailSection, TilesSection } from './GeneralSections'
 import { NamesSection } from './NamesSection'
 import { Note } from './parts'
@@ -57,6 +58,7 @@ const BY_ID: Record<SectionId, ComponentType> = {
   charakter: PersonaSection,
   farbwelt: ThemeSection,
   hintergrund: BackgroundSection,
+  klang: KlangSection,
   beenden: BeendenSection,
 }
 

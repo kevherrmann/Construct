@@ -1,4 +1,5 @@
 import { canDictate, startDictation, type Dictation } from '@/lib/dictation'
+import { tipp } from '@/lib/klang'
 import { trServer } from '@/lib/serverText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -303,6 +304,13 @@ export function Composer({
           }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            // Im Raum klingt jeder Anschlag leise mit (lib/klang.ts, ⚙ → Aussehen).
+            if (
+              raum &&
+              !e.repeat &&
+              (e.key.length === 1 || /^(Enter|Backspace|Delete)$/.test(e.key))
+            )
+              tipp(e.key === ' ' || e.key === 'Enter')
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               // Während des Diktats beendet Enter nur das Diktat — gesendet

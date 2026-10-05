@@ -15,6 +15,7 @@ export const SECTIONS = [
   { id: 'charakter', title: '📜 CHARAKTER' },
   { id: 'farbwelt', title: '🎨 FARBWELT' },
   { id: 'hintergrund', title: '🖼 HINTERGRUND' },
+  { id: 'klang', title: '🎵 SOUNDS & MUSIK' },
   { id: 'beenden', title: '⏻ BEENDEN' },
 ] as const
 
@@ -29,7 +30,7 @@ export const TABS = [
   { id: 'modelle', title: '🧠 MODELLE', sections: ['modelle', 'bilder'] },
   { id: 'assistent', title: '📜 ASSISTENT', sections: ['charakter', 'vorlesen'] },
   { id: 'verbindungen', title: '🔌 VERBINDUNGEN', sections: ['mail', 'telegram'] },
-  { id: 'aussehen', title: '🎨 AUSSEHEN', sections: ['farbwelt', 'hintergrund'] },
+  { id: 'aussehen', title: '🎨 AUSSEHEN', sections: ['farbwelt', 'hintergrund', 'klang'] },
   { id: 'system', title: '🖥 SYSTEM', sections: ['updates', 'beenden'] },
 ] as const satisfies readonly { id: string; title: string; sections: readonly SectionId[] }[]
 

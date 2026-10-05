@@ -25,6 +25,8 @@ export interface Settings {
   images: { model: string }
   /** Automatische Modellwahl — vorerst nur Schattenbetrieb, ohne Schalter in der Oberfläche. */
   auto: { schatten: boolean }
+  /** Klänge im Construct-Raum (lib/klang.ts); lautstaerke 0–100. */
+  sound: { effekte: boolean; musik: boolean; lautstaerke: number }
 }
 
 export interface Bootstrap {
@@ -63,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   images: { model: 'openai/gpt-image-2' },
   auto: { schatten: false },
+  sound: { effekte: true, musik: true, lautstaerke: 40 },
 }
 
 /** Liest window.CONSTRUCT und füllt Lücken mit Vorgaben (z. B. im Vite-Dev-Server). */
