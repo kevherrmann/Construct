@@ -90,6 +90,14 @@
   margin-right: 6px;
   letter-spacing: 0;
 }
+/* Version klein neben dem Namen: sieht man auf einen Blick, ob ein Update da ist. */
+.version {
+  margin-left: 8px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
 .knopf {
   padding: 6px 14px;
   border: 1px solid #d6d9d7;

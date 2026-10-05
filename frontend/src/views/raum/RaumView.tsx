@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useProviders } from '@/api/providers'
+import { useVersion } from '@/api/system'
 import { Composer } from '@/components/chat/Composer'
 import { BeendenKnopf } from '@/components/layout/Beenden'
 import type { PickerName } from '@/components/chat/Pickers'
@@ -387,6 +388,7 @@ export function RaumView() {
   const folder = useChat((st) => st.folder)
   const mode = useChat((st) => st.mode)
   const providers = useProviders()
+  const version = useVersion()
   const setRaum = useUi((st) => st.setRaum)
   const [ansicht, setAnsicht] = useState<Ansicht | null>(null)
   const schliessen = useCallback(() => setAnsicht(null), [])
@@ -490,6 +492,7 @@ export function RaumView() {
       <header className={s.kopf}>
         <span className={s.marke}>
           <b>◢◤</b> CONSTRUCT
+          {version.data?.version && <small className={s.version}>{version.data.version}</small>}
         </span>
         <span className={s.kopfRechts}>
           <button

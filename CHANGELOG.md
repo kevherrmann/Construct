@@ -15,6 +15,8 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   effects and music separately and sets the volume; the speaker next to ⚙ in
   the room turns everything on or off. Browsers only allow sound after the
   first click, so the room stays silent until then.
+- The room shows the version next to CONSTRUCT, so you can see at a glance
+  whether an update has arrived.
 
 ## 7.0.0 — 2026-10-04
 
