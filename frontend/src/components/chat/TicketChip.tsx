@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
+import { useFirmaGeben, useTeamAn } from '@/api/team'
+import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { useSessionTickets, useTicketActions, useTicketsAn, type Ticket } from '@/api/tickets'
 import { useSchliessen } from '@/hooks/useSchliessen'
 import { useChat } from '@/stores/chat'
@@ -29,6 +32,7 @@ export function TicketZeile({
       <span className={s.titel} title={t.titel}>
         {t.titel}
       </span>
+      {t.auftrag && <span title="Firma">🏢</span>}
     </button>
   )
 }
@@ -86,6 +90,10 @@ export function TicketChip() {
   const [open, setOpen] = useState(false)
   const [umbenennen, setUmbenennen] = useState(false)
   const act = useTicketActions(sid ?? '')
+  const teamAn = useTeamAn()
+  const geben = useFirmaGeben()
+  const navigate = useNavigate()
+  const oeffneAuftrag = useAuftraegeAnsicht((st) => st.oeffne)
   useSchliessen(open, () => {
     setOpen(false)
     setUmbenennen(false)
@@ -158,6 +166,29 @@ export function TicketChip() {
               <button type="button" className={s.knopf} onClick={() => setUmbenennen(true)}>
                 {t('✎ Umbenennen')}
               </button>
+              {teamAn && !ak.auftrag && ak.status !== 'erledigt' && sid && (
+                <button
+                  type="button"
+                  className={s.knopf}
+                  disabled={geben.isPending}
+                  title={t('Die Nachrichten dieses Tickets gehen als Auftrag an die Firma')}
+                  onClick={() =>
+                    geben.mutate(
+                      { session: sid, nr: ak.nr },
+                      {
+                        onSuccess: (j) => {
+                          oeffneAuftrag(j.ticket.id)
+                          navigate('/auftraege')
+                          zu()
+                        },
+                        onError: (e) => alert(e.message),
+                      },
+                    )
+                  }
+                >
+                  🏢 {t('An die Firma')}
+                </button>
+              )}
             </div>
           )}
           {ak && umbenennen && (

@@ -459,7 +459,7 @@ async def run_claude(run, cmd):
             maybe_notify(run)
 
 
-def bus_config(run, base: str) -> str:
+def bus_config(run, base: str, firma: bool = False) -> str:
     """--mcp-config für die Ticket-Werkzeuge dieses Laufs (construct_mcp.py).
 
     Als Zeichenkette statt Datei: das Token gilt nur für diesen Lauf und
@@ -469,6 +469,8 @@ def bus_config(run, base: str) -> str:
     env = {"CONSTRUCT_RUN": run.id, "CONSTRUCT_TOKEN": run.token, "CONSTRUCT_BASE": base}
     if bus_auth_header():
         env["CONSTRUCT_AUTH"] = bus_auth_header()
+    if firma:
+        env["CONSTRUCT_FIRMA"] = "1"
     return json.dumps({"mcpServers": {"construct": {
         "command": sys.executable, "args": [str(BASE_DIR / "construct_mcp.py")], "env": env,
         # Ohne das bleiben die Werkzeuge hinter ToolSearch versteckt, sobald der
@@ -585,9 +587,13 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
         # Browser …) — gemessen 05.10.2026: +1,3k Tokens Kontext je Aufruf und
         # Werkzeuge, die der Chat bisher nicht hatte. So bleibt alles wie vorher
         # und es kommen nur unsere zwei Werkzeuge dazu.
-        cmd += ["--mcp-config", bus_config(run, bus_base), "--strict-mcp-config",
+        firma = conf["team"]["aktiv"]
+        erlaubt = ["mcp__construct__ticket_neu", "mcp__construct__ticket_zuordnen"]
+        if firma:
+            erlaubt += ["mcp__construct__firma_auftrag", "mcp__construct__firma_stand"]
+        cmd += ["--mcp-config", bus_config(run, bus_base, firma), "--strict-mcp-config",
                 # Auch in Modi, die sonst nachfragen würden (im -p-Modus niemand antwortet).
-                "--allowedTools", "mcp__construct__ticket_neu", "mcp__construct__ticket_zuordnen"]
+                "--allowedTools", *erlaubt]
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:

@@ -643,6 +643,59 @@ async def kevin_weiter(tid: str, an_wunsch: str, text: str) -> dict | None:
         bus_einreihen(t, "kevin", ziel["an"], ziel["art"], text or "Mach bitte weiter.")
     return t
 
+# ---------- Aufträge anlegen und abschließen ----------
+class AuftragFehler(Exception):
+    """Ein Auftrag, der so nicht angelegt werden kann — die Meldung ist für den Nutzer."""
+
+
+def auftrag_anlegen(titel: str, brief: str, cwd: str = "", owner: str = "",
+                    bruecke: dict | None = None) -> dict:
+    """Die Firma bekommt eine Aufgabe: sie geht an die Geschäftsführung.
+
+    Eine Stelle für alle Wege hinein — das Formular, `/firma` im Chat, der Knopf am
+    Ticket und das Werkzeug des Assistenten. `bruecke` ({session, nr}) verbindet den
+    Auftrag mit dem Ticket, aus dem er stammt: wird er fertig, gilt das Ticket als
+    erledigt, und der Assistent sieht den Stand in der Ticket-Zeile.
+    """
+    brief = str(brief or "").strip()
+    if not brief:
+        raise AuftragFehler("leer")
+    chef = ag.load_agent(owner or ag.OWNER_SLUG, WORKSPACE)
+    if not chef:
+        raise AuftragFehler("Es gibt niemanden, der Aufträge verteilt.")
+    # Dieselbe Prüfung wie für das cwd einer Akte: ein Auftrag mit Arbeitsordner
+    # außerhalb des Workspace ließe einen Zug mit acceptEdits überall auf der
+    # Platte arbeiten.
+    ordner = ag._clean_cwd(cwd or chef["cwd"], WORKSPACE)
+    if not ordner:
+        raise AuftragFehler(f"Der Arbeitsordner muss in {WORKSPACE} liegen.")
+    t = auf.neu(str(titel or "").strip() or brief[:80], brief, owner=chef["slug"], cwd=ordner)
+    t["status"] = "laeuft"
+    if bruecke and bruecke.get("session") and bruecke.get("nr"):
+        t["bruecke"] = {"session": str(bruecke["session"]), "nr": int(bruecke["nr"])}
+    auf.speichern(t)
+    bus_einreihen(t, "kevin", chef["slug"], "auftrag", brief)
+    if t.get("bruecke"):
+        from server import tickets as tickmod
+        try:
+            tickmod.verknuepfen(t["bruecke"]["session"], t["bruecke"]["nr"], t["id"])
+        except KeyError:
+            pass          # das Ticket gibt es nicht (mehr): der Auftrag läuft trotzdem
+    return t
+
+
+def bruecke_abschluss(t: dict):
+    """Der Auftrag ist fertig: das Ticket, aus dem er kam, auch."""
+    b = t.get("bruecke")
+    if not b:
+        return
+    from server import tickets as tickmod
+    try:
+        tickmod.aendern(b["session"], int(b["nr"]), status="erledigt")
+    except (KeyError, ValueError):
+        pass
+
+
 # ---------- Start und Stopp ----------
 _DISPATCHER = {"task": None, "loop": None}
 

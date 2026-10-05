@@ -360,3 +360,16 @@ export const merkeGesehen = (id: string, n: number) => {
 /** Was Kevin selbst zuletzt geschrieben hat, ist nie ungelesen. */
 export const ungelesen = (t: AuftragKurz) =>
   Math.max(0, t.msgs - gesehen(t.id) - (t.letzte_von === 'kevin' ? 1 : 0))
+
+/** Aus einem Ticket einen Auftrag machen: die Nachrichten des Tickets werden das Briefing. */
+export function useFirmaGeben() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { session: string; nr: number }) =>
+      apiPost<{ ticket: Auftrag }>(`${P}/auftraege/aus-ticket`, v),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['team'] })
+      void qc.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
+}

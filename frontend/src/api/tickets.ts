@@ -23,6 +23,8 @@ export interface Ticket {
   von: TicketVon
   erstellt: string
   erledigt_am: string | null
+  /** Team-Modus: der Auftrag der Firma, der aus diesem Ticket entstand. */
+  auftrag: string | null
   nachrichten: TicketMsg[]
 }
 

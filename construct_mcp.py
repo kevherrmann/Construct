@@ -28,6 +28,7 @@ RUN = os.environ.get("CONSTRUCT_RUN", "")
 TOKEN = os.environ.get("CONSTRUCT_TOKEN", "")
 BASE = os.environ.get("CONSTRUCT_BASE", "http://127.0.0.1:8765")
 AUTH = os.environ.get("CONSTRUCT_AUTH", "")
+FIRMA = os.environ.get("CONSTRUCT_FIRMA") == "1"
 
 WERKZEUGE = [
     {"name": "ticket_neu",
@@ -40,6 +41,22 @@ WERKZEUGE = [
      "inputSchema": {"type": "object", "properties": {
          "nr": {"type": "integer"}}, "required": ["nr"]}},
 ]
+
+# Nur mit Team-Modus (CONSTRUCT_FIRMA=1): zwei Werkzeuge, um Aufgaben an die Firma zu geben
+# und nach ihrem Stand zu sehen.
+if FIRMA:
+    WERKZEUGE += [
+        {"name": "firma_auftrag",
+         "description": "Gib die Aufgabe an die Firma (mehrere KI-Mitarbeiter, arbeiten im Hintergrund).",
+         "inputSchema": {"type": "object", "properties": {
+             "titel": {"type": "string", "description": "3-6 Wörter"},
+             "brief": {"type": "string", "description": "Briefing, das ohne diesen Verlauf verständlich ist: "
+                                                         "Ziel, Ort (Pfade), woran man 'fertig' erkennt"}},
+             "required": ["titel", "brief"]}},
+        {"name": "firma_stand",
+         "description": "Stand der Aufträge, die aus Tickets dieser Session an die Firma gingen.",
+         "inputSchema": {"type": "object", "properties": {}}},
+    ]
 
 
 def melde(obj):

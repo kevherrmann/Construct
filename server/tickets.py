@@ -114,6 +114,8 @@ def _bereinigt(d: dict, sid: str) -> dict:
             "von": t.get("von") if t.get("von") in VON else "auto",
             "erstellt": str(t.get("erstellt") or ""),
             "erledigt_am": str(t.get("erledigt_am") or "") or None,
+            # Team-Modus: der Auftrag der Firma, der aus diesem Ticket entstand.
+            "auftrag": str(t.get("auftrag") or "") or None,
             "nachrichten": msgs,
         })
     nrs = {t["nr"] for t in out["tickets"]}
@@ -179,6 +181,33 @@ def _ticket(d: dict, nr) -> dict | None:
 
 def _naechste_nr(d: dict) -> int:
     return max((t["nr"] for t in d["tickets"]), default=0) + 1
+
+
+def verknuepfen(sid: str, nr: int, auftrag_id: str | None) -> dict:
+    """Das Ticket mit einem Auftrag der Firma verbinden (oder lösen)."""
+    with _lock(sid):
+        d = laden(sid)
+        t = _ticket(d, nr)
+        if t is None:
+            raise KeyError(nr)
+        t["auftrag"] = auftrag_id
+        speichern(d)
+        return d
+
+
+def briefing(t: dict, volltexte: dict | None = None) -> str:
+    """Aus den Nachrichten eines Tickets das Briefing für die Firma: die erste ist die
+    Aufgabe, die späteren sind Korrekturen dazu — in dieser Reihenfolge, wörtlich.
+    volltexte (uuid → Text) ersetzt die Auszüge der Ticket-Datei."""
+    volltexte = volltexte or {}
+    teile = [volltexte.get(m["id"]) or m["text"] for m in t["nachrichten"]]
+    teile = [x for x in teile if x]
+    if not teile:
+        return t["titel"]
+    kopf = teile[0]
+    if len(teile) == 1:
+        return kopf
+    return kopf + "\n\nSpäter dazu gesagt:\n" + "\n".join(f"- {x}" for x in teile[1:])
 
 
 def _wo(d: dict, uuid: str):
@@ -363,8 +392,11 @@ def hinweis(sid: str | None, vorgabe: str = "") -> str:
     ak = _ticket(d, d["aktuell"])
     teile = []
 
+    firma = _firma_stand()
+
     def kurz(t):
-        return f"#{t['nr']} „{t['titel']}“"
+        z = firma(t.get("auftrag"))
+        return f"#{t['nr']} „{t['titel']}“" + (f" (Firma: {z})" if z else "")
 
     if ak:
         zusatz = []
@@ -389,10 +421,55 @@ def hinweis(sid: str | None, vorgabe: str = "") -> str:
     return "[Tickets: " + " · ".join(teile) + "]"
 
 
+def _firma_stand():
+    """Funktion auftrag-id → Kurztext ("arbeitet", "wartet auf dich", "fertig") — nur mit
+    Team-Modus, sonst immer leer. Die Auftragsdateien liest sie bei Bedarf."""
+    if not cfg.load_settings()["team"]["aktiv"]:
+        return lambda _id: ""
+    from server.team import auftraege as auf
+    text = {"neu": "arbeitet", "laeuft": "arbeitet", "wartet_auf_kevin": "wartet auf den Nutzer",
+            "wartet_auf_einstellung": "wartet auf den Nutzer", "fertig": "fertig",
+            "abgebrochen": "abgebrochen"}
+
+    def stand(aid):
+        a = auf.laden(aid) if aid else None
+        return text.get(a["status"], "") if a else ""
+    return stand
+
+
 def regeln() -> str:
     """Der feste Teil im Systemprompt. Ändert sich nie während einer Session —
     nur so bleibt er im Zwischenspeicher."""
     wer = cfg.user_name() or cfg.L("der Nutzer", "the user")
+    return _tickets_regeln(wer) + _firma_regeln(wer)
+
+
+def _firma_regeln(wer: str) -> str:
+    """Nur mit Team-Modus: wann eine Aufgabe an die Firma geht. Steht wie der Rest
+    im festen Teil des Systemprompts und ändert sich nur, wenn der Nutzer den
+    Modus umstellt."""
+    team = cfg.load_settings()["team"]
+    if not team["aktiv"]:
+        return ""
+    if team["modus"] == "auto":
+        wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, eine Oberfläche, Tests) "
+                f"schlägst du {wer} für die Firma vor und fragst, ob sie sie übernehmen soll — "
+                f"erst nach seinem Ja `firma_auftrag`. Alles Kleine erledigst du selbst.")
+    else:
+        wann = (f"Die Firma bekommt nur etwas, wenn {wer} es ausdrücklich verlangt "
+                f"(„gib das an die Firma“); alles andere erledigst du selbst.")
+    return cfg.L(
+        f"""
+
+## Firma
+Neben dir arbeitet eine Firma aus KI-Mitarbeitern im Hintergrund. {wann} `firma_auftrag` braucht ein Briefing, das ohne diesen Verlauf verständlich ist (Ziel, Pfade, woran man „fertig“ erkennt); danach arbeitest du nicht selbst daran weiter. Den Stand siehst du in der Ticket-Zeile, Genaueres mit `firma_stand`.""",
+        f"""
+
+## Company
+Next to you a company of AI employees works in the background. Hand a task to the company only as follows: {wann} `firma_auftrag` needs a briefing that makes sense without this conversation (goal, paths, how to tell it is done); afterwards do not keep working on it yourself. You see the state in the ticket line, details with `firma_stand`.""")
+
+
+def _tickets_regeln(wer: str) -> str:
     return cfg.L(
         f"""## Tickets
 Jede Nachricht von {wer} gehört zu einem Ticket dieser Session. Welche es gibt, steht am Ende seiner Nachricht in eckigen Klammern; ohne dein Zutun landet sie im aktuellen.
@@ -600,6 +677,7 @@ def uebersicht(namen: dict | None = None) -> dict:
                     "session_titel": namen.get(d["session"], ""),
                     "nr": t["nr"], "titel": t["titel"], "status": t["status"],
                     "von": t["von"], "erstellt": t["erstellt"], "erledigt_am": t["erledigt_am"],
+                    "auftrag": t.get("auftrag"),
                     "aktuell": d["aktuell"] == t["nr"],
                     "nachrichten": [m for m in t["nachrichten"] if _tag(m["ts"]) == tag],
                     "gesamt": len(t["nachrichten"]),

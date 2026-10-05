@@ -13,9 +13,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from server import config as cfg
+from server import tickets as tickmod
 from server.core import PROJECTS_DIR, WORKSPACE, claude_bin, claude_env, sse
 from server.runs import RUNS, SSE_HEADERS, build_prompt, stdin_message
-from server.sessions import SID_RE, _parse_transcript_lines
+from server.sessions import SID_RE, _parse_transcript_lines, nachrichtentexte
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import bus, engine, hiring
@@ -175,27 +176,34 @@ def auftraege_liste():
 
 @router.post("/api/team/auftraege")
 async def auftrag_neu(req: Request):
-    """Kevin gibt der Firma einen Auftrag. Er geht an die Geschaeftsfuehrung."""
+    """Der Nutzer gibt der Firma einen Auftrag. Er geht an die Geschäftsführung."""
     body = await req.json()
-    brief = str(body.get("brief") or "").strip()
-    if not brief:
-        return JSONResponse({"error": "leer"}, status_code=400)
-    chef = ag.load_agent(str(body.get("owner") or ag.OWNER_SLUG), WORKSPACE)
-    if not chef:
-        return JSONResponse({"error": "Es gibt niemanden, der Auftraege verteilt."},
-                            status_code=400)
-    # Dieselbe Pruefung wie fuer das cwd einer Akte: ein Auftrag mit
-    # Arbeitsordner ausserhalb des Workspace liesse einen Zug mit
-    # acceptEdits ueberall auf der Platte arbeiten.
-    cwd = ag._clean_cwd(body.get("cwd") or chef["cwd"], WORKSPACE)
-    if not cwd:
-        return JSONResponse({"error": f"Der Arbeitsordner muss in {WORKSPACE} liegen."},
-                            status_code=400)
-    t = auf.neu(str(body.get("titel") or "").strip() or brief[:80], brief,
-               owner=chef["slug"], cwd=cwd)
-    t["status"] = "laeuft"
-    auf.speichern(t)
-    engine.bus_einreihen(t, "kevin", chef["slug"], "auftrag", brief)
+    try:
+        t = engine.auftrag_anlegen(body.get("titel"), body.get("brief"), body.get("cwd") or "",
+                                   str(body.get("owner") or ""), body.get("bruecke"))
+    except engine.AuftragFehler as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"ok": True, "ticket": t}
+
+
+@router.post("/api/team/auftraege/aus-ticket")
+async def auftrag_aus_ticket(req: Request):
+    """Der Knopf am Ticket: aus den Nachrichten eines Tickets wird ein Auftrag."""
+    body = await req.json()
+    sid, nr = str(body.get("session") or ""), body.get("nr")
+    try:
+        d = tickmod.laden(sid)
+        tk = next(x for x in d["tickets"] if x["nr"] == int(nr))
+    except (ValueError, StopIteration, TypeError):
+        return JSONResponse({"error": "Dieses Ticket gibt es nicht."}, status_code=404)
+    if tk.get("auftrag") and auf.laden(tk["auftrag"]):
+        return JSONResponse({"error": "Dieses Ticket ist schon bei der Firma.",
+                             "auftrag": tk["auftrag"]}, status_code=409)
+    brief = tickmod.briefing(tk, nachrichtentexte(sid, {m["id"] for m in tk["nachrichten"]}))
+    try:
+        t = engine.auftrag_anlegen(tk["titel"], brief, d["cwd"], bruecke={"session": sid, "nr": tk["nr"]})
+    except engine.AuftragFehler as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     return {"ok": True, "ticket": t}
 
 

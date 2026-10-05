@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { useAuftraege, useNotAus, useTeamAn, useTeamStand } from '@/api/team'
+import { ungelesen, useAuftraege, useNotAus, useTeamAn, useTeamStand } from '@/api/team'
 import { BREMSEN } from '@/lib/team'
 import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { wartetAufNutzer } from '@/views/auftraege/zustand'
@@ -47,6 +47,11 @@ export function FirmaLeiste() {
           : `${t('ist angehalten:')} ${t(BREMSEN[ruf.eskalation.bremse] ?? ruf.eskalation.bremse)}`
         : t('wartet auf dich')
     : ''
+  // Fertige Aufträge, die man noch nicht gesehen hat — sonst fällt eine Lieferung
+  // durch, während man woanders ist.
+  const fertig = (liste ?? []).filter(
+    (x) => x.status === 'fertig' && x.id !== auswahl && ungelesen(x) > 0,
+  )
   const aktiv = stand?.aktiv ?? []
   const zeigenAktiv = aktiv.length > 0 || !!stand?.pausiert
 
@@ -71,6 +76,23 @@ export function FirmaLeiste() {
           <span className={s.rk}>{t('ANSEHEN')}</span>
         </button>
       )}
+      {fertig.slice(0, 2).map((x) => (
+        <button
+          key={x.id}
+          type="button"
+          className={`${s.ruf} ${s.fertig}`}
+          onClick={() => {
+            oeffne(x.id)
+            navigate('/auftraege')
+          }}
+        >
+          <span>✓</span>
+          <span className={s.rt}>
+            <b>{x.titel.length > 44 ? `${x.titel.slice(0, 44)}…` : x.titel}</b> — {t('ist fertig')}
+          </span>
+          <span className={s.rk}>{t('ANSEHEN')}</span>
+        </button>
+      ))}
       {zeigenAktiv && (
         <div className={s.aktiv}>
           {aktiv.map((a) => (

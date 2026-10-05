@@ -78,3 +78,11 @@
   border-color: var(--green-dim);
   color: var(--green);
 }
+.ruf.fertig {
+  background: rgba(var(--accent-rgb), 0.07);
+  border-color: rgba(var(--accent-rgb), 0.5);
+  color: var(--green);
+}
+.ruf.fertig .rk {
+  border-color: rgba(var(--accent-rgb), 0.5);
+}

@@ -41,6 +41,9 @@ def firma(tmp_path, monkeypatch):
     monkeypatch.setattr(anl, "DIR", tmp_path / "firma" / "anleitungen")
     monkeypatch.setattr(auf, "AUFTRAEGE_DIR", tmp_path / "firma" / "auftraege")
     auf._UEBERSICHT.clear()
+    from server import tickets as tickmod
+    monkeypatch.setattr(tickmod, "TICKETS_DIR", tmp_path / "tickets")
+    tickmod._CACHE.clear()
     (tmp_path / "settings.json").write_text(json.dumps(
         {"lang": "de", "names": {"user": "Anna", "assistant": "Momo"}, "team": {"aktiv": True}}))
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
@@ -193,3 +196,39 @@ def test_belegschaft_und_organigramm(firma):
 def test_bus_mit_unbekanntem_token_wird_abgewiesen(firma):
     r = api(firma, "/api/team/bus", {"tool": "liefern", "args": {"ergebnis": "x"}, "token": "falsch"})
     assert r["error"] is True and "beendet" in r["text"]
+
+
+def test_ticket_geht_an_die_firma_und_wird_mit_dem_auftrag_erledigt(firma, tmp_path):
+    from server import tickets as tickmod
+    sid = "abcd1234-0000-0000-0000-0000000000f1"
+    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
+    tickmod.nachricht(sid, "u2", "und bitte in Blau")                 # Korrektur im selben Ticket
+    r = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})
+    tid = r["ticket"]["id"]
+    assert r["ticket"]["bruecke"] == {"session": sid, "nr": 1}
+    assert "Später dazu gesagt" in r["ticket"]["brief"] and "in Blau" in r["ticket"]["brief"]
+    assert tickmod.laden(sid)["tickets"][0]["auftrag"] == tid
+    # ein zweites Mal geht nicht
+    with pytest.raises(urllib.error.HTTPError) as e:
+        api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})
+    assert e.value.code == 409
+    warte(firma, tid, ("fertig",))
+    t = tickmod.laden(sid)["tickets"][0]
+    assert t["status"] == "erledigt"
+    # die Ticket-Zeile zeigt dem Assistenten den Stand
+    assert "(Firma: fertig)" in tickmod.hinweis(sid)
+
+
+def test_ticketbus_firma_werkzeuge(firma, tmp_path):
+    from server import tickets as tickmod
+    from server.routes import tickets as rt
+    sid = "abcd1234-0000-0000-0000-0000000000f2"
+    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
+
+    class Lauf:
+        session_id, cwd = sid, str(tmp_path)
+
+    antwort = rt._firma("firma_auftrag", {"titel": "Ding", "brief": "[klein] Bau das Ding"}, Lauf)
+    assert "bei der Firma" in antwort
+    assert "→" in rt._firma("firma_stand", {}, Lauf)
+    assert rt._firma("firma_auftrag", {"titel": "x", "brief": ""}, Lauf) == "leer"

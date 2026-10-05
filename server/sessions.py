@@ -288,3 +288,22 @@ def nutzer_uuids_bis(session_id: str, bis_uuid: str) -> set:
         if ev.get("type") == "user" and ev.get("uuid"):
             out.add(ev["uuid"])
     return out
+
+
+def nachrichtentexte(session_id: str, uuids: set) -> dict:
+    """uuid → voller Text von Nutzer-Nachrichten einer Session (ohne Ticket-Zeile
+    und Datei-Hinweise). Die Ticket-Datei kennt nur Auszüge; für ein Briefing an die
+    Firma braucht es den Wortlaut."""
+    out: dict = {}
+    f = next(iter(PROJECTS_DIR.glob(f"*/{session_id}.jsonl")), None) if SID_RE.match(session_id or "") else None
+    if f is None:
+        return out
+    for line in f.read_bytes().split(b"\n"):
+        try:
+            ev = json.loads(line.decode("utf-8", "replace"))
+        except Exception:
+            continue
+        if ev.get("type") == "user" and ev.get("uuid") in uuids:
+            txt = ohne_ticketzeile(extract_text(ev.get("message", {}).get("content")).strip())
+            out[ev["uuid"]] = re.sub(r"\n\n\[(?:Vom Nutzer hochgeladene|Image uploaded|PDF uploaded)[\s\S]*$", "", txt).strip()
+    return out

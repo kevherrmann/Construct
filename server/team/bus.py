@@ -320,6 +320,7 @@ async def bus_aufruf(body: dict) -> dict:
                                    "text": text[:20000], "dateien": dateien})
             engine.feed(tid).emit({"type": "msg", **e})
             engine.feed(tid).emit({"type": "fertig"})
+            engine.bruecke_abschluss(t)
             titel = t["titel"]
             engine.tg_send(f"\u2705 Auftrag \u201e{titel}\u201c ist fertig\n\n{text[:600]}")
             zaehl()
