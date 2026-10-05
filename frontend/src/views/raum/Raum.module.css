@@ -31,6 +31,7 @@
   --code: #a2401a;
   --shade: rgba(40, 50, 45, 0.06);
   --mask: rgba(50, 55, 52, 0.3);
+  --err: #b42318;
   color-scheme: light;
   position: fixed;
   inset: 0;

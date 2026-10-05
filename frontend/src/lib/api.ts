@@ -1,6 +1,6 @@
 // Dünne Hülle um fetch für die CONSTRUCT-API. Wirft ApiError mit der
-// Fehlermeldung des Servers ({"error": "..."}), damit Oberflächen sie direkt
-// anzeigen können.
+// Fehlermeldung des Servers ({"error": "..."} oder FastAPIs {"detail": "..."}),
+// damit Oberflächen sie direkt anzeigen können.
 
 export class ApiError extends Error {
   constructor(
@@ -16,10 +16,15 @@ async function handle<T>(res: Response): Promise<T> {
   const type = res.headers.get('content-type') ?? ''
   const body: unknown = type.includes('json') ? await res.json() : await res.text()
   if (!res.ok) {
+    const b =
+      body && typeof body === 'object' ? (body as { error?: unknown; detail?: unknown }) : {}
+    // detail ist bei Prüffehlern von FastAPI eine Liste; nur Text taugt als Meldung.
     const msg =
-      body && typeof body === 'object' && 'error' in body
-        ? String((body as { error: unknown }).error)
-        : `${res.status} ${res.statusText}`
+      b.error !== undefined
+        ? String(b.error)
+        : typeof b.detail === 'string'
+          ? b.detail
+          : `${res.status} ${res.statusText}`
     throw new ApiError(msg, res.status)
   }
   return body as T
