@@ -1849,68 +1849,86 @@
   height: 100%;
   user-select: none;
 }
-/* Sitzt er, ist das Bild da; steht er auf, geht es sofort, und es kommt erst
-   zurück, wenn er wieder am Tisch angekommen ist (Wegzeit im Läufer). */
-.sitzt {
-  opacity: 1;
-  transition: opacity 0.3s ease 1s;
-}
-.sitztWeg {
+/* Vier Zustände des Doppelschreibtisches liegen deckungsgleich übereinander
+   (beide da, nur links, nur rechts, beide weg); sichtbar ist einer. */
+.zustand {
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.3s ease;
 }
-/* Wer kein Tischbild hat: das Profilbild auf dem Stuhl. */
-.stuhlBild {
+.zustandAn {
+  opacity: 1;
+}
+/* Klickflächen und Schilder: je Sitz eine Hälfte des Tisches. */
+.sitzKnopf {
   position: absolute;
-  left: 58%;
-  top: 8%;
-  width: 22%;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #fff;
-  border: 2px solid rgb(var(--accent-rgb));
-  box-shadow: 0 3px 8px rgba(30, 40, 35, 0.25);
-  font-weight: 600;
-  color: var(--ink);
-  transition: opacity 0.3s ease 1s;
-}
-.stuhlBild img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-/* Wer arbeitet, aber nicht an der Werkbank steht: der Bildschirm leuchtet. */
-.tischArbeit {
-  position: absolute;
-  left: 18%;
-  top: 27%;
-  width: 36%;
-  height: 28%;
-  border-radius: 8px;
-  background: radial-gradient(closest-side, rgba(126, 231, 135, 0.55), transparent);
-  mix-blend-mode: multiply;
-  animation: tischGlimmt 1.8s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes tischGlimmt {
-  50% {
-    opacity: 0.35;
-  }
-}
-.tischKnopf {
-  position: absolute;
-  inset: 12% 0 0;
+  top: 4%;
+  height: 84%;
+  width: 38%;
   border: 0;
   padding: 0;
   background: transparent;
   cursor: pointer;
   pointer-events: auto;
 }
-.tischKnopf:focus-visible {
+.sitzKnopf:focus-visible {
   outline: none;
+}
+.sitzKnopf.sitzLinks {
+  left: 0;
+}
+.sitzKnopf.sitzRechts {
+  right: 0;
+}
+/* Wer arbeitet, aber nicht an der Werkbank steht (sie ist besetzt): ein pulsierender Punkt. */
+.arbeitPunkt {
+  position: absolute;
+  top: 4%;
+  width: 3.2%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgb(126, 231, 135);
+  box-shadow: 0 0 8px rgba(126, 231, 135, 0.8);
+  animation: tischGlimmt 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.arbeitPunkt.sitzLinks {
+  left: 14%;
+}
+.arbeitPunkt.sitzRechts {
+  right: 14%;
+}
+@keyframes tischGlimmt {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* Profilbild am Rand für Mitarbeiter ohne Doppelschreibtisch. */
+.randplatz {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  padding: 0;
+  overflow: visible;
+  background: #fff;
+  border: 2px solid rgb(var(--accent-rgb));
+  box-shadow: 0 3px 8px rgba(30, 40, 35, 0.25);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.randplatz img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.randArbeit {
+  box-shadow:
+    0 0 0 3px rgba(var(--accent-rgb), 0.35),
+    0 0 12px rgba(var(--accent-rgb), 0.6);
+  animation: tischGlimmt 1.6s ease-in-out infinite;
 }
 .tischSchild {
   position: absolute;
@@ -1943,12 +1961,12 @@
   font-size: 11px;
   color: var(--ink-soft);
 }
-.tischKnopf:hover .tischSchild,
-.tischKnopf:focus-visible .tischSchild {
+:is(.sitzKnopf, .randplatz):hover .tischSchild,
+:is(.sitzKnopf, .randplatz):focus-visible .tischSchild {
   opacity: 1;
   transform: translate(-50%, 0);
 }
-.weltFokus .tischKnopf {
+.weltFokus :is(.sitzKnopf, .randplatz) {
   pointer-events: none;
 }
 

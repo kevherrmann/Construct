@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useBelegschaft, useTeamAn, useTeamStand, type Agent } from '@/api/team'
-import { PLAETZE, type Platz } from './stationen'
+import { RANDPLAETZE, SITZE, sitzFuss, type PaarId, type Platz, type Seite } from './stationen'
 
 /** Dauer von Hin- und Rückweg (ms); muss zur Übergangszeit im CSS passen. */
-const WEG_MS = 1100
+export const WEG_MS = 1100
 const BESUCH_BLEIBT_MS = 2200
 
 export interface Besuch {
@@ -12,13 +12,17 @@ export interface Besuch {
   phase: 'start' | 'hin' | 'zurueck'
 }
 
-export interface Arbeitsplatz {
+/** Ein Mitarbeiter im Raum: wo er sitzt (am Doppelschreibtisch oder am Rand). */
+export interface Sitz {
   agent: Agent
+  /** Fußpunkt seines Stuhls im Raum. */
   platz: Platz
+  paar?: PaarId
+  seite?: Seite
 }
 
 export interface BueroStand {
-  plaetze: Arbeitsplatz[]
+  leute: Sitz[]
   /** Wer gerade arbeitet (Slugs, ohne die Chefin). */
   arbeiten: ReadonlySet<string>
   /** Wer an der Werkbank steht (höchstens einer: es gibt dort einen Platz). */
@@ -34,33 +38,44 @@ export function useBuero(werkFrei: boolean): BueroStand | null {
   const { data: bel } = useBelegschaft()
   const { data: stand } = useTeamStand()
 
-  const plaetze = useMemo<Arbeitsplatz[]>(
-    () =>
-      (bel?.agents ?? [])
-        .filter((a) => a.slug !== 'chef' && a.status === 'active')
-        .slice(0, PLAETZE.length)
-        .map((agent, i) => ({ agent, platz: PLAETZE[i]! })),
-    [bel],
-  )
+  const leute = useMemo<Sitz[]>(() => {
+    const aktiv = (bel?.agents ?? []).filter((a) => a.slug !== 'chef' && a.status === 'active')
+    let rand = 0
+    const out: Sitz[] = []
+    for (const agent of aktiv) {
+      const sitz = SITZE[agent.slug]
+      if (sitz)
+        out.push({
+          agent,
+          paar: sitz.paar,
+          seite: sitz.seite,
+          platz: sitzFuss(sitz.paar, sitz.seite),
+        })
+      else if (rand < RANDPLAETZE.length) out.push({ agent, platz: RANDPLAETZE[rand++]! })
+    }
+    return out
+  }, [bel])
   const arbeiten = useMemo(
     () =>
       new Set(
         (stand?.aktiv ?? [])
           .map((x) => x.agent)
-          .filter((slug) => plaetze.some((p) => p.agent.slug === slug)),
+          .filter((slug) => leute.some((l) => l.agent.slug === slug)),
       ),
-    [stand, plaetze],
+    [stand, leute],
   )
 
   // Wer an der Werkbank steht, bleibt dort, bis er fertig ist: sonst liefen zwei
-  // gleichzeitig Arbeitende ständig hin und her. (Zustand beim Zeichnen angepasst
-  // statt im Effekt: so gibt es keinen Zeichendurchgang mit dem alten Wert.)
+  // gleichzeitig Arbeitende ständig hin und her. Nur wer ein Bild an der Werkbank
+  // hat (die Fest-Besetzten), geht dorthin. (Zustand beim Zeichnen angepasst statt
+  // im Effekt: so gibt es keinen Zeichendurchgang mit dem alten Wert.)
   const [werk, setWerk] = useState<string | null>(null)
+  const kannHin = (slug: string) => !!SITZE[slug]
   const gewuenscht = !werkFrei
     ? null
     : werk && arbeiten.has(werk)
       ? werk
-      : ([...arbeiten][0] ?? null)
+      : ([...arbeiten].find(kannHin) ?? null)
   if (gewuenscht !== werk) setWerk(gewuenscht)
 
   // Wer neu dazukommt, wird von der Chefin besucht (nicht beim ersten Laden und
@@ -86,6 +101,6 @@ export function useBuero(werkFrei: boolean): BueroStand | null {
     return () => clearTimeout(id)
   }, [besuch])
 
-  if (!an || !plaetze.length) return null
-  return { plaetze, arbeiten, werk, besuch }
+  if (!an || !leute.length) return null
+  return { leute, arbeiten, werk, besuch }
 }

@@ -1,38 +1,52 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BUERO_BUEHNE, BUERO_FUSS, WERKBANK, WERKBANK_FUSS, type Platz } from './stationen'
-import type { Besuch, BueroStand } from './useBuero'
+import {
+  BUERO_BUEHNE,
+  DOPPEL,
+  DOPPEL_HOEHE,
+  PAARE,
+  WERKBANK,
+  WERKBANK_FUSS,
+  type PaarId,
+  type Platz,
+} from './stationen'
+import { WEG_MS, type Besuch, type BueroStand, type Sitz } from './useBuero'
 import s from './Raum.module.css'
 
-// Das Büro der Firma: hinten im Raum sitzt jeder Mitarbeiter an seinem Schreibtisch.
-// Wer arbeitet, steht auf, geht nach vorn an die Werkbank und tippt dort wie der
-// Assistent selbst; die Chefin schaut dabei kurz bei ihm vorbei. Die Sprites liegen
-// unter /static/team/raum (mitgeliefert); wer keine hat, bekommt den leeren Tisch mit
-// seinem Profilbild auf dem Stuhl.
+// Das Büro der Firma: in der freien Ecke links stehen zwei Doppelschreibtische, an
+// jedem sitzen sich zwei Mitarbeiter gegenüber. Wer arbeitet, steht auf, geht nach
+// vorn an die Werkbank und tippt dort wie der Assistent selbst; die Chefin schaut
+// dabei kurz bei ihm vorbei. Die Bilder liegen unter /static/team/raum (mitgeliefert);
+// wer keinen Doppelschreibtisch hat, steht mit seinem Profilbild am Rand.
 
 const SPRITES = '/static/team/raum'
-/** Für diese Mitarbeiter gibt es Bilder von Tisch und Werkbank. */
-const MIT_BILD = new Set(['cody', 'selma', 'tessa', 'veritas'])
 
-// Der Tisch wird aus einem 410 × 500 px großen Bild gezeichnet (Tisch 370 × 460,
-// 20 px Rand für den Standschatten); Fußpunkt = vorderste Ecke des Tisches.
-const TISCH = { w: 410, h: 500, rand: 20, inhalt: 460 }
+/** Wie viele am Tisch sitzen (Reihenfolge im Bild: links, rechts). */
+type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
+const BELEGUNGEN: Belegung[] = ['beide', 'links', 'rechts', 'leer']
+const anwesend = (b: Belegung) => (b === 'beide' ? 2 : b === 'leer' ? 0 : 1)
 
 const prozent = (px: number, von: number) => `${(px / von) * 100}%`
 
+/** Perspektive: wie groß eine Person bei Fußhöhe `y` ist, im Verhältnis zu der an der
+ *  Werkbank (Horizont etwa bei y = 250 auf dem Raumbild). */
+const HORIZONT = 250
+const massstab = (y: number, bezug = WERKBANK_FUSS.y) => (y - HORIZONT) / (bezug - HORIZONT)
+
 /** Position und Größe eines Tischbildes auf der Bühne (Prozent). */
-function tischRahmen(p: Platz) {
-  const k = (BUERO_FUSS / TISCH.inhalt) * p.s
-  const w = TISCH.w * k
-  const h = TISCH.h * k
+function rahmen(p: Platz) {
+  const k = (DOPPEL_HOEHE / DOPPEL.inhaltH) * p.s
+  const w = DOPPEL.w * k
+  const h = DOPPEL.h * k
   return {
     left: prozent(p.x - w / 2, BUERO_BUEHNE.w),
-    top: prozent(p.y + TISCH.rand * k - h, BUERO_BUEHNE.h),
+    top: prozent(p.y + DOPPEL.rand * k - h, BUERO_BUEHNE.h),
     width: prozent(w, BUERO_BUEHNE.w),
     height: prozent(h, BUERO_BUEHNE.h),
   }
 }
 
-/** Die Schreibtische samt Menschen und die Wege zur Werkbank. */
+/** Die Schreibtische samt Menschen, die Randplätze und die Wege zur Werkbank. */
 export function Buero({
   stand,
   weich,
@@ -42,76 +56,154 @@ export function Buero({
   weich?: boolean
   onOeffnen: (slug: string) => void
 }) {
-  const { t } = useTranslation()
+  const an = (paar: PaarId, seite: 'links' | 'rechts') =>
+    stand.leute.find((l) => l.paar === paar && l.seite === seite)
   // Hintere Tische zuerst zeichnen, damit die vorderen sie überdecken.
-  const reihen = [...stand.plaetze].sort((a, b) => a.platz.y - b.platz.y)
+  const paare = (Object.keys(PAARE) as PaarId[]).sort((a, b) => PAARE[a].y - PAARE[b].y)
   return (
     <div className={`${s.buero} ${weich ? s.bueroWeich : ''}`}>
-      {reihen.map(({ agent, platz }) => {
-        const bild = MIT_BILD.has(agent.slug)
-        const amWerk = stand.werk === agent.slug
-        const arbeitet = stand.arbeiten.has(agent.slug)
-        return (
-          <div key={agent.slug} className={s.tisch} style={tischRahmen(platz)}>
-            <img src={`${SPRITES}/tisch-leer.webp`} alt="" draggable={false} />
-            {bild ? (
-              <img
-                src={`${SPRITES}/${agent.slug}-tisch.webp`}
-                alt=""
-                draggable={false}
-                className={`${s.sitzt} ${amWerk ? s.sitztWeg : ''}`}
-              />
-            ) : (
-              <span
-                className={`${s.stuhlBild} ${amWerk ? s.sitztWeg : ''}`}
-                style={{ ['--accent-rgb' as string]: agent.color }}
-              >
-                {agent.avatar ? (
-                  <img src={agent.avatar} alt="" draggable={false} />
-                ) : (
-                  agent.name.slice(0, 1)
-                )}
-              </span>
-            )}
-            {arbeitet && !amWerk && <i className={s.tischArbeit} aria-hidden />}
-            <button
-              type="button"
-              className={s.tischKnopf}
-              onClick={() => onOeffnen(agent.slug)}
-              aria-label={`${agent.name}, ${agent.title}`}
-            >
-              <span className={s.tischSchild}>
-                <b>{agent.name}</b>
-                <span>{arbeitet ? t('arbeitet gerade') : agent.title}</span>
-              </span>
-            </button>
-          </div>
-        )
-      })}
-      {stand.plaetze
-        .filter(({ agent }) => MIT_BILD.has(agent.slug))
-        .map(({ agent, platz }) => (
-          <Laeufer
-            key={agent.slug}
-            slug={agent.slug}
-            platz={platz}
-            da={stand.werk === agent.slug}
-          />
+      {paare.map((id) => (
+        <DoppelTisch
+          key={id}
+          platz={PAARE[id]}
+          kennung={id}
+          links={an(id, 'links')}
+          rechts={an(id, 'rechts')}
+          stand={stand}
+          onOeffnen={onOeffnen}
+        />
+      ))}
+      {stand.leute
+        .filter((l) => !l.paar)
+        .map((l) => (
+          <Randplatz key={l.agent.slug} sitz={l} stand={stand} onOeffnen={onOeffnen} />
+        ))}
+      {stand.leute
+        .filter((l) => l.paar)
+        .map((l) => (
+          <Laeufer key={l.agent.slug} sitz={l} da={stand.werk === l.agent.slug} />
         ))}
     </div>
   )
 }
 
+function DoppelTisch({
+  platz,
+  kennung,
+  links,
+  rechts,
+  stand,
+  onOeffnen,
+}: {
+  platz: Platz
+  kennung: PaarId
+  links?: Sitz
+  rechts?: Sitz
+  stand: BueroStand
+  onOeffnen: (slug: string) => void
+}) {
+  const { t } = useTranslation()
+  const da = (x?: Sitz) => !!x && stand.werk !== x.agent.slug
+  const soll: Belegung =
+    da(links) && da(rechts) ? 'beide' : da(links) ? 'links' : da(rechts) ? 'rechts' : 'leer'
+  // Wer aufsteht, ist sofort vom Stuhl weg; wer zurückkommt, erst wenn er angekommen ist.
+  const [gezeigt, setGezeigt] = useState<Belegung>(soll)
+  useEffect(() => {
+    if (soll === gezeigt) return
+    const wartet = anwesend(soll) > anwesend(gezeigt) ? WEG_MS : 0
+    const id = setTimeout(() => setGezeigt(soll), wartet)
+    return () => clearTimeout(id)
+  }, [soll, gezeigt])
+
+  const knopf = (x: Sitz | undefined, seite: 'links' | 'rechts') =>
+    x && (
+      <button
+        type="button"
+        className={`${s.sitzKnopf} ${seite === 'links' ? s.sitzLinks : s.sitzRechts}`}
+        onClick={() => onOeffnen(x.agent.slug)}
+        aria-label={`${x.agent.name}, ${x.agent.title}`}
+      >
+        <span className={s.tischSchild}>
+          <b>{x.agent.name}</b>
+          <span>{stand.arbeiten.has(x.agent.slug) ? t('arbeitet gerade') : x.agent.title}</span>
+        </span>
+      </button>
+    )
+  const punkt = (x: Sitz | undefined, seite: 'links' | 'rechts') =>
+    x &&
+    stand.arbeiten.has(x.agent.slug) &&
+    stand.werk !== x.agent.slug && (
+      <i
+        className={`${s.arbeitPunkt} ${seite === 'links' ? s.sitzLinks : s.sitzRechts}`}
+        aria-hidden
+      />
+    )
+  return (
+    <div className={s.tisch} style={rahmen(platz)}>
+      {BELEGUNGEN.map((b) => (
+        <img
+          key={b}
+          src={`${SPRITES}/doppel-${kennung}-${b}.webp`}
+          alt=""
+          draggable={false}
+          className={`${s.zustand} ${b === gezeigt ? s.zustandAn : ''}`}
+        />
+      ))}
+      {punkt(links, 'links')}
+      {punkt(rechts, 'rechts')}
+      {knopf(links, 'links')}
+      {knopf(rechts, 'rechts')}
+    </div>
+  )
+}
+
+/** Wer keinen Doppelschreibtisch hat: sein Profilbild steht am Rand; es leuchtet, wenn er arbeitet. */
+function Randplatz({
+  sitz,
+  stand,
+  onOeffnen,
+}: {
+  sitz: Sitz
+  stand: BueroStand
+  onOeffnen: (slug: string) => void
+}) {
+  const { t } = useTranslation()
+  const { agent, platz } = sitz
+  const d = 46 * platz.s * 1.2
+  const arbeitet = stand.arbeiten.has(agent.slug)
+  return (
+    <button
+      type="button"
+      className={`${s.randplatz} ${arbeitet ? s.randArbeit : ''}`}
+      style={{
+        left: prozent(platz.x - d / 2, BUERO_BUEHNE.w),
+        top: prozent(platz.y - d, BUERO_BUEHNE.h),
+        width: prozent(d, BUERO_BUEHNE.w),
+        height: prozent(d, BUERO_BUEHNE.h),
+        ['--accent-rgb' as string]: agent.color,
+      }}
+      onClick={() => onOeffnen(agent.slug)}
+      aria-label={`${agent.name}, ${agent.title}`}
+    >
+      {agent.avatar ? <img src={agent.avatar} alt="" draggable={false} /> : agent.name.slice(0, 1)}
+      <span className={s.tischSchild}>
+        <b>{agent.name}</b>
+        <span>{arbeitet ? t('arbeitet gerade') : agent.title}</span>
+      </span>
+    </button>
+  )
+}
+
 /** Die Figur an der Werkbank (Ebene wie die des Assistenten). Steht der Mitarbeiter
- *  nicht dort, liegt sie klein und unsichtbar an seinem Tisch; der Wechsel ist der Weg. */
-function Laeufer({ slug, platz, da }: { slug: string; platz: Platz; da: boolean }) {
-  // Verschiebung vom Werkbank-Fußpunkt zum Tisch, in Prozent der Ebene selbst
+ *  nicht dort, liegt sie klein und unsichtbar an seinem Stuhl; der Wechsel ist der Weg. */
+function Laeufer({ sitz, da }: { sitz: Sitz; da: boolean }) {
+  // Verschiebung vom Werkbank-Fußpunkt zum Stuhl, in Prozent der Ebene selbst
   // (translate rechnet mit der eigenen Größe), und der Maßstab dort hinten.
   const lw = (WERKBANK.w / 100) * BUERO_BUEHNE.w
   const lh = (WERKBANK.h / 100) * BUERO_BUEHNE.h
-  const dx = ((platz.x - WERKBANK_FUSS.x) / lw) * 100
-  const dy = ((platz.y - 10 * platz.s - WERKBANK_FUSS.y) / lh) * 100
-  const k = 0.3 * platz.s
+  const dx = ((sitz.platz.x - WERKBANK_FUSS.x) / lw) * 100
+  const dy = ((sitz.platz.y - WERKBANK_FUSS.y) / lh) * 100
+  const k = massstab(sitz.platz.y)
   return (
     <img
       className={`${s.laeufer} ${da ? s.laeuferDa : ''}`}
@@ -122,14 +214,14 @@ function Laeufer({ slug, platz, da }: { slug: string; platz: Platz; da: boolean 
         height: `${WERKBANK.h}%`,
         ['--von' as string]: `translate(${dx}%, ${dy}%) scale(${k})`,
       }}
-      src={`${SPRITES}/${slug}-werkbank.webp`}
+      src={`${SPRITES}/${sitz.agent.slug}-werkbank.webp`}
       alt=""
       draggable={false}
     />
   )
 }
 
-/** Die Chefin auf dem Weg zu einem Tisch und zurück: dasselbe Standbild wie am Podest,
+/** Die Chefin auf dem Weg zu einem Sitz und zurück: dasselbe Standbild wie am Podest,
  *  nur kleiner, je weiter hinten sie steht. */
 export function Besucher({
   besuch,
@@ -142,15 +234,16 @@ export function Besucher({
   bild: string
   podest: { x: number; y: number; h: number }
 }) {
-  const ziel = stand.plaetze.find((p) => p.agent.slug === besuch.slug)?.platz
+  const ziel = stand.leute.find((l) => l.agent.slug === besuch.slug)
   if (!ziel) return null
-  // Sie stellt sich links neben den Tisch, ein Stück näher am Betrachter.
-  const fx = ((ziel.x - 150 * ziel.s) / BUERO_BUEHNE.w) * 100
-  const fy = ((ziel.y + 14) / BUERO_BUEHNE.h) * 100
-  const hh = podest.h * 0.36 * ziel.s
+  // Sie stellt sich vor den Tisch neben den Stuhl, ein Stück näher am Betrachter.
+  const seite = ziel.seite === 'rechts' ? 1 : -1
+  const fuss = { x: ziel.platz.x + seite * 80 * ziel.platz.s, y: ziel.platz.y + 22 }
+  const podestFuss = (podest.y / 100) * BUERO_BUEHNE.h
+  const hh = podest.h * massstab(fuss.y, podestFuss)
   const hin = besuch.phase === 'hin'
-  const x = hin ? fx : podest.x
-  const y = hin ? fy : podest.y
+  const x = hin ? (fuss.x / BUERO_BUEHNE.w) * 100 : podest.x
+  const y = hin ? (fuss.y / BUERO_BUEHNE.h) * 100 : podest.y
   const h = hin ? hh : podest.h
   return (
     <img

@@ -22,9 +22,9 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   from FACTORIA: staff files, jobs with an internal bus, safety brakes,
   shared instructions, direct conversations with employees, **Staff** and
   **Jobs** tiles, a stop-everything button and a call bar when a job needs you.
-  In the room the crew sits at small desks in the back; whoever works walks to
+  In the room the crew sits at two double desks in the left corner; whoever works walks to
   the workbench and types there, the director visits them, and a click on a
-  desk opens the staff file. A fixed crew ships with it: the managing director (the assistant, called
+  seat opens the staff file. A fixed crew ships with it: the managing director (the assistant, called
   Lumina inside the company), Cody (backend and technology), Selma (frontend and
   design), Tessa (quality assurance) and Veritas (code audit); there is no hiring
   procedure, new staff are added by hand. Per task you choose between "only the

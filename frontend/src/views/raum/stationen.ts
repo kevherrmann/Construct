@@ -56,14 +56,14 @@ export type PanelId =
 
 // Reihenfolge = Stapelung: spätere liegen oben (Werkzeugwand über Werkbank).
 export const STATIONEN: Station[] = [
-  // Team-Modus: der Fußboden zwischen den Schreibtischen. Ganz unten, damit die
-  // Tische (eigene Knöpfe) und die Wandobjekte davor Vorrang haben.
+  // Team-Modus: der Büroboden zwischen den Schreibtischen. Ganz unten, damit die
+  // Sitze (eigene Knöpfe) und die Wandobjekte davor Vorrang haben.
   {
     id: 'firma',
-    l: 26,
-    t: 25,
-    w: 48,
-    h: 19,
+    l: 28.5,
+    t: 25.5,
+    w: 14,
+    h: 27.5,
     label: 'Firma',
     hint: 'Aufträge der Firma',
     panel: 'auftraege',
@@ -226,7 +226,7 @@ export const FORM: Record<StationId, Rechteck> = {
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
   // Hologramm ohne Bildmaske (kein Gegenstand im Raumbild): nur die Fläche.
   tafel: { l: 23.462, t: 54.688, w: 8.74, h: 21.701 },
-  firma: { l: 26, t: 25, w: 48, h: 19 },
+  firma: { l: 28.5, t: 25.5, w: 14, h: 27.5 },
 }
 
 /** Wanduhr: Zifferblatt als Einheitskreis → Raumbild (Pixel, affin;
@@ -336,26 +336,62 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
 /** Maße der Bühne in Pixeln — die Raumbilder sind 2048 × 1152. */
 export const BUERO_BUEHNE = { w: 2048, h: 1152 }
 
-/** Höhe eines Schreibtisches auf dem Raumbild (Pixel, Tisch ohne Rand). */
-export const BUERO_FUSS = 205
-
-/** Ein Schreibtisch: Mitte der Vorderkante, Höhe der Vorderecke (Pixel auf dem
- *  Raumbild) und Maßstab (hintere Reihe kleiner). */
+/** Ein Ort im Raum: Fußpunkt (Mitte unten, Pixel auf dem Raumbild) und Maßstab
+ *  (je weiter hinten, desto kleiner). */
 export interface Platz {
   x: number
   y: number
   s: number
 }
 
-/** Die Reihenfolge ist die der Belegschaft: erst die vordere Reihe von links nach
- *  rechts, dann die hintere. Mehr Leute als Plätze sitzen nicht im Raum. */
-export const PLAETZE: readonly Platz[] = [
-  { x: 610, y: 450, s: 1 },
-  { x: 820, y: 455, s: 1 },
-  { x: 1130, y: 452, s: 1 },
-  { x: 1340, y: 445, s: 1 },
-  { x: 715, y: 395, s: 0.85 },
-  { x: 1235, y: 392, s: 0.85 },
+export type PaarId = 'a' | 'b'
+export type Seite = 'links' | 'rechts'
+
+/** Die Doppelschreibtische stehen in der freien Ecke zwischen Aktenschrank und
+ *  Podest — nicht vor dem Fernseher. Zwei Leute sitzen sich gegenüber: einer links,
+ *  einer rechts. Fußpunkt = Mitte der Vorderkante. */
+export const PAARE: Record<PaarId, Platz> = {
+  a: { x: 715, y: 562, s: 0.85 },
+  b: { x: 680, y: 422, s: 0.72 },
+}
+
+/** Wer an welchem Doppelschreibtisch sitzt (nach Kürzel): für diese vier gibt es
+ *  Bilder von Tisch und Werkbank. Alle anderen bekommen einen Platz am Rand. */
+export const SITZE: Record<string, { paar: PaarId; seite: Seite }> = {
+  cody: { paar: 'a', seite: 'links' },
+  selma: { paar: 'a', seite: 'rechts' },
+  tessa: { paar: 'b', seite: 'links' },
+  veritas: { paar: 'b', seite: 'rechts' },
+}
+
+/** Das Tischbild: 757 × 560 px mit 20 px Rand für den Standschatten (Inhalt
+ *  717 × 520); bei Maßstab 1 steht der Inhalt DOPPEL_HOEHE Pixel hoch im Raum. */
+export const DOPPEL = { w: 757, h: 560, rand: 20, inhaltW: 717, inhaltH: 520 }
+export const DOPPEL_HOEHE = 235
+
+/** Fußpunkte der beiden Stühle im Tischbild (Anteil an Breite/Höhe des Inhalts). */
+const STUHL_FUSS: Record<Seite, { x: number; y: number }> = {
+  links: { x: 0.16, y: 0.86 },
+  rechts: { x: 0.84, y: 0.86 },
+}
+
+/** Wo ein Sitz im Raum steht (Fußpunkt des Stuhls, Pixel), samt Maßstab. */
+export function sitzFuss(paar: PaarId, seite: Seite): Platz {
+  const p = PAARE[paar]
+  const k = (DOPPEL_HOEHE / DOPPEL.inhaltH) * p.s
+  const f = STUHL_FUSS[seite]
+  return {
+    x: p.x + (f.x - 0.5) * DOPPEL.inhaltW * k,
+    y: p.y - (1 - f.y) * DOPPEL.inhaltH * k,
+    s: p.s,
+  }
+}
+
+/** Plätze für Mitarbeiter ohne Doppelschreibtisch (zum Beispiel ein später
+ *  Eingestellter): ihr Profilbild steht dort. */
+export const RANDPLAETZE: readonly Platz[] = [
+  { x: 610, y: 330, s: 0.7 },
+  { x: 560, y: 345, s: 0.7 },
 ]
 
 /** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort läuft ein
