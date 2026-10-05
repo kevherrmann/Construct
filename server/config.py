@@ -75,6 +75,11 @@ DEFAULT_SETTINGS = {
     # Modell schlägt bei jeder neuen Session eins vor, protokolliert wird nur
     # (auto_modell.py). Ohne Schalter in der Oberfläche, Vorgabe aus.
     "auto": {"schatten": False},
+    # Tickets (server/tickets.py): `assistent` = der Assistent ordnet mit — drei
+    # kleine Werkzeuge, ein fester Absatz im Systemprompt und eine Zeile an
+    # jeder Nachricht. Aus = nur die Vorgabe des Servers und deine eigenen
+    # Eingriffe (kostet keine Tokens). Ein/Aus der Kachel selbst: tiles.tickets.
+    "tickets": {"assistent": True},
     # Klänge im Construct-Raum (frontend/src/lib/klang.ts), alles im Browser
     # erzeugt: Effekte = Tippen, Öffnen/Schließen, Uhr; Musik = leise Coding-
     # Musik im Hintergrund. lautstaerke in Prozent, gilt für beides.
@@ -201,13 +206,16 @@ def load_settings() -> dict:
 
 
 def _clean_extras(src: dict, cur: dict):
-    """Bildmodell, Schattenbetrieb und Klang (für Laden und Patch)."""
+    """Bildmodell, Schattenbetrieb, Tickets und Klang (für Laden und Patch)."""
     im = src.get("images") or {}
     if im.get("model") in IMAGE_MODELS:
         cur["images"]["model"] = im["model"]
     au = src.get("auto") or {}
     if "schatten" in au:
         cur["auto"]["schatten"] = bool(au["schatten"])
+    ti = src.get("tickets") or {}
+    if "assistent" in ti:
+        cur["tickets"]["assistent"] = bool(ti["assistent"])
     so = src.get("sound") or {}
     for k in ("effekte", "musik"):
         if k in so:

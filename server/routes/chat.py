@@ -6,8 +6,10 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from server import auto_modell
+from server import config as cfg
 from server import hermes as hermesmod
 from server import llm as llmmod
+from server import tickets as tickmod
 
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
@@ -78,8 +80,18 @@ async def chat(req: Request):
                 session_id = None
 
     vorgabe = body.get("ticket") if isinstance(body.get("ticket"), dict) else None
+    # Hinweis auf die Tickets hinten an der Nachricht (nicht im Systemprompt, siehe
+    # tickets.hinweis), und die Adresse, unter der die Werkzeuge den Server erreichen.
+    base, mit_hinweis = "", False
+    conf = cfg.load_settings()
+    if conf["tiles"]["tickets"] and conf["tickets"]["assistent"]:
+        host, port = (req.scope.get("server") or ("127.0.0.1", 8765))[:2]
+        base, mit_hinweis = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}", True
+        if resume_at is None:
+            titel = str((vorgabe or {}).get("titel") or "")[:80]
+            prompt = f"{prompt}\n\n{tickmod.hinweis(session_id, titel)}"
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort,
-                    tickets=True, ticket_vorgabe=vorgabe)
+                    tickets=True, ticket_vorgabe=vorgabe, bus_base=base if mit_hinweis else "")
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
         auto_modell.starte(run, text, model)

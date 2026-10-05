@@ -2,9 +2,12 @@
 Nachlauf, Benachrichtigung wenn ein langer Lauf unbeobachtet fertig wird.
 """
 import asyncio
+import base64
 import json
 import os
 import re
+import secrets
+import sys
 import threading
 import time
 import uuid
@@ -14,7 +17,7 @@ from server import config as cfg
 from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
-from server.core import claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
+from server.core import AUTH_PASS, AUTH_USER, BASE_DIR, claude_bin, claude_env, extract_text, friendly_claude_error, load_persona
 from server.sessions import model_short, nutzer_uuids_bis
 
 
@@ -66,6 +69,7 @@ class Run:
         # (alte Session, Stelle) bei einer bearbeiteten Nachricht; `ticket_vorgabe`
         # Kevins Wahl (/ticket) für eine Session, die es noch nicht gab.
         self.tickets = tickets
+        self.token = secrets.token_hex(16)   # Einmal-Token der Ticket-Werkzeuge dieses Laufs
         self.fork = fork
         self.ticket_vorgabe = None
         self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
@@ -392,6 +396,25 @@ async def run_claude(run, cmd):
             maybe_notify(run)
 
 
+def bus_config(run, base: str) -> str:
+    """--mcp-config für die Ticket-Werkzeuge dieses Laufs (construct_mcp.py).
+
+    Als Zeichenkette statt Datei: das Token gilt nur für diesen Lauf und
+    gehört auf keine Platte. Ohne --strict-mcp-config — die MCP-Server aus den
+    Einstellungen des Nutzers bleiben, wir kommen dazu.
+    """
+    env = {"CONSTRUCT_RUN": run.id, "CONSTRUCT_TOKEN": run.token, "CONSTRUCT_BASE": base}
+    if AUTH_PASS:
+        env["CONSTRUCT_AUTH"] = "Basic " + base64.b64encode(
+            f"{AUTH_USER}:{AUTH_PASS}".encode()).decode()
+    return json.dumps({"mcpServers": {"construct": {
+        "command": sys.executable, "args": [str(BASE_DIR / "construct_mcp.py")], "env": env,
+        # Ohne das bleiben die Werkzeuge hinter ToolSearch versteckt, sobald der
+        # Nutzer viele MCP-Werkzeuge hat (gemessen 05.10.2026) — dann kostet jeder
+        # Gebrauch einen eigenen Zug.
+        "alwaysLoad": True}}})
+
+
 def _tickets_zuordnen(run, ev, content):
     """Kevins Nachricht ist angenommen (claude meldet sie dank
     --replay-user-messages samt uuid zurück): sie bekommt ein Ticket.
@@ -456,11 +479,23 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
 def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
-              effort="", tickets=False, ticket_vorgabe=None):
+              effort="", tickets=False, ticket_vorgabe=None, bus_base=""):
     """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben.
 
     tickets: ob die Nachrichten dieses Laufs Tickets bekommen — nur im Chat,
-    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist."""
+    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist. bus_base:
+    unter dieser Adresse erreichen die Ticket-Werkzeuge den Server (leer = der
+    Assistent bekommt keine Werkzeuge, die Zuordnung läuft trotzdem)."""
+    gc_runs()
+    run_id = uuid.uuid4().hex
+    conf = cfg.load_settings()
+    tickets = tickets and conf["tiles"]["tickets"]
+    fork = (session_id, resume_at) if (resume_at and session_id) else None
+    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt,
+              tickets=tickets, fork=fork)
+    run.ticket_vorgabe = ticket_vorgabe
+    mit_werkzeugen = tickets and bool(bus_base) and conf["tickets"]["assistent"]
+
     cmd = [
         claude_bin() or "claude", "-p",
         "--output-format", "stream-json",
@@ -479,6 +514,11 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     if effort in EFFORTS:
         cmd += ["--effort", effort]
     persona = load_persona()
+    if mit_werkzeugen:
+        # Fester Text: ändert sich nie während einer Session und bleibt so im
+        # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
+        persona = (persona + "\n\n" + tickmod.regeln()).strip()
+        cmd += ["--mcp-config", bus_config(run, bus_base)]
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:
@@ -488,13 +528,6 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
             # eigene neue Sitzung — das Original bleibt unangetastet.
             cmd += ["--resume-session-at", resume_at, "--fork-session"]
 
-    gc_runs()
-    run_id = uuid.uuid4().hex
-    tickets = tickets and cfg.load_settings()["tiles"]["tickets"]
-    fork = (session_id, resume_at) if (resume_at and session_id) else None
-    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt,
-              tickets=tickets, fork=fork)
-    run.ticket_vorgabe = ticket_vorgabe
     RUNS[run_id] = run
     run.task = asyncio.create_task(run_claude(run, cmd))
     return run

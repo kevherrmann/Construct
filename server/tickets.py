@@ -14,8 +14,11 @@ Wer zuordnet, in dieser Reihenfolge:
 
   1. Kevin, ohne Tokens: `/ticket Titel`, der Chip über der Eingabe, ✂ an einer
      Nachricht. Seine Wahl sperrt die nächste Nachricht gegen den Assistenten.
-  2. Der Assistent, mit drei billigen Werkzeugen (construct_mcp.py), die er nur
-     NEBEN einem ohnehin fälligen Werkzeugaufruf benutzt.
+  2. Der Assistent, mit zwei billigen Werkzeugen (construct_mcp.py), die er nur
+     NEBEN einem ohnehin fälligen Werkzeugaufruf benutzt. Ein "erledigt" gibt es
+     für ihn nicht: es käme am Ende eines Zuges, wo sonst kein Werkzeug mehr
+     läuft, und kostete einen eigenen Durchgang über den ganzen Kontext
+     (gemessen 05.10.2026). Stattdessen schließt jedes NEUE Ticket das vorige.
   3. Die Vorgabe, ohne Modell: eine Nachricht gehört zum aktuellen Ticket. Gibt
      es keins, entsteht eins mit dem Anfang der Nachricht als Titel.
 
@@ -206,7 +209,19 @@ def _aufraeumen(d: dict, t: dict):
             d["aktuell"] = None
 
 
+def _abschliessen(t: dict):
+    if t["status"] != "erledigt":
+        t["status"], t["erledigt_am"] = "erledigt", _jetzt()
+
+
 def _anlegen(d: dict, titel: str, von: str) -> dict:
+    """Neues Ticket. Das bisher aktuelle gilt damit als erledigt: Kevin bezieht sich
+    auf das, woran er gerade arbeitet, oder fängt etwas Neues an — "erledigt
+    ist erledigt". Ein leeres (ein Schnitt, der auf seine Nachricht wartet)
+    bleibt unberührt."""
+    alt = _ticket(d, d["aktuell"])
+    if alt is not None and alt["nachrichten"]:
+        _abschliessen(alt)
     t = {"nr": _naechste_nr(d), "titel": (titel or "").strip()[:TITEL_MAX] or titel_aus(""),
          "status": "offen", "von": von, "erstellt": _jetzt(), "erledigt_am": None,
          "nachrichten": []}
@@ -320,18 +335,6 @@ def werkzeug_zuordnen(sid: str, uuid: str, nr) -> str:
         return f"#{ziel['nr']}"
 
 
-def werkzeug_erledigt(sid: str, nr=None) -> str:
-    with _lock(sid):
-        d = laden(sid)
-        t = _ticket(d, _als_nr(nr) if nr not in (None, "") else d["aktuell"])
-        if t is None:
-            raise Abgelehnt(cfg.L("Kein solches Ticket.", "No such ticket."))
-        if t["status"] != "erledigt":
-            t["status"], t["erledigt_am"] = "erledigt", _jetzt()
-            speichern(d)
-        return f"#{t['nr']} ✓"
-
-
 def _als_nr(v):
     try:
         return int(str(v).lstrip("#"))
@@ -340,7 +343,7 @@ def _als_nr(v):
 
 
 # ---------- Was der Assistent sieht ----------
-def hinweis(sid: str | None) -> str:
+def hinweis(sid: str | None, vorgabe: str = "") -> str:
     """Die Zeile, die an Kevins Nachricht gehängt wird.
 
     Absichtlich NICHT im Systemprompt: der steht vor dem ganzen Verlauf, und
@@ -350,6 +353,13 @@ def hinweis(sid: str | None) -> str:
     Tokens und sonst nichts.
     """
     d = laden(sid) if sid and vorhanden(sid) else _leer(sid or "x" * 8)
+    if vorgabe:
+        # Kevin hat mit /ticket vorab einen Titel gewählt: die Nachricht, an der
+        # diese Zeile hängt, wird gleich dessen Ticket.
+        d["gesperrt"] = True
+        d["tickets"].append({"nr": _naechste_nr(d), "titel": vorgabe[:TITEL_MAX], "status": "offen",
+                             "von": "kevin", "erstellt": "", "erledigt_am": None, "nachrichten": []})
+        d["aktuell"] = d["tickets"][-1]["nr"]
     ak = _ticket(d, d["aktuell"])
     teile = []
 
@@ -386,15 +396,13 @@ def regeln() -> str:
     return cfg.L(
         f"""## Tickets
 Jede Nachricht von {wer} gehört zu einem Ticket dieser Session. Welche es gibt, steht am Ende seiner Nachricht in eckigen Klammern; ohne dein Zutun landet sie im aktuellen.
-- Eine neue, eigenständige Aufgabe: `ticket_neu` mit einem kurzen Titel (3–6 Wörter).
+- Eine neue, eigenständige Aufgabe: `ticket_neu` mit einem kurzen Titel (3–6 Wörter). Das vorige Ticket gilt damit als erledigt.
 - Gehört sie zu einem anderen der genannten Tickets: `ticket_zuordnen`.
-- Ist die Aufgabe fertig und geprüft: `ticket_erledigt`.
-Diese Werkzeuge NUR im selben Schritt wie ein anderer Werkzeugaufruf, nie als eigener Schritt, und erwähne sie nicht. Ist {wer}s Wahl vermerkt oder bist du unsicher: nichts tun.""",
+Rufe diese Werkzeuge NUR im selben Schritt wie einen anderen Werkzeugaufruf auf, nie als eigenen Schritt, und erwähne sie nicht. Ist {wer}s Wahl vermerkt oder bist du unsicher: nichts tun.""",
         f"""## Tickets
 Every message from {wer} belongs to a ticket in this session. The tickets are listed in square brackets at the end of the message; without action from you it goes to the current one.
-- A new, separate task: `ticket_neu` with a short title (3–6 words).
+- A new, separate task: `ticket_neu` with a short title (3–6 words). The previous ticket then counts as done.
 - It belongs to another listed ticket: `ticket_zuordnen`.
-- The task is finished and verified: `ticket_erledigt`.
 Call these tools ONLY in the same step as another tool call, never as a step of their own, and don't mention them. If {wer}'s choice is noted or you are unsure: do nothing.""")
 
 
@@ -609,3 +617,22 @@ def uebersicht(namen: dict | None = None) -> dict:
                                          else t["erstellt"]) for t in p["tickets"]), reverse=True)
         out.append({"tag": tag, "projekte": projekte})
     return {"tage": out}
+
+
+# ---------- Der Bus der Werkzeuge ----------
+def bus(werkzeug: str, args: dict, sid: str, uuid: str) -> str:
+    """Ein Aufruf des Assistenten (construct_mcp.py). Gibt den Text zurück, den er
+    als Ergebnis sieht. Was nichts ändert, sagt es ihm — als Text, nicht als
+    Fehler: ein Fehler lädt zum Wiederholen ein."""
+    try:
+        if werkzeug == "ticket_neu":
+            if not uuid:
+                raise Abgelehnt(cfg.L("Noch keine Nachricht zugeordnet.", "No message assigned yet."))
+            return werkzeug_neu(sid, uuid, str(args.get("titel") or ""))
+        if werkzeug == "ticket_zuordnen":
+            if not uuid:
+                raise Abgelehnt(cfg.L("Noch keine Nachricht zugeordnet.", "No message assigned yet."))
+            return werkzeug_zuordnen(sid, uuid, args.get("nr"))
+        return cfg.L("Unbekanntes Werkzeug.", "Unknown tool.")
+    except Abgelehnt as e:
+        return str(e)

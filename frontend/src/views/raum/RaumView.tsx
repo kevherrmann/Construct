@@ -36,6 +36,7 @@ import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
 import { RegalSchild, WandKontingent, Wanduhr } from './Raumdetails'
+import { Tafel } from './Tafel'
 import { aufBuehne, GANZ, weltTransform, type Kamera } from './kamera'
 import {
   AUFTRITT,
@@ -309,6 +310,7 @@ const TITEL: Record<Ansicht, string> = {
   werkbank: 'Werkbank',
   mail: 'E-Mails',
   ausruestung: 'Modell & Modus',
+  tickets: 'Tickets',
   einstellungen: 'Einstellungen',
 }
 
@@ -632,6 +634,7 @@ export function RaumView() {
               <Fernseher welt={weltGroesse} voll={!!tauchen} weich={weichAusser('monitore')} />
               <Wanduhr weich={weichAusser('uhr')} />
               <WandKontingent welt={weltGroesse} weich={weichAusser('uhr')} />
+              <Tafel welt={weltGroesse} weich={weichAusser('tafel')} />
               <RegalSchild name={projekt} welt={weltGroesse} weich={weichAusser('regal')} />
               <div
                 className={`${s.figur} ${lage.live ? s.figurAktiv : ''} ${amWerk ? s.weg : ''} ${imVideo ? s.still : ''}`}

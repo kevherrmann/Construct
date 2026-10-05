@@ -10,7 +10,11 @@ SID = "abcd1234-0000-0000-0000-000000000001"
 
 @pytest.fixture(autouse=True)
 def ordner(tmp_path, monkeypatch):
+    from server import config as cfg
     monkeypatch.setattr(tk, "TICKETS_DIR", tmp_path / "tickets")
+    # Texte hängen an der Sprache der Installation: die Tests sollen nicht davon abhängen.
+    (tmp_path / "settings.json").write_text('{"lang": "de", "names": {"user": "Kevin"}}')
+    monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
     tk._CACHE.clear()
 
 
@@ -43,7 +47,6 @@ def test_kevins_beispiel_vier_nachrichten_zwei_tickets():
     """Aufgabe, Korrektur, neue Aufgabe, Korrektur zur ersten = 2 Tickets."""
     tk.nachricht(SID, "n1", "Aufgabe A")
     tk.nachricht(SID, "n2", "Korrektur zu A")
-    tk.werkzeug_erledigt(SID)
     tk.nachricht(SID, "n3", "Aufgabe B")
     tk.werkzeug_neu(SID, "n3", "Aufgabe B")
     tk.nachricht(SID, "n4", "Noch eine Korrektur zu A")
@@ -59,7 +62,7 @@ def test_kevins_beispiel_vier_nachrichten_zwei_tickets():
 
 def test_nachricht_auf_erledigtes_ticket_oeffnet_es_wieder():
     tk.nachricht(SID, "u1", "A")
-    tk.werkzeug_erledigt(SID)
+    tk.aendern(SID, 1, status="erledigt")
     assert tk.laden(SID)["tickets"][0]["status"] == "erledigt"
     tk.nachricht(SID, "u2", "doch noch was")
     t = tk.laden(SID)["tickets"][0]
@@ -263,3 +266,48 @@ def test_api_roundtrip(client):
     assert client.get("/api/tickets").json()["tage"]
     assert client.get("/api/tickets/..%2Fx").status_code in (400, 404)
     assert client.delete(f"/api/tickets/{sid}/2").status_code == 200
+
+
+def test_neues_ticket_schliesst_das_vorige():
+    tk.nachricht(SID, "u1", "A")
+    tk.werkzeug_neu(SID, "u1", "A")
+    tk.nachricht(SID, "u2", "B")
+    tk.werkzeug_neu(SID, "u2", "B")
+    d = tk.laden(SID)
+    assert [t["status"] for t in d["tickets"]] == ["erledigt", "offen"]
+    assert d["tickets"][0]["erledigt_am"]
+    # eine Korrektur zu A macht A wieder auf; B bleibt, wie es ist
+    tk.nachricht(SID, "u3", "Korrektur zu A")
+    tk.werkzeug_zuordnen(SID, "u3", 1)
+    assert [t["status"] for t in tk.laden(SID)["tickets"]] == ["offen", "offen"]
+
+
+def test_schnitt_schliesst_das_vorige_aber_nicht_ein_leeres():
+    tk.nachricht(SID, "u1", "A")
+    tk.schnitt(SID, "B")
+    assert [t["status"] for t in tk.laden(SID)["tickets"]] == ["erledigt", "offen"]
+    tk.schnitt(SID, "C")          # B wartet noch auf seine erste Nachricht: wird ersetzt
+    d = tk.laden(SID)
+    assert [t["titel"] for t in d["tickets"]] == ["A", "C"]
+    assert d["tickets"][0]["status"] == "erledigt"
+
+
+def test_bus_nur_zwei_werkzeuge():
+    tk.nachricht(SID, "u1", "A")
+    assert tk.bus("ticket_neu", {"titel": "Neu"}, SID, "u1") == "#1"
+    assert tk.bus("ticket_erledigt", {}, SID, "u1").startswith("Unbekannt")
+    assert "gibt es in dieser Session nicht" in tk.bus("ticket_zuordnen", {"nr": 9}, SID, "u1")
+    assert tk.bus("ticket_neu", {"titel": "x"}, SID, "")        # ohne Nachricht: Hinweistext, kein Absturz
+
+
+def test_hinweiszeile():
+    tk.nachricht(SID, "u1", "A")
+    tk.werkzeug_neu(SID, "u1", "Erste")
+    tk.nachricht(SID, "u2", "B")
+    tk.werkzeug_neu(SID, "u2", "Zweite")
+    z = tk.hinweis(SID)
+    assert z.startswith("[Tickets: ") and z.endswith("]")
+    assert "#2 „Zweite“" in z and "#1 „Erste“" in z
+    assert "\n" not in z
+    assert tk.hinweis("abcd1234-0000-0000-0000-00000000ffff") == "[Tickets: noch keins]"
+    assert "#1 „Vorab“" in tk.hinweis("abcd1234-0000-0000-0000-00000000ffff", "Vorab")

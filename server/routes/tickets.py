@@ -1,8 +1,11 @@
 """API: Tickets innerhalb der Sessions (Logik in server/tickets.py)."""
+import secrets
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from server import tickets as tk
+from server.runs import RUNS
 from server.sessions import load_meta
 
 router = APIRouter()
@@ -114,3 +117,21 @@ async def ticket_ab_hier(sid: str, req: Request):
         return tk.ab_hier(sid, str(b.get("uuid") or ""), str(b.get("titel") or "").strip())
     except KeyError:
         return _fehler("Nachricht gehört zu keinem Ticket", 404)
+
+
+@router.post("/api/ticketbus")
+async def ticketbus(req: Request):
+    """Gegenstelle von construct_mcp.py: die Ticket-Werkzeuge des Assistenten.
+    Wer ruft, weist sich mit dem Einmal-Token seines Laufs aus — Session und
+    Nachricht kommen aus dem Lauf, nicht aus den Argumenten."""
+    b = await _body(req)
+    run = RUNS.get(str(b.get("run") or ""))
+    if (not run or not run.tickets or run.done
+            or not secrets.compare_digest(run.token, str(b.get("token") or ""))):
+        return JSONResponse({"error": True, "text": "unbekannter Lauf"}, status_code=403)
+    if not run.session_id:
+        return {"text": "Session noch nicht bekannt."}
+    args = b.get("args") if isinstance(b.get("args"), dict) else {}
+    text = tk.bus(str(b.get("tool") or ""), args, run.session_id, run.letzte_uuid)
+    run.emit({"type": "tickets"})      # die Oberfläche lädt Chip und Trenner neu
+    return {"text": text}

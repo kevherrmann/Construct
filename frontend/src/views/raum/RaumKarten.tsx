@@ -32,6 +32,12 @@ import { BinaerUhr } from './BinaerUhr'
 // Gesprächszustand.
 
 // Einstellungen erst beim Öffnen laden, wie in der Chat-Ansicht.
+const TicketsMain = lazy(() =>
+  import('@/views/tickets/TicketsMain').then((m) => ({ default: m.TicketsMain })),
+)
+const TicketsSide = lazy(() =>
+  import('@/views/tickets/TicketsSide').then((m) => ({ default: m.TicketsSide })),
+)
 const SettingsMain = lazy(() =>
   import('@/views/settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
 )
@@ -360,6 +366,12 @@ export function KartenInhalt({ panel, onDone }: { panel: PanelId; onDone: () => 
       return <Zweispaltig links={<CalendarSide />} rechts={<CalendarMain />} />
     case 'mail':
       return <Zweispaltig links={<MailSide />} rechts={<MailMain />} />
+    case 'tickets':
+      return (
+        <Suspense fallback={null}>
+          <Zweispaltig links={<TicketsSide />} rechts={<TicketsMain onDone={onDone} />} />
+        </Suspense>
+      )
     case 'skills':
       return <Skills />
     case 'mcp':

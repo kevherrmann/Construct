@@ -16,6 +16,7 @@ export type StationId =
   | 'werkbank'
   | 'postfach'
   | 'pult'
+  | 'tafel'
 
 /** Links, oben, Breite, Höhe in Prozent der Bühne. */
 export interface Rechteck {
@@ -45,6 +46,7 @@ export type PanelId =
   | 'werkbank'
   | 'mail'
   | 'ausruestung'
+  | 'tickets'
   /** Ohne eigene Station: ⚙ oben rechts, die Kamera geht zum Pult. */
   | 'einstellungen'
 
@@ -152,6 +154,16 @@ export const STATIONEN: Station[] = [
     panel: 'mail',
   },
   {
+    id: 'tafel',
+    l: 27.3,
+    t: 2.6,
+    w: 19.5,
+    h: 21.7,
+    label: 'Tickets',
+    hint: 'Aufgaben nach Tag und Projekt',
+    panel: 'tickets',
+  },
+  {
     id: 'pult',
     l: 48.6,
     t: 50,
@@ -196,6 +208,8 @@ export const FORM: Record<StationId, Rechteck> = {
   steckfeld: { l: 93.408, t: 48.698, w: 6.592, h: 16.233 },
   postfach: { l: 8.984, t: 64.844, w: 15.234, h: 30.295 },
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
+  // Hologramm ohne Bildmaske (kein Gegenstand im Raumbild): nur die Fläche.
+  tafel: { l: 27.3, t: 2.6, w: 19.5, h: 21.7 },
 }
 
 /** Wanduhr: Zifferblatt als Einheitskreis → Raumbild (Pixel, affin;
@@ -227,6 +241,14 @@ export const WAND_KONTINGENT: readonly [Punkt, Punkt, Punkt] = [
   [1650, 140],
   [1846, 211],
   [1647, 296],
+]
+
+/** Ticket-Tafel: ein Hologramm vor der Rückwand zwischen Aktenschrank und
+ *  Monitorwand (Pixel im Raumbild: oben links, oben rechts, unten links). */
+export const WAND_TAFEL: readonly [Punkt, Punkt, Punkt] = [
+  [560, 30],
+  [960, 30],
+  [560, 280],
 ]
 
 /** Die Monitorwand: Fläche, auf der der Terminal-Text liegt (oben links,
@@ -275,6 +297,7 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
+  tickets: { z: 1.45, f: [37, 13.5], p: [21, 36], seite: 'rechts', breite: 50, ziel: [37, 13.5] },
   einstellungen: {
     z: 1.2,
     f: [50.2, 58],

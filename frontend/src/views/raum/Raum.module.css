@@ -1825,3 +1825,174 @@
   letter-spacing: 0.08em;
   color: #7d8580;
 }
+
+/* Ticket-Tafel: ein Hologramm vor der Rückwand. Auf der weißen Wand würde
+   reines Licht verschwinden — darum eine getönte Glasfläche, auf der die Schrift
+   in der Akzentfarbe leuchtet, mit Eckmarken, Zeilenraster und einem Strahl,
+   der langsam über die Fläche läuft. Gezeichnet in 800×500 px, als Ganzes auf
+   die Wand gelegt (Inline-Transform). */
+.tafel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  box-sizing: border-box;
+  padding: 34px 42px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+  /* Licht, nicht Farbe: auf der dunklen Fläche leuchtet die Akzentfarbe aufgehellt. */
+  --licht: color-mix(in srgb, rgb(var(--accent-rgb)) 45%, #f2fff8);
+  color: var(--licht);
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(var(--accent-rgb), 0.1) 0 2px, transparent 2px 6px),
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--accent-rgb), 0.22), transparent 70%),
+    linear-gradient(170deg, rgba(3, 24, 17, 0.92), rgba(2, 14, 12, 0.88));
+  border: 2px solid rgba(var(--accent-rgb), 0.75);
+  border-radius: 6px;
+  box-shadow:
+    0 0 38px rgba(var(--accent-rgb), 0.5),
+    inset 0 0 60px rgba(var(--accent-rgb), 0.16);
+  animation: tafelFlimmern 7s steps(1) infinite;
+  transition:
+    filter 0.35s ease,
+    opacity 0.35s ease;
+}
+.tafelWeich {
+  filter: none;
+  opacity: 0.3;
+}
+.ecke {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 0 solid var(--licht, rgb(var(--accent-rgb)));
+  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.9));
+}
+.eckeOL {
+  left: 10px;
+  top: 10px;
+  border-width: 3px 0 0 3px;
+}
+.eckeOR {
+  right: 10px;
+  top: 10px;
+  border-width: 3px 3px 0 0;
+}
+.eckeUL {
+  left: 10px;
+  bottom: 10px;
+  border-width: 0 0 3px 3px;
+}
+.eckeUR {
+  right: 10px;
+  bottom: 10px;
+  border-width: 0 3px 3px 0;
+}
+.tafelStrahl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 70px;
+  background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.3), transparent);
+  animation: tafelStrahl 5.5s linear infinite;
+}
+.tafelKopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 28px;
+  letter-spacing: 0.45em;
+  text-shadow: 0 0 12px rgba(var(--accent-rgb), 0.9);
+}
+.tafelProjekt {
+  font-size: 22px;
+  letter-spacing: 0.15em;
+  opacity: 0.75;
+  max-width: 330px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tafelZahlen {
+  display: flex;
+  gap: 54px;
+  align-items: flex-end;
+}
+.tafelZahlen b {
+  display: block;
+  font-family: 'Exo 2 Variable', var(--font);
+  font-size: 92px;
+  font-weight: 250;
+  text-shadow: 0 0 22px rgba(var(--accent-rgb), 0.85);
+}
+.tafelZahlen em {
+  font-style: normal;
+  font-size: 19px;
+  letter-spacing: 0.3em;
+  opacity: 0.7;
+}
+.tafelZahlen span:first-child b {
+  opacity: 0.7;
+}
+.tafelListe {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  font-size: 25px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.7);
+}
+.tafelListe li {
+  display: flex;
+  gap: 16px;
+}
+.tafelTitel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tafelFertig {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.tafelLeer {
+  opacity: 0.55;
+  font-size: 22px;
+}
+@keyframes tafelStrahl {
+  from {
+    transform: translateY(-80px);
+  }
+  to {
+    transform: translateY(520px);
+  }
+}
+/* Gelegentliches Flackern wie bei einer Projektion. */
+@keyframes tafelFlimmern {
+  0%,
+  90%,
+  93%,
+  96%,
+  100% {
+    opacity: 1;
+  }
+  91%,
+  95% {
+    opacity: 0.86;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tafel,
+  .tafelStrahl {
+    animation: none;
+  }
+}
