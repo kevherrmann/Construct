@@ -55,9 +55,7 @@ export type AuftragStatus = 'neu' | 'laeuft' | 'wartet_auf_kevin' | 'fertig' | '
 
 export interface Verbrauch {
   hops: number
-  cost: number
   start: number
-  je_agent?: Record<string, number>
 }
 
 export interface Eskalation {

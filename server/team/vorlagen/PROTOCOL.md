@@ -117,7 +117,7 @@ wirklich gesehen hat.
 
 ## Wann Schluss ist
 
-Es gibt kein Budget, das du einplanen musst — aber es gibt Notbremsen. Zwei
+Einplanen musst du nichts, aber es gibt Notbremsen. Zwei
 Kollegen dürfen höchstens **zehn Nachrichten** miteinander wechseln, ein
 Auftrag insgesamt **40 Schritte**. Wird eine Bremse ausgelöst, hält der ganze
 Auftrag an und Kevin muss ihn wieder anstoßen.

@@ -47,14 +47,18 @@ def test_mitgelieferte_gesichter_gibt_es_wirklich():
             assert (static / a["avatar"].removeprefix("/static/")).is_file(), a["avatar"]
 
 
-def test_geschaeftsfuehrung_heisst_dem_nutzer_gegenueber_wie_der_assistent(firma):
+def test_geschaeftsfuehrung_heisst_luna_oder_wie_der_umbenannte_assistent(firma):
     ag.list_agents(WS)
     chef = ag.load_agent(ag.OWNER_SLUG, WS)
-    assert chef["name"] == "Luna"                       # das sehen die Mitarbeiter
-    assert ag.anzeige(chef)["name"] == "Momo"             # das sieht der Nutzer
-    assert ag.anzeige(chef)["avatar"] == "/static/cody.png"   # ohne eigenes Bild das des Assistenten
+    assert chef["name"] == "Luna"                         # das sehen die Mitarbeiter
+    assert ag.anzeige(chef)["name"] == "Momo"             # umbenannter Assistent: sein Name
+    assert ag.anzeige(chef)["avatar"] == ag.LUNA_BILD     # ohne eigenes Bild Lunas
     (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Chanti"}}))
     assert ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))["name"] == "Chanti"
+    # Wer nichts umbenannt hat (Assistent heißt Cody), sieht Luna, nicht zwei Codys
+    (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Cody"}}))
+    sicht = ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))
+    assert sicht["name"] == "Luna" and sicht["avatar"] == ag.LUNA_BILD
     assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Luna"
 
 

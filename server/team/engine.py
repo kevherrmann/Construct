@@ -208,7 +208,7 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
 
     Laedt bewusst frisch von der Platte: der Aufrufer haelt den Auftrag
     womoeglich seit Minuten in der Hand, und inzwischen hat ein anderer Zug
-    Kosten oder Sitzungen dazugeschrieben.
+    Verbrauch oder Sitzungen dazugeschrieben.
     """
     frisch = auf.laden(t["id"]) or t
     if frisch["status"] in ("fertig", "abgebrochen"):
@@ -244,7 +244,7 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
     tg_send(f"\u23f8 Auftrag \u201e{titel}\u201c wartet auf dich\n"
             f"{guards.NAMEN.get(bremse, bremse)}: {grund}\n"
             f"Was du tun kannst: {frage}\n"
-            f"{v['hops']} Schritte, {v['cost']:.2f} $")
+            f"{v['hops']} Schritte")
 
 
 async def warte_auf_zug(run, stille_max: int):
@@ -344,11 +344,10 @@ async def _zustellen_innen(tid: str, mid: str):
                         "name": ag.anzeige(a)["name"], "color": a["color"], "run_id": run.id})
 
         def _ende(x):
-            x["verbraucht"]["cost"] = round(x["verbraucht"]["cost"] + (run.cost_usd or 0), 4)
-            # Je Mitarbeiter mitschreiben: nur so sieht Kevin, ob opus fuer
-            # Elara das Geld wert ist oder wo ein Auftrag teuer wurde.
-            je = x["verbraucht"].setdefault("je_agent", {})
-            je[a["slug"]] = round(je.get(a["slug"], 0) + (run.cost_usd or 0), 4)
+            # Nur fuer den Pruefstand (scripts/pruefstand.py), der Factoria und
+            # CONSTRUCT vergleicht: angezeigt wird die Zahl nirgends, Kosten sind
+            # in CONSTRUCT kein Thema (Kevin, 05.10.2026).
+            x["verbraucht"]["cost"] = round(x["verbraucht"].get("cost", 0) + (run.cost_usd or 0), 4)
             # Mitschreiben statt nur anzeigen: nur so laesst sich zwischen zwei
             # Laeufen belegen, ob der Systemprompt noch aus dem Zwischenspeicher
             # kommt. .get() mit Vorgabe, weil aeltere Auftraege die Felder nicht
@@ -366,7 +365,7 @@ async def _zustellen_innen(tid: str, mid: str):
 
         async def _abschliessen(quittung=True):
             # In JEDEM Ausgang gleich: Quittung (sonst reiht wieder_aufnehmen
-            # die Nachricht nach einem Neustart erneut ein), Kosten buchen,
+            # die Nachricht nach einem Neustart erneut ein), Verbrauch buchen,
             # Bus-Token einziehen (ein haengender Prozess darf nicht mehr
             # liefern), in_arbeit abraeumen — und der Oberflaeche sagen, dass
             # der Zug vorbei ist (sonst steht "arbeitet …" ewig im Verlauf).

@@ -505,7 +505,6 @@
   "E-Mails": "E-mails",
   "Effort": "Effort",
   "EFFORT": "EFFORT",
-  "Effort ist die zweite Kostenschraube neben dem Modell. Recherche und mechanisches Prüfen kommen mit „low“ aus — Vorgabe wäre sonst „xhigh“.": "Effort is the second cost dial next to the model. Research and mechanical checking get by with “low” — the default would otherwise be “xhigh”.",
   "Eigene Persona <b>nur für Bonsai und Ollama</b> — zum Ausprobieren, {a} bleibt davon unberührt. Ersetzt Charakter und „Über dich“, Kalender und Werkzeuge bleiben. Leer = dieselbe Persona wie {a}. Für einen sauberen Rollenwechsel eine <b>neue Session</b> starten: in einer laufenden Unterhaltung spielt ein kleines Modell oft die alte Rolle weiter.": "A persona <b>only for Bonsai and Ollama</b>, for playing around; {a} is not affected. Replaces character and “About you”, calendar and tools stay. Empty = the same persona as {a}. Start a <b>new session</b> for a clean switch: in an ongoing conversation a small model often keeps playing its old role.",
   "Eigenes Bild": "Custom image",
   "ein Satz — damit die Wahl nachvollziehbar bleibt": "one sentence — so the choice stays traceable",
@@ -699,8 +698,6 @@
   "Konto nicht eingerichtet (⚙ Konten verwalten)": "Account not set up (⚙ Manage accounts)",
   "Konto-Standard von Claude Code": "Claude Code account default",
   "Konto:": "Account:",
-  "Kosten": "Cost",
-  "Kostengrenze des Mitarbeiters": "Employee cost limit",
   "Kreisbezug in": "Circular reference in",
   "Kühles Cyan auf Tiefblau.": "Cool cyan on deep blue.",
   "Kürzel (so rufen die Kollegen)": "Handle (how colleagues call them)",
@@ -830,7 +827,6 @@
   "noch kein Gespräch": "no conversation yet",
   "Noch kein Key hinterlegt.": "No key saved yet.",
   "Noch keine Aufträge.": "No jobs yet.",
-  "noch keine Buchung": "no bookings yet",
   "Noch keine Modelle installiert — unten eins aussuchen und ⬇ klicken.": "No models installed yet — pick one below and click ⬇.",
   "Noch keine Tickets in dieser Session.": "No tickets in this session yet.",
   "Noch keine Tickets. Sie entstehen von selbst, sobald du in einer Session schreibst.": "No tickets yet. They appear on their own as soon as you write in a session.",
@@ -1126,5 +1122,6 @@
   "ANTWORTEN": "ANSWER",
   "Strg+Enter schickt ab": "Ctrl+Enter sends",
   "Ohne Text heißt das: „Mach bitte weiter.“": "Without text this means “Please carry on.”",
-  "Antworten": "Answer"
+  "Antworten": "Answer",
+  "Effort bestimmt, wie gründlich das Modell nachdenkt. Recherche und mechanisches Prüfen kommen mit „low“ aus, sonst gilt „xhigh“.": "Effort sets how thoroughly the model thinks. Research and mechanical checks get by with “low”, otherwise “xhigh” applies."
 }

@@ -70,17 +70,10 @@ function Stand({ d, ende }: { d: AuftragDetail; ende: number }) {
   // letzten Nachricht.
   const aus = d.ticket.status === 'fertig' || d.ticket.status === 'abgebrochen'
   const min = Math.max(0, Math.round(((aus && ende ? ende : jetzt / 1000) - (v.start || 0)) / 60))
-  const je = Object.entries(v.je_agent ?? {})
-    .sort((a, b) => b[1] - a[1])
-    .map(([sl, c]) => `${d.agents[sl]?.name ?? sl} ${c.toFixed(2)} $`)
-    .join(' · ')
   return (
     <div className={s.stand}>
       <span>
         {t('Schritte')} <b>{v.hops}</b>
-      </span>
-      <span title={je || t('noch keine Buchung')}>
-        {t('Kosten')} <b>{(v.cost || 0).toFixed(2)} $</b>
       </span>
       <span>
         {t('Laufzeit')} <b>{min} min</b>

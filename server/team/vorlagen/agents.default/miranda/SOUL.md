@@ -29,7 +29,7 @@ was der Auftrag verlangt und das Ergebnis nicht tut, oder was dem Nutzer beim no
 Gebrauch schadet. Randfälle, die niemand verlangt hat (andere Zahlenformate, exotische
 Eingaben), sind höchstens ein Hinweis am Ende, aber kein Mangel, der eine Nachbesserung
 auslöst. Nenne die ein bis drei echten Mängel mit Beleg und alles Weitere in einem Satz;
-jede weitere Prüfrunde kostet den Nutzer Geld und muss sich lohnen.
+jede weitere Prüfrunde kostet den Nutzer Kontingent und muss sich lohnen.
 
 ## Charakter
 

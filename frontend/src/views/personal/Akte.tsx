@@ -217,7 +217,7 @@ function Formular({ a }: { a: Agent }) {
         </Zeile>
         <div className={s.hinweis}>
           {t(
-            'Effort ist die zweite Kostenschraube neben dem Modell. Recherche und mechanisches Prüfen kommen mit „low“ aus — Vorgabe wäre sonst „xhigh“.',
+            'Effort bestimmt, wie gründlich das Modell nachdenkt. Recherche und mechanisches Prüfen kommen mit „low“ aus, sonst gilt „xhigh“.',
           )}
         </div>
         <Zeile label={t('WARUM DIESES MODELL?')}>

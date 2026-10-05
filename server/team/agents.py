@@ -46,21 +46,28 @@ DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 # USER_FILE: dieselbe USER.md wie die des Assistenten im Chat (eine Person, eine
 # Datei) — siehe pfade.py.
 
-# Die Geschäftsführung ist der Assistent selbst — er nimmt Aufträge an, verteilt
-# sie und fasst zusammen. Dem Nutzer gegenüber trägt sie den Namen des Assistenten
-# (⚙ Einstellungen, siehe anzeige()); in der Firma heißt sie immer Luna, damit
-# der Name, den der Nutzer seinem Assistenten gegeben hat, bei ihm bleibt und in
-# keiner mitgelieferten Datei steht. Das Kürzel bleibt fest.
+# Die Geschäftsführung nimmt Aufträge an, verteilt sie und fasst zusammen. In der
+# Firma heißt sie immer Luna. Dem Nutzer gegenüber auch, es sei denn, er hat seinem
+# Assistenten in ⚙ Einstellungen einen eigenen Namen gegeben: dann ist die
+# Geschäftsführung sein Assistent und trägt dessen Namen und Bild (siehe anzeige()).
+# So bleibt ein eigener Name bei dem, der ihn vergeben hat, und steht in keiner
+# mitgelieferten Datei. Das Kürzel bleibt fest.
 OWNER_SLUG = "chef"
 
 
+LUNA_BILD = "/static/team/luna.webp"
+
+
 def anzeige(a: dict) -> dict:
-    """Die Akte, wie der NUTZER sie sieht: die Geschäftsführung unter dem Namen
-    seines Assistenten. Was an ein Modell geht, nimmt dagegen die Akte selbst."""
+    """Die Akte, wie der NUTZER sie sieht. Die Geschäftsführung heißt Luna; hat der
+    Nutzer seinen Assistenten umbenannt, ist sie dieser Assistent (Name und Gesicht
+    wie im Chat). Was an ein Modell geht, nimmt dagegen die Akte selbst."""
     if a.get("slug") == OWNER_SLUG:
-        # Auch das Gesicht ist das des Assistenten (wie im Chat), nicht das der Akte.
-        bild = (cfg.load_settings().get("avatars") or {}).get("assistant") or "/static/cody.png"
-        return {**a, "name": cfg.assistant_name(), "avatar": a.get("avatar") or bild}
+        name = cfg.assistant_name()
+        if name == cfg.DEFAULT_SETTINGS["names"]["assistant"]:
+            return {**a, "avatar": a.get("avatar") or LUNA_BILD}
+        bild = (cfg.load_settings().get("avatars") or {}).get("assistant") or LUNA_BILD
+        return {**a, "name": name, "avatar": a.get("avatar") or bild}
     return a
 
 

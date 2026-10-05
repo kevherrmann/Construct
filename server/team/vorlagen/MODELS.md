@@ -24,7 +24,7 @@ Zwischen oben und unten liegt **Faktor 10**.
 | Tests starten, Ausgaben prüfen, Protokollieren | `haiku` | `low` |
 | Gespräch, Kalender, E-Mail | `sonnet` | `medium` |
 
-**`fable` bekommt vorerst niemand.** Doppelt so teuer wie `opus`. Wenn, dann
+**`fable` bekommt vorerst niemand.** Verbraucht doppelt so viel Kontingent wie `opus`. Wenn, dann
 als bewusste Einzelentscheidung für einen konkreten schweren Auftrag — nicht
 als Merkmal einer Stelle.
 

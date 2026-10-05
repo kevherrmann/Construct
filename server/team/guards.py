@@ -163,5 +163,4 @@ NAMEN = {
     "eskaliert": "Rückfrage aus der Firma",
     "unbekannt": "Empfänger unbekannt",
     "akte": "Personalakte blockiert die Arbeit",
-    "kosten": "Kostengrenze des Mitarbeiters",  # dito
 }

@@ -6,7 +6,7 @@ reports_to: chef
 engine: claude
 model: opus
 effort: high
-model_grund: Qualität der Oberfläche geht vor Kosten; Gestaltung braucht Urteil.
+model_grund: Gestaltung braucht Urteil, darum das stärkere Modell.
 permission_mode: acceptEdits
 cwd: 
 allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch

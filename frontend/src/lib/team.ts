@@ -3,10 +3,10 @@ import type { Berechtigung, Effort, Modell } from '@/api/team'
 // Auswahllisten der Personalakte — gespiegelt aus server/team/agents.py.
 
 export const MODELLE: Record<Modell, string> = {
-  fable: 'Fable 5 · $10/$50',
-  opus: 'Opus 5 · $5/$25',
-  sonnet: 'Sonnet 5 · $2/$10',
-  haiku: 'Haiku 4.5 · $1/$5 · 200K',
+  fable: 'Fable 5',
+  opus: 'Opus 5',
+  sonnet: 'Sonnet 5',
+  haiku: 'Haiku 4.5 · 200K',
 }
 
 export const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
@@ -52,7 +52,6 @@ export const BREMSEN: Record<string, string> = {
   neustart: 'Serverneustart',
   gestoppt: 'Zug gestoppt',
   zug_timeout: 'Zug abgelaufen',
-  kosten: 'Kostengrenze des Mitarbeiters',
   eskaliert: 'Rückfrage aus der Firma',
   unbekannt: 'Empfänger unbekannt',
 }
