@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BUERO_BUEHNE,
-  DOPPEL,
-  DOPPEL_HOEHE,
+  BUERO_SPRITES,
   PAARE,
   WERKBANK,
   WERKBANK_FUSS,
   type PaarId,
+  tischFlaeche,
   type Platz,
 } from './stationen'
 import { WEG_MS, type Besuch, type BueroStand, type Sitz } from './useBuero'
@@ -19,7 +19,7 @@ import s from './Raum.module.css'
 // dabei kurz bei ihm vorbei. Die Bilder liegen unter /static/team/raum (mitgeliefert);
 // wer keinen Doppelschreibtisch hat, steht mit seinem Profilbild am Rand.
 
-const SPRITES = '/static/team/raum'
+const SPRITES = BUERO_SPRITES
 
 /** Wie viele am Tisch sitzen (Reihenfolge im Bild: links, rechts). */
 type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
@@ -35,15 +35,8 @@ const massstab = (y: number, bezug = WERKBANK_FUSS.y) => (y - HORIZONT) / (bezug
 
 /** Position und Größe eines Tischbildes auf der Bühne (Prozent). */
 function rahmen(p: Platz) {
-  const k = (DOPPEL_HOEHE / DOPPEL.inhaltH) * p.s
-  const w = DOPPEL.w * k
-  const h = DOPPEL.h * k
-  return {
-    left: prozent(p.x - w / 2, BUERO_BUEHNE.w),
-    top: prozent(p.y + DOPPEL.rand * k - h, BUERO_BUEHNE.h),
-    width: prozent(w, BUERO_BUEHNE.w),
-    height: prozent(h, BUERO_BUEHNE.h),
-  }
+  const r = tischFlaeche(p)
+  return { left: `${r.l}%`, top: `${r.t}%`, width: `${r.w}%`, height: `${r.h}%` }
 }
 
 /** Die Schreibtische samt Menschen, die Randplätze und die Wege zur Werkbank. */
@@ -51,10 +44,13 @@ export function Buero({
   stand,
   weich,
   onOeffnen,
+  onFokus,
 }: {
   stand: BueroStand
   weich?: boolean
   onOeffnen: (slug: string) => void
+  /** Maus oder Tastatur auf einem Platz: das Büro wird scharf gestellt. */
+  onFokus: (an: boolean) => void
 }) {
   const an = (paar: PaarId, seite: 'links' | 'rechts') =>
     stand.leute.find((l) => l.paar === paar && l.seite === seite)
@@ -71,12 +67,19 @@ export function Buero({
           rechts={an(id, 'rechts')}
           stand={stand}
           onOeffnen={onOeffnen}
+          onFokus={onFokus}
         />
       ))}
       {stand.leute
         .filter((l) => !l.paar)
         .map((l) => (
-          <Randplatz key={l.agent.slug} sitz={l} stand={stand} onOeffnen={onOeffnen} />
+          <Randplatz
+            key={l.agent.slug}
+            sitz={l}
+            stand={stand}
+            onOeffnen={onOeffnen}
+            onFokus={onFokus}
+          />
         ))}
       {stand.leute
         .filter((l) => l.paar)
@@ -87,6 +90,13 @@ export function Buero({
   )
 }
 
+const fokusGriffe = (onFokus: (an: boolean) => void) => ({
+  onMouseEnter: () => onFokus(true),
+  onMouseLeave: () => onFokus(false),
+  onFocus: () => onFokus(true),
+  onBlur: () => onFokus(false),
+})
+
 function DoppelTisch({
   platz,
   kennung,
@@ -94,6 +104,7 @@ function DoppelTisch({
   rechts,
   stand,
   onOeffnen,
+  onFokus,
 }: {
   platz: Platz
   kennung: PaarId
@@ -101,6 +112,7 @@ function DoppelTisch({
   rechts?: Sitz
   stand: BueroStand
   onOeffnen: (slug: string) => void
+  onFokus: (an: boolean) => void
 }) {
   const { t } = useTranslation()
   const da = (x?: Sitz) => !!x && stand.werk !== x.agent.slug
@@ -121,6 +133,7 @@ function DoppelTisch({
         type="button"
         className={`${s.sitzKnopf} ${seite === 'links' ? s.sitzLinks : s.sitzRechts}`}
         onClick={() => onOeffnen(x.agent.slug)}
+        {...fokusGriffe(onFokus)}
         aria-label={`${x.agent.name}, ${x.agent.title}`}
       >
         <span className={s.tischSchild}>
@@ -162,10 +175,12 @@ function Randplatz({
   sitz,
   stand,
   onOeffnen,
+  onFokus,
 }: {
   sitz: Sitz
   stand: BueroStand
   onOeffnen: (slug: string) => void
+  onFokus: (an: boolean) => void
 }) {
   const { t } = useTranslation()
   const { agent, platz } = sitz
@@ -183,6 +198,7 @@ function Randplatz({
         ['--accent-rgb' as string]: agent.color,
       }}
       onClick={() => onOeffnen(agent.slug)}
+      {...fokusGriffe(onFokus)}
       aria-label={`${agent.name}, ${agent.title}`}
     >
       {agent.avatar ? <img src={agent.avatar} alt="" draggable={false} /> : agent.name.slice(0, 1)}

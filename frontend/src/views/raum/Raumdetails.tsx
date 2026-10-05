@@ -1,53 +1,63 @@
+import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStatus, useUsage, type UsageWindow } from '@/api/system'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
 import { useSekunde } from '@/hooks/useSekunde'
 import { parallelMatrix, type Viereck } from './kamera'
-import { REGAL_SCHILD, UHR_MATRIX, WAND_KONTINGENT } from './stationen'
+import { bcdSpalten, ZEILEN } from './binaer'
+import {
+  BINAER_MASS,
+  KONTINGENT_MASS,
+  REGAL_SCHILD,
+  WAND_BINAER,
+  WAND_KONTINGENT,
+} from './stationen'
 import s from './Raum.module.css'
 
-// Kleine Dinge, die den Raum lebendig machen: die Wanduhr geht richtig, unter
-// dem Regal steht, in welchem Projekt man gerade ist, und neben der Uhr, wie
-// viel vom Claude-Kontingent schon verbraucht ist.
+// Kleine Dinge, die den Raum lebendig machen: an der Wand hängt eine Binäruhr,
+// darunter steht, wie viel vom Claude-Kontingent schon verbraucht ist, und unter
+// dem Regal, in welchem Projekt man gerade ist.
 
-/** Zeiger der Wanduhr, auf das gemalte Zifferblatt gelegt (Raumbild-Pixel). */
-export function Wanduhr({ weich = false }: { weich?: boolean }) {
+/** Die Binäruhr an der Wand: dieselbe Uhr wie in der Uhr-Ansicht, als Gerät mit
+ *  dunkler Glasfront, flach auf die Wand gelegt. */
+export function WandBinaeruhr({
+  welt,
+  weich = false,
+}: {
+  welt: { w: number; h: number }
+  weich?: boolean
+}) {
   const jetzt = useSekunde()
-  const sek = jetzt.getSeconds()
-  const min = jetzt.getMinutes() + sek / 60
-  const std = (jetzt.getHours() % 12) + min / 60
-  // Zeiger im Einheitskreis, 12 Uhr = nach oben (y negativ)
-  const zeiger = (grad: number, laenge: number, breite: number, cls: string) => (
-    <line
-      className={cls}
-      x1={0}
-      y1={0.14}
-      x2={0}
-      y2={-laenge}
-      strokeWidth={breite}
-      transform={`rotate(${grad})`}
-    />
-  )
+  if (!welt.w) return null
+  const k = welt.w / 2048
+  const [ol, or, ul] = WAND_BINAER.map(([x, y]) => [x * k, y * k] as const)
+  const { w, h } = BINAER_MASS
   return (
-    <svg
-      className={`${s.uhr} ${weich ? s.weich : ''}`}
-      viewBox="0 0 2048 1152"
-      preserveAspectRatio="none"
+    <div
+      className={`${s.wandBinaer} ${weich ? s.weich : ''}`}
+      style={{ width: w, height: h, transform: parallelMatrix(w, h, ol!, or!, ul!) }}
       aria-hidden
     >
-      <g transform={`matrix(${UHR_MATRIX.join(' ')})`}>
-        {/* leichter Schatten, als lägen die Zeiger über dem Blatt */}
-        <g transform="translate(0.035 0.05)" className={s.uhrSchatten}>
-          {zeiger(std * 30, 0.5, 0.075, '')}
-          {zeiger(min * 6, 0.76, 0.05, '')}
-        </g>
-        {zeiger(std * 30, 0.5, 0.075, s.uhrStunde!)}
-        {zeiger(min * 6, 0.76, 0.05, s.uhrMinute!)}
-        {zeiger(sek * 6, 0.84, 0.022, s.uhrSekunde!)}
-        <circle r={0.055} className={s.uhrMitte} />
-      </g>
-    </svg>
+      {bcdSpalten(jetzt).map((sp, i) => (
+        <Fragment key={i}>
+          {i > 0 && i % 2 === 0 && (
+            <span className={`${s.wandTrenner} ${jetzt.getSeconds() % 2 ? s.binaerAus : ''}`}>
+              <i />
+              <i />
+            </span>
+          )}
+          <span className={s.wandSpalte}>
+            {ZEILEN.map((z) => (
+              <i
+                key={z}
+                className={z >= 2 ** sp.bits ? s.binaerLeer : sp.wert & z ? s.binaerAn : ''}
+              />
+            ))}
+          </span>
+        </Fragment>
+      ))}
+    </div>
   )
 }
 
@@ -88,13 +98,10 @@ export function RegalSchild({
   )
 }
 
-// Die Anzeige wird in diesem festen Maß gezeichnet und dann als Ganzes auf die
-// Wand gelegt — Schrift und Balken skalieren mit dem Raum.
-const KW = 400
-const KH = 320
-
 /** Wie viel vom Kontingent (5 Stunden, Woche) verbraucht ist, an der Wand
- *  neben der Uhr. Dieselben Zahlen wie oben in der Chat-Ansicht. */
+ *  unter der Uhr. Dieselben Zahlen wie oben in der Chat-Ansicht. Die Anzeige
+ *  wird in festem Maß gezeichnet und als Ganzes auf die Wand gelegt — Schrift
+ *  und Balken skalieren mit dem Raum. */
 export function WandKontingent({
   welt,
   weich = false,
@@ -111,6 +118,7 @@ export function WandKontingent({
   if (!welt.w || !hatClaude) return null
   const k = welt.w / 2048
   const [ol, or, ul] = WAND_KONTINGENT.map(([x, y]) => [x * k, y * k] as const)
+  const { w: kw, h: kh } = KONTINGENT_MASS
   const u = usage.data
   const zeit = (iso: string | null | undefined, mitTag: boolean) =>
     iso
@@ -129,27 +137,29 @@ export function WandKontingent({
   return (
     <div
       className={`${s.kontingent} ${weich ? s.weich : ''}`}
-      style={{ width: KW, height: KH, transform: parallelMatrix(KW, KH, ol!, or!, ul!) }}
+      style={{ width: kw, height: kh, transform: parallelMatrix(kw, kh, ol!, or!, ul!) }}
       aria-hidden
     >
       <span className={s.kontingentKopf}>{t('KONTINGENT')}</span>
-      {sperreBis ? (
-        <div className={`${s.kontingentZeile} ${s.kontingentKrit}`}>
-          <b>{t('LIMIT')}</b>
-          <span className={s.kontingentLimit}>{t('bis {t}', { t: sperreBis })}</span>
-        </div>
-      ) : (
+      <div className={s.kontingentReihe}>
+        {sperreBis ? (
+          <div className={`${s.kontingentZeile} ${s.kontingentKrit}`}>
+            <b>{t('LIMIT')}</b>
+            <span className={s.kontingentLimit}>{t('bis {t}', { t: sperreBis })}</span>
+          </div>
+        ) : (
+          <KontingentZeile
+            name={t('5 STD')}
+            u={u?.five_hour}
+            reset={zeit(u?.five_hour?.resets_at, false)}
+          />
+        )}
         <KontingentZeile
-          name={t('5 STD')}
-          u={u?.five_hour}
-          reset={zeit(u?.five_hour?.resets_at, false)}
+          name={t('WOCHE')}
+          u={u?.seven_day}
+          reset={zeit(u?.seven_day?.resets_at, true)}
         />
-      )}
-      <KontingentZeile
-        name={t('WOCHE')}
-        u={u?.seven_day}
-        reset={zeit(u?.seven_day?.resets_at, true)}
-      />
+      </div>
     </div>
   )
 }

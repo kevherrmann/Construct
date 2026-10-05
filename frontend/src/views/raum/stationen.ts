@@ -56,6 +56,64 @@ export type PanelId =
   /** Ohne eigene Station: ⚙ oben rechts, die Kamera geht zum Pult. */
   | 'einstellungen'
 
+// Die Wand rechts über Lochwand und Kalender: Binäruhr und darunter das Kontingent.
+// Beide werden in einem festen Maß (Design-Pixel) gezeichnet und flach verzerrt auf
+// die Wand gelegt. Waagerecht im Winkel der Lochwand, die Senkrechte kippt leicht.
+const WAND = { o: [1650, 206], u: [0.49, 0.1775], v: [-0.012, 0.488] } as const
+/** Punkt auf der Wand (Design-Pixel) → Raumbild-Pixel. */
+const aufWand = (x: number, y: number): Punkt => [
+  WAND.o[0] + x * WAND.u[0] + y * WAND.v[0],
+  WAND.o[1] + x * WAND.u[1] + y * WAND.v[1],
+]
+/** Parallelogramm (oben links, oben rechts, unten links) eines Rechtecks auf der Wand. */
+const wandFlaeche = (x: number, y: number, w: number, h: number) =>
+  [aufWand(x, y), aufWand(x + w, y), aufWand(x, y + h)] as const
+
+/** Kontingent: breit, die beiden Zeitfenster nebeneinander. */
+export const KONTINGENT_MASS = { w: 660, h: 170 }
+export const WAND_KONTINGENT = wandFlaeche(0, 0, KONTINGENT_MASS.w, KONTINGENT_MASS.h)
+
+/** Binäruhr: mittig über dem Kontingent. */
+export const BINAER_MASS = { w: 364, h: 238 }
+export const WAND_BINAER = wandFlaeche(
+  (KONTINGENT_MASS.w - BINAER_MASS.w) / 2,
+  -BINAER_MASS.h - 58,
+  BINAER_MASS.w,
+  BINAER_MASS.h,
+)
+/** Die Binäruhr als Viereck (oben links, oben rechts, unten rechts, unten links), Pixel. */
+const BINAER_ECKEN = (() => {
+  const [ol, or, ul] = WAND_BINAER
+  const ur: Punkt = [or[0] + ul[0] - ol[0], or[1] + ul[1] - ol[1]]
+  return [ol, or, ur, ul] as const
+})()
+/** Rechteck um die Binäruhr in Prozent der Bühne. */
+const BINAER_FLAECHE: Rechteck = (() => {
+  const xs = BINAER_ECKEN.map((p) => p[0])
+  const ys = BINAER_ECKEN.map((p) => p[1])
+  const l = Math.min(...xs)
+  const t = Math.min(...ys)
+  return {
+    l: (l / 2048) * 100,
+    t: (t / 1152) * 100,
+    w: ((Math.max(...xs) - l) / 2048) * 100,
+    h: ((Math.max(...ys) - t) / 1152) * 100,
+  }
+})()
+/** Form der Binäruhr in Prozent ihres Rechtecks (Maske beim Scharfstellen). */
+const BINAER_FORM = BINAER_ECKEN.map(
+  ([x, y]) =>
+    [
+      ((x / 2048) * 100 - BINAER_FLAECHE.l) / (BINAER_FLAECHE.w / 100),
+      ((y / 1152) * 100 - BINAER_FLAECHE.t) / (BINAER_FLAECHE.h / 100),
+    ] as const,
+)
+/** Mitte der Binäruhr (Prozent), für die Kamera. */
+const BINAER_MITTE: Punkt = [
+  BINAER_FLAECHE.l + BINAER_FLAECHE.w / 2,
+  BINAER_FLAECHE.t + BINAER_FLAECHE.h / 2,
+]
+
 // Reihenfolge = Stapelung: spätere liegen oben (Werkzeugwand über Werkbank).
 export const STATIONEN: Station[] = [
   // Team-Modus: der Büroboden zwischen den Schreibtischen. Ganz unten, damit die
@@ -141,10 +199,7 @@ export const STATIONEN: Station[] = [
   },
   {
     id: 'uhr',
-    l: 91,
-    t: 18.4,
-    w: 5,
-    h: 10,
+    ...BINAER_FLAECHE,
     label: 'Uhr',
     hint: 'Uhrzeit und was als Nächstes kommt',
     panel: 'uhr',
@@ -229,7 +284,7 @@ export const FORM: Record<StationId, Rechteck> = {
   monitore: { l: 76.221, t: 38.108, w: 12.939, h: 20.573 },
   werkbank: { l: 68.848, t: 35.069, w: 28.906, h: 46.701 }, // mit Monitor + Tastatur
   werkzeug: { l: 79.102, t: 25.434, w: 13.574, h: 26.302 },
-  uhr: { l: 89.795, t: 16.233, w: 7.422, h: 14.323 },
+  uhr: BINAER_FLAECHE, // ohne Bild: siehe VIELECK
   kalender: { l: 91.113, t: 32.378, w: 8.008, h: 19.271 },
   steckfeld: { l: 93.408, t: 48.698, w: 6.592, h: 16.233 },
   postfach: { l: 8.984, t: 64.844, w: 15.234, h: 30.295 },
@@ -239,9 +294,9 @@ export const FORM: Record<StationId, Rechteck> = {
   firma: { l: 27, t: 9, w: 40, h: 26 },
 }
 
-/** Wanduhr: Zifferblatt als Einheitskreis → Raumbild (Pixel, affin;
- *  SVG-matrix a b c d e f). Ausgemessen an den Marken 12, 3, 6 und 9. */
-export const UHR_MATRIX = [33, 12, -3.5, 42, 1909.75, 272] as const
+/** Was nicht im Raumbild gemalt ist, hat statt einer Bildmaske ein Vieleck
+ *  (Prozent seiner FORM-Fläche). */
+export const VIELECK: Partial<Record<StationId, readonly Punkt[]>> = { uhr: BINAER_FORM }
 
 /** Projektname unter dem Regal, in der Ebene der Regalfront (Pixel im
  *  Raumbild: oben links, oben rechts, unten rechts, unten links). Die
@@ -260,15 +315,6 @@ export const REGAL_SCHILD: readonly [Punkt, Punkt, Punkt, Punkt] = [
 // Kopf). Das Tipp-Video an der Werkbank hat denselben Ausschnitt.
 export const PODEST_VIDEO: Rechteck = umFuss({ l: 31.982, t: 26.042, w: 27.344, h: 60.764 })
 export const WERKBANK: Rechteck = { l: 54.688, t: 23.09, w: 37.5, h: 72.222 }
-
-/** Kontingent-Anzeige an der Wand links neben der Uhr, über der Lochwand
- *  (Pixel im Raumbild: oben links, oben rechts, unten links). Oberkante im
- *  Winkel der Wand wie die Lochwand, die Senkrechte kippt wie bei der Uhr. */
-export const WAND_KONTINGENT: readonly [Punkt, Punkt, Punkt] = [
-  [1650, 140],
-  [1846, 211],
-  [1647, 296],
-]
 
 /** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne). */
 export const KASTEN: Rechteck = { l: 21.997, t: 52.083, w: 11.67, h: 26.91 }
@@ -315,7 +361,7 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   werkbank: { z: 1.55, f: [80, 58], p: [76, 56], seite: 'links', breite: 38, ziel: [78, 55] },
   skills: { z: 1.6, f: [85.9, 38.6], p: [80, 46], seite: 'links', breite: 58, ziel: [85.9, 38.6] },
   kalender: { z: 1.6, f: [94, 38], p: [84, 46], seite: 'links', breite: 60, ziel: [95.1, 42] },
-  uhr: { z: 2.2, f: [93.2, 23.6], p: [82, 42], seite: 'links', breite: 50, ziel: [93.2, 23.6] },
+  uhr: { z: 2.2, f: BINAER_MITTE, p: [80, 40], seite: 'links', breite: 50, ziel: BINAER_MITTE },
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
@@ -379,6 +425,29 @@ export const SITZE: Record<string, { paar: PaarId; seite: Seite }> = {
  *  717 × 520); bei Maßstab 1 steht der Inhalt DOPPEL_HOEHE Pixel hoch im Raum. */
 export const DOPPEL = { w: 757, h: 560, rand: 20, inhaltW: 717, inhaltH: 520 }
 export const DOPPEL_HOEHE = 235
+
+/** Bilder des Büros (mitgeliefert). */
+export const BUERO_SPRITES = '/static/team/raum'
+
+/** Wo ein Tischbild auf der Bühne liegt (Prozent). */
+export function tischFlaeche(p: Platz): Rechteck {
+  const k = (DOPPEL_HOEHE / DOPPEL.inhaltH) * p.s
+  const w = DOPPEL.w * k
+  const h = DOPPEL.h * k
+  return {
+    l: ((p.x - w / 2) / BUERO_BUEHNE.w) * 100,
+    t: ((p.y + DOPPEL.rand * k - h) / BUERO_BUEHNE.h) * 100,
+    w: (w / BUERO_BUEHNE.w) * 100,
+    h: (h / BUERO_BUEHNE.h) * 100,
+  }
+}
+
+/** Die Schreibtische samt Leuten als Form fürs Scharfstellen: beim Überfahren
+ *  des Büros bleiben sie scharf, der Rest des Raums wird unscharf. */
+export const BUERO_FORM = (Object.keys(PAARE) as PaarId[]).map((id) => ({
+  bild: `${BUERO_SPRITES}/doppel-${id}-beide.webp`,
+  flaeche: tischFlaeche(PAARE[id]),
+}))
 
 /** Fußpunkte der beiden Stühle im Tischbild (Anteil an Breite/Höhe des Inhalts). */
 const STUHL_FUSS: Record<Seite, { x: number; y: number }> = {

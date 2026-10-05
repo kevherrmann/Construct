@@ -37,11 +37,12 @@ import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
-import { RegalSchild, WandKontingent, Wanduhr } from './Raumdetails'
+import { RegalSchild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
-import { aufBuehne, GANZ, weltTransform, type Kamera } from './kamera'
+import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
+  BUERO_FORM,
   AUFTRITT,
   EINTAUCHEN,
   FIGUR,
@@ -57,6 +58,7 @@ import {
   type PanelId,
   type Rechteck,
   type StationId,
+  VIELECK,
 } from './stationen'
 import s from './Raum.module.css'
 
@@ -153,36 +155,61 @@ const SCHEIN_BILD = import.meta.glob<string>('./assets/schein/*.webp', {
   import: 'default',
 })
 
-/** Bild aus form/ bzw. schein/ (die Werkbank heißt dort `werkbank-cody.webp`). */
+/** Bild aus form/ bzw. schein/ (die Werkbank heißt dort `werkbank-cody.webp`).
+ *  Was nicht im Raumbild gemalt ist (die Binäruhr), hat stattdessen ein Vieleck. */
 function bildVon(ordner: 'form' | 'schein', id: StationId) {
   const alle = ordner === 'form' ? FORM_BILD : SCHEIN_BILD
-  return alle[`./assets/${ordner}/${id}-cody.webp`] ?? alle[`./assets/${ordner}/${id}.webp`]
+  const datei = alle[`./assets/${ordner}/${id}-cody.webp`] ?? alle[`./assets/${ordner}/${id}.webp`]
+  const vieleck = VIELECK[id]
+  return datei ?? (vieleck && vieleckBild(vieleck, FORM[id], ordner === 'schein'))
 }
 
-/** Maske „alles außer dieser Station“ für Unschärfe und Schleier. */
+/** Vieleck (Prozent der Fläche `f`) als Maskenbild; als Schein weich und mit dem
+ *  Rand der Schein-Masken drumherum. */
+function vieleckBild(form: readonly Punkt[], f: Rechteck, schein: boolean) {
+  const rx = schein ? (SCHEIN_RAND.x / f.w) * 100 : 0
+  const ry = schein ? (SCHEIN_RAND.y / f.h) * 100 : 0
+  const sx = 100 / (100 + 2 * rx)
+  const sy = 100 / (100 + 2 * ry)
+  const punkte = form.map(([x, y]) => `${((x + rx) * sx).toFixed(2)},${((y + ry) * sy).toFixed(2)}`)
+  const weich = schein ? '<filter id="w"><feGaussianBlur stdDeviation="3"/></filter>' : ''
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">${weich}` +
+    `<polygon points="${punkte.join(' ')}" fill="#fff"${schein ? ' filter="url(#w)"' : ''}/></svg>`
+  return `"data:image/svg+xml,${encodeURIComponent(svg)}"`
+}
+
+/** Maske „alles außer dieser Station“ für Unschärfe und Schleier. Das Büro hat
+ *  keine Form im Raumbild: dort sind es die Schreibtische samt Leuten. */
 function ohneStation(id: StationId | null): React.CSSProperties {
-  const bild = id && bildVon('form', id)
-  if (!id || !bild) return {}
-  const f = FORM[id]
+  const formen =
+    id === 'firma'
+      ? BUERO_FORM
+      : id && bildVon('form', id)
+        ? [{ bild: bildVon('form', id)!, flaeche: FORM[id] }]
+        : []
+  if (!formen.length) return {}
   // background-position in %: Versatz = (Fläche − Bild) · p
-  const px = f.w >= 100 ? 0 : (f.l / (100 - f.w)) * 100
-  const py = f.h >= 100 ? 0 : (f.t / (100 - f.h)) * 100
+  const lage = ({ l, t, w, h }: Rechteck) =>
+    `${w >= 100 ? 0 : (l / (100 - w)) * 100}% ${h >= 100 ? 0 : (t / (100 - h)) * 100}%`
   const m = {
-    image: `url(${bild}), linear-gradient(#000 0 0)`,
-    size: `${f.w}% ${f.h}%, 100% 100%`,
-    position: `${px}% ${py}%, 0 0`,
+    image: [...formen.map((f) => `url(${f.bild})`), 'linear-gradient(#000 0 0)'].join(', '),
+    size: [...formen.map((f) => `${f.flaeche.w}% ${f.flaeche.h}%`), '100% 100%'].join(', '),
+    position: [...formen.map((f) => lage(f.flaeche)), '0 0'].join(', '),
   }
+  // Jede Form wird aus der vollen Fläche darunter ausgeschnitten (sie überlappen nicht).
+  const aus = (op: string) => formen.map(() => op).join(', ')
   return {
     maskImage: m.image,
     maskSize: m.size,
     maskPosition: m.position,
     maskRepeat: 'no-repeat',
-    maskComposite: 'exclude',
+    maskComposite: aus('exclude'),
     WebkitMaskImage: m.image,
     WebkitMaskSize: m.size,
     WebkitMaskPosition: m.position,
     WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskComposite: 'xor',
+    WebkitMaskComposite: aus('xor'),
   }
 }
 
@@ -624,7 +651,7 @@ export function RaumView() {
                 />
               )}
               <Fernseher welt={weltGroesse} voll={!!tauchen} weich={weichAusser('monitore')} />
-              <Wanduhr weich={weichAusser('uhr')} />
+              <WandBinaeruhr welt={weltGroesse} weich={weichAusser('uhr')} />
               <WandKontingent welt={weltGroesse} weich={weichAusser('uhr')} />
               <img
                 className={`${s.ebene} ${weichAusser('tafel') ? s.kastenWeich : ''}`}
@@ -642,6 +669,12 @@ export function RaumView() {
                       usePersonal.getState().zeigeAkte(slug)
                       setFokus(null)
                       setAnsicht('personal')
+                    }}
+                    onFokus={(an) => {
+                      if (an) {
+                        setFokus('firma')
+                        setForm('firma')
+                      } else setFokus((f) => (f === 'firma' ? null : f))
                     }}
                   />
                   {buero.besuch && (
@@ -716,9 +749,7 @@ export function RaumView() {
               )}
               {STATIONEN.filter((st) => st.id !== 'firma' || buero).map((st) => {
                 const an = lage.station === st.id
-                // Der Büroboden hat keine Form zum Scharfstellen: nur sein Schild.
                 const zeigen = () => {
-                  if (st.id === 'firma') return
                   setFokus(st.id)
                   setForm(st.id)
                 }

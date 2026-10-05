@@ -278,11 +278,11 @@
    dort nur ausblenden. */
 .regalSchild.weich,
 .kontingent.weich,
+.wandBinaer.weich,
 .tvRahmen.weich {
   filter: none;
   opacity: 0.3;
 }
-.uhr,
 .regalSchild,
 .kontingent,
 .tvRahmen {
@@ -1351,28 +1351,97 @@
 
 /* ---------------------------------------------------------------------------
    Wanduhr: echte Zeiger auf dem gemalten Zifferblatt. */
-.uhr {
+/* Binäruhr an der Wand: ein flaches Gerät mit heller Fassung und dunkler
+   Glasfront wie die Uhr in der Uhr-Ansicht. Gezeichnet in festem Maß
+   (BINAER_MASS), der Transform legt sie auf die Wand. */
+.wandBinaer {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 26px;
+  border-radius: 30px;
+  border: 9px solid #eef0ef;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.07) 0 38%, transparent 38.5%),
+    linear-gradient(160deg, #142019, #070c09 70%);
+  box-shadow:
+    /* Fassung: Lichtkante oben links, Kante rechts unten */
+    0 0 0 1px rgba(60, 70, 65, 0.22),
+    inset 0 0 0 1px rgba(var(--accent-rgb), 0.16),
+    inset 0 16px 34px rgba(0, 0, 0, 0.6),
+    /* Tiefe zur Wand und Schatten nach rechts unten (Licht von links oben) */ 7px 9px 0 -2px
+      #cfd4d1,
+    18px 26px 34px rgba(40, 50, 45, 0.22),
+    6px 8px 10px rgba(40, 50, 45, 0.16);
   pointer-events: none;
+  transition:
+    filter 0.35s ease,
+    opacity 0.35s ease;
 }
-.uhr line {
-  stroke-linecap: round;
+.wandSpalte,
+.wandTrenner {
+  display: grid;
+  grid-template-rows: repeat(4, 34px);
+  row-gap: 13px;
+  align-items: center;
+  justify-items: center;
 }
-.uhrStunde,
-.uhrMinute {
-  stroke: #3b423e;
+.wandSpalte i {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #1d2c23, #0b130e 70%);
+  box-shadow: inset 0 0 0 1.5px rgba(var(--accent-rgb), 0.16);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
 }
-.uhrSekunde {
-  stroke: rgb(var(--accent-rgb));
+.wandSpalte i.binaerAn {
+  background: radial-gradient(
+    circle at 35% 30%,
+    #f2fff5 0 9%,
+    rgb(var(--accent-rgb)) 48%,
+    rgba(var(--accent-rgb), 0.8)
+  );
+  box-shadow:
+    0 0 0 1.5px rgba(var(--accent-rgb), 0.9),
+    0 0 14px rgba(var(--accent-rgb), 0.9),
+    0 0 36px rgba(var(--accent-rgb), 0.4);
 }
-.uhrSchatten line {
-  stroke: rgba(40, 50, 45, 0.16);
+.wandSpalte i.binaerLeer {
+  visibility: hidden;
 }
-.uhrMitte {
-  fill: #3b423e;
+.wandSpalte:nth-child(3n + 1) {
+  margin-left: 6px;
+}
+.wandTrenner i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb));
+  box-shadow: 0 0 9px rgba(var(--accent-rgb), 0.85);
+  transition: opacity 0.4s;
+}
+.wandTrenner i:first-child {
+  grid-row: 2;
+}
+.wandTrenner i:last-child {
+  grid-row: 3;
+}
+.wandTrenner.binaerAus i {
+  opacity: 0.2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wandSpalte i,
+  .wandTrenner i {
+    transition: none;
+  }
 }
 
 /* Projektname: unter dem Regal, in der Ebene der Regalfront. */
@@ -1769,6 +1838,11 @@
   letter-spacing: 0.45em;
   color: rgb(var(--accent-rgb));
   opacity: 0.85;
+}
+.kontingentReihe {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 56px;
 }
 .kontingentZeile {
   --stufe: var(--accent-rgb);
