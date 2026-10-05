@@ -82,6 +82,9 @@
 
 /* Hauptbereich */
 .wrap {
+  /* Die Akte richtet sich nach ihrer eigenen Breite, nicht nach dem Fenster:
+     im Raum steht sie in einer schmalen Karte, im Chat breit daneben. */
+  container-type: inline-size;
   padding: 14px 6px 60px;
   animation: global(fade) 0.25s ease;
   max-width: 980px;
@@ -126,7 +129,9 @@
 /* Organigramm */
 .orgwrap {
   display: flex;
-  justify-content: center;
+  /* safe: ist das Organigramm breiter als der Platz, beginnt es links und
+     lässt sich ganz durchscrollen, statt links abgeschnitten zu werden. */
+  justify-content: safe center;
   gap: 24px;
   overflow-x: auto;
   padding: 6px 0 20px;
@@ -196,6 +201,10 @@
   font-family: inherit;
   cursor: pointer;
   transition: 0.12s;
+}
+/* Kästen ohne Untergebene füllen die Zeile: alle gleich hoch. */
+.orgzeile > .orgast > .orgkarte:only-child {
+  flex: 1;
 }
 .orgkarte:hover {
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.45);
@@ -309,8 +318,19 @@
 .aktionen {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 12px 0 0 162px;
+}
+/* Entlassen steht für sich am rechten Rand, weg vom Speichern. */
+.aktionen > .gefahr {
+  margin-left: auto;
+}
+.aktionen > .msg {
+  flex-basis: 100%;
+}
+.aktionen > .msg:empty {
+  display: none;
 }
 .knopf {
   background: none;
@@ -340,10 +360,12 @@
   opacity: 0.8;
 }
 
-@media (max-width: 700px) {
+@container (max-width: 640px) {
   .fr {
     flex-direction: column;
-    gap: 4px;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 0;
   }
   .fr > label {
     flex: none;
@@ -352,5 +374,19 @@
   .hinweis,
   .aktionen {
     margin-left: 0;
+  }
+  .orgwrap {
+    gap: 12px;
+  }
+  .orgzeile {
+    gap: 10px;
+  }
+  .orgzeile > .orgast::after {
+    left: -5px;
+    right: -5px;
+  }
+  .orgkarte {
+    min-width: 112px;
+    padding: 8px 10px;
   }
 }

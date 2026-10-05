@@ -1094,5 +1094,8 @@
   "zurück": "back",
   "Zurück in den Raum": "Back to the room",
   "zurück zur Übersicht": "back to the overview",
-  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history."
+  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history.",
+  "Offen: {t}": "Open: {t}",
+  "Offen: neue Session": "Open: new session",
+  "diese Session": "this session"
 }

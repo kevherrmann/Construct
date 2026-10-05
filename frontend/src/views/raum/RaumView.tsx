@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSessions } from '@/api/chat'
 import { useProviders } from '@/api/providers'
 import { useVersion } from '@/api/system'
 import { Composer } from '@/components/chat/Composer'
@@ -466,12 +467,21 @@ export function RaumView() {
   const modusName = t((MODES.find((m) => m.v === mode) ?? MODES[0]).l.replace(/^\S+\s/, ''))
   // Projekt: das der Session, sonst der Ordner für die nächste neue.
   const projekt = baseName((conv?.sessionId ? conv.cwd : null) ?? folder ?? workspace)
+  // Archiv: welche Session gerade offen ist (neue ohne ID: noch ohne Titel).
+  const sessions = useSessions()
+  const sessionTitel = conv?.sessionId
+    ? (sessions.data?.sessions.find((x) => x.id === conv.sessionId)?.title ?? '')
+    : ''
   const hinweis = (st: (typeof STATIONEN)[number]) =>
     st.id === 'regal'
       ? projekt || t(st.hint)
       : st.id === 'pult'
         ? `${modelName} · ${modusName}`
-        : t(st.hint)
+        : st.id === 'archiv'
+          ? conv?.sessionId
+            ? t('Offen: {t}', { t: sessionTitel || t('diese Session') })
+            : t('Offen: neue Session')
+          : t(st.hint)
 
   const auftritt = ansicht ? AUFTRITT[ansicht] : null
   // Kompakt (Handy, Tablet hochkant): der Raum ist ein Panorama zum Wischen,
@@ -735,13 +745,8 @@ export function RaumView() {
                   <button
                     key={st.id}
                     type="button"
-                    className={`${s.station} ${an ? s.stationAn : ''} ${st.t < 12 ? s.schildUnten : ''}`}
-                    style={{
-                      ...platz(st),
-                      ...(st.form && {
-                        clipPath: `polygon(${st.form.map(([x, y]) => `${x}% ${y}%`).join(', ')})`,
-                      }),
-                    }}
+                    className={`${s.station} ${an ? s.stationAn : ''} ${st.t < 12 ? s.schildUnten : ''} ${st.form ? s.stationForm : ''}`}
+                    style={platz(st)}
                     onClick={() => {
                       setFokus(null)
                       if (st.panel === 'chat') eintauchen()
@@ -753,6 +758,16 @@ export function RaumView() {
                     onBlur={weg}
                     aria-label={t(st.label)}
                   >
+                    {/* Klickbar nur die echte Form. Sie sitzt auf einem eigenen Element,
+                        sonst schneidet sie das Schild mit ab. */}
+                    {st.form && (
+                      <span
+                        className={s.trefferForm}
+                        style={{
+                          clipPath: `polygon(${st.form.map(([x, y]) => `${x}% ${y}%`).join(', ')})`,
+                        }}
+                      />
+                    )}
                     <span className={s.schild}>
                       <b>{t(st.label)}</b>
                       <span>{an && status ? status : hinweis(st)}</span>

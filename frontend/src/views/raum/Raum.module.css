@@ -252,6 +252,15 @@
 .station:focus-visible {
   outline: none;
 }
+/* Station mit eigener Form: klickbar ist nur die Form darin. */
+.stationForm {
+  pointer-events: none;
+}
+.trefferForm {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
 /* Beim Überfahren stellt die Kamera auf das Objekt scharf: der Rest des
    Raums wird unscharf und tritt ins Weiß zurück. Beides ist eine Ebene mit
    der Maske „alles außer dieser Station“ (Inline-Stil aus RaumView). */
@@ -320,6 +329,9 @@
   color: var(--ink);
 }
 .schild span {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: var(--ink-soft);
 }
