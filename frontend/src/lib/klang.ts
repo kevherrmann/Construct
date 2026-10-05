@@ -222,29 +222,41 @@ export function eintauchen() {
 let uhrTimer: ReturnType<typeof setTimeout> | null = null
 let tickTack = false
 
-function ticken() {
+/** Ein Tick bzw. Tack, auf die Audio-Uhr genau zum Zeitpunkt `t` gelegt. */
+function ticken(t: number) {
   if (!effekt() || !ctx || !fxBus) return
   tickTack = !tickTack
-  stoss(ctx.currentTime, fxBus, {
-    dauer: 0.018,
-    vel: 0.28,
-    typ: 'highpass',
-    freq: tickTack ? 3400 : 2500,
-  })
+  stoss(t, fxBus, { dauer: 0.018, vel: 0.28, typ: 'highpass', freq: tickTack ? 3400 : 2500 })
 }
 
-/** Tickende Uhr, solange sie offen ist — auf die volle Sekunde. */
+/** Wann (Audio-Uhr) die nächste volle Sekunde zu HÖREN sein muss — die
+ *  Ausgabeverzögerung des Geräts ist schon abgezogen. */
+export function naechsteSekundeAudio(audioJetzt: number, msJetzt: number, latenz: number) {
+  return audioJetzt + (1000 - (msJetzt % 1000)) / 1000 - latenz
+}
+
+/**
+ * Tickende Uhr, solange sie offen ist. Kurz vor jeder vollen Sekunde wird der
+ * Tick auf der Audio-Uhr eingeplant — so fällt er genau auf den Sprung der
+ * Sekunde in der Anzeige (hooks/useSekunde.ts), statt mit dem Timer zu wackeln.
+ */
 export function uhr(an: boolean) {
   if (uhrTimer) clearTimeout(uhrTimer)
   uhrTimer = null
   if (!an) return
   const naechste = () => {
+    const rest = 1000 - (Date.now() % 1000)
+    // ~150 ms vorher aufwachen; ist die Sekunde schon zu nah, die übernächste.
     uhrTimer = setTimeout(
       () => {
-        ticken()
+        if (ctx) {
+          const latenz = ctx.outputLatency || ctx.baseLatency || 0
+          const t = naechsteSekundeAudio(ctx.currentTime, Date.now(), latenz)
+          if (t > ctx.currentTime) ticken(t)
+        }
         naechste()
       },
-      1000 - (Date.now() % 1000),
+      rest > 200 ? rest - 150 : rest + 850,
     )
   }
   naechste()

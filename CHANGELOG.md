@@ -17,6 +17,14 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   first click, so the room stays silent until then.
 - The room shows the version next to CONSTRUCT, so you can see at a glance
   whether an update has arrived.
+- **Binary clock.** The clock station shows the time as a glowing BCD binary
+  clock on a dark LED panel (one column per digit, 8-4-2-1) instead of the day
+  timeline.
+
+### Changed
+- All clocks in the room now jump exactly on the full second, and the ticking
+  is scheduled on the audio clock (output latency included), so tick and
+  seconds digit happen together.
 
 ## 7.0.0 — 2026-10-04
 

@@ -865,5 +865,6 @@
   "Coding-Musik": "Coding music",
   "Leiser Lo-Fi-Beat im Hintergrund — wird live erzeugt, wiederholt sich nicht.": "A quiet lo-fi beat in the background — generated live, never repeats.",
   "Nur im Construct-Raum. Der Browser gibt Ton erst nach dem ersten Klick frei.": "Only in the Construct room. The browser allows sound only after your first click.",
-  "Lautstärke:": "Volume:"
+  "Lautstärke:": "Volume:",
+  "Binäruhr: {zeit}": "Binary clock: {zeit}"
 }

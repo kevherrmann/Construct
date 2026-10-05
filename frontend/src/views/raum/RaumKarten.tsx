@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useEvents } from '@/api/calendar'
@@ -10,7 +10,7 @@ import { CLAUDE_MODELS, EFFORTS, MODES, extModels } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
-import { eventsOn, parseYMD, todayYMD, upcoming } from '@/views/calendar/dates'
+import { parseYMD, todayYMD, upcoming } from '@/views/calendar/dates'
 import { useChat } from '@/stores/chat'
 import { CalendarMain } from '@/views/calendar/CalendarMain'
 import { CalendarSide } from '@/views/calendar/CalendarSide'
@@ -20,9 +20,11 @@ import { MailSide } from '@/views/mail/MailSide'
 import { McpSide } from '@/views/mcp/McpSide'
 import { SkillsMain } from '@/views/skills/SkillsMain'
 import { SkillsSide } from '@/views/skills/SkillsSide'
+import { useSekunde } from '@/hooks/useSekunde'
 import { gruppiert, toolBlocks, useItems, useWerkstattDaten } from './daten'
 import type { PanelId } from './stationen'
 import s from './Raum.module.css'
+import { BinaerUhr } from './BinaerUhr'
 
 // Inhalte der Glaskarten. Wo es den Baustein schon gibt (Sessions, Kalender,
 // Mail, Skills, MCP), steht hier genau der — dieselbe Funktion wie im Chat.
@@ -279,13 +281,8 @@ function DigitalUhr() {
   const { t } = useTranslation()
   const lang = useSettings((st) => st.boot.lang)
   const { data } = useEvents()
-  const [jetzt, setJetzt] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setJetzt(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
+  const jetzt = useSekunde()
   const heute = todayYMD()
-  const termine = eventsOn(data ?? [], heute).filter((e) => e.time)
   const minuten = jetzt.getHours() * 60 + jetzt.getMinutes()
   const naechster = upcoming(data ?? [], heute, 30).find(
     ({ e, d }) => d > heute || !e.time || +e.time.slice(0, 2) * 60 + +e.time.slice(3, 5) >= minuten,
@@ -319,26 +316,7 @@ function DigitalUhr() {
       <div className={s.datum}>
         {tag} · {t('KW')} {kw(jetzt)}
       </div>
-      <div className={s.tagesleiste} aria-label={t('Heute')}>
-        <div className={s.tagVorbei} style={{ width: `${(minuten / 1440) * 100}%` }} />
-        {termine.map((e) => {
-          const m = +e.time.slice(0, 2) * 60 + +e.time.slice(3, 5)
-          return (
-            <span
-              key={e.id}
-              className={`${s.tagTermin} ${m < minuten ? s.tagTerminVorbei : ''}`}
-              style={{ left: `${(m / 1440) * 100}%` }}
-              title={`${e.time} · ${e.title}`}
-            />
-          )
-        })}
-        <span className={s.tagJetzt} style={{ left: `${(minuten / 1440) * 100}%` }} />
-        {[0, 6, 12, 18, 24].map((h) => (
-          <b key={h} className={s.tagStunde} style={{ left: `${(h / 24) * 100}%` }}>
-            {zwei(h % 24 === 0 && h ? 24 : h)}
-          </b>
-        ))}
-      </div>
+      <BinaerUhr jetzt={jetzt} />
       {naechster ? (
         <div className={s.naechster}>
           <span>{t('Als Nächstes')}</span>

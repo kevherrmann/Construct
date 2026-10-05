@@ -1289,53 +1289,91 @@
   letter-spacing: 1.5px;
   color: var(--ink-soft);
 }
-/* Der Tag als Leiste: vergangener Teil gefüllt, Termine als Punkte. */
-.tagesleiste {
-  position: relative;
-  height: 4px;
-  margin: 18px 0 26px;
-  border-radius: 4px;
-  background: #e4e9e6;
-}
-.tagVorbei {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 4px;
-  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.25), rgb(var(--accent-rgb)));
-}
-.tagJetzt {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border-radius: 50%;
-  background: #fff;
+/* Binäruhr (BinaerUhr.tsx): dunkle LED-Tafel wie die Monitorwand, Punkte
+   leuchten in der Akzentfarbe. Paare (HH MM SS) durch blinkende Doppelpunkte
+   getrennt, links die Wertigkeiten. */
+.binaer {
+  align-self: flex-start;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 4px 0;
+  padding: 22px 26px 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #101a14, #070c09);
   box-shadow:
-    0 0 0 2px rgb(var(--accent-rgb)),
-    0 0 12px rgba(var(--accent-rgb), 0.6);
+    inset 0 0 0 1px rgba(var(--accent-rgb), 0.12),
+    inset 0 14px 30px rgba(0, 0, 0, 0.55),
+    0 22px 40px -22px rgba(0, 0, 0, 0.55);
 }
-.tagTermin {
-  position: absolute;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: var(--ink);
-  border: 2px solid #fff;
+.binaerWerte,
+.binaerSpalte,
+.binaerTrenner {
+  display: grid;
+  grid-template-rows: repeat(4, 26px) auto;
+  row-gap: 10px;
+  justify-items: center;
+  align-items: center;
 }
-.tagTerminVorbei {
-  background: #b8c0bb;
-}
-.tagStunde {
-  position: absolute;
-  top: 12px;
-  transform: translateX(-50%);
+.binaerWerte span,
+.binaerSpalte b {
   font-family: 'Share Tech Mono', ui-monospace, monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
-  color: var(--ink-soft);
+  color: rgba(var(--accent-rgb), 0.65);
+}
+.binaerSpalte i {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #1c2b22, #0c140f 70%);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.14);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.binaerSpalte i.binaerAn {
+  background: radial-gradient(
+    circle at 35% 30%,
+    #f2fff5 0 9%,
+    rgb(var(--accent-rgb)) 48%,
+    rgba(var(--accent-rgb), 0.8)
+  );
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.9),
+    0 0 12px rgba(var(--accent-rgb), 0.85),
+    0 0 32px rgba(var(--accent-rgb), 0.35);
+}
+.binaerSpalte i.binaerLeer {
+  visibility: hidden;
+}
+.binaerSpalte b {
+  font-size: 12px;
+  color: rgba(var(--accent-rgb), 0.8);
+}
+/* Doppelpunkt zwischen den Paaren: Höhe der Zeilen 2 und 1 wie bei einer Uhr. */
+.binaerTrenner span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb));
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
+  transition: opacity 0.4s;
+}
+.binaerTrenner span:first-child {
+  grid-row: 2;
+}
+.binaerTrenner span:last-child {
+  grid-row: 3;
+}
+.binaerTrenner.binaerAus span {
+  opacity: 0.2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .binaerSpalte i,
+  .binaerTrenner span {
+    transition: none;
+  }
 }
 .naechster {
   display: flex;

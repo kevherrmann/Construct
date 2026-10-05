@@ -1,4 +1,14 @@
-import { codyTippt, klangAktiv, klangEinstellen, oeffnen, pegel, tipp, uhr } from './klang'
+import { bisVolleSekunde } from '@/hooks/useSekunde'
+import {
+  codyTippt,
+  klangAktiv,
+  klangEinstellen,
+  naechsteSekundeAudio,
+  oeffnen,
+  pegel,
+  tipp,
+  uhr,
+} from './klang'
 import { SCHLAG, TAKT, takt, zufall } from './klangMusik'
 
 describe('Musik', () => {
@@ -67,5 +77,18 @@ describe('Klang', () => {
       codyTippt(false)
       klangAktiv(false)
     }).not.toThrow()
+  })
+})
+
+describe('Uhr im Takt', () => {
+  it('Tick fällt auf die volle Sekunde, Latenz schon abgezogen', () => {
+    // 300 ms vor der vollen Sekunde, Audio-Uhr bei 10 s, 40 ms Ausgabeverzögerung
+    expect(naechsteSekundeAudio(10, 5_700, 0.04)).toBeCloseTo(10.26)
+    expect(naechsteSekundeAudio(3, 1_000, 0)).toBeCloseTo(4)
+  })
+
+  it('Anzeige springt kurz nach der vollen Sekunde', () => {
+    expect(bisVolleSekunde(12_345)).toBe(660)
+    expect(bisVolleSekunde(13_000)).toBe(1005)
   })
 })

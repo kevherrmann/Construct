@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStatus, useUsage, type UsageWindow } from '@/api/system'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
+import { useSekunde } from '@/hooks/useSekunde'
 import { parallelMatrix, type Viereck } from './kamera'
 import { REGAL_SCHILD, UHR_MATRIX, WAND_KONTINGENT } from './stationen'
 import s from './Raum.module.css'
@@ -13,11 +13,7 @@ import s from './Raum.module.css'
 
 /** Zeiger der Wanduhr, auf das gemalte Zifferblatt gelegt (Raumbild-Pixel). */
 export function Wanduhr({ weich = false }: { weich?: boolean }) {
-  const [jetzt, setJetzt] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setJetzt(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
+  const jetzt = useSekunde()
   const sek = jetzt.getSeconds()
   const min = jetzt.getMinutes() + sek / 60
   const std = (jetzt.getHours() % 12) + min / 60
