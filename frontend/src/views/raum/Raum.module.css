@@ -1826,173 +1826,174 @@
   color: #7d8580;
 }
 
-/* Ticket-Tafel: ein Hologramm vor der Rückwand. Auf der weißen Wand würde
-   reines Licht verschwinden — darum eine getönte Glasfläche, auf der die Schrift
-   in der Akzentfarbe leuchtet, mit Eckmarken, Zeilenraster und einem Strahl,
-   der langsam über die Fläche läuft. Gezeichnet in 800×500 px, als Ganzes auf
-   die Wand gelegt (Inline-Transform). */
-.tafel {
+/* Büro der Firma (Team-Modus): Schreibtische hinten im Raum. Die Bilder bringen
+   ihren Standschatten mit; Menschen und leerer Tisch liegen deckungsgleich
+   übereinander, der Wechsel dazwischen ist das Aufstehen. */
+.buero {
   position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  box-sizing: border-box;
-  padding: 34px 42px 28px;
+  inset: 0;
+  pointer-events: none;
+  transition: filter 0.3s;
+}
+.kastenWeich,
+.bueroWeich {
+  filter: blur(3px) opacity(0.7);
+}
+.tisch {
+  position: absolute;
+}
+.tisch > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+/* Sitzt er, ist das Bild da; steht er auf, geht es sofort, und es kommt erst
+   zurück, wenn er wieder am Tisch angekommen ist (Wegzeit im Läufer). */
+.sitzt {
+  opacity: 1;
+  transition: opacity 0.3s ease 1s;
+}
+.sitztWeg {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+/* Wer kein Tischbild hat: das Profilbild auf dem Stuhl. */
+.stuhlBild {
+  position: absolute;
+  left: 58%;
+  top: 8%;
+  width: 22%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fff;
+  border: 2px solid rgb(var(--accent-rgb));
+  box-shadow: 0 3px 8px rgba(30, 40, 35, 0.25);
+  font-weight: 600;
+  color: var(--ink);
+  transition: opacity 0.3s ease 1s;
+}
+.stuhlBild img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Wer arbeitet, aber nicht an der Werkbank steht: der Bildschirm leuchtet. */
+.tischArbeit {
+  position: absolute;
+  left: 18%;
+  top: 27%;
+  width: 36%;
+  height: 28%;
+  border-radius: 8px;
+  background: radial-gradient(closest-side, rgba(126, 231, 135, 0.55), transparent);
+  mix-blend-mode: multiply;
+  animation: tischGlimmt 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes tischGlimmt {
+  50% {
+    opacity: 0.35;
+  }
+}
+.tischKnopf {
+  position: absolute;
+  inset: 12% 0 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.tischKnopf:focus-visible {
+  outline: none;
+}
+.tischSchild {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translate(-50%, 4px);
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  overflow: hidden;
-  /* Licht, nicht Farbe: auf der dunklen Fläche leuchtet die Akzentfarbe aufgehellt. */
-  --licht: color-mix(in srgb, rgb(var(--accent-rgb)) 45%, #f2fff8);
-  color: var(--licht);
-  font-family: 'Share Tech Mono', ui-monospace, monospace;
-  line-height: 1;
+  gap: 2px;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 22px rgba(30, 40, 35, 0.16);
   white-space: nowrap;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.tischSchild b {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+.tischSchild span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.tischKnopf:hover .tischSchild,
+.tischKnopf:focus-visible .tischSchild {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.weltFokus .tischKnopf {
+  pointer-events: none;
+}
+
+/* Der Weg zur Werkbank: dieselbe Ebene wie die des Assistenten. Am Tisch klein und
+   unsichtbar (--von), an der Werkbank in voller Größe; Fußpunkt als Ursprung. */
+.laeufer {
+  position: absolute;
   pointer-events: none;
   user-select: none;
-  background:
-    repeating-linear-gradient(0deg, rgba(var(--accent-rgb), 0.1) 0 2px, transparent 2px 6px),
-    radial-gradient(120% 90% at 50% 0%, rgba(var(--accent-rgb), 0.22), transparent 70%),
-    linear-gradient(170deg, rgba(3, 24, 17, 0.92), rgba(2, 14, 12, 0.88));
-  border: 2px solid rgba(var(--accent-rgb), 0.75);
-  border-radius: 6px;
-  box-shadow:
-    0 0 38px rgba(var(--accent-rgb), 0.5),
-    inset 0 0 60px rgba(var(--accent-rgb), 0.16);
-  animation: tafelFlimmern 7s steps(1) infinite;
+  opacity: 0;
+  transform: var(--von);
+  transform-origin: 45.6% 75.2%;
   transition:
-    filter 0.35s ease,
-    opacity 0.35s ease;
+    transform 1.1s cubic-bezier(0.45, 0, 0.25, 1),
+    opacity 0.3s ease 0.8s;
 }
-.tafelWeich {
-  filter: none;
-  opacity: 0.3;
+.laeuferDa {
+  opacity: 1;
+  transform: none;
+  transition:
+    transform 1.1s cubic-bezier(0.45, 0, 0.25, 1),
+    opacity 0.25s ease 0s;
 }
-.ecke {
+/* Die Chefin auf Besuch: dasselbe Standbild wie am Podest, geht klein zum Tisch. */
+.besucher {
   position: absolute;
-  width: 34px;
-  height: 34px;
-  border: 0 solid var(--licht, rgb(var(--accent-rgb)));
-  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.9));
+  aspect-ratio: 760 / 1000;
+  transform: translateX(-50%);
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 8px 8px rgba(40, 50, 45, 0.25));
+  transition:
+    left 1.1s cubic-bezier(0.45, 0, 0.25, 1),
+    top 1.1s cubic-bezier(0.45, 0, 0.25, 1),
+    height 1.1s cubic-bezier(0.45, 0, 0.25, 1);
 }
-.eckeOL {
-  left: 10px;
-  top: 10px;
-  border-width: 3px 0 0 3px;
+.besucherStart {
+  transition: none;
 }
-.eckeOR {
-  right: 10px;
-  top: 10px;
-  border-width: 3px 3px 0 0;
-}
-.eckeUL {
-  left: 10px;
-  bottom: 10px;
-  border-width: 0 0 3px 3px;
-}
-.eckeUR {
-  right: 10px;
-  bottom: 10px;
-  border-width: 0 3px 3px 0;
-}
-.tafelStrahl {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 70px;
-  background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.3), transparent);
-  animation: tafelStrahl 5.5s linear infinite;
-}
-.tafelKopf {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 28px;
-  letter-spacing: 0.45em;
-  text-shadow: 0 0 12px rgba(var(--accent-rgb), 0.9);
-}
-.tafelProjekt {
-  font-size: 22px;
-  letter-spacing: 0.15em;
-  opacity: 0.75;
-  max-width: 330px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tafelZahlen {
-  display: flex;
-  gap: 54px;
-  align-items: flex-end;
-}
-.tafelZahlen b {
-  display: block;
-  font-family: 'Exo 2 Variable', var(--font);
-  font-size: 92px;
-  font-weight: 250;
-  text-shadow: 0 0 22px rgba(var(--accent-rgb), 0.85);
-}
-.tafelZahlen em {
-  font-style: normal;
-  font-size: 19px;
-  letter-spacing: 0.3em;
-  opacity: 0.7;
-}
-.tafelZahlen span:first-child b {
-  opacity: 0.7;
-}
-.tafelListe {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  font-size: 25px;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.7);
-}
-.tafelListe li {
-  display: flex;
-  gap: 16px;
-}
-.tafelTitel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tafelFertig {
-  opacity: 0.5;
-  text-decoration: line-through;
-}
-.tafelLeer {
-  opacity: 0.55;
-  font-size: 22px;
-}
-@keyframes tafelStrahl {
-  from {
-    transform: translateY(-80px);
-  }
-  to {
-    transform: translateY(520px);
-  }
-}
-/* Gelegentliches Flackern wie bei einer Projektion. */
-@keyframes tafelFlimmern {
-  0%,
-  90%,
-  93%,
-  96%,
-  100% {
-    opacity: 1;
-  }
-  91%,
-  95% {
-    opacity: 0.86;
-  }
+:global(body.fx-off) :is(.laeufer, .besucher) {
+  transition-duration: 0s;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tafel,
-  .tafelStrahl {
-    animation: none;
+  .laeufer,
+  .besucher {
+    transition-duration: 0s;
   }
 }

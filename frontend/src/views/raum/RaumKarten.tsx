@@ -38,6 +38,18 @@ const TicketsMain = lazy(() =>
 const TicketsSide = lazy(() =>
   import('@/views/tickets/TicketsSide').then((m) => ({ default: m.TicketsSide })),
 )
+const PersonalMain = lazy(() =>
+  import('@/views/personal/PersonalMain').then((m) => ({ default: m.PersonalMain })),
+)
+const PersonalSide = lazy(() =>
+  import('@/views/personal/PersonalSide').then((m) => ({ default: m.PersonalSide })),
+)
+const AuftraegeMain = lazy(() =>
+  import('@/views/auftraege/AuftraegeMain').then((m) => ({ default: m.AuftraegeMain })),
+)
+const AuftraegeSide = lazy(() =>
+  import('@/views/auftraege/AuftraegeSide').then((m) => ({ default: m.AuftraegeSide })),
+)
 const SettingsMain = lazy(() =>
   import('@/views/settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
 )
@@ -370,6 +382,18 @@ export function KartenInhalt({ panel, onDone }: { panel: PanelId; onDone: () => 
       return (
         <Suspense fallback={null}>
           <Zweispaltig links={<TicketsSide />} rechts={<TicketsMain onDone={onDone} />} />
+        </Suspense>
+      )
+    case 'personal':
+      return (
+        <Suspense fallback={null}>
+          <Zweispaltig links={<PersonalSide />} rechts={<PersonalMain />} />
+        </Suspense>
+      )
+    case 'auftraege':
+      return (
+        <Suspense fallback={null}>
+          <Zweispaltig links={<AuftraegeSide />} rechts={<AuftraegeMain />} />
         </Suspense>
       )
     case 'skills':

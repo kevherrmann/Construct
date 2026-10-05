@@ -17,6 +17,7 @@ export type StationId =
   | 'postfach'
   | 'pult'
   | 'tafel'
+  | 'firma'
 
 /** Links, oben, Breite, Höhe in Prozent der Bühne. */
 export interface Rechteck {
@@ -47,11 +48,26 @@ export type PanelId =
   | 'mail'
   | 'ausruestung'
   | 'tickets'
+  /** Team-Modus: die Mitarbeiter und die Aufträge der Firma. */
+  | 'personal'
+  | 'auftraege'
   /** Ohne eigene Station: ⚙ oben rechts, die Kamera geht zum Pult. */
   | 'einstellungen'
 
 // Reihenfolge = Stapelung: spätere liegen oben (Werkzeugwand über Werkbank).
 export const STATIONEN: Station[] = [
+  // Team-Modus: der Fußboden zwischen den Schreibtischen. Ganz unten, damit die
+  // Tische (eigene Knöpfe) und die Wandobjekte davor Vorrang haben.
+  {
+    id: 'firma',
+    l: 26,
+    t: 25,
+    w: 48,
+    h: 19,
+    label: 'Firma',
+    hint: 'Aufträge der Firma',
+    panel: 'auftraege',
+  },
   {
     id: 'regal',
     l: 0,
@@ -155,10 +171,10 @@ export const STATIONEN: Station[] = [
   },
   {
     id: 'tafel',
-    l: 27.3,
-    t: 2.6,
-    w: 19.5,
-    h: 21.7,
+    l: 23.462,
+    t: 54.688,
+    w: 8.74,
+    h: 21.701,
     label: 'Tickets',
     hint: 'Aufgaben nach Tag und Projekt',
     panel: 'tickets',
@@ -209,7 +225,8 @@ export const FORM: Record<StationId, Rechteck> = {
   postfach: { l: 8.984, t: 64.844, w: 15.234, h: 30.295 },
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
   // Hologramm ohne Bildmaske (kein Gegenstand im Raumbild): nur die Fläche.
-  tafel: { l: 27.3, t: 2.6, w: 19.5, h: 21.7 },
+  tafel: { l: 23.462, t: 54.688, w: 8.74, h: 21.701 },
+  firma: { l: 26, t: 25, w: 48, h: 19 },
 }
 
 /** Wanduhr: Zifferblatt als Einheitskreis → Raumbild (Pixel, affin;
@@ -243,13 +260,8 @@ export const WAND_KONTINGENT: readonly [Punkt, Punkt, Punkt] = [
   [1647, 296],
 ]
 
-/** Ticket-Tafel: ein Hologramm vor der Rückwand zwischen Aktenschrank und
- *  Monitorwand (Pixel im Raumbild: oben links, oben rechts, unten links). */
-export const WAND_TAFEL: readonly [Punkt, Punkt, Punkt] = [
-  [560, 30],
-  [960, 30],
-  [560, 280],
-]
+/** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne). */
+export const KASTEN: Rechteck = { l: 21.997, t: 52.083, w: 11.67, h: 26.91 }
 
 /** Die Monitorwand: Fläche, auf der der Terminal-Text liegt (oben links,
  *  oben rechts, unten rechts, unten links; Prozent). Etwas größer als die
@@ -297,7 +309,9 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
-  tickets: { z: 1.45, f: [37, 13.5], p: [21, 36], seite: 'rechts', breite: 50, ziel: [37, 13.5] },
+  tickets: { z: 1.5, f: [27.5, 66], p: [21, 52], seite: 'rechts', breite: 50, ziel: [27.5, 66] },
+  personal: { z: 1.6, f: [46, 36], p: [24, 52], seite: 'rechts', breite: 52, ziel: [46, 36] },
+  auftraege: { z: 1.6, f: [46, 36], p: [24, 52], seite: 'rechts', breite: 56, ziel: [46, 36] },
   einstellungen: {
     z: 1.2,
     f: [50.2, 58],
@@ -316,3 +330,34 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
     ziel: [85.2, 57.6],
   },
 }
+
+// ---------- Büro der Firma (Team-Modus) ----------
+
+/** Maße der Bühne in Pixeln — die Raumbilder sind 2048 × 1152. */
+export const BUERO_BUEHNE = { w: 2048, h: 1152 }
+
+/** Höhe eines Schreibtisches auf dem Raumbild (Pixel, Tisch ohne Rand). */
+export const BUERO_FUSS = 205
+
+/** Ein Schreibtisch: Mitte der Vorderkante, Höhe der Vorderecke (Pixel auf dem
+ *  Raumbild) und Maßstab (hintere Reihe kleiner). */
+export interface Platz {
+  x: number
+  y: number
+  s: number
+}
+
+/** Die Reihenfolge ist die der Belegschaft: erst die vordere Reihe von links nach
+ *  rechts, dann die hintere. Mehr Leute als Plätze sitzen nicht im Raum. */
+export const PLAETZE: readonly Platz[] = [
+  { x: 610, y: 450, s: 1 },
+  { x: 820, y: 455, s: 1 },
+  { x: 1130, y: 452, s: 1 },
+  { x: 1340, y: 445, s: 1 },
+  { x: 715, y: 395, s: 0.85 },
+  { x: 1235, y: 392, s: 0.85 },
+]
+
+/** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort läuft ein
+ *  Mitarbeiter hin, wenn er arbeitet. */
+export const WERKBANK_FUSS = { x: 1470, y: 892 }

@@ -58,7 +58,9 @@ def anzeige(a: dict) -> dict:
     """Die Akte, wie der NUTZER sie sieht: die Geschäftsführung unter dem Namen
     seines Assistenten. Was an ein Modell geht, nimmt dagegen die Akte selbst."""
     if a.get("slug") == OWNER_SLUG:
-        return {**a, "name": cfg.assistant_name()}
+        # Auch das Gesicht ist das des Assistenten (wie im Chat), nicht das der Akte.
+        bild = (cfg.load_settings().get("avatars") or {}).get("assistant") or "/static/cody.png"
+        return {**a, "name": cfg.assistant_name(), "avatar": a.get("avatar") or bild}
     return a
 
 

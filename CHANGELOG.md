@@ -8,8 +8,8 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
 - **Tickets inside a session.** A ticket is a section of a session; it collects
   all messages of one task, with gaps. Messages go to the current ticket without
   anyone doing anything. Chip above the input, `/ticket Title`, ✂ on a message,
-  the **Tickets** tile (per day and project, jump to the message) and a
-  holographic board on the room's back wall. The assistant can file messages
+  the **Tickets** tile (per day and project, jump to the message) and, in the
+  room, a card-index box on a pedestal. The assistant can file messages
   with one marker line at the end of its answer (`[[ticket neu: Title]]`, only
   when needed — no tool and no MCP server: an MCP server cost 2–3 s per message
   and +1.3k tokens, or with `--strict-mcp-config` the user's own MCP servers);
@@ -22,7 +22,9 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   from FACTORIA: staff files, jobs with an internal bus, safety brakes,
   shared instructions, direct conversations with employees, **Staff** and
   **Jobs** tiles, a stop-everything button and a call bar when a job needs you.
-  A fixed crew ships with it: the managing director (the assistant, called
+  In the room the crew sits at small desks in the back; whoever works walks to
+  the workbench and types there, the director visits them, and a click on a
+  desk opens the staff file. A fixed crew ships with it: the managing director (the assistant, called
   Lumina inside the company), Cody (backend and technology), Selma (frontend and
   design), Tessa (quality assurance) and Veritas (code audit); there is no hiring
   procedure, new staff are added by hand. Per task you choose between "only the

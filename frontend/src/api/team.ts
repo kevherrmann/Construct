@@ -261,7 +261,8 @@ export const useTeamStand = () => {
     queryKey: ['team', 'state'],
     queryFn: () => apiGet<TeamStand>(`${P}/state`),
     enabled: an,
-    refetchInterval: (q) => (q.state.data?.aktiv.length ? 4000 : 15000),
+    // Auch im Leerlauf zügig: im Raum stehen die Mitarbeiter auf, sobald jemand arbeitet.
+    refetchInterval: (q) => (q.state.data?.aktiv.length ? 3000 : 5000),
   })
 }
 

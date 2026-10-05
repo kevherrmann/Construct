@@ -52,6 +52,7 @@ def test_geschaeftsfuehrung_heisst_dem_nutzer_gegenueber_wie_der_assistent(firma
     chef = ag.load_agent(ag.OWNER_SLUG, WS)
     assert chef["name"] == "Lumina"                       # das sehen die Mitarbeiter
     assert ag.anzeige(chef)["name"] == "Momo"             # das sieht der Nutzer
+    assert ag.anzeige(chef)["avatar"] == "/static/cody.png"   # ohne eigenes Bild das des Assistenten
     (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Chanti"}}))
     assert ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))["name"] == "Chanti"
     assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Lumina"

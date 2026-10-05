@@ -102,8 +102,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   in ⚙ Settings → Team). A new ticket closes the previous one, a correction
   reopens a closed one. The **Tickets** tile shows, per day and
   project, what is done and what is open; a click jumps to the message in the
-  history. In the room a holographic board on the back wall shows today's
-  tickets.
+  history. In the room a card-index box on a pedestal opens them.
 - **Team mode (optional).** A company of AI employees next to the single
   assistant: staff files (character, model, effort, tools, permissions, memory),
   jobs that the staff pass between each other over an internal bus, safety
@@ -112,7 +111,9 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   director. You decide per task: small things the assistant does alone, big ones
   you give to the company (`/firma …`, the 🏢 button on a ticket, or — if you
   allow it — the assistant suggests it). Off by default; switch on under
-  ⚙ Settings → Team. Employees can also be talked to directly (👥 Staff → Talk to
+  ⚙ Settings → Team. In the room the crew sits at small desks in the back; whoever works gets
+  up, walks to the workbench and types there, and the director looks in on
+  them. Employees can also be talked to directly (👥 Staff → Talk to
   …). Data lives in `firma/` (not versioned). See
   [`scripts/pruefstand/README.md`](scripts/pruefstand/README.md) for the test bench.
 - **Skills browser.** Shows global skills (`~/.claude/skills`) and per-project

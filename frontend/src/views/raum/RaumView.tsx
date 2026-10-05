@@ -21,6 +21,7 @@ import { KOMPAKT, useMedien } from '@/hooks/useMedien'
 import { useChat } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
 import { useUi } from '@/stores/ui'
+import { usePersonal } from '@/views/personal/store'
 import { ChatView } from '@/views/chat/ChatView'
 import raumBild from './assets/raum.webp'
 import codyIdle from './assets/cody-idle.webp'
@@ -31,12 +32,14 @@ import codyWerkbank from './assets/cody-werkbank.webp'
 import codyGeraete from './assets/cody-werkbank-geraete.webp'
 import codyUnscharf from './assets/cody-raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
+import kastenBild from './assets/kasten.webp'
 import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
 import { RegalSchild, WandKontingent, Wanduhr } from './Raumdetails'
-import { Tafel } from './Tafel'
+import { Besucher, Buero } from './Buero'
+import { useBuero } from './useBuero'
 import { aufBuehne, GANZ, weltTransform, type Kamera } from './kamera'
 import {
   AUFTRITT,
@@ -47,6 +50,7 @@ import {
   SCHEIN_RAND,
   STATIONEN,
   FORM,
+  KASTEN,
   WERKBANK,
   type Ansicht,
   type Auftritt,
@@ -311,6 +315,8 @@ const TITEL: Record<Ansicht, string> = {
   mail: 'E-Mails',
   ausruestung: 'Modell & Modus',
   tickets: 'Tickets',
+  personal: 'Personal',
+  auftraege: 'Aufträge',
   einstellungen: 'Einstellungen',
 }
 
@@ -451,6 +457,9 @@ export function RaumView() {
   const figur = useMemo(() => eigeneFigur(figurDateien) ?? CODY, [figurDateien])
   const pose = useRuhigePose(POSE_VON[lage.phase])
   const amWerk = pose === 'arbeiten'
+  // Team-Modus: das Büro hinten im Raum; null, wenn der Modus aus ist.
+  const buero = useBuero(!amWerk)
+  const besucht = !!buero?.besuch
   useRaumKlang({ ansicht, fokus, tauchen, amWerk })
   // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
   const sound = useSettings((st) => st.settings.sound)
@@ -459,7 +468,7 @@ export function RaumView() {
   // Das Standbild am Podest verschwindet erst, wenn das Video der Pose wirklich
   // läuft — spielt es nicht (Codec, Autoplay), bleibt die Figur einfach stehen.
   const [videoPose, setVideoPose] = useState<Pose | null>(null)
-  const imVideo = VIDEO_AN && !amWerk && videoPose === pose
+  const imVideo = VIDEO_AN && !amWerk && !besucht && videoPose === pose
   const videoMeldung = (p: Pose) => (laeuft: boolean) =>
     setVideoPose((v) => (laeuft ? p : v === p ? null : v))
   const status = lage.phase === 'ruht' ? '' : t(PHASE_TEXT[lage.phase], { d: lage.detail })
@@ -497,7 +506,7 @@ export function RaumView() {
   // Wohin das Panorama schaut: zur offenen Station, sonst zu Cody.
   const blickX = auftritt
     ? auftritt.ziel[0]
-    : amWerk
+    : amWerk || buero?.werk
       ? FIGUR_WERKBANK.l + FIGUR_WERKBANK.w / 2
       : FIGUR.x
   const ersterBlick = useRef(true)
@@ -634,10 +643,37 @@ export function RaumView() {
               <Fernseher welt={weltGroesse} voll={!!tauchen} weich={weichAusser('monitore')} />
               <Wanduhr weich={weichAusser('uhr')} />
               <WandKontingent welt={weltGroesse} weich={weichAusser('uhr')} />
-              <Tafel welt={weltGroesse} weich={weichAusser('tafel')} />
+              <img
+                className={`${s.ebene} ${weichAusser('tafel') ? s.kastenWeich : ''}`}
+                style={platz(KASTEN)}
+                src={kastenBild}
+                alt=""
+                draggable={false}
+              />
+              {buero && (
+                <>
+                  <Buero
+                    stand={buero}
+                    weich={weichAusser('firma')}
+                    onOeffnen={(slug) => {
+                      usePersonal.getState().zeigeAkte(slug)
+                      setFokus(null)
+                      setAnsicht('personal')
+                    }}
+                  />
+                  {buero.besuch && (
+                    <Besucher
+                      besuch={buero.besuch}
+                      stand={buero}
+                      bild={figur.posen.idle}
+                      podest={FIGUR}
+                    />
+                  )}
+                </>
+              )}
               <RegalSchild name={projekt} welt={weltGroesse} weich={weichAusser('regal')} />
               <div
-                className={`${s.figur} ${lage.live ? s.figurAktiv : ''} ${amWerk ? s.weg : ''} ${imVideo ? s.still : ''}`}
+                className={`${s.figur} ${lage.live ? s.figurAktiv : ''} ${amWerk || besucht ? s.weg : ''} ${imVideo ? s.still : ''}`}
                 role="img"
                 aria-label={assistant}
                 style={{
@@ -665,7 +701,7 @@ export function RaumView() {
                         key={`${figur.name}-${p}`}
                         clip={clip}
                         ort={PODEST_VIDEO}
-                        an={pose === p}
+                        an={pose === p && !besucht}
                         onLaeuft={videoMeldung(p)}
                       />
                     )
@@ -695,9 +731,11 @@ export function RaumView() {
                   style={ohneStation(form, figur)}
                 />
               )}
-              {STATIONEN.map((st) => {
+              {STATIONEN.filter((st) => st.id !== 'firma' || buero).map((st) => {
                 const an = lage.station === st.id
+                // Der Büroboden hat keine Form zum Scharfstellen: nur sein Schild.
                 const zeigen = () => {
+                  if (st.id === 'firma') return
                   setFokus(st.id)
                   setForm(st.id)
                 }
