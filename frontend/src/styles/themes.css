@@ -32,7 +32,8 @@
          --field      Eingabefelder      --popup   Dialoge, Auswahllisten
          --box        Karten, Blasen     --deep    satte Flächen (Mail, Avatar)
          --codebg     Code-Blöcke — bleiben auch hell dunkel (atom-one-dark)
-         --on-accent  Schrift AUF der Akzentfarbe (Knöpfe, Chips) */
+         --on-accent  Schrift AUF der Akzentfarbe (Knöpfe, Chips)
+         --err        Fehlertext und Gefahrknöpfe, als Text lesbar (4,5:1) */
   --text: #cfeede;
   --field: rgba(0, 8, 2, 0.7);
   --popup: #020e05;
@@ -46,6 +47,7 @@
   --code: #aaffc0;
   --shade: rgba(0, 0, 0, 0.35);
   --mask: rgba(0, 4, 0, 0.82);
+  --err: #ff9b9b;
 }
 html[data-theme='bernstein'] {
   --green: #ffb648;
@@ -134,6 +136,7 @@ html[data-theme='papier'] {
   --code: #a2401a;
   --shade: rgba(40, 50, 40, 0.06);
   --mask: rgba(50, 48, 40, 0.35);
+  --err: #b42318;
 }
 html[data-theme='nebel'] {
   --green: #2757b8;
@@ -159,6 +162,7 @@ html[data-theme='nebel'] {
   --code: #b0306a;
   --shade: rgba(30, 40, 70, 0.06);
   --mask: rgba(30, 36, 50, 0.35);
+  --err: #b42318;
 }
 html:is([data-theme='papier'], [data-theme='nebel']) {
   color-scheme: light;

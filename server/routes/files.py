@@ -1,10 +1,13 @@
 """API: Ordner, Skills, MCP-Server, Datei-Vorschau und Uploads."""
+import json
 import os
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from server import attach
@@ -218,6 +221,154 @@ def mcp():
                 "needs_auth": "auth" in low,
             })
     return {"servers": servers}
+
+
+# Einrichten und Entfernen laufen über die CLI statt über ~/.claude.json direkt:
+# die Datei gehört Claude Code, und deren Aufbau ändert sich zwischen Versionen.
+# Der Name darf nicht mit "-" anfangen, sonst liest die CLI ihn als Schalter.
+MCP_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+MCP_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
+MCP_HEADER_RE = re.compile(r"^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,128}$")
+MCP_SCOPES = ("user", "local")
+MCP_TRANSPORTS = ("stdio", "http", "sse")
+MCP_TIMEOUT = 30
+
+
+def _bad(msg: str):
+    return HTTPException(status_code=400, detail=msg)
+
+
+def _str_map(val, key_re, what: str) -> dict:
+    if val in (None, ""):
+        return {}
+    if not isinstance(val, dict) or len(val) > 50:
+        raise _bad(f"{what}: erwartet werden höchstens 50 Paare aus Name und Wert.")
+    for k, v in val.items():
+        if not isinstance(k, str) or not key_re.fullmatch(k):
+            # Nur der Schlüssel landet in der Meldung, der Wert kann geheim sein.
+            raise _bad(f"{what}: ungültiger Name „{str(k)[:64]}“.")
+        if not isinstance(v, str) or len(v) > 8192 or any(c in v for c in "\r\n\0"):
+            raise _bad(f"{what}: der Wert zu „{k}“ ist ungültig (Text ohne Zeilenumbruch).")
+    return dict(val)
+
+
+def _check_scope(scope) -> str:
+    if scope not in MCP_SCOPES:
+        raise _bad("Bereich muss „user“ oder „local“ sein.")
+    return scope
+
+
+def _check_name(name) -> str:
+    if not isinstance(name, str) or not MCP_NAME_RE.fullmatch(name):
+        raise _bad("Name: nur Buchstaben, Ziffern, - und _, höchstens 64 Zeichen, "
+                   "am Anfang kein - oder _.")
+    return name
+
+
+def _mcp_config(p: dict) -> tuple[dict, list[str]]:
+    """Prüft die Eingabe und baut das JSON für `claude mcp add-json`.
+
+    Liefert dazu die Werte, die in keiner Meldung auftauchen dürfen."""
+    transport = p.get("transport") or "stdio"
+    if transport not in MCP_TRANSPORTS:
+        raise _bad("Art muss „stdio“, „http“ oder „sse“ sein.")
+    if transport == "stdio":
+        command = p.get("command")
+        if not isinstance(command, str) or not command.strip() \
+                or len(command) > 1024 or "\0" in command:
+            raise _bad("Für stdio fehlt der Befehl.")
+        args = p.get("args") or []
+        if not isinstance(args, list) or len(args) > 100 or not all(
+                isinstance(a, str) and len(a) <= 4096 and "\0" not in a for a in args):
+            raise _bad("Argumente: erwartet wird eine Liste aus Texten.")
+        env = _str_map(p.get("env"), MCP_ENV_KEY_RE, "Umgebungsvariablen")
+        conf = {"type": "stdio", "command": command.strip(), "args": args}
+        if env:
+            conf["env"] = env
+        return conf, list(env.values())
+    url = p.get("url")
+    if not isinstance(url, str) or len(url) > 2048:
+        raise _bad(f"Für {transport} fehlt die URL.")
+    url = url.strip()
+    parts = urlparse(url)
+    if parts.scheme not in ("http", "https") or not parts.netloc \
+            or any(c.isspace() for c in url):
+        raise _bad("Die URL muss mit http:// oder https:// beginnen.")
+    headers = _str_map(p.get("headers"), MCP_HEADER_RE, "Header")
+    conf = {"type": transport, "url": url}
+    if headers:
+        conf["headers"] = headers
+    return conf, list(headers.values())
+
+
+def _run_mcp(args: list[str]) -> subprocess.CompletedProcess:
+    exe = claude_bin()
+    if not exe:
+        raise HTTPException(status_code=502, detail="Claude Code ist nicht installiert.")
+    try:
+        # cwd = WORKSPACE wie bei der Liste: darauf bezieht sich der Bereich "local".
+        return subprocess.run([exe, "mcp", *args], capture_output=True, text=True,
+                              timeout=MCP_TIMEOUT, cwd=WORKSPACE, env=claude_env())
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504,
+                            detail="Claude Code hat nicht rechtzeitig geantwortet.")
+    except OSError as e:
+        raise HTTPException(status_code=502,
+                            detail=f"Claude Code ließ sich nicht starten ({e.strerror}).")
+
+
+def _cli_error(res: subprocess.CompletedProcess, secrets: list[str]) -> str:
+    """Kurzfassung der CLI-Meldung, Geheimnisse geschwärzt.
+
+    Längste zuerst, damit ein kurzer Wert nicht einen längeren nur zur Hälfte
+    schwärzt. Erst schwärzen, dann trimmen: sonst fehlt einem Geheimnis mit
+    Leerzeichen am Ende genau dieses und es passt nicht mehr."""
+    text = res.stderr if (res.stderr or "").strip() else (res.stdout or "")
+    for s in sorted({s for s in secrets if s}, key=len, reverse=True):
+        text = text.replace(s, "***")
+    text = " ".join(text.split())  # trimmt auch
+    return text[:300] or f"Exit-Code {res.returncode}"
+
+
+@router.post("/api/mcp")
+def mcp_add(payload: Any = Body(None)):
+    """MCP-Server für Claude Code einrichten (via `claude mcp add-json`).
+
+    Ein JSON-Argument statt einzelner -e/-H-Schalter: die CLI muss dann kein
+    KEY=Wert bzw. "Name: Wert" zerlegen, und Werte mit = oder : kommen
+    unverändert an."""
+    if not isinstance(payload, dict):
+        raise _bad("Erwartet wird ein JSON-Objekt.")
+    name = _check_name(payload.get("name"))
+    scope = _check_scope(payload.get("scope") or "user")
+    conf, secrets = _mcp_config(payload)
+    raw = json.dumps(conf)
+    res = _run_mcp(["add-json", name, raw, "-s", scope])
+    if res.returncode != 0:
+        # Auch die JSON-maskierte Form: so stünde ein Wert mit " oder \ im Echo.
+        msg = _cli_error(res, secrets + [json.dumps(v)[1:-1] for v in secrets] + [raw])
+        if "already exists" in msg:
+            raise _bad(f"Einen Server „{name}“ gibt es im Bereich {scope} schon.")
+        raise HTTPException(status_code=502, detail=f"Claude Code meldet: {msg}")
+    return {"ok": True}
+
+
+@router.delete("/api/mcp/{name}")
+def mcp_remove(name: str, scope: str | None = None):
+    """MCP-Server entfernen. Ohne scope sucht die CLI ihn in allen Bereichen."""
+    _check_name(name)
+    args = ["remove", name]
+    if scope:
+        args += ["-s", _check_scope(scope)]
+    res = _run_mcp(args)
+    if res.returncode != 0:
+        msg = _cli_error(res, [])
+        if "No MCP server named" in msg:
+            where = f" im Bereich {scope}" if scope else ""
+            raise HTTPException(status_code=404,
+                                detail=f"Kein MCP-Server „{name}“{where} gefunden.")
+        raise HTTPException(status_code=502, detail=f"Claude Code meldet: {msg}")
+    return {"ok": True}
 
 
 @router.post("/api/upload")
