@@ -546,42 +546,38 @@ def _firma_regeln(wer: str) -> str:
     if not team["aktiv"]:
         return ""
     if team["modus"] == "auto":
-        wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, eine Oberfläche, Tests) "
-                f"schlägst du {wer} für die Firma vor und fragst, ob sie sie übernehmen soll — "
-                f"erst nach seinem Ja schreibst du die Zeile. Alles Kleine erledigst du selbst.")
-        when = (f"Big tasks (several files or steps, an interface, tests) you suggest to {wer} "
-                f"for the company and ask whether it should take them — only after a yes do you "
-                f"write the line. Small things you do yourself.")
+        wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer} "
+                f"vor und fragst; erst nach seinem Ja schreibst du die Zeile. Kleines machst du selbst.")
+        when = (f"Big tasks (several files or steps, interface, tests) you suggest to {wer} and ask; "
+                f"only after a yes do you write the line. Small things you do yourself.")
     else:
-        wann = (f"Die Firma bekommt nur etwas, wenn {wer} es ausdrücklich verlangt "
-                f"(„gib das an die Firma“); alles andere erledigst du selbst.")
-        when = (f"The company only gets something when {wer} explicitly asks for it "
-                f"(“give this to the company”); everything else you do yourself.")
+        wann = f"Nur wenn {wer} es ausdrücklich verlangt („gib das an die Firma“); sonst machst du es selbst."
+        when = f"Only when {wer} explicitly asks (“give this to the company”); otherwise do it yourself."
     return cfg.L(
         f"""
-- `[[ticket firma]]` — gib dieses Ticket an die Firma (mehrere KI-Mitarbeiter, arbeiten im Hintergrund); ihr Briefing sind {wer}s Nachrichten des Tickets. {wann} Sag {wer} im selben Text, dass du es getan hast, und arbeite nicht selbst daran weiter. Den Stand zeigt die Ticket-Zeile; das Ergebnis steht, wenn es fertig ist, in `firma/auftraege/<Kennung aus der Ticket-Zeile>/ticket.json` (Feld `ergebnis`) — nur lesen, wenn {wer} danach fragt.""",
+- `[[ticket firma]]` — Ticket an die Firma geben (KI-Mitarbeiter im Hintergrund; Briefing sind {wer}s Nachrichten des Tickets). {wann} Sag es {wer} im selben Text und arbeite nicht selbst daran weiter. Stand: Ticket-Zeile; Ergebnis: `firma/auftraege/<Kennung aus der Ticket-Zeile>/ticket.json` (Feld `ergebnis`), nur auf Nachfrage lesen.""",
         f"""
-- `[[ticket firma]]` — give this ticket to the company (several AI employees, working in the background); their briefing is {wer}'s messages of the ticket. {when} Tell {wer} in the same text that you did it, and do not keep working on it yourself. The ticket line shows the state; when done, the result is in `firma/auftraege/<id from the ticket line>/ticket.json` (field `ergebnis`) — only read it when {wer} asks.""")
+- `[[ticket firma]]` — give the ticket to the company (AI employees in the background; briefing = {wer}'s messages of the ticket). {when} Tell {wer} in the same text and do not keep working on it. State: ticket line; result: `firma/auftraege/<id from the ticket line>/ticket.json` (field `ergebnis`), read only when asked.""")
 
 
 def _tickets_regeln(wer: str) -> str:
     return cfg.L(
         f"""## Tickets
-Jede Nachricht von {wer} gehört zu einem Ticket dieser Session; welche es gibt, steht am Ende seiner Nachricht in eckigen Klammern. Ohne dein Zutun landet sie im aktuellen. Willst du das ändern, schreibst du als allerletzte Zeile deiner Antwort:
-- `[[ticket neu: Kurztitel]]` — eine neue, eigenständige Aufgabe (3–6 Wörter; das vorige Ticket gilt damit als erledigt)
-- `[[ticket zu: 2]]` — die Nachricht gehört zu einem anderen der genannten Tickets""",
+Jede Nachricht von {wer} gehört zu einem Ticket (am Ende seiner Nachricht aufgelistet), ohne dein Zutun zum aktuellen. Ändern: als letzte Zeile deiner Antwort
+- `[[ticket neu: Titel]]` — neue, eigenständige Aufgabe (3–6 Wörter; schließt das vorige)
+- `[[ticket zu: 2]]` — gehört zu Ticket 2""",
         f"""## Tickets
-Every message from {wer} belongs to a ticket in this session; the tickets are listed in square brackets at the end of the message. Without action from you it goes to the current one. To change that, write as the very last line of your answer:
-- `[[ticket new: short title]]` — a new, separate task (3–6 words; the previous ticket then counts as done)
-- `[[ticket to: 2]]` — the message belongs to another listed ticket""")
+Every message from {wer} belongs to a ticket (listed at the end of the message), by default the current one. To change that, write as the last line of your answer
+- `[[ticket new: title]]` — a new, separate task (3–6 words; closes the previous one)
+- `[[ticket to: 2]]` — belongs to ticket 2""")
 
 
 def _tickets_schluss(wer: str) -> str:
     return cfg.L(
         f"""
-Sonst schreibst du nichts davon. Die Zeile wird vor der Anzeige entfernt: erwähne sie nicht. Ist {wer}s Wahl in der Ticket-Zeile vermerkt oder bist du unsicher: nichts.""",
+Sonst schreibst du nichts davon (die Zeile wird vor der Anzeige entfernt, erwähne sie nicht). Ist {wer}s Wahl in der Ticket-Zeile vermerkt oder bist du unsicher: nichts.""",
         f"""
-Otherwise write none of this. The line is removed before display: do not mention it. If {wer}'s choice is noted in the ticket line or you are unsure: nothing.""")
+Otherwise write none of this (the line is removed before display, do not mention it). If {wer}'s choice is noted in the ticket line or you are unsure: nothing.""")
 
 
 # ---------- Kevins Eingriffe ----------

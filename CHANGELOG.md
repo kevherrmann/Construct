@@ -10,10 +10,13 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   anyone doing anything. Chip above the input, `/ticket Title`, ✂ on a message,
   the **Tickets** tile (per day and project, jump to the message) and a
   holographic board on the room's back wall. The assistant can file messages
-  with two small tools; a new ticket closes the previous one. Stored as JSON in
-  `tickets/`. Measured overhead: about 360 tokens per request (0.3–1.4 % of a
-  short session, less in long ones); the tools are never called as a step of
-  their own.
+  with one marker line at the end of its answer (`[[ticket neu: Title]]`, only
+  when needed — no tool and no MCP server: an MCP server cost 2–3 s per message
+  and +1.3k tokens, or with `--strict-mcp-config` the user's own MCP servers);
+  a new ticket closes the previous one. Stored as JSON in `tickets/`. Measured on
+  an 8-message session: Opus 5.5 filed every message correctly, Sonnet 5.5 7 of 8,
+  Haiku 4.5 5 of 8 (anything it misses stays in the current ticket and can be
+  moved by hand).
 - **Team mode (off by default).** A company of AI employees in CONSTRUCT, ported
   from FACTORIA: staff files, jobs with an internal bus, safety brakes, hiring,
   shared instructions, direct conversations with employees, **Staff** and

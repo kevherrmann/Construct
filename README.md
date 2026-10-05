@@ -97,9 +97,10 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   correction, new task, another correction to the first = two tickets). Messages
   go to the current ticket on their own; the chip above the input, `/ticket
   Title` and ✂ on a message cut or reassign them without costing tokens, and the
-  assistant can file messages itself with two small tools (about 1 % extra
-  usage; switch it off in ⚙ Settings → Team). A new ticket closes the previous
-  one, a correction reopens a closed one. The **Tickets** tile shows, per day and
+  assistant can file messages itself with one marker line at the end of its
+  answer, only when needed (about 0.5 % extra usage, no MCP server; switch it off
+  in ⚙ Settings → Team). A new ticket closes the previous one, a correction
+  reopens a closed one. The **Tickets** tile shows, per day and
   project, what is done and what is open; a click jumps to the message in the
   history. In the room a holographic board on the back wall shows today's
   tickets.
@@ -341,7 +342,7 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/routes/` | HTTP API, one module per area: `auth`, `files`, `providers`, `system`, `calendar`, `mail`, `sessions`, `chat`, `ui` |
 | `server/runs.py`, `server/hermes_runs.py` | Detached chat runs (claude CLI / Hermes): start, stream, inject, background tasks |
 | `server/sessions.py` | Claude Code sessions on disk: metadata, transcripts, filters |
-| `server/tickets.py`, `construct_mcp.py` | Tickets inside a session: storage, assignment, the assistant's two tools (MCP server) |
+| `server/tickets.py` | Tickets inside a session: storage, assignment, the assistant's marker lines |
 | `server/team/`, `team_mcp.py` | Team mode: staff files, jobs, brakes, hiring, dispatcher, the company bus (MCP server) |
 | `scripts/pruefstand.py` | Test bench for the company: fixed jobs, measured results, comparison with the last run |
 | `server/scheduler.py` | Scheduled tasks from calendar events |
