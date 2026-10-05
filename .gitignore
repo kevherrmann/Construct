@@ -36,6 +36,8 @@ mail_attach/
 llm_sessions/
 sessions_meta.json
 tickets/
+# Die Firma (Team-Modus): Belegschaft, Aufträge, Anleitungen dieser Installation.
+firma/
 telegram_state.json
 tasks_state.json
 uploads/
