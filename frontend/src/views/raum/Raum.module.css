@@ -1861,6 +1861,7 @@
 /* Klickflächen und Schilder: je Sitz eine Hälfte des Tisches. */
 .sitzKnopf {
   position: absolute;
+  z-index: 6; /* über den Stationen darunter, sonst fängt eine den Klick ab */
   top: 4%;
   height: 84%;
   width: 38%;
@@ -1905,6 +1906,7 @@
 /* Profilbild am Rand für Mitarbeiter ohne Doppelschreibtisch. */
 .randplatz {
   position: absolute;
+  z-index: 6;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1968,6 +1970,12 @@
 }
 .weltFokus :is(.sitzKnopf, .randplatz) {
   pointer-events: none;
+}
+/* Beim Hineinfahren in den Bildschirm sind die Schilder der Stationen riesig: weg damit. */
+.weltRein :is(.schild, .tischSchild),
+.weltSofort :is(.schild, .tischSchild) {
+  opacity: 0 !important;
+  transition: none;
 }
 
 /* Der Weg zur Werkbank: dieselbe Ebene wie die des Assistenten. Am Tisch klein und

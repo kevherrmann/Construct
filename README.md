@@ -111,7 +111,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   director. You decide per task: small things the assistant does alone, big ones
   you give to the company (`/firma …`, the 🏢 button on a ticket, or — if you
   allow it — the assistant suggests it). Off by default; switch on under
-  ⚙ Settings → Team. In the room the crew sits at two double desks in the left corner; whoever works gets
+  ⚙ Settings → Team. In the room the crew sits at two double desks behind the assistant; whoever works gets
   up, walks to the workbench and types there, and the director looks in on
   them. Employees can also be talked to directly (👥 Staff → Talk to
   …). Data lives in `firma/` (not versioned). See

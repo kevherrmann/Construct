@@ -29,8 +29,8 @@ const anwesend = (b: Belegung) => (b === 'beide' ? 2 : b === 'leer' ? 0 : 1)
 const prozent = (px: number, von: number) => `${(px / von) * 100}%`
 
 /** Perspektive: wie groß eine Person bei Fußhöhe `y` ist, im Verhältnis zu der an der
- *  Werkbank (Horizont etwa bei y = 250 auf dem Raumbild). */
-const HORIZONT = 250
+ *  Werkbank (Horizont etwa bei y = 90 auf dem Raumbild). */
+const HORIZONT = 90
 const massstab = (y: number, bezug = WERKBANK_FUSS.y) => (y - HORIZONT) / (bezug - HORIZONT)
 
 /** Position und Größe eines Tischbildes auf der Bühne (Prozent). */

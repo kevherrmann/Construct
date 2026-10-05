@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   BUERO_BUEHNE,
+  DOPPEL,
+  DOPPEL_HOEHE,
+  FERNSEHER,
+  FIGUR,
   PAARE,
   RANDPLAETZE,
   SITZE,
@@ -35,12 +39,31 @@ describe('Büro im Raum', () => {
     for (const p of Object.values(PAARE)) expect(p.y).toBeLessThan(WERKBANK_FUSS.y)
   })
 
-  it('die Tische stehen nicht vor dem Fernseher (links von dessen Kante)', () => {
-    // Der Fernseher beginnt bei etwa 47 % der Bühne.
-    for (const p of Object.values(PAARE)) expect(p.x / BUERO_BUEHNE.w).toBeLessThan(0.42)
+  it('die Doppeltische überlappen sich nicht und lassen die Figur auf dem Podest dazwischen', () => {
+    const breite = (p: { s: number }) => ((DOPPEL.inhaltW * DOPPEL_HOEHE) / DOPPEL.inhaltH) * p.s
+    const a = PAARE.a
+    const b = PAARE.b
+    expect(a.x + breite(a) / 2).toBeLessThan(b.x - breite(b) / 2)
+    const figurX = (FIGUR.x / 100) * BUERO_BUEHNE.w
+    expect(figurX).toBeGreaterThan(a.x)
+    expect(figurX).toBeLessThan(b.x)
   })
 
   it('die Firma-Station liegt ganz unten im Stapel, damit Wandobjekte Vorrang haben', () => {
     expect(STATIONEN[0]?.id).toBe('firma')
+  })
+
+  it('die Klickform des Bildschirms ist sein Viereck im Rechteck der Station', () => {
+    const st = STATIONEN.find((x) => x.id === 'monitore')!
+    FERNSEHER.forEach(([x, y], i) => {
+      const [fx, fy] = st.form![i]!
+      expect(st.l + (fx / 100) * st.w).toBeCloseTo(x, 0)
+      expect(st.t + (fy / 100) * st.h).toBeCloseTo(y, 0)
+    })
+  })
+
+  it('der Bildschirm steht im Stapel über der Lochwand (Skills)', () => {
+    const i = (id: string) => STATIONEN.findIndex((x) => x.id === id)
+    expect(i('monitore')).toBeGreaterThan(i('werkzeug'))
   })
 })

@@ -29,8 +29,8 @@ import codyDenken from './assets/cody-denken.webp'
 import codyLesen from './assets/cody-lesen.webp'
 import codyErklaeren from './assets/cody-erklaeren.webp'
 import codyWerkbank from './assets/cody-werkbank.webp'
-import codyGeraete from './assets/cody-werkbank-geraete.webp'
-import codyUnscharf from './assets/cody-raum-unscharf.webp'
+import geraeteBild from './assets/werkbank-geraete.webp'
+import unscharfBild from './assets/raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
 import kastenBild from './assets/kasten.webp'
 import { abschnitte, lageAus, type Phase } from './lage'
@@ -78,17 +78,11 @@ interface Figur {
   /** 'cody' oder 'eigen' (static/figur dieser Installation). */
   name: string
   posen: Record<PodestPose, string>
-  /** Figur an der Werkbank (Ausschnitt WERKBANK) und Monitor + Tastatur dort. */
+  /** Figur an der Werkbank (Ausschnitt WERKBANK). */
   werkbank: string
-  geraete: string
-  /** Raum unscharf (mit Monitor + Tastatur dieser Figur), für den Hover-Fokus. */
-  unscharf: string
   /** Schleifen je Pose: am Podest im Ausschnitt PODEST_VIDEO, 'arbeiten' an
    *  der Werkbank im Ausschnitt WERKBANK. Fehlt eine, bleibt das Standbild. */
   videos: Partial<Record<Pose, Clip>>
-  /** Werkbank-Form für Unschärfe und Schein (mit dem Monitor dieser Figur). */
-  form?: string
-  schein?: string
 }
 
 // assets/video/<figur>-<pose>.webm|mp4 und <figur>-<pose>-maske.webp
@@ -114,40 +108,33 @@ const CODY: Figur = {
   name: 'cody',
   posen: { idle: codyIdle, denken: codyDenken, lesen: codyLesen, erklaeren: codyErklaeren },
   werkbank: codyWerkbank,
-  geraete: codyGeraete,
-  unscharf: codyUnscharf,
   videos: videosVon((d) => VIDEO_DATEI[`./assets/video/cody-${d}`]),
 }
 
 /** Eigene Figur einer Installation statt Cody: liegt in static/figur
  *  (gitignored), der Server gibt die Dateiliste beim Start mit. Gleiche
- *  Leinwand wie Cody. Pflicht: idle, denken, lesen, erklaeren, werkbank,
- *  werkbank-geraete, raum-unscharf (.webp). Freiwillig: form-werkbank.webp,
- *  schein-werkbank.webp, video/<pose>.webm|mp4 + video/<pose>-maske.webp.
- *  Fehlt etwas Pflicht, bleibt es bei Cody. */
+ *  Leinwand wie Cody. Pflicht: idle, denken, lesen, erklaeren, werkbank (.webp).
+ *  Freiwillig: video/<pose>.webm|mp4 + video/<pose>-maske.webp. Monitor, Tastatur,
+ *  unscharfer Raum und die Werkbank-Masken gehören zum Raum und sind für alle Figuren
+ *  gleich (frühere Dateien werkbank-geraete, raum-unscharf, form-/schein-werkbank
+ *  werden nicht mehr gebraucht). Fehlt etwas Pflicht, bleibt es bei Cody. */
 function eigeneFigur(dateien: string[]): Figur | null {
   const da = new Set(dateien)
   const url = (d: string) => (da.has(d) ? `/static/figur/${d}` : undefined)
   const bild = (n: string) => url(`${n}.webp`)
-  const [idle, denken, lesen, erklaeren, werkbank, geraete, unscharf] = [
+  const [idle, denken, lesen, erklaeren, werkbank] = [
     'idle',
     'denken',
     'lesen',
     'erklaeren',
     'werkbank',
-    'werkbank-geraete',
-    'raum-unscharf',
   ].map(bild)
-  if (!idle || !denken || !lesen || !erklaeren || !werkbank || !geraete || !unscharf) return null
+  if (!idle || !denken || !lesen || !erklaeren || !werkbank) return null
   return {
     name: 'eigen',
     posen: { idle, denken, lesen, erklaeren },
     werkbank,
-    geraete,
-    unscharf,
     videos: videosVon((d) => url(`video/${d}`)),
-    form: bild('form-werkbank'),
-    schein: bild('schein-werkbank'),
   }
 }
 
@@ -166,19 +153,15 @@ const SCHEIN_BILD = import.meta.glob<string>('./assets/schein/*.webp', {
   import: 'default',
 })
 
-/** Bild aus form/ bzw. schein/. Die Werkbank hängt an der Figur (ihr
- *  Monitor): eigene Figur, sonst `<id>-cody.webp`; alles andere `<id>.webp`. */
-function bildVon(ordner: 'form' | 'schein', id: StationId, figur: Figur) {
+/** Bild aus form/ bzw. schein/ (die Werkbank heißt dort `werkbank-cody.webp`). */
+function bildVon(ordner: 'form' | 'schein', id: StationId) {
   const alle = ordner === 'form' ? FORM_BILD : SCHEIN_BILD
-  const eigenes = id === 'werkbank' ? figur[ordner] : undefined
-  return (
-    eigenes ?? alle[`./assets/${ordner}/${id}-cody.webp`] ?? alle[`./assets/${ordner}/${id}.webp`]
-  )
+  return alle[`./assets/${ordner}/${id}-cody.webp`] ?? alle[`./assets/${ordner}/${id}.webp`]
 }
 
 /** Maske „alles außer dieser Station“ für Unschärfe und Schleier. */
-function ohneStation(id: StationId | null, figur: Figur): React.CSSProperties {
-  const bild = id && bildVon('form', id, figur)
+function ohneStation(id: StationId | null): React.CSSProperties {
+  const bild = id && bildVon('form', id)
   if (!id || !bild) return {}
   const f = FORM[id]
   // background-position in %: Versatz = (Fläche − Bild) · p
@@ -620,7 +603,7 @@ export function RaumView() {
               <img
                 className={s.ebene}
                 style={platz(WERKBANK)}
-                src={figur.geraete}
+                src={geraeteBild}
                 alt=""
                 draggable={false}
               />
@@ -634,8 +617,8 @@ export function RaumView() {
               {!SCHEIN && (
                 <img
                   className={`${s.unschaerfe} ${fokus && !ansicht ? s.fokusAn : ''}`}
-                  style={ohneStation(form, figur)}
-                  src={figur.unscharf}
+                  style={ohneStation(form)}
+                  src={unscharfBild}
                   alt=""
                   draggable={false}
                 />
@@ -724,11 +707,11 @@ export function RaumView() {
                 />
               )}
               {SCHEIN ? (
-                <Schein id={form} an={!!fokus && !ansicht} figur={figur} />
+                <Schein id={form} an={!!fokus && !ansicht} />
               ) : (
                 <div
                   className={`${s.fokusSchleier} ${fokus && !ansicht ? s.fokusAn : ''}`}
-                  style={ohneStation(form, figur)}
+                  style={ohneStation(form)}
                 />
               )}
               {STATIONEN.filter((st) => st.id !== 'firma' || buero).map((st) => {
@@ -745,7 +728,12 @@ export function RaumView() {
                     key={st.id}
                     type="button"
                     className={`${s.station} ${an ? s.stationAn : ''} ${st.t < 12 ? s.schildUnten : ''}`}
-                    style={platz(st)}
+                    style={{
+                      ...platz(st),
+                      ...(st.form && {
+                        clipPath: `polygon(${st.form.map(([x, y]) => `${x}% ${y}%`).join(', ')})`,
+                      }),
+                    }}
                     onClick={() => {
                       setFokus(null)
                       if (st.panel === 'chat') eintauchen()
@@ -813,8 +801,8 @@ export function RaumView() {
 }
 
 /** Sparsamer Hover: weicher Schein um das Objekt (nur dessen Fläche). */
-function Schein({ id, an, figur }: { id: StationId | null; an: boolean; figur: Figur }) {
-  const bild = id && bildVon('schein', id, figur)
+function Schein({ id, an }: { id: StationId | null; an: boolean }) {
+  const bild = id && bildVon('schein', id)
   if (!id || !bild) return null
   const f = FORM[id]
   return (

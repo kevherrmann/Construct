@@ -35,6 +35,8 @@ export interface Station extends Rechteck {
   hint: string
   /** Was aufgeht. 'chat' = durch den Monitor in die Chat-Ansicht. */
   panel: Ansicht | 'chat'
+  /** Klickbare Form als Vieleck in Prozent der Fläche (sonst das ganze Rechteck). */
+  form?: readonly (readonly [number, number])[]
 }
 
 export type PanelId =
@@ -60,10 +62,10 @@ export const STATIONEN: Station[] = [
   // Sitze (eigene Knöpfe) und die Wandobjekte davor Vorrang haben.
   {
     id: 'firma',
-    l: 28.5,
-    t: 25.5,
-    w: 14,
-    h: 27.5,
+    l: 27,
+    t: 9,
+    w: 40,
+    h: 26,
     label: 'Firma',
     hint: 'Aufträge der Firma',
     panel: 'auftraege',
@@ -87,16 +89,6 @@ export const STATIONEN: Station[] = [
     label: 'Sessions',
     hint: 'Frühere Gespräche öffnen',
     panel: 'sessions',
-  },
-  {
-    id: 'monitore',
-    l: 48,
-    t: 9.7,
-    w: 29.7,
-    h: 24.3,
-    label: 'Chat-Ansicht',
-    hint: 'Durch den Monitor in den vollen Chat',
-    panel: 'chat',
   },
   {
     id: 'werkbank',
@@ -128,6 +120,24 @@ export const STATIONEN: Station[] = [
     label: 'Skills',
     hint: 'Wiederverwendbare Routinen',
     panel: 'skills',
+  },
+  // Der breite Bildschirm auf der Werkbank: steht vor der Lochwand. Klickbar ist
+  // nur seine echte Form (`form`), nicht das Rechteck drumherum.
+  {
+    id: 'monitore',
+    l: 76.221,
+    t: 38.108,
+    w: 12.939,
+    h: 20.573,
+    label: 'Chat-Ansicht',
+    hint: 'Durch den Monitor in den vollen Chat',
+    panel: 'chat',
+    form: [
+      [4.336, 1.687],
+      [98.51, 56.75],
+      [92.64, 98.43],
+      [1.507, 37.55],
+    ],
   },
   {
     id: 'uhr',
@@ -216,7 +226,7 @@ export const FORM: Record<StationId, Rechteck> = {
   klemmbrett: { l: 80.566, t: 52.083, w: 9.277, h: 13.889 },
   regal: { l: 0.0, t: 3.385, w: 21.777, h: 64.236 },
   archiv: { l: 19.092, t: 17.274, w: 8.496, h: 34.288 },
-  monitore: { l: 46.777, t: 7.552, w: 32.129, h: 28.559 },
+  monitore: { l: 76.221, t: 38.108, w: 12.939, h: 20.573 },
   werkbank: { l: 68.848, t: 35.069, w: 28.906, h: 46.701 }, // mit Monitor + Tastatur
   werkzeug: { l: 79.102, t: 25.434, w: 13.574, h: 26.302 },
   uhr: { l: 89.795, t: 16.233, w: 7.422, h: 14.323 },
@@ -226,7 +236,7 @@ export const FORM: Record<StationId, Rechteck> = {
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
   // Hologramm ohne Bildmaske (kein Gegenstand im Raumbild): nur die Fläche.
   tafel: { l: 23.462, t: 54.688, w: 8.74, h: 21.701 },
-  firma: { l: 28.5, t: 25.5, w: 14, h: 27.5 },
+  firma: { l: 27, t: 9, w: 40, h: 26 },
 }
 
 /** Wanduhr: Zifferblatt als Einheitskreis → Raumbild (Pixel, affin;
@@ -263,21 +273,21 @@ export const WAND_KONTINGENT: readonly [Punkt, Punkt, Punkt] = [
 /** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne). */
 export const KASTEN: Rechteck = { l: 21.997, t: 52.083, w: 11.67, h: 26.91 }
 
-/** Die Monitorwand: Fläche, auf der der Terminal-Text liegt (oben links,
- *  oben rechts, unten rechts, unten links; Prozent). Etwas größer als die
- *  Bildschirme — die genaue, gebogene Form gibt assets/fernseher-maske.webp vor. */
+/** Der Bildschirm auf der Werkbank: Fläche, auf der der Terminal-Text liegt (oben links,
+ *  oben rechts, unten rechts, unten links; Prozent). Die genaue Form gibt
+ *  assets/fernseher-maske.webp vor. */
 export const FERNSEHER: readonly [Punkt, Punkt, Punkt, Punkt] = [
-  [48.096, 9.722],
-  [77.734, 15.451],
-  [77.734, 34.896],
-  [48.096, 28.212],
+  [76.782, 38.455],
+  [88.967, 49.783],
+  [88.208, 58.359],
+  [76.416, 45.833],
 ]
 /** Größe der Terminalfläche: so groß, wie sie bei diesem Zoom auf dem
  *  Bildschirm wäre — der Text bleibt beim Hineinfahren scharf. */
-export const FERNSEHER_ZOOM = 2.5
+export const FERNSEHER_ZOOM = 5.4
 
-/** Kamera „durch den Monitor“: so nah, dass die Bildschirme alles füllen. */
-export const EINTAUCHEN: Kamera = { z: 5.8, f: [62.9, 22.1], p: [50, 50] }
+/** Kamera „durch den Monitor“: so nah, dass der Bildschirm alles füllt. */
+export const EINTAUCHEN: Kamera = { z: 12, f: [82.6, 48.1], p: [50, 50] }
 
 /** Klemmbrett auf der Werkbank (Ebene, Prozent). */
 export const KLEMMBRETT: Rechteck = { l: 80.566, t: 52.083, w: 9.277, h: 13.889 }
@@ -310,8 +320,8 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mail: { z: 1.5, f: [16.6, 78], p: [17, 60], seite: 'rechts', breite: 62, ziel: [16.6, 78] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
   tickets: { z: 1.5, f: [27.5, 66], p: [21, 52], seite: 'rechts', breite: 50, ziel: [27.5, 66] },
-  personal: { z: 1.6, f: [46, 36], p: [24, 52], seite: 'rechts', breite: 52, ziel: [46, 36] },
-  auftraege: { z: 1.6, f: [46, 36], p: [24, 52], seite: 'rechts', breite: 56, ziel: [46, 36] },
+  personal: { z: 1.6, f: [47, 24], p: [24, 50], seite: 'rechts', breite: 52, ziel: [47, 24] },
+  auftraege: { z: 1.6, f: [47, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [47, 24] },
   einstellungen: {
     z: 1.2,
     f: [50.2, 58],
@@ -347,12 +357,13 @@ export interface Platz {
 export type PaarId = 'a' | 'b'
 export type Seite = 'links' | 'rechts'
 
-/** Die Doppelschreibtische stehen in der freien Ecke zwischen Aktenschrank und
- *  Podest — nicht vor dem Fernseher. Zwei Leute sitzen sich gegenüber: einer links,
- *  einer rechts. Fußpunkt = Mitte der Vorderkante. */
+/** Die Doppelschreibtische stehen im freien Hinterraum, links und rechts von der
+ *  Figur auf dem Podest (deren Kopf reicht bis knapp unter ihre Vorderkante).
+ *  Zwei Leute sitzen sich gegenüber: einer links, einer rechts. Fußpunkt = Mitte der
+ *  Vorderkante. */
 export const PAARE: Record<PaarId, Platz> = {
-  a: { x: 715, y: 562, s: 0.85 },
-  b: { x: 680, y: 422, s: 0.72 },
+  a: { x: 760, y: 392, s: 1.2 },
+  b: { x: 1170, y: 388, s: 1.2 },
 }
 
 /** Wer an welchem Doppelschreibtisch sitzt (nach Kürzel): für diese vier gibt es
@@ -390,8 +401,8 @@ export function sitzFuss(paar: PaarId, seite: Seite): Platz {
 /** Plätze für Mitarbeiter ohne Doppelschreibtisch (zum Beispiel ein später
  *  Eingestellter): ihr Profilbild steht dort. */
 export const RANDPLAETZE: readonly Platz[] = [
-  { x: 610, y: 330, s: 0.7 },
-  { x: 560, y: 345, s: 0.7 },
+  { x: 1440, y: 372, s: 1 },
+  { x: 1510, y: 380, s: 1 },
 ]
 
 /** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort läuft ein
