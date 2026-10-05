@@ -228,6 +228,52 @@
   opacity: 1;
   box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.4);
 }
+/* ✂ Ticket-Schnitt: neben dem Bearbeiten-Knopf */
+.schnitt {
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  z-index: 3;
+}
+.schere {
+  font-size: 11px;
+  background: var(--deep);
+  color: var(--green-dim);
+  border: 1px solid var(--green-faint);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  line-height: 22px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0;
+}
+.msg.user:hover .schere,
+.schere.offen {
+  opacity: 0.85;
+}
+.schere:hover {
+  color: var(--green);
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.4);
+}
+/* Sprung aus der Ticket-Übersicht: die Nachricht leuchtet kurz auf. */
+.msg[data-flash] {
+  animation: tk-flash 1.8s ease-out;
+}
+@keyframes tk-flash {
+  0%,
+  35% {
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.7);
+    background: rgba(var(--accent-rgb), 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0);
+    background: transparent;
+  }
+}
 .editbox {
   width: 100%;
   min-width: min(62vw, 520px);

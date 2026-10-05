@@ -8,6 +8,7 @@ import { say, stopSay, useSayState } from '@/lib/audio'
 import { speakableText } from '@/lib/chat/speak'
 import { useSettings } from '@/stores/settings'
 import { Markdown } from './Markdown'
+import { TicketCut } from './TicketCut'
 import { ToolBox } from './ToolBox'
 import s from './Message.module.css'
 
@@ -72,17 +73,19 @@ function Frame({
   children,
   say,
   ts,
+  uuid,
 }: {
   user: boolean
   children: ReactNode
   say?: { id: string; text: () => string }
   ts?: number
+  uuid?: string
 }) {
   const assistant = useSettings((st) => st.boot.assistant)
   const userName = useSettings((st) => st.boot.user || st.settings.names.user)
   const { t } = useTranslation()
   return (
-    <div className={`${s.msg} ${user ? s.user : s.bot}`}>
+    <div className={`${s.msg} ${user ? s.user : s.bot}`} data-uuid={uuid}>
       <Avatar user={user} />
       <div className={s.col}>
         <div className={s.who}>
@@ -139,7 +142,7 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
     if (draft.trim() && !busy) resend(item.id, draft)
   }
   return (
-    <Frame user ts={item.ts}>
+    <Frame user ts={item.ts} uuid={item.uuid}>
       <div className={s.bubble}>
         {editing ? (
           <>
@@ -171,6 +174,7 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
           <>
             <Markdown text={item.text} />
             <Attachments urls={item.urls} />
+            {item.uuid && !busy && <TicketCut uuid={item.uuid} />}
             {item.editable && !busy && (
               <button
                 type="button"
@@ -311,6 +315,9 @@ function SysBox({ sys }: { sys: SysBody }) {
         <code>/folder [name]</code> — {t('Arbeitsordner wechseln')}
         <br />
         <code>/skills</code> — {t('Skills-Ansicht')}
+        <br />
+        <code>/ticket [Titel]</code> —{' '}
+        {t('Tickets der Session zeigen — mit Titel: ab der nächsten Nachricht ein neues Ticket')}
         <br />
         <code>/login</code> — {t('bei Claude anmelden (wenn der Token abgelaufen ist)')}
         <br />

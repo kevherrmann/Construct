@@ -1,0 +1,188 @@
+/* Ticket-Chip über der Eingabe, ✂ an Nachrichten, Trenner im Verlauf. */
+.chip {
+  position: relative;
+}
+.bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--green-dim);
+  border: 1px solid var(--green-faint);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  background: none;
+}
+.bar:hover,
+.bar.offen {
+  background: rgba(var(--accent-rgb), 0.06);
+  color: var(--green);
+}
+.name {
+  color: var(--green);
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leer {
+  opacity: 0.7;
+}
+
+.menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  background: var(--popup);
+  border: 1px solid var(--green-dim);
+  min-width: 300px;
+  max-width: min(92vw, 420px);
+  z-index: 40;
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.25);
+  display: flex;
+  flex-direction: column;
+}
+/* Das Menü an einer Nachricht klappt nach unten auf, rechtsbündig zur Sprechblase. */
+.menu.unten {
+  bottom: auto;
+  top: 100%;
+  left: auto;
+  right: 0;
+  margin: 4px 0 0;
+}
+@media (max-width: 600px) {
+  /* Auf dem Handy so breit wie die Leiste statt am Chip zu kleben. */
+  .chip {
+    position: static;
+  }
+  .menu:not(.unten) {
+    left: 0;
+    right: 0;
+    max-width: none;
+    min-width: 0;
+  }
+  .menu.unten {
+    min-width: min(300px, 80vw);
+  }
+}
+.liste {
+  max-height: 240px;
+  overflow: auto;
+}
+.kopf {
+  padding: 8px 12px 3px;
+  font-size: 9.5px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+  white-space: nowrap;
+}
+.item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--soft);
+  cursor: pointer;
+}
+.item:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--green);
+}
+.item.sel {
+  color: var(--green);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.item.fertig .titel {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.zeichen {
+  flex: none;
+  width: 1.2em;
+  text-align: center;
+  color: var(--green-dim);
+}
+.nr {
+  flex: none;
+  opacity: 0.6;
+}
+.titel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trenn {
+  border-top: 1px solid var(--green-faint);
+}
+.zeile {
+  display: flex;
+  gap: 6px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--green-faint);
+}
+.feld {
+  flex: 1;
+  min-width: 0;
+  background: var(--deep);
+  color: var(--user);
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.feld:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+.knopf {
+  background: none;
+  border: 1px solid var(--green-faint);
+  color: var(--green-dim);
+  border-radius: var(--radius);
+  padding: 4px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.knopf:hover {
+  color: var(--green);
+  border-color: var(--green-dim);
+}
+
+/* Linie im Verlauf, wo ein neues Ticket beginnt. */
+.trenner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 8px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--green-dim);
+}
+.trenner::before,
+.trenner::after {
+  content: '';
+  height: 1px;
+  background: var(--green-faint);
+  flex: 1;
+}
+.trenner::before {
+  flex: 0 0 24px;
+}
+.trenner b {
+  color: var(--green);
+  font-weight: normal;
+}
+.trenner .fertig {
+  text-decoration: line-through;
+  opacity: 0.65;
+}

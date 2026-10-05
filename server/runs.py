@@ -409,7 +409,11 @@ def _tickets_zuordnen(run, ev, content):
             return
         run.letzte_uuid = uuid
         vorgabe, run.ticket_vorgabe = run.ticket_vorgabe, None
-        tickmod.nachricht(run.session_id, uuid, text, run.cwd, vorgabe)
+        r = tickmod.nachricht(run.session_id, uuid, text, run.cwd, vorgabe)
+        # Die Oberfläche kennt die uuid ihrer eben gesendeten Nachricht sonst
+        # nicht (sie baut sie selbst auf) — ohne sie gäbe es kein ✂ und keinen
+        # Ticket-Trenner, bevor die Session neu geladen wird.
+        run.emit({"type": "ticket", "uuid": uuid, "nr": r["nr"], "titel": r["titel"]})
     except Exception as e:
         print(f"[tickets] Zuordnung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
 

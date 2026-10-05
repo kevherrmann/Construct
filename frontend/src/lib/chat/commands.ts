@@ -1,7 +1,9 @@
 import type { AuthStatus } from '@/api/system'
 import { queryClient } from '@/lib/queryClient'
 import { tk } from '@/lib/i18n'
+import type { SessionTickets } from '@/api/tickets'
 import type { Provider } from '@/api/providers'
+import { apiGet, apiPost } from '@/lib/api'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
@@ -19,6 +21,57 @@ export interface CommandContext {
   openPicker: (p: 'model' | 'mode' | 'folder' | 'effort') => void
 }
 
+/** `/ticket` zeigt die Tickets der Session, `/ticket Titel` setzt einen Schnitt:
+ *  ab der nächsten Nachricht gilt ein neues Ticket. Steht hinter der ersten Zeile
+ *  noch Text, geht der gleich als Nachricht ab. Kostet keine Tokens. */
+function ticketBefehl(raw: string) {
+  const chat = useChat.getState()
+  const say = (key: string, params?: Record<string, string>, code?: string[]) =>
+    chat.addSys({ type: 'text', note: { key, params }, code })
+  if (useSettings.getState().settings.tiles.tickets === false)
+    return say(tk('Tickets sind abgeschaltet (⚙ Einstellungen → Kacheln).'))
+  const c = chat.active()
+  if (!c) return
+  const [kopf = '', ...rest] = raw.replace(/^\/ticket\b[ \t]*/i, '').split('\n')
+  const titel = kopf.trim()
+  const text = rest.join('\n').trim()
+  const sid = c.sessionId
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['tickets'] })
+
+  if (!titel) {
+    if (!sid) return say(tk('Noch keine Tickets in dieser Session.'))
+    void apiGet<SessionTickets>(`/api/tickets/${encodeURIComponent(sid)}`).then((d) => {
+      const zeilen = [...d.tickets]
+        .reverse()
+        .map(
+          (t) =>
+            `${t.nr === d.aktuell ? '▸' : t.status === 'erledigt' ? '✓' : '○'} #${t.nr} ${t.titel}`,
+        )
+      say(
+        zeilen.length ? tk('Tickets dieser Session:') : tk('Noch keine Tickets in dieser Session.'),
+        undefined,
+        zeilen,
+      )
+    })
+    return
+  }
+  const weiter = () => {
+    if (text) void useChat.getState().send(text)
+  }
+  if (!sid) {
+    chat.setTicketVorgabe(titel)
+    say(tk('Neues Ticket: {t} — gilt ab der nächsten Nachricht.'), { t: titel })
+    return weiter()
+  }
+  void apiPost(`/api/tickets/${encodeURIComponent(sid)}/schnitt`, { titel, cwd: c.cwd ?? '' })
+    .then(() => {
+      refresh()
+      say(tk('Neues Ticket: {t} — gilt ab der nächsten Nachricht.'), { t: titel })
+      weiter()
+    })
+    .catch(() => say(tk('Ticket konnte nicht angelegt werden.')))
+}
+
 export function runCommand(raw: string, ctx: CommandContext) {
   const chat = useChat.getState()
   const parts = raw.slice(1).trim().split(/\s+/)
@@ -28,6 +81,7 @@ export function runCommand(raw: string, ctx: CommandContext) {
     chat.addSys({ type: 'text', note: { key, params }, code })
 
   if (cmd === '' || cmd === 'help') return chat.addSys({ type: 'help' })
+  if (cmd === 'ticket') return ticketBefehl(raw)
   if (cmd === 'new') return chat.newSession()
   if (cmd === 'clear') return chat.clear()
   if (cmd === 'skills') {

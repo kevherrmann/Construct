@@ -61,6 +61,10 @@ export interface Conv {
   /** Beim Bearbeiten abgezweigt: diese alte Sitzung kommt ins Archiv, sobald
    *  die neue ihre ID hat. */
   forkedFrom: string | null
+  /** `/ticket Titel` in einer Session, die es noch nicht gibt: Titel für das
+   *  Ticket der ersten Nachricht. Bei bestehenden Sessions geht der Schnitt
+   *  gleich an den Server. */
+  ticketVorgabe: string | null
 }
 
 interface ChatStore {
@@ -90,6 +94,7 @@ interface ChatStore {
   setMode: (v: string) => void
   setEffort: (v: string) => void
   setFolder: (path: string) => void
+  setTicketVorgabe: (titel: string | null) => void
   addPending: (a: Attachment) => void
   removePending: (i: number) => void
   pollTail: () => Promise<void>
@@ -125,6 +130,7 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
     history: [],
     run: null,
     forkedFrom: null,
+    ticketVorgabe: null,
     ...opts,
   }
 }
@@ -132,7 +138,15 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
 export const transcriptItems = (msgs: TranscriptMessage[]): ChatItem[] =>
   msgs.map((m) =>
     m.role === 'user'
-      ? { kind: 'user', id: newId('u'), text: m.text, urls: [], editable: true, ts: parseTs(m.ts) }
+      ? {
+          kind: 'user',
+          id: newId('u'),
+          text: m.text,
+          urls: [],
+          editable: true,
+          ts: parseTs(m.ts),
+          uuid: m.uuid,
+        }
       : {
           kind: 'bot',
           id: newId('b'),
@@ -266,6 +280,20 @@ export const useChat = create<ChatStore>((set, get) => {
                 else refreshLists()
                 break
               }
+              case 'ticket': {
+                // Die uuid der eben gesendeten Nachricht (liegt im Verlauf, nicht im Lauf).
+                patch(key, (cc) => {
+                  let i = cc.history.length - 1
+                  while (i >= 0 && cc.history[i]!.kind !== 'user') i--
+                  const u = cc.history[i]
+                  if (u?.kind !== 'user' || u.uuid) return {}
+                  const history = [...cc.history]
+                  history[i] = { ...u, uuid: ev.uuid }
+                  return { history }
+                })
+                void queryClient.invalidateQueries({ queryKey: ['tickets'] })
+                break
+              }
               case 'stats':
                 if (ev.model) patch(key, { lastModel: ev.model })
                 break
@@ -282,6 +310,8 @@ export const useChat = create<ChatStore>((set, get) => {
                 break
               case 'done': {
                 if (ev.session_id) patch(key, { sessionId: ev.session_id })
+                // Der Assistent kann während des Zuges Tickets angelegt oder erledigt haben.
+                void queryClient.invalidateQueries({ queryKey: ['tickets'] })
                 if (!conv(key)?.nachlauf) finished = true
                 const st = useSettings.getState()
                 const turn = [...rs.items].reverse().find((i): i is BotItem => i.kind === 'bot')
@@ -366,8 +396,10 @@ export const useChat = create<ChatStore>((set, get) => {
         effort: get().effort,
         model: c0.model || '',
         edit,
+        ticket: c0.ticketVorgabe ? { titel: c0.ticketVorgabe } : undefined,
       })
       if (!j.run_id) throw new Error(j.error ?? 'keine run_id')
+      if (c0.ticketVorgabe) patch(key, { ticketVorgabe: null })
       patch(key, (c) =>
         j.forked_from
           ? // Abgezweigt: die neue Sitzungs-ID kommt gleich mit dem Stream.
@@ -603,6 +635,11 @@ export const useChat = create<ChatStore>((set, get) => {
 
     setFolder(path) {
       set({ folder: path })
+    },
+
+    setTicketVorgabe(titel) {
+      const c = get().active()
+      if (c) patch(c.key, { ticketVorgabe: titel })
     },
 
     addPending(a) {

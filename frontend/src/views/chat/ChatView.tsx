@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSessions, type SessionInfo } from '@/api/chat'
+import { useSessionTickets } from '@/api/tickets'
 import { ChatItemView } from '@/components/chat/Message'
+import { TicketTrenner } from '@/components/chat/TicketCut'
 import { useChat } from '@/stores/chat'
 
 // Hauptbereich: Verlauf der aktiven Unterhaltung plus der laufende Lauf.
@@ -13,6 +15,22 @@ export function ChatView() {
   const [params, setParams] = useSearchParams()
   const end = useRef<HTMLDivElement>(null)
   const items = conv ? [...conv.history, ...(conv.run?.items ?? [])] : []
+
+  // Wo ein Ticket beginnt, zieht der Verlauf eine Linie. Erst ab zwei Tickets:
+  // eine Session mit einer einzigen Aufgabe braucht keine Gliederung.
+  const tickets = useSessionTickets(conv?.sessionId).data
+  const tickOf = useMemo(() => {
+    const m = new Map<string, { nr: number; titel: string; erledigt: boolean }>()
+    if (!tickets || tickets.tickets.length < 2) return m
+    for (const t of tickets.tickets)
+      for (const n of t.nachrichten)
+        m.set(n.id, { nr: t.nr, titel: t.titel, erledigt: t.status === 'erledigt' })
+    return m
+  }, [tickets])
+  let letztes = -1
+
+  // /chat?…&msg=<uuid> (aus der Ticket-Übersicht): zu dieser Nachricht springen.
+  const anker = useRef<string | null>(null)
 
   // Neues ins Bild holen — aber nur, wenn wirklich etwas dazukam (neue
   // Blase, wachsender Text, andere Unterhaltung). Jedes andere Neuzeichnen
@@ -50,6 +68,8 @@ export function ChatView() {
     const onKey = (e: KeyboardEvent) => {
       if (['PageUp', 'ArrowUp', 'Home'].includes(e.key)) hoch()
     }
+    // Auch ein Sprung zu einer Nachricht (Ticket-Übersicht) heißt: nicht wieder nach unten ziehen.
+    scroller.addEventListener('construct:hoch', hoch)
     const onLoad = (e: Event) => {
       if (unten && (e.target as HTMLElement).tagName === 'IMG' && rest() > 0)
         scroller.scrollTop = scroller.scrollHeight
@@ -65,6 +85,7 @@ export function ChatView() {
       scroller.removeEventListener('touchmove', hoch)
       scroller.removeEventListener('keydown', onKey as EventListener)
       scroller.removeEventListener('load', onLoad, true)
+      scroller.removeEventListener('construct:hoch', hoch)
     }
   }, [])
 
@@ -86,8 +107,10 @@ export function ChatView() {
   // Ordner aus dem Link, wie früher. Der Ordner des Tages gewinnt: dort wurde
   // an dem Tag gearbeitet.
   const wanted = params.get('session')
+  const msg = params.get('msg')
   useEffect(() => {
     if (!wanted || !sessions.data) return
+    if (msg) anker.current = msg
     const listed = sessions.data.sessions.find((x) => x.id === wanted)
     const project = params.get('project') ?? listed?.project
     const cwd = params.get('cwd') || listed?.cwd || ''
@@ -107,13 +130,35 @@ export function ChatView() {
       void openSession(s, sessions.data.running[wanted])
     }
     setParams({}, { replace: true })
-  }, [wanted, params, sessions.data, openSession, setParams])
+  }, [wanted, msg, params, sessions.data, openSession, setParams])
+
+  useEffect(() => {
+    const ziel = anker.current
+    if (!ziel || !conv) return
+    const el = [
+      ...(end.current?.parentElement?.querySelectorAll<HTMLElement>('[data-uuid]') ?? []),
+    ].find((x) => x.dataset.uuid === ziel)
+    if (!el) return
+    end.current?.closest('[data-scroll]')?.dispatchEvent(new Event('construct:hoch'))
+    el.scrollIntoView({ block: 'center' })
+    el.dataset.flash = '1'
+    setTimeout(() => delete el.dataset.flash, 2000)
+    anker.current = null
+  }, [conv, items.length, wanted, msg])
 
   return (
     <div>
-      {items.map((it) => (
-        <ChatItemView key={it.id} item={it} busy={!!conv?.busy} />
-      ))}
+      {items.map((it) => {
+        const tk = it.kind === 'user' && it.uuid ? tickOf.get(it.uuid) : undefined
+        const trenner = tk && tk.nr !== letztes
+        if (tk) letztes = tk.nr
+        return (
+          <Fragment key={it.id}>
+            {trenner && <TicketTrenner nr={tk.nr} titel={tk.titel} erledigt={tk.erledigt} />}
+            <ChatItemView item={it} busy={!!conv?.busy} />
+          </Fragment>
+        )
+      })}
       <div ref={end} />
     </div>
   )

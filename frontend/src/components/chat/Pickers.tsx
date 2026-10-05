@@ -11,6 +11,7 @@ import { useDialogs } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
 import { folderLabel, indexTree, rememberFolder } from '@/lib/chat/folders'
 import { FolderNav } from './FolderNav'
+import { TicketChip } from './TicketChip'
 import s from './Pickers.module.css'
 
 export type PickerName = 'folder' | 'mode' | 'model' | 'effort'
@@ -270,6 +271,7 @@ export function Pickers({
           </Item>
         ))}
       </Picker>
+      <TicketChip />
     </div>
   )
 }

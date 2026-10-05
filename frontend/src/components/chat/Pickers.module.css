@@ -1,4 +1,5 @@
 .bars {
+  position: relative; /* Ticket-Menü verankert sich auf dem Handy hier */
   display: flex;
   gap: 8px;
   margin-bottom: 9px;
