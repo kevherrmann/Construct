@@ -545,6 +545,20 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 /* Läuft eine Antwort, glimmt der Rand in der Akzentfarbe. */
+/* Kompakt: Untertitel über der Sprechzeile, unabhängig vom Panorama. */
+.blase.blaseUnten {
+  left: 10px;
+  right: 10px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  width: auto;
+  max-height: 38%;
+  z-index: 5;
+  border-radius: 18px;
+  transform-origin: 50% 100%;
+}
+.blase.blaseUnten::after {
+  display: none;
+}
 .blaseLive {
   box-shadow:
     0 18px 50px rgba(30, 40, 35, 0.18),

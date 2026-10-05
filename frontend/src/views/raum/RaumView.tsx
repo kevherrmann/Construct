@@ -520,6 +520,20 @@ export function RaumView() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [kompakt, blickX])
+  const blase =
+    hatBlase && !blaseZu ? (
+      <Sprechblase
+        key={antwortKey}
+        name={assistant}
+        status={status}
+        md={lage.md}
+        live={lage.live}
+        rechts={amWerk}
+        unten={kompakt}
+        onVerlauf={() => setAnsicht('protokoll')}
+        onZu={blaseUmschalten}
+      />
+    ) : null
   const panel =
     ansicht && auftritt ? (
       <Projektion
@@ -729,18 +743,7 @@ export function RaumView() {
                   <i />
                 </button>
               )}
-              {hatBlase && !blaseZu && (
-                <Sprechblase
-                  key={antwortKey}
-                  name={assistant}
-                  status={status}
-                  md={lage.md}
-                  live={lage.live}
-                  rechts={amWerk}
-                  onVerlauf={() => setAnsicht('protokoll')}
-                  onZu={blaseUmschalten}
-                />
-              )}
+              {!kompakt && blase}
             </div>
             {!kompakt && auftritt?.seite && <Weiss auftritt={auftritt} />}
           </div>
@@ -752,6 +755,7 @@ export function RaumView() {
           )}
         </div>
       </div>
+      {kompakt && !ansicht && blase}
       {kompakt && panel}
       <div className={s.sprechzeile}>
         <Composer raum onPicker={(p) => setAnsicht(PICKER_ANSICHT[p])} />
@@ -879,6 +883,7 @@ function Sprechblase({
   md,
   live,
   rechts,
+  unten = false,
   onVerlauf,
   onZu,
 }: {
@@ -887,6 +892,8 @@ function Sprechblase({
   md: string
   live: boolean
   rechts: boolean
+  /** Kompakt: als Untertitel über der Sprechzeile statt neben der Figur. */
+  unten?: boolean
   onVerlauf: () => void
   onZu: () => void
 }) {
@@ -904,7 +911,7 @@ function Sprechblase({
   const gehe = (n: number) => setWahl(n >= letzter ? null : Math.max(0, n))
   return (
     <section
-      className={`${s.blase} ${rechts ? s.blaseLinks : ''} ${live ? s.blaseLive : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${live ? s.blaseLive : ''}`}
       onClick={(e) => e.stopPropagation()}
     >
       <header className={s.blasenKopf}>
