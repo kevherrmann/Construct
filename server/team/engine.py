@@ -277,8 +277,6 @@ ZUSTELL_TASKS = set()   # Referenzen halten, sonst darf der GC einen laufenden Z
 
 
 async def dispatcher_loop():
-    await asyncio.sleep(1)
-    wieder_aufnehmen()
     while True:
         try:
             tid, mid = await MAILBOX.get()
@@ -715,6 +713,12 @@ def starten():
         TURN_SEM = asyncio.Semaphore(PARALLEL)
         _DISPATCHER["loop"] = loop
         _DISPATCHER["task"] = None
+        # Was beim Beenden des Servers lief, wird hier wieder aufgenommen — und zwar
+        # JETZT, bevor der Aufruf, der uns gestartet hat, einen neuen Auftrag anlegt.
+        # Früher lief das eine Sekunde später in der Schleife und hielt den eben
+        # angelegten Auftrag für einen beim Neustart unterbrochenen (samt
+        # Hinweis "Der Server wurde neu gestartet" im Verlauf).
+        wieder_aufnehmen()
     t = _DISPATCHER["task"]
     if t is None or t.done():
         _DISPATCHER["task"] = loop.create_task(dispatcher_loop())

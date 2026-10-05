@@ -125,6 +125,8 @@ def test_kleinauftrag_geht_direkt_an_den_nutzer(firma):
     assert t["verbraucht"]["cost"] == pytest.approx(0.02)
     assert t["verbraucht"]["je_agent"] == {"chef": 0.01, "entwickler": 0.01}
     assert t["verbraucht"]["cache_read"] == 1800
+    # ein frisch angelegter Auftrag gilt nie als "beim Neustart unterbrochen"
+    assert not [e for e in d["verlauf"] if e["art"] == "system"]
 
 
 def test_normaler_auftrag_geht_ueber_den_pruefer_zurueck_zum_chef(firma):
