@@ -1,6 +1,6 @@
 ---
 slug: chef
-name: Chef
+name: Lumina
 title: Geschäftsführung
 reports_to: 
 engine: claude
@@ -12,7 +12,6 @@ cwd:
 allowed_tools: Read, Grep, Glob, WebSearch, WebFetch
 can_delegate: ja
 delegates_to: 
-can_hire: ja
 color: 255,182,72
 avatar: 
 status: active

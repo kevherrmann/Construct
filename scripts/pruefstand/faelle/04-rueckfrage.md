@@ -1,6 +1,6 @@
 ---
 titel: Bei fehlender Angabe wird gefragt, nicht geraten
-owner: entwickler
+owner: cody
 erwartet: wartet_auf_kevin
 bremse: eskaliert
 max_hops: 3

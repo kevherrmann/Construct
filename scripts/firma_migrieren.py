@@ -6,19 +6,26 @@
 
 Was geschieht (und ist nach `--ausfuehren` in `firma/` zu finden):
 
-  * Mitarbeiter: alle Akten aus agents/ — samt SOUL, Gedächtnis, Historie und Zeiger
-    auf ihr Direktgespräch (chat.json). Die Geschäftsführung (--chef-aus, Vorgabe
-    lumina) wird zu `chef`: ihre Akte, ihr Gedächtnis und ihre Historie ziehen um;
-    der Name kommt künftig aus ⚙ Einstellungen (Name des Assistenten). Wer in
-    --verwerfen steht (Vorgabe chanti), wird nicht übernommen — sein Gedächtnis und
-    seine Historie wandern an den Chef, damit nichts verloren geht.
-  * `reports_to` zeigt danach auf `chef`.
+  * Mitarbeiter: alle Akten aus agents/ — samt Gedächtnis, Historie und Zeiger auf ihr
+    Direktgespräch (chat.json). Die Geschäftsführung (--chef-aus, Vorgabe lumina) wird
+    zu `chef` und heißt in der Firma weiter Lumina; dem Nutzer gegenüber trägt sie den
+    Namen aus ⚙ Einstellungen. Ihr Foto kommt nicht mit: die Chefin ist die Figur des
+    Assistenten.
+  * Umbenannt werden (--umbenennen) die Kürzel, die CONSTRUCT mitliefert, damit Raum und
+    Vorlagen sie wiederfinden: css-spezialist -> selma, qa -> tessa, auditor -> veritas,
+    druck -> voxel. Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, cody,
+    selma, tessa, veritas), gilt dieser; Gedächtnis und Historie bleiben die Factoria-Fassung.
+  * Zusammengelegt (--zusammenlegen) wird, wer künftig nicht mehr einzeln arbeitet: chanti
+    geht in die Chefin, design (Rauke) in Selma. Akte und Charakter kommen nicht mit, aber
+    Gedächtnis und Historie wandern an das Ziel, damit nichts verloren geht.
+  * `reports_to` zeigt danach auf `chef`; das Einstellen gibt es nicht mehr (`can_hire`
+    fällt weg).
   * Anleitungen, bisherige Aufträge (mit umbenannten Absendern) und die Regelwerke
     (HAUSSTIL, PROTOCOL, GESTALTUNG, MODELS) als Überschreibungen unter firma/ —
     dann gelten für die Firma dieselben Regeln wie bisher, auch wenn die
     mitgelieferten Vorlagen sich ändern.
   * Bilder der Mitarbeiter (/uploads/…) wandern in den uploads/-Ordner dieser
-    Installation.
+    Installation; wo CONSTRUCT ein mitgeliefertes Gesicht hat, gilt dieses.
   * USER.md bleibt die dieser Installation (eine Person, eine Datei).
 
 Nichts im Quellordner wird verändert. Bestehende Dateien in firma/ werden nicht
@@ -33,7 +40,7 @@ from datetime import date
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
-DEFAULT_SOUL = BASE / "server" / "team" / "vorlagen" / "agents.default" / "chef" / "SOUL.md"
+VORLAGEN = BASE / "server" / "team" / "vorlagen" / "agents.default"
 
 
 def lesen(p: Path) -> str:
@@ -46,14 +53,19 @@ def frontmatter_setzen(text: str, key: str, wert: str) -> str:
     return text.replace("\n---\n", f"\n{key}: {wert}\n---\n", 1)
 
 
+def paare(text: str) -> dict:
+    return dict(p.split("=", 1) for p in (x.strip() for x in text.split(",")) if "=" in p)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--aus", required=True, help="Ordner der FACTORIA-Installation")
     ap.add_argument("--nach", default=str(BASE / "firma"), help="Ziel (Vorgabe: firma/ hier)")
     ap.add_argument("--chef-aus", default="lumina", help="Wessen Akte zur Geschäftsführung wird")
-    ap.add_argument("--verwerfen", default="chanti", help="Mitarbeiter, die nicht mitkommen (kommagetrennt)")
-    ap.add_argument("--chef-soul", default="", help="Datei mit dem Charakter der Geschäftsführung "
-                                                   "(Vorgabe: die Vorlage; {name} wird eingesetzt)")
+    ap.add_argument("--umbenennen", default="css-spezialist=selma,qa=tessa,auditor=veritas,druck=voxel",
+                    help="alt=neu, kommagetrennt")
+    ap.add_argument("--zusammenlegen", default="chanti=chef,design=selma",
+                    help="alt=ziel: nur Gedächtnis und Historie wandern, kommagetrennt")
     ap.add_argument("--ausfuehren", action="store_true", help="wirklich kopieren (sonst nur zeigen)")
     ap.add_argument("--ersetzen", action="store_true", help="vorhandene Dateien überschreiben")
     args = ap.parse_args()
@@ -61,8 +73,10 @@ def main():
     quelle, ziel = Path(args.aus).expanduser().resolve(), Path(args.nach).expanduser().resolve()
     if not (quelle / "agents").is_dir():
         sys.exit(f"!! {quelle}/agents gibt es nicht.")
-    verwerfen = {x.strip() for x in args.verwerfen.split(",") if x.strip()}
     chef_quelle = args.chef_aus
+    umbenennen = {chef_quelle: "chef", **paare(args.umbenennen)}
+    zusammen = paare(args.zusammenlegen)
+    namen = {**umbenennen, **zusammen}        # alt -> neu, überall, wo ein Kürzel steht
     tu = args.ausfuehren
     plan: list[str] = []
 
@@ -84,14 +98,12 @@ def main():
             b.parent.mkdir(parents=True, exist_ok=True)
             b.write_text(text, encoding="utf-8")
 
-    namen = {chef_quelle: "chef", **{v: "chef" for v in verwerfen}}
-
-    def umbenennen(text: str) -> str:
+    def umbenannt(text: str) -> str:
         for alt, neu in namen.items():
             text = re.sub(rf"(?m)^(reports_to:\s*){re.escape(alt)}\s*$", rf"\g<1>{neu}", text)
             # delegates_to: kommagetrennte Liste — den Namen als ganzes Wort ersetzen
             text = re.sub(rf"(?m)^(delegates_to:.*?)\b{re.escape(alt)}\b", rf"\g<1>{neu}", text)
-        return text
+        return re.sub(r"(?m)^can_hire:.*\n", "", text)
 
     # ---- Mitarbeiter
     print("Mitarbeiter")
@@ -100,48 +112,70 @@ def main():
         if not (d / "AGENT.md").is_file():
             continue
         slug = d.name
-        if slug in verwerfen:
-            print(f"  {slug}: wird nicht übernommen (Gedächtnis und Historie gehen an den Chef)")
+        if slug in zusammen:
+            print(f"  {slug}: wird nicht einzeln übernommen (Gedächtnis und Historie gehen an {zusammen[slug]})")
             continue
-        ziel_slug = "chef" if slug == chef_quelle else slug
+        ziel_slug = umbenennen.get(slug, slug)
         zd = ziel / "agents" / ziel_slug
-        akte = umbenennen(lesen(d / "AGENT.md"))
+        akte = umbenannt(lesen(d / "AGENT.md"))
+        akte = frontmatter_setzen(akte, "slug", ziel_slug)
+        mit = VORLAGEN / ziel_slug
         if slug == chef_quelle:
-            akte = frontmatter_setzen(akte, "slug", "chef")
-            akte = frontmatter_setzen(akte, "name", "Chef")       # kommt aus den Einstellungen
+            # Wie die Vorlage: Name Lumina, kein eigenes Foto (die Chefin ist die Figur des Assistenten).
+            akte = frontmatter_setzen(akte, "name", "Lumina")
+            akte = frontmatter_setzen(akte, "avatar", "")
+        elif (mit / "AGENT.md").is_file():
+            # Das mitgelieferte Gesicht und dessen Rolle (der Charakter passt dazu).
+            for feld in ("avatar", "title"):
+                w = re.search(rf"^{feld}:\s*(.+)$", lesen(mit / "AGENT.md"), re.M)
+                if w:
+                    akte = frontmatter_setzen(akte, feld, w.group(1).strip())
         m = re.search(r"^avatar:\s*(/uploads/\S+)", akte, re.M)
         if m:
             uploads_noetig.add(m.group(1))
         schreiben(zd / "AGENT.md", akte)
-        if slug == chef_quelle:
-            soul = lesen(Path(args.chef_soul)) if args.chef_soul else lesen(DEFAULT_SOUL)
-            schreiben(zd / "SOUL.md", soul)
+        if (mit / "SOUL.md").is_file():
+            schreiben(zd / "SOUL.md", lesen(mit / "SOUL.md"))
         elif (d / "SOUL.md").is_file():
             kopieren(d / "SOUL.md", zd / "SOUL.md")
         for name in ("VORSTELLUNG.md", "chat.json"):
             if (d / name).is_file():
                 kopieren(d / name, zd / name)
-        if slug != chef_quelle:
-            for name in ("MEMORY.md", "HISTORIE.jsonl"):
-                if (d / name).is_file():
-                    kopieren(d / name, zd / name)
 
-    # ---- Chef: Gedächtnis und Historie aus Chef-Quelle und Verworfenen
-    cd = ziel / "agents" / "chef"
-    gedaechtnis = lesen(quelle / "agents" / chef_quelle / "MEMORY.md").rstrip("\n")
-    historie = lesen(quelle / "agents" / chef_quelle / "HISTORIE.jsonl")
-    for v in sorted(verwerfen):
-        hv = lesen(quelle / "agents" / v / "HISTORIE.jsonl")
-        if hv:
-            historie += ("\n" if historie and not historie.endswith("\n") else "") + hv
-    hinweis = (f"- {date.today().strftime('%d.%m.%Y')}: Die frühere Mitarbeiterin "
-               f"{', '.join(sorted(verwerfen)) or 'Chanti'} gibt es in der Firma nicht mehr — du selbst bist jetzt "
-               f"die Geschäftsführung und zugleich der Assistent, mit dem der Nutzer im Chat redet. Aufgaben, die an sie "
-               f"gingen (Inhalte sammeln, recherchieren, Texte schreiben), vergibst du an jemanden, der das kann, "
-               f"oder stellst jemanden ein. Namen in diesem Gedächtnis, die auf sie zeigen, sind historisch.")
-    schreiben(cd / "MEMORY.md", (gedaechtnis + "\n" if gedaechtnis else "") + hinweis + "\n")
-    if historie.strip():
-        schreiben(cd / "HISTORIE.jsonl", historie)
+    # ---- Gedächtnis und Historie: jede Akte bekommt ihre eigenen und die der Zusammengelegten
+    heute = date.today().strftime("%d.%m.%Y")
+    ziele = {umbenennen.get(d.name, d.name) for d in (quelle / "agents").iterdir()
+             if (d / "AGENT.md").is_file() and d.name not in zusammen}
+    for slug_neu in sorted(ziele):
+        alle = sorted(d.name for d in (quelle / "agents").iterdir() if (d / "AGENT.md").is_file())
+        # Die eigene Akte zuerst, danach die zusammengelegten.
+        quellen = sorted((x for x in alle if namen.get(x, x) == slug_neu), key=lambda x: x in zusammen)
+        gedaechtnis, historie = [], ""
+        hinweise = []
+        for alt in quellen:
+            g = lesen(quelle / "agents" / alt / "MEMORY.md").rstrip("\n")
+            if g:
+                gedaechtnis.append(g)
+            h = lesen(quelle / "agents" / alt / "HISTORIE.jsonl")
+            if h:
+                historie += ("\n" if historie and not historie.endswith("\n") else "") + h
+            if alt in zusammen:
+                hinweise.append(alt)
+        if slug_neu == "chef":
+            hinweise_text = (f"- {heute}: Die frühere Mitarbeiterin {', '.join(hinweise) or 'Chanti'} gibt es in der "
+                             f"Firma nicht mehr. Recherche, Inhalte sammeln und Texte schreiben machst du selbst. "
+                             f"Du bist die Geschäftsführung und zugleich der Assistent, mit dem der Nutzer im Chat redet. "
+                             f"Namen in diesem Gedächtnis, die auf sie zeigen, sind historisch.")
+            gedaechtnis.append(hinweise_text)
+        elif hinweise:
+            gedaechtnis.append(f"- {heute}: {', '.join(hinweise)} arbeitet nicht mehr einzeln; seine Aufgaben "
+                               f"(Entwurf und Gestaltungsvorgaben) gehören jetzt zu deinen. Namen in diesem "
+                               f"Gedächtnis, die auf ihn zeigen, sind historisch.")
+        zd = ziel / "agents" / slug_neu
+        if gedaechtnis:
+            schreiben(zd / "MEMORY.md", "\n\n".join(gedaechtnis) + "\n")
+        if historie.strip():
+            schreiben(zd / "HISTORIE.jsonl", historie)
     if not (quelle / "agents" / chef_quelle / "AGENT.md").is_file():
         print(f"!! {chef_quelle} hat keine Akte — es gibt dann keinen Chef; die Vorlage wird beim Start angelegt.")
 
@@ -153,9 +187,10 @@ def main():
     for name in ("HAUSSTIL.md", "PROTOCOL.md", "GESTALTUNG.md", "MODELS.md"):
         if (quelle / name).is_file():
             text = lesen(quelle / name)
-            # Zwei Stellen, die auf FACTORIA zeigen und sonst ins Leere liefen.
+            # Stellen, die auf FACTORIA zeigen und sonst ins Leere liefen.
             text = text.replace("factoria_mcp.py", "team_mcp.py").replace("Cody, er baut Factoria", "Cody, er baut die Firma")
             text = text.replace("Lumina ist die Geschäftsführerin, Chanti die Assistentin.", "Die Geschäftsführung ist die Assistentin.")
+            text = re.sub(r"(?m)^\| `einstellen` \|.*\n", "", text)           # das Werkzeug gibt es nicht mehr
             schreiben(ziel / name, text)
 
     # ---- Aufträge (mit umbenannten Absendern)
@@ -168,10 +203,13 @@ def main():
         if str(t.get("titel", "")).startswith("[eval]"):
             continue                       # Testaufträge des Prüfstands gehören nicht zur Geschichte
         if t.get("owner") in namen:
-            t["owner"] = "chef"
+            t["owner"] = namen[t["owner"]]
         esk = t.get("eskalation")
         if isinstance(esk, dict) and esk.get("an") in namen:
-            esk["an"] = "chef"             # sonst ginge die Antwort an eine Akte, die es nicht mehr gibt
+            esk["an"] = namen[esk["an"]]   # sonst ginge die Antwort an eine Akte, die es nicht mehr gibt
+        t.pop("einstellung", None)
+        if t.get("status") == "wartet_auf_einstellung":
+            t["status"] = "wartet_auf_kevin"
         if t.get("status") in ("laeuft", "neu"):
             # Ein Auftrag, der in FACTORIA noch lief, startet hier nicht von allein: seine
             # Sitzung gehörte einer anderen Person. Der Nutzer entscheidet, ob es weitergeht.
@@ -181,7 +219,13 @@ def main():
                                "grund": "Dieser Auftrag lief noch, als die Firma aus FACTORIA übernommen wurde.",
                                "frage": "Soll es weitergehen? Dann WEITERMACHEN — oder abbrechen."}
         sessions = t.get("sessions") or {}
-        t["sessions"] = {("chef" if k in namen else k): v for k, v in sessions.items()}
+        t["sessions"] = {namen.get(k, k): v for k, v in sessions.items()}
+        je = (t.get("verbraucht") or {}).get("je_agent")
+        if isinstance(je, dict):
+            neu: dict = {}
+            for k, v in je.items():
+                neu[namen.get(k, k)] = neu.get(namen.get(k, k), 0) + v
+            t["verbraucht"]["je_agent"] = neu
         schreiben(zd / "ticket.json", json.dumps(t, ensure_ascii=False, indent=1))
         zeilen = []
         for z in lesen(d / "thread.jsonl").splitlines():
@@ -191,7 +235,7 @@ def main():
                 continue
             for k in ("von", "an"):
                 if e.get(k) in namen:
-                    e[k] = "chef"
+                    e[k] = namen[e[k]]
             zeilen.append(json.dumps(e, ensure_ascii=False))
         schreiben(zd / "thread.jsonl", "\n".join(zeilen) + ("\n" if zeilen else ""))
 

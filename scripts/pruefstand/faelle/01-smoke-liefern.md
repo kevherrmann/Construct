@@ -1,6 +1,6 @@
 ---
 titel: Der Grundkreislauf — Auftrag rein, Datei raus, abgeliefert
-owner: entwickler
+owner: cody
 erwartet: fertig
 bremse: keine
 max_hops: 3

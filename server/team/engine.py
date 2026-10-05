@@ -53,8 +53,6 @@ def bus_werkzeuge(a: dict) -> list:
     erlaubt = list(BUS_NUR_LESEN) + ["fragen", "eskalieren", "rechnen", "kontrast"]
     if a.get("can_delegate"):
         erlaubt.append("beauftragen")
-    if a.get("can_hire"):
-        erlaubt.append("einstellen")
     return [f"mcp__firma__{w}" for w in erlaubt]
 
 
@@ -130,8 +128,7 @@ def zug_lock(tid: str):
 def wartezeit_abziehen(t: dict):
     """Die Zeit, in der der Auftrag auf Kevin gewartet hat, zaehlt nicht als
     Laufzeit. Sonst reisst nach einer Nacht Pause gleich die Zeit-Bremse."""
-    seit = ((t.get("eskalation") or {}).get("seit")
-            or (t.get("einstellung") or {}).get("seit"))
+    seit = (t.get("eskalation") or {}).get("seit")
     if seit:
         t["verbraucht"]["start"] = t["verbraucht"].get("start", time.time()) + (time.time() - seit)
 
@@ -227,8 +224,8 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
         # von ihm verlangt wird — und suchte in den Nachrichten nach einer
         # Luecke, die er fuellen muss (11.09.2026). Die meisten Bremsen wollen
         # nur ein Hinsehen; das muss dastehen.
-        wer = (ag.load_agent(an, WORKSPACE) or {}).get("name") if an else ""
-        wer = wer or (ag.load_agent(frisch["owner"], WORKSPACE) or {}).get("name") or "die Geschäftsführung"
+        wer = ag.anzeige(ag.load_agent(an, WORKSPACE) or {}).get("name") if an else ""
+        wer = wer or ag.anzeige(ag.load_agent(frisch["owner"], WORKSPACE) or {}).get("name") or "die Geschäftsführung"
         frage = (f"Sieh kurz hin, ob der Auftrag noch auf dem richtigen Weg ist. Dann "
                  f"WEITERMACHEN — ohne Text bekommt {wer} \u201eMach bitte weiter\u201c und die "
                  f"Bremsen zählen von vorn. Willst du etwas ändern, schreib es {wer} in "
@@ -326,7 +323,7 @@ async def _zustellen_innen(tid: str, mid: str):
         # Pausiert heisst: bekommt gerade keine Arbeit. Vorher wurde der
         # Zustand zwar in der Akte gefuehrt, aber nirgends beachtet.
         return auftrag_anhalten(t, "unbekannt",
-                               f"{a['name']} ist pausiert und nimmt gerade nichts an. "
+                               f"{ag.anzeige(a)['name']} ist pausiert und nimmt gerade nichts an. "
                                f"Leite die Nachricht um oder hebe die Pause in der "
                                f"Personalakte auf.")
 
@@ -344,7 +341,7 @@ async def _zustellen_innen(tid: str, mid: str):
         await auftrag_aendern(tid, lambda x: x["in_arbeit"].update({"run_id": run.id})
                              if x.get("in_arbeit") else None)
         feed(tid).emit({"type": "zug_start", "agent": a["slug"],
-                        "name": a["name"], "color": a["color"], "run_id": run.id})
+                        "name": ag.anzeige(a)["name"], "color": a["color"], "run_id": run.id})
 
         def _ende(x):
             x["verbraucht"]["cost"] = round(x["verbraucht"]["cost"] + (run.cost_usd or 0), 4)
@@ -390,7 +387,7 @@ async def _zustellen_innen(tid: str, mid: str):
             # Der hat den Kontext in seiner Sitzung — ueber die
             # Geschaeftsfuehrung kostete es einen Zug Neubriefing.
             return auftrag_anhalten(t, "stille",
-                                   f"Der Zug von {a['name']} hat sich "
+                                   f"Der Zug von {ag.anzeige(a)['name']} hat sich "
                                    f"{a['max_stille_s'] // 60} Minuten nicht geruehrt — "
                                    f"er haengt vermutlich.", an=a["slug"])
         except asyncio.CancelledError:
@@ -401,7 +398,7 @@ async def _zustellen_innen(tid: str, mid: str):
             # auf "laeuft" mit gesetztem in_arbeit stehen.
             t = await _abschliessen()
             return auftrag_anhalten(t, "gestoppt",
-                                   f"Der Zug von {a['name']} wurde von Hand gestoppt.",
+                                   f"Der Zug von {ag.anzeige(a)['name']} wurde von Hand gestoppt.",
                                    an=a["slug"])
         except Exception as e:
             print(f"[zug] {type(e).__name__}: {e}", flush=True)
@@ -419,7 +416,7 @@ async def _zustellen_innen(tid: str, mid: str):
         await auftrag_aendern(tid, lambda x: x["verbraucht"].__setitem__(
             "hops", max(0, x["verbraucht"]["hops"] - 1)))     # der Versuch zaehlt nicht
         e = auf.anhaengen(tid, {"art": "system", "text":
-                               f"Nutzungslimit erreicht — der Zug von {a['name']} wird um "
+                               f"Nutzungslimit erreicht — der Zug von {ag.anzeige(a)['name']} wird um "
                                f"{wann} Uhr wiederholt."})
         feed(tid).emit({"type": "msg", **e})
         if run.limit_bis not in LIMIT_GEMELDET:
@@ -434,7 +431,7 @@ async def _zustellen_innen(tid: str, mid: str):
         # nicht gearbeitet. Das ist ein anderer Befund als "hat geantwortet,
         # aber nichts geliefert", und Kevin muss den Grund lesen koennen.
         return auftrag_anhalten(t, "fehler",
-                               f"Der Zug von {a['name']} endete mit einem Fehler: "
+                               f"Der Zug von {ag.anzeige(a)['name']} endete mit einem Fehler: "
                                f"{run.fehler[:400]}",
                                "Ursache beheben (Login, Netz), dann weiter — der Zug wird "
                                "wiederholt.", an=a["slug"])
@@ -460,7 +457,7 @@ async def _zustellen_innen(tid: str, mid: str):
             # schon an der Nachbesserung sitzt. Der naechste Zug kommt von
             # selbst, sobald ein Ergebnis eintrifft.
             e = auf.anhaengen(tid, {"art": "system",
-                                   "text": f"{a['name']} wartet auf: {', '.join(offen)}."})
+                                   "text": f"{ag.anzeige(a)['name']} wartet auf: {', '.join(offen)}."})
             feed(tid).emit({"type": "msg", **e})
             feed(tid).emit({"type": "stand", **t["verbraucht"]})
             return
@@ -473,7 +470,7 @@ async def _zustellen_innen(tid: str, mid: str):
             # 11.09.2026 riss hier die Bremse, obwohl Tessas Ergebnis fuer
             # Lumina laengst im Postfach lag.
             e = auf.anhaengen(tid, {"art": "system",
-                                   "text": f"{a['name']} ist gleich wieder dran: "
+                                   "text": f"{ag.anzeige(a)['name']} ist gleich wieder dran: "
                                    + ", ".join(f"{n.get('art')} von {n.get('von')}" for n in liegt)
                                    + " liegt schon vor."})
             feed(tid).emit({"type": "msg", **e})
@@ -484,12 +481,12 @@ async def _zustellen_innen(tid: str, mid: str):
         zuletzt = " ".join((run.last_text or "").split())[:300]
         return auftrag_anhalten(
             t, "stiller_zug",
-            f"{a['name']} hat geantwortet, aber weder geliefert noch weitergegeben — "
+            f"{ag.anzeige(a)['name']} hat geantwortet, aber weder geliefert noch weitergegeben — "
             f"der Auftrag würde sonst unbemerkt stehenbleiben."
             + (f" Zuletzt gesagt: \u201e{zuletzt}\u201c" if zuletzt else ""),
-            f"Sag {a['name']} in einem Satz, wie es weitergeht — etwa \u201eLiefer den "
+            f"Sag {ag.anzeige(a)['name']} in einem Satz, wie es weitergeht — etwa \u201eLiefer den "
             f"Stand an mich\u201c oder \u201eGib das an <Kollege> weiter\u201c. Meist reicht "
-            f"WEITERMACHEN ohne Text: dann bekommt {a['name']} \u201eMach bitte weiter\u201c "
+            f"WEITERMACHEN ohne Text: dann bekommt {ag.anzeige(a)['name']} \u201eMach bitte weiter\u201c "
             f"und entscheidet selbst.",
             an=a["slug"])
 

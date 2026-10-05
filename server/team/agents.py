@@ -47,9 +47,19 @@ DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 # Datei) — siehe pfade.py.
 
 # Die Geschäftsführung ist der Assistent selbst — er nimmt Aufträge an, verteilt
-# sie und fasst zusammen. Ihr Name ist der Name des Assistenten (⚙ Einstellungen),
-# das Kürzel bleibt fest, damit Umbenennen nichts bricht.
+# sie und fasst zusammen. Dem Nutzer gegenüber trägt sie den Namen des Assistenten
+# (⚙ Einstellungen, siehe anzeige()); in der Firma heißt sie immer Lumina, damit
+# der Name, den der Nutzer seinem Assistenten gegeben hat, bei ihm bleibt und in
+# keiner mitgelieferten Datei steht. Das Kürzel bleibt fest.
 OWNER_SLUG = "chef"
+
+
+def anzeige(a: dict) -> dict:
+    """Die Akte, wie der NUTZER sie sieht: die Geschäftsführung unter dem Namen
+    seines Assistenten. Was an ein Modell geht, nimmt dagegen die Akte selbst."""
+    if a.get("slug") == OWNER_SLUG:
+        return {**a, "name": cfg.assistant_name()}
+    return a
 
 
 def vorlage(name: str) -> Path:
@@ -125,7 +135,7 @@ DEFAULT_AGENT = {
     "engine": "claude", "model": "sonnet", "effort": "high",
     "model_grund": "", "permission_mode": "acceptEdits", "cwd": "",
     "allowed_tools": ["Read", "Grep", "Glob"],
-    "can_delegate": False, "delegates_to": [], "can_hire": False,
+    "can_delegate": False, "delegates_to": [],
     "color": "", "avatar": "", "status": "active",
     "hired": "", "hired_by": "kevin",
     # KEINE Obergrenze fuer Dauer oder Geld eines Zuges: ein Auftrag wie "bau
@@ -134,7 +144,7 @@ DEFAULT_AGENT = {
     # Lebenszeichen geben, bevor er als tot gilt.
     "max_stille_s": 1800,
 }
-_BOOL_FIELDS = ("can_delegate", "can_hire")
+_BOOL_FIELDS = ("can_delegate",)
 
 
 # ---------- Frontmatter ----------
@@ -270,7 +280,8 @@ def validate(raw: dict, workspace) -> tuple:
         a["color"] = _color_for(slug)
 
     av = str(raw.get("avatar") or "").strip()
-    a["avatar"] = av if (av.startswith("/uploads/") and ".." not in av) else ""
+    # /uploads/: vom Nutzer hochgeladen; /static/team/: die mitgelieferten Gesichter.
+    a["avatar"] = av if (av.startswith(("/uploads/", "/static/team/")) and ".." not in av) else ""
 
     h = str(raw.get("hired") or "").strip()
     a["hired"] = h if DATE_RE.match(h) else date.today().isoformat()
@@ -337,8 +348,6 @@ def load_agent(slug: str, workspace) -> dict | None:
         raw["allowed_tools"] = None      # Zeile fehlt ganz -> Vorgabe, nicht "keine"
     a, bad = validate(raw, workspace)
     a["problems"] = bad
-    if slug == OWNER_SLUG:
-        a["name"] = cfg.assistant_name()
     a["soul"] = _read_capped(d / "SOUL.md", MAX_SOUL)
     a["memory"] = _read_capped(d / "MEMORY.md", MAX_MEMORY)
     a["historie"] = historie_lesen(slug)
@@ -472,7 +481,7 @@ def org_tree(workspace) -> dict:
             roots.append(slug)
 
     def node(slug):
-        a = agents[slug]
+        a = anzeige(agents[slug])
         return {"slug": slug, "name": a["name"], "title": a["title"],
                 "color": a["color"], "model": a["model"], "effort": a["effort"],
                 "status": a["status"], "problems": a["problems"],
@@ -542,6 +551,8 @@ def save_agent(data: dict, workspace) -> tuple:
         merged = {k: vorhanden.get(k, v) for k, v in DEFAULT_AGENT.items()}
         merged.update({k: v for k, v in data.items() if v is not None})
         data = merged
+        if slug == OWNER_SLUG:
+            data["name"] = vorhanden["name"]      # die Oberfläche zeigt hier den Namen des Assistenten
     a, bad = validate(data, workspace)
     if vorhanden and vorhanden.get("name") and vorhanden["name"] != a["name"]:
         bad += _alter_name_haengt_nach(vorhanden["name"], a["slug"])

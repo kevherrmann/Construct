@@ -62,7 +62,6 @@ def neu(titel: str, brief: str, owner: str = "chef", cwd: str = "") -> dict:
         # Anzeige fuer Kevin, keine Bremse.
         "verbraucht": {"hops": 0, "cost": 0.0, "start": time.time()},
         "eskalation": None,                  # {bremse, grund, frage, seit, an}
-        "einstellung": None,                 # {rolle, warum, kandidaten, runden, seit}
         # frei_seit: ab wann die Bremsen zaehlen — nach jedem "weitermachen"
         # von Kevin faengt die Zaehlung von vorn an.
         "wache": {"ohne_artefakt": 0, "frei_seit": 0.0},

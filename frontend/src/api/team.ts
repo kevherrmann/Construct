@@ -22,7 +22,6 @@ export interface Agent {
   allowed_tools: string[]
   can_delegate: boolean
   delegates_to: string[]
-  can_hire: boolean
   /** r,g,b — fließt als --accent-rgb in alles, was der Person gehört. */
   color: string
   avatar: string
@@ -52,8 +51,7 @@ export interface Belegschaft {
   org: { roots: OrgNode[]; cycles: string[] }
 }
 
-export type AuftragStatus =
-  'neu' | 'laeuft' | 'wartet_auf_kevin' | 'wartet_auf_einstellung' | 'fertig' | 'abgebrochen'
+export type AuftragStatus = 'neu' | 'laeuft' | 'wartet_auf_kevin' | 'fertig' | 'abgebrochen'
 
 export interface Verbrauch {
   hops: number
@@ -71,30 +69,6 @@ export interface Eskalation {
   an: string
 }
 
-export interface Kandidat {
-  name: string
-  titel: string
-  slug: string
-  kurz: string
-  staerken: string[]
-  arbeitsweise: string
-  model: Modell
-  effort: Effort
-  model_grund: string
-  permission_mode: string
-  allowed_tools: string[]
-  can_delegate: boolean
-  systemprompt: string
-}
-
-export interface Einstellung {
-  rolle: string
-  warum: string
-  kandidaten: Kandidat[]
-  runden: number
-  seit: number
-}
-
 export interface Auftrag {
   id: string
   titel: string
@@ -106,7 +80,6 @@ export interface Auftrag {
   in_arbeit: { msg_id: string; run_id: string; versuch: number } | null
   verbraucht: Verbrauch
   eskalation: Eskalation | null
-  einstellung: Einstellung | null
   ergebnis?: string
 }
 
@@ -119,7 +92,6 @@ export interface AuftragKurz {
   erstellt: string
   verbraucht: Verbrauch
   eskalation: Eskalation | null
-  einstellung: boolean
   msgs: number
   letzte_von: string
   letzte_art: string
@@ -306,20 +278,6 @@ export function useAuftragActions(id: string) {
     say: useMutation({
       mutationFn: (v: { text: string; an?: string }) =>
         apiPost<{ ok: boolean; wohin: string }>(url('/say'), v),
-      onSuccess: neu,
-    }),
-    kandidaten: useMutation({
-      mutationFn: (hinweis: string) =>
-        apiPost<{ einstellung: Einstellung }>(url('/kandidaten'), { hinweis }),
-      onSuccess: neu,
-    }),
-    einstellen: useMutation({
-      mutationFn: (kandidat: Kandidat) =>
-        apiPost<{ agent: Agent; problems: string[] }>(url('/einstellen'), { kandidat }),
-      onSuccess: neu,
-    }),
-    keiner: useMutation({
-      mutationFn: (grund: string) => apiPost<{ ok: boolean }>(url('/keiner'), { grund }),
       onSuccess: neu,
     }),
     loeschen: useMutation({

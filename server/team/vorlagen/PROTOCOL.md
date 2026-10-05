@@ -136,7 +136,6 @@ zehn Nachrichten, die nichts klären.
 | `antworten` | auf eine Frage antworten, die dich erreicht hat |
 | `liefern` | dein Teil ist fertig — geht an den, der dich beauftragt hat |
 | `eskalieren` | Kevin dazuholen; der Auftrag pausiert bis zu seiner Antwort |
-| `einstellen` | eine Rolle fehlt (nur Geschäftsführung) |
 | `notiz` | Anmerkung für den Verlauf, zählt nicht als Schritt |
 | `rechnen` | exakt rechnen (Preise, Prozente, Summen) — nie im Kopf, immer hiermit |
 | `kontrast` | WCAG-Kontrast zweier Farben messen — Text 4,5:1, Bedienelemente 3:1 |

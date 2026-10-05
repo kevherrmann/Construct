@@ -83,7 +83,7 @@ ANL_MARKE = "eval-"
 
 # Zustaende, in denen ein Auftrag nicht mehr von allein weiterlaeuft. Auf einen
 # davon wird gewartet; alles andere heisst "noch beschaeftigt".
-ENDE = ("fertig", "abgebrochen", "wartet_auf_kevin", "wartet_auf_einstellung")
+ENDE = ("fertig", "abgebrochen", "wartet_auf_kevin")
 
 STD_TIMEOUT = 600         # Sekunden pro Fall, wenn die Datei nichts sagt
 POLL = 2.0                # so oft wird nach dem Zustand gesehen

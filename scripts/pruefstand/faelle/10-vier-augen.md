@@ -8,8 +8,8 @@ max_kosten: 7.00
 timeout: 1500
 dateien: summe.py
 gemeldet: summe.py
-agenten: chef, entwickler
-agenten_einer: pruefer
+agenten: chef, cody
+agenten_einer: tessa
 ---
 Ich brauche in meinem Arbeitsordner ein kleines Python-Skript `summe.py`: es
 nimmt beliebig viele Zahlen als Argumente auf der Kommandozeile, addiert sie

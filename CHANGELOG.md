@@ -14,14 +14,18 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   when needed — no tool and no MCP server: an MCP server cost 2–3 s per message
   and +1.3k tokens, or with `--strict-mcp-config` the user's own MCP servers);
   a new ticket closes the previous one. Stored as JSON in `tickets/`. Measured on
-  an 8-message session: Opus 5.5 filed every message correctly, Sonnet 5.5 7 of 8,
-  Haiku 4.5 5 of 8 (anything it misses stays in the current ticket and can be
-  moved by hand).
+  an 8-message session: Opus 5.5 and Sonnet 5.5 filed every message correctly, Haiku 4.5
+  5 of 8 (anything it misses stays in the current ticket and can be moved by
+  hand). Cost: about +2.6 % tokens in a four-message test session, mostly the
+  one-time cache write of the rule text.
 - **Team mode (off by default).** A company of AI employees in CONSTRUCT, ported
-  from FACTORIA: staff files, jobs with an internal bus, safety brakes, hiring,
+  from FACTORIA: staff files, jobs with an internal bus, safety brakes,
   shared instructions, direct conversations with employees, **Staff** and
   **Jobs** tiles, a stop-everything button and a call bar when a job needs you.
-  The assistant is the managing director; per task you choose between "only the
+  A fixed crew ships with it: the managing director (the assistant, called
+  Lumina inside the company), Cody (backend and technology), Selma (frontend and
+  design), Tessa (quality assurance) and Veritas (code audit); there is no hiring
+  procedure, new staff are added by hand. Per task you choose between "only the
   assistant" and "the whole company" (`/firma`, 🏢 on a ticket, or the assistant
   suggests it). A finished job completes its ticket. Test bench:
   `scripts/pruefstand.py`.

@@ -1,19 +1,19 @@
 ---
-slug: entwickler
-name: Finn
-title: Entwickler
+slug: selma
+name: Selma
+title: Frontend und Gestaltung
 reports_to: chef
 engine: claude
-model: sonnet
+model: opus
 effort: high
-model_grund: Normale Umsetzung; bei komplexem Code in der Personalakte auf opus stellen.
+model_grund: Qualität der Oberfläche geht vor Kosten; Gestaltung braucht Urteil.
 permission_mode: acceptEdits
 cwd: 
 allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 can_delegate: nein
 delegates_to: 
-can_hire: nein
-avatar: 
+color: 255,158,205
+avatar: /static/team/selma.webp
 status: active
 hired: 2026-10-05
 hired_by: kevin

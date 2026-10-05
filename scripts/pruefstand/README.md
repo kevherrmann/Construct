@@ -41,7 +41,7 @@ des Nutzers. Was im Frontmatter nicht dasteht, wird nicht geprüft.
 ```markdown
 ---
 titel: Wofür der Fall da ist
-owner: entwickler      wer den Auftrag bekommt (Slug); Vorgabe chef
+owner: cody      wer den Auftrag bekommt (Slug); Vorgabe chef
 erwartet: fertig       fertig | wartet_auf_kevin | abgebrochen
 bremse: keine          keine, oder der Name der Bremse, die fallen SOLL
 max_hops: 3            Züge
@@ -51,8 +51,8 @@ timeout: 300           Sekunden, dann gilt der Fall als hängengeblieben
 dateien: bericht.md    muss danach im Arbeitsordner liegen
 gemeldet: bericht.md   muss im Feld `dateien` abgeliefert worden sein
 enthaelt: 5472661      Stichworte, die im Ergebnistext stehen müssen
-agenten: chef, entwickler  wer beteiligt gewesen sein muss
-agenten_einer: pruefer   mindestens einer davon (Wahl liegt bei der Firma)
+agenten: chef, cody  wer beteiligt gewesen sein muss
+agenten_einer: tessa   mindestens einer davon (Wahl liegt bei der Firma)
 ---
 Der Auftrag, wie Kevin ihn stellen würde.
 ```

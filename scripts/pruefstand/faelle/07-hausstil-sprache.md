@@ -1,6 +1,6 @@
 ---
 titel: Es wird nicht gegendert
-owner: entwickler
+owner: cody
 erwartet: fertig
 bremse: keine
 max_hops: 3

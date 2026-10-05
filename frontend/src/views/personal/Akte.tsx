@@ -25,7 +25,6 @@ interface Entwurf {
   cwd: string
   allowed_tools: string[]
   can_delegate: boolean
-  can_hire: boolean
   stille_min: string
   soul: string
   memory: string
@@ -42,7 +41,6 @@ const ausAkte = (a: Agent): Entwurf => ({
   cwd: a.cwd,
   allowed_tools: a.allowed_tools,
   can_delegate: a.can_delegate,
-  can_hire: a.can_hire,
   stille_min: String(Math.round(a.max_stille_s / 60)),
   soul: a.soul,
   memory: a.memory,
@@ -98,7 +96,6 @@ function Formular({ a }: { a: Agent }) {
     if (d.allowed_tools.join() !== alt.allowed_tools.join())
       neu.allowed_tools = d.allowed_tools.join(', ')
     if (d.can_delegate !== alt.can_delegate) neu.can_delegate = d.can_delegate
-    if (d.can_hire !== alt.can_hire) neu.can_hire = d.can_hire
     if (d.stille_min !== alt.stille_min)
       neu.max_stille_s = Math.round((Number(d.stille_min) || 30) * 60)
     if (d.soul !== alt.soul) neu.soul = d.soul
@@ -286,14 +283,6 @@ function Formular({ a }: { a: Agent }) {
                 onChange={(x) => set('can_delegate', x.target.checked)}
               />{' '}
               {t('verteilen')}
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={e.can_hire}
-                onChange={(x) => set('can_hire', x.target.checked)}
-              />{' '}
-              {t('einstellen')}
             </label>
           </span>
         </Zeile>

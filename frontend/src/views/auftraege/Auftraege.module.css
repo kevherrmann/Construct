@@ -417,7 +417,7 @@
   border-left: 1px solid var(--green-faint);
 }
 
-/* Eskalation und Einstellung */
+/* Eskalation */
 .eskal {
   border: 1px solid #5a1f1f;
   background: rgba(255, 92, 92, 0.05);
@@ -436,80 +436,12 @@
   color: #ff8c8c;
   font-weight: normal;
 }
-.eskal.einst {
-  border-color: var(--green-faint);
-  background: rgba(var(--accent-rgb), 0.05);
-}
-.eskal.einst h4 {
-  color: rgb(var(--accent-rgb));
-}
 .frage {
   color: var(--soft);
 }
 .anwen {
   font-size: 12px;
   color: var(--green-dim);
-}
-.kandidaten {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-}
-.kand {
-  border: 1px solid rgba(var(--accent-rgb), 0.6);
-  border-radius: var(--radius);
-  padding: 11px 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.kandname {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-.kandname input {
-  flex: 0 1 190px;
-  font-size: 17px;
-  color: rgb(var(--accent-rgb));
-}
-.kt {
-  font-size: 12.5px;
-  color: rgb(var(--accent-rgb));
-}
-.kk {
-  font-size: 12.5px;
-  color: var(--soft);
-}
-.kursiv {
-  font-style: italic;
-  opacity: 0.7;
-}
-.kand ul {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12.5px;
-}
-.kausst {
-  font-size: 11.5px;
-  line-height: 1.6;
-}
-.kand details summary {
-  cursor: pointer;
-  font-size: 11.5px;
-  opacity: 0.7;
-}
-.kand details label {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 11px;
-  opacity: 0.85;
-  margin-top: 6px;
-}
-.kand details textarea {
-  min-height: 120px;
 }
 .einwurf {
   margin-top: 18px;

@@ -1,6 +1,6 @@
 ---
 titel: Gerechnet wird mit dem Werkzeug, nicht im Kopf
-owner: entwickler
+owner: cody
 erwartet: fertig
 bremse: keine
 max_hops: 3

@@ -522,8 +522,7 @@ def _firma_stand():
         return lambda _id: ""
     from server.team import auftraege as auf
     text = {"neu": "arbeitet", "laeuft": "arbeitet", "wartet_auf_kevin": "wartet auf den Nutzer",
-            "wartet_auf_einstellung": "wartet auf den Nutzer", "fertig": "fertig",
-            "abgebrochen": "abgebrochen"}
+            "fertig": "fertig", "abgebrochen": "abgebrochen"}
 
     def stand(aid):
         a = auf.laden(aid) if aid else None

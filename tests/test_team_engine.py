@@ -119,12 +119,12 @@ def test_kleinauftrag_geht_direkt_an_den_nutzer(firma):
     tid = neuer_auftrag(firma, "[klein] Bau das Ding")
     t = warte(firma, tid, ("fertig",))
     d = api(firma, f"/api/team/auftraege/{tid}")
-    assert pfad(d["verlauf"])[:3] == [("kevin", "chef", "auftrag"), ("chef", "entwickler", "auftrag"),
-                                     ("entwickler", "kevin", "ergebnis")]
+    assert pfad(d["verlauf"])[:3] == [("kevin", "chef", "auftrag"), ("chef", "cody", "auftrag"),
+                                     ("cody", "kevin", "ergebnis")]
     assert t["ergebnis"] == "gebaut"
     assert t["verbraucht"]["hops"] == 2                      # zwei Züge, kein Durchreicher
     assert t["verbraucht"]["cost"] == pytest.approx(0.02)
-    assert t["verbraucht"]["je_agent"] == {"chef": 0.01, "entwickler": 0.01}
+    assert t["verbraucht"]["je_agent"] == {"chef": 0.01, "cody": 0.01}
     assert t["verbraucht"]["cache_read"] == 1800
     # ein frisch angelegter Auftrag gilt nie als "beim Neustart unterbrochen"
     assert not [e for e in d["verlauf"] if e["art"] == "system"]
@@ -135,19 +135,19 @@ def test_normaler_auftrag_geht_ueber_den_pruefer_zurueck_zum_chef(firma):
     t = warte(firma, tid, ("fertig",))
     d = api(firma, f"/api/team/auftraege/{tid}")
     assert pfad(d["verlauf"]) == [
-        ("kevin", "chef", "auftrag"), ("chef", "entwickler", "auftrag"),
-        ("entwickler", "chef", "ergebnis"), ("chef", "pruefer", "auftrag"),
-        ("pruefer", "chef", "ergebnis"), ("chef", "kevin", "ergebnis")]
+        ("kevin", "chef", "auftrag"), ("chef", "cody", "auftrag"),
+        ("cody", "chef", "ergebnis"), ("chef", "tessa", "auftrag"),
+        ("tessa", "chef", "ergebnis"), ("chef", "kevin", "ergebnis")]
     assert t["verbraucht"]["hops"] == 5
     # die Beteiligten haben den Auftrag in ihrer Akte
     from server.team import agents as ag
-    assert "Test" in ag.historie_text("entwickler")
+    assert "Test" in ag.historie_text("cody")
 
 
 def test_rueckfrage_haelt_an_und_antwort_setzt_fort(firma):
     tid = neuer_auftrag(firma, "[rueckfrage] Mach etwas")
     t = warte(firma, tid, ("wartet_auf_kevin",))
-    assert t["eskalation"]["frage"] == "Rot oder blau?" and t["eskalation"]["an"] == "entwickler"
+    assert t["eskalation"]["frage"] == "Rot oder blau?" and t["eskalation"]["an"] == "cody"
     api(firma, f"/api/team/auftraege/{tid}/antwort", {"aktion": "weiter", "text": "Blau."})
     t = warte(firma, tid, ("fertig",))
     assert t["ergebnis"].startswith("gebaut")

@@ -7,7 +7,6 @@ from server import config as cfg
 from server.team import agents as ag
 from server.team import anleitungen as anl
 from server.team import auftraege as auf
-from server.team import hiring
 
 
 @pytest.fixture(autouse=True)
@@ -31,23 +30,51 @@ WS = "/home/z0mb1"
 # ---------- Belegschaft ----------
 def test_erststart_rollt_die_vorlagen_aus():
     xs = ag.list_agents(WS)
-    assert {a["slug"] for a in xs} == {"chef", "entwickler", "pruefer"}
-    # Die Geschäftsführung führt die Liste und heißt wie der Assistent
-    assert xs[0]["slug"] == "chef" and xs[0]["name"] == "Momo"
-    assert xs[0]["can_delegate"] and xs[0]["can_hire"]
+    assert {a["slug"] for a in xs} == {"chef", "cody", "selma", "tessa", "veritas"}
+    # Die Geschäftsführung führt die Liste und heißt in der Firma immer Lumina
+    assert xs[0]["slug"] == "chef" and xs[0]["name"] == "Lumina"
+    assert xs[0]["can_delegate"]
+    # Jeder mitgelieferte Mitarbeiter hat einen Charakter und (außer der Chefin) ein Gesicht
+    assert all(a["soul"].strip() for a in xs)
+    assert all(a["avatar"].startswith("/static/team/") for a in xs if a["slug"] != "chef")
 
 
-def test_geschaeftsfuehrung_ist_der_assistent_auch_nach_umbenennen(firma):
+def test_mitgelieferte_gesichter_gibt_es_wirklich():
+    from pathlib import Path
+    static = Path(ag.__file__).resolve().parents[2] / "static"
+    for a in ag.list_agents(WS):
+        if a["avatar"]:
+            assert (static / a["avatar"].removeprefix("/static/")).is_file(), a["avatar"]
+
+
+def test_geschaeftsfuehrung_heisst_dem_nutzer_gegenueber_wie_der_assistent(firma):
     ag.list_agents(WS)
+    chef = ag.load_agent(ag.OWNER_SLUG, WS)
+    assert chef["name"] == "Lumina"                       # das sehen die Mitarbeiter
+    assert ag.anzeige(chef)["name"] == "Momo"             # das sieht der Nutzer
     (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Chanti"}}))
-    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Chanti"
+    assert ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))["name"] == "Chanti"
+    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Lumina"
+
+
+def test_speichern_aus_der_oberflaeche_schreibt_den_assistentennamen_nicht_in_die_akte(firma):
+    ag.list_agents(WS)
+    neu, _ = ag.save_agent({"slug": "chef", "name": "Momo", "effort": "low"}, WS)
+    assert neu["name"] == "Lumina" and neu["effort"] == "low"
+
+
+def test_kein_mitgelieferter_text_nennt_chanti():
+    from pathlib import Path
+    vorl = Path(ag.__file__).parent / "vorlagen"
+    for f in vorl.rglob("*.md"):
+        assert "Chanti" not in f.read_text(encoding="utf-8"), f
 
 
 def test_kaputte_akte_bleibt_lesbar():
     ag.list_agents(WS)
-    p = ag.AGENTS_DIR / "pruefer" / "AGENT.md"
-    p.write_text("---\nslug: pruefer\nname: X\nmodel: gpt9\npermission_mode: bypassPermissions\ncwd: /etc\n---\n")
-    a = ag.load_agent("pruefer", WS)
+    p = ag.AGENTS_DIR / "tessa" / "AGENT.md"
+    p.write_text("---\nslug: tessa\nname: X\nmodel: gpt9\npermission_mode: bypassPermissions\ncwd: /etc\n---\n")
+    a = ag.load_agent("tessa", WS)
     assert a["model"] == "sonnet"                     # Vorgabe statt Absturz
     assert a["permission_mode"] == "acceptEdits"      # bypass + ungültiges cwd wird abgelehnt
     assert any("model" in m for m in a["problems"]) and any("cwd" in m for m in a["problems"])
@@ -61,53 +88,53 @@ def test_slug_wird_nie_zum_pfad():
 
 def test_teilupdate_behaelt_unbekannte_felder():
     ag.list_agents(WS)
-    vorher = ag.load_agent("entwickler", WS)
-    neu, _ = ag.save_agent({"slug": "entwickler", "effort": "low"}, WS)
+    vorher = ag.load_agent("cody", WS)
+    neu, _ = ag.save_agent({"slug": "cody", "effort": "low"}, WS)
     assert neu["effort"] == "low" and neu["color"] == vorher["color"]
     assert neu["allowed_tools"] == vorher["allowed_tools"]
 
 
 def test_entlassen_loescht_nicht():
     ag.list_agents(WS)
-    assert ag.fire_agent("pruefer", WS)
-    assert "pruefer" not in {a["slug"] for a in ag.list_agents(WS)}
-    assert "pruefer" in {a["slug"] for a in ag.list_agents(WS, include_fired=True)}
+    assert ag.fire_agent("tessa", WS)
+    assert "tessa" not in {a["slug"] for a in ag.list_agents(WS)}
+    assert "tessa" in {a["slug"] for a in ag.list_agents(WS, include_fired=True)}
 
 
 def test_organigramm_kappt_zyklen():
     ag.list_agents(WS)
-    ag.save_agent({"slug": "chef", "reports_to": "entwickler"}, WS)
+    ag.save_agent({"slug": "chef", "reports_to": "cody"}, WS)
     baum = ag.org_tree(WS)
     assert baum["cycles"]                              # kein Absturz, kein Hängen
 
 
 def test_fahigkeiten_sagen_wer_eine_shell_hat():
     ag.list_agents(WS)
-    assert "Shell" in ag.faehigkeiten(ag.load_agent("entwickler", WS))
+    assert "Shell" in ag.faehigkeiten(ag.load_agent("cody", WS))
     assert "Shell" not in ag.faehigkeiten(ag.load_agent("chef", WS))
 
 
 def test_historie_nur_fuer_vorhandene_akten():
     ag.list_agents(WS)
-    ag.historie_eintragen("entwickler", "Login-Fix", "mitgearbeitet", ["/x/a.py"])
+    ag.historie_eintragen("cody", "Login-Fix", "mitgearbeitet", ["/x/a.py"])
     ag.historie_eintragen("gibtsnicht", "egal", "geleitet")
-    assert "Login-Fix" in ag.historie_text("entwickler")
+    assert "Login-Fix" in ag.historie_text("cody")
     assert not (ag.AGENTS_DIR / "gibtsnicht").exists()
 
 
 def test_user_merken_landet_in_den_ergaenzungen_nicht_in_user_md(firma):
     ag.user_read()
-    ok, _ = ag.user_append("mag Kaffee", "entwickler")
+    ok, _ = ag.user_append("mag Kaffee", "cody")
     assert ok and "mag Kaffee" in ag.user_read()                 # die Firma liest es
     assert "mag Kaffee" not in (firma / "USER.md").read_text()   # der Chat-Assistent nicht
     assert "mag Kaffee" in ag.ergaenzungen_read()
 
 
 def test_user_md_nur_anhaengen():
-    ok, _ = ag.user_append("mag Kaffee", "entwickler")
+    ok, _ = ag.user_append("mag Kaffee", "cody")
     assert ok and "mag Kaffee" in ag.user_read()
-    assert ag.user_append("mag Kaffee", "pruefer") == (False, "steht schon drin")
-    assert ag.user_append("   ", "pruefer")[0] is False
+    assert ag.user_append("mag Kaffee", "tessa") == (False, "steht schon drin")
+    assert ag.user_append("   ", "tessa")[0] is False
 
 
 def test_anrede_setzt_den_namen_des_nutzers_ein():
@@ -125,21 +152,21 @@ def test_vorlage_der_installation_sticht(firma):
 # ---------- Anleitungen ----------
 def test_anleitung_anlegen_lesen_verbessern():
     ok, _ = anl.anlegen("playwright-bestaetigen", "Wenn ein Klick eine Seite neu lädt",
-                        "1. expect_navigation benutzen\n2. danach warten, sonst geht der POST verloren", "pruefer")
+                        "1. expect_navigation benutzen\n2. danach warten, sonst geht der POST verloren", "tessa")
     assert ok
-    assert anl.lesen("playwright-bestaetigen")["von"] == "pruefer"
+    assert anl.lesen("playwright-bestaetigen")["von"] == "tessa"
     anl.benutzt_vermerken("playwright-bestaetigen")
     anl.benutzt_vermerken("playwright-bestaetigen")
     ok, msg = anl.anlegen("playwright-bestaetigen", "Wenn ein Klick eine Seite neu lädt",
-                          "1. expect_navigation benutzen\n2. danach warten und das Ergebnis lesen", "entwickler")
+                          "1. expect_navigation benutzen\n2. danach warten und das Ergebnis lesen", "cody")
     assert ok and "aktualisiert" in msg
     x = anl.lesen("playwright-bestaetigen")
-    assert x["von"] == "pruefer" and x["benutzt"].startswith("2")   # Zähler und Urheber bleiben
+    assert x["von"] == "tessa" and x["benutzt"].startswith("2")   # Zähler und Urheber bleiben
     assert "playwright-bestaetigen" in anl.index()
 
 
 def test_anleitung_name_darf_kein_pfad_sein():
-    ok, _ = anl.anlegen("../../etc/x", "Wenn irgendwas ist", "x" * 80, "pruefer")
+    ok, _ = anl.anlegen("../../etc/x", "Wenn irgendwas ist", "x" * 80, "tessa")
     assert not ok
     assert anl.lesen("../x") is None
 
@@ -178,20 +205,3 @@ def test_uebersicht_zaehlt_ohne_quittungen():
 def test_titel_wird_gekuerzt_und_leerer_brief_hat_einen_titel():
     assert len(auf.neu("x" * 500, "b")["titel"]) == 120
     assert auf.neu("", "")["titel"] == "Auftrag"
-
-
-# ---------- Einstellungsverfahren ----------
-def test_kandidat_wird_zur_akte():
-    k = {"slug": " QA ", "name": "Tessa", "titel": "Prüferin", "systemprompt": "Du prüfst.",
-         "model": "sonnet", "effort": "high", "allowed_tools": ["Read"], "can_delegate": False}
-    akte = hiring.als_akte(k, WS)
-    assert akte["slug"] == "qa" and akte["reports_to"] == ag.OWNER_SLUG
-    neu, bad = ag.save_agent(akte, WS)
-    assert neu["slug"] == "qa" and not bad and neu["soul"] == "Du prüfst."
-
-
-def test_prompt_der_kandidatensuche_spricht_den_nutzer_mit_namen_an():
-    ag.list_agents(WS)
-    p = hiring._prompt("Texterin", "weil", "", ag.list_agents(WS), "")
-    assert "Anna" in p and "Kevin" not in p
-    assert p.startswith("[firma-intern]")

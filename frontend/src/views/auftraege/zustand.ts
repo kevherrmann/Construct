@@ -8,10 +8,8 @@ export const ZUSTAND: Record<
   neu: { zeichen: '●', art: '' },
   laeuft: { zeichen: '⚙', art: '' },
   wartet_auf_kevin: { zeichen: '⏸', art: 'wartet' },
-  wartet_auf_einstellung: { zeichen: '👥', art: 'wartet' },
   fertig: { zeichen: '✓', art: 'fertig' },
   abgebrochen: { zeichen: '✕', art: 'aus' },
 }
 
-export const wartetAufNutzer = (s: AuftragStatus) =>
-  s === 'wartet_auf_kevin' || s === 'wartet_auf_einstellung'
+export const wartetAufNutzer = (s: AuftragStatus) => s === 'wartet_auf_kevin'

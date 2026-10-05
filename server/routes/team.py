@@ -1,4 +1,4 @@
-"""API des Team-Modus: Belegschaft, Aufträge, Direktgespräch, Einstellung.
+"""API des Team-Modus: Belegschaft, Aufträge, Direktgespräch.
 
 Alles unter /api/team/… und nur, wenn der Team-Modus an ist (⚙ Einstellungen).
 Die Arbeit selbst steht in server/team/ (engine.py: Dispatcher und Züge,
@@ -18,7 +18,7 @@ from server.runs import RUNS, SSE_HEADERS, build_prompt, stdin_message
 from server.sessions import SID_RE, _parse_transcript_lines
 from server.team import agents as ag
 from server.team import auftraege as auf
-from server.team import bus, engine, hiring
+from server.team import bus, engine
 from server.team.gedaechtnis import (CHAT_MAX_BYTES, CHAT_MAX_MSGS, chat_session_id,
                                       chat_state_file, chat_umfang, verdichten)
 
@@ -36,7 +36,7 @@ router = APIRouter(dependencies=[Depends(team_an)])
 
 @router.get("/api/team/agents")
 def agents_list(fired: int = 0):
-    return {"agents": ag.list_agents(WORKSPACE, include_fired=bool(fired)),
+    return {"agents": [ag.anzeige(a) for a in ag.list_agents(WORKSPACE, include_fired=bool(fired))],
             "org": ag.org_tree(WORKSPACE)}
 
 
@@ -45,7 +45,7 @@ def agent_get(slug: str):
     a = ag.load_agent(slug, WORKSPACE)
     if not a:
         return JSONResponse({"error": "unbekannt"}, status_code=404)
-    return a
+    return ag.anzeige(a)
 
 
 @router.post("/api/team/agent/{slug}")
@@ -55,7 +55,7 @@ async def agent_set(slug: str, req: Request):
     a, bad = ag.save_agent(body, WORKSPACE)
     if a is None:
         return JSONResponse({"error": bad[0] if bad else "ungueltig"}, status_code=400)
-    return {"ok": True, "agent": a, "problems": bad}
+    return {"ok": True, "agent": ag.anzeige(a), "problems": bad}
 
 
 @router.post("/api/team/agents")
@@ -96,7 +96,7 @@ async def agent_chat(slug: str, req: Request):
     run = engine.start_agent_chat(a, build_prompt(text, images), images)
     run.verdichtet = verdichtet
     return {"run_id": run.id, "session_id": run.session_id or "", "verdichtet": verdichtet,
-            "agent": {k: a[k] for k in ("slug", "name", "title", "color", "model", "effort")}}
+            "agent": {k: ag.anzeige(a)[k] for k in ("slug", "name", "title", "color", "model", "effort")}}
 
 
 @router.get("/api/team/agent/{slug}/chat")
@@ -121,8 +121,8 @@ def agent_chat_history(slug: str):
             "umfang": {"bytes": groesse, "msgs": anzahl,
                        "max_bytes": CHAT_MAX_BYTES, "max_msgs": CHAT_MAX_MSGS},
             "memory": a.get("memory", ""),
-            "agent": {k: a[k] for k in ("slug", "name", "title", "color", "model",
-                                        "effort", "cwd", "permission_mode", "avatar")}}
+            "agent": {k: ag.anzeige(a)[k] for k in ("slug", "name", "title", "color", "model",
+                                                    "effort", "cwd", "permission_mode", "avatar")}}
 
 
 @router.delete("/api/team/agent/{slug}/chat")
@@ -167,8 +167,7 @@ def auftraege_liste():
     for t in auf.alle():
         out.append({k: t[k] for k in ("id", "titel", "status", "owner",
                                       "erstellt", "verbraucht")}
-                   | {"eskalation": t.get("eskalation"),
-                      "einstellung": bool(t.get("einstellung"))}
+                   | {"eskalation": t.get("eskalation")}
                    | auf.uebersicht(t["id"]))
     return {"tickets": out}
 
@@ -206,7 +205,7 @@ def auftrag_detail(tid: str):
     if not t:
         return JSONResponse({"error": "unbekannt"}, status_code=404)
     return {"ticket": t, "verlauf": auf.verlauf(tid),
-            "agents": {x["slug"]: {k: x[k] for k in ("name", "title", "color", "avatar")}
+            "agents": {x["slug"]: {k: ag.anzeige(x)[k] for k in ("name", "title", "color", "avatar")}
                        for x in ag.list_agents(WORKSPACE, include_fired=True)}}
 
 
@@ -254,7 +253,6 @@ async def auftrag_antwort(tid: str, req: Request):
         def _abbrechen(x):
             x["status"] = "abgebrochen"
             x["eskalation"] = None
-            x["einstellung"] = None
         t = await engine.auftrag_aendern(tid, _abbrechen) or t
         # Laeuft gerade ein Zug, wird er beendet — vorher arbeitete der
         # Prozess weiter und gab Geld aus, fuer einen Auftrag, den es nicht
@@ -270,9 +268,6 @@ async def auftrag_antwort(tid: str, req: Request):
         return {"ok": True, "ticket": t}
     if t["status"] in ("fertig", "abgebrochen"):
         return JSONResponse({"error": "Der Auftrag ist abgeschlossen."}, status_code=400)
-    if t["status"] == "wartet_auf_einstellung":
-        return JSONResponse({"error": "Erst die Einstellung entscheiden (oder „niemanden“)."},
-                            status_code=400)
     t = await engine.kevin_weiter(tid, str(body.get("an") or "").strip(), text)
     return {"ok": True, "ticket": t}
 
@@ -319,9 +314,6 @@ async def auftrag_say(tid: str, req: Request):
 
     if t["status"] in ("fertig", "abgebrochen"):
         return JSONResponse({"error": "Der Auftrag ist abgeschlossen."}, status_code=400)
-    if t["status"] == "wartet_auf_einstellung":
-        return JSONResponse({"error": "Erst die Einstellung entscheiden (oder „niemanden“)."},
-                            status_code=400)
     t = await engine.kevin_weiter(tid, str(body.get("an") or "").strip(), text)
     return {"ok": True, "wohin": "eingereiht"}
 
@@ -336,117 +328,15 @@ def team_state():
             continue
         a = ag.load_agent(r.agent_slug, WORKSPACE) or {}
         t = auf.laden(r.auftrag_id) or {}
-        aktiv.append({"agent": r.agent_slug, "name": a.get("name", r.agent_slug),
+        aktiv.append({"agent": r.agent_slug, "name": ag.anzeige(a).get("name", r.agent_slug),
                       "color": a.get("color", "126,231,135"),
                       "ticket": r.auftrag_id, "titel": t.get("titel", ""),
                       "seit": int(time.time() - r.started)})
     wartend = [{"id": t["id"], "titel": t["titel"],
-                "grund": (t.get("eskalation") or {}).get("bremse")
-                         or ("einstellung" if t.get("einstellung") else "")}
+                "grund": (t.get("eskalation") or {}).get("bremse") or ""}
                for t in auf.alle()
-               if t["status"] in ("wartet_auf_kevin", "wartet_auf_einstellung")]
+               if t["status"] == "wartet_auf_kevin"]
     return {"aktiv": aktiv, "wartend": wartend, "pausiert": engine.PAUSIERT}
-
-
-@router.post("/api/team/auftraege/{tid}/kandidaten")
-async def auftrag_kandidaten(tid: str, req: Request):
-    """Einen Vorschlag erzeugen (oder einen neuen anfordern)."""
-    t = auf.laden(tid)
-    if not t or not t.get("einstellung"):
-        return JSONResponse({"error": "Für diesen Auftrag steht keine Einstellung an."},
-                            status_code=400)
-    e = t["einstellung"]
-    body = await req.json() if req.headers.get("content-length") else {}
-    hinweis = str((body or {}).get("hinweis") or "").strip()[:600]
-    # Jede Nachforderung zaehlt — sonst liesse sich die Grenze mit leerem
-    # Hinweistext beliebig umgehen, je Runde ein paar Cent.
-    nachschlag = bool(e.get("kandidaten"))
-    if nachschlag and e.get("runden", 0) >= hiring.RUNDEN_MAX:
-        return JSONResponse(
-            {"error": f"Nach {hiring.RUNDEN_MAX} Nachschlägen ist Schluss — sonst wäre das "
-                      f"genau die Endlosschleife, gegen die der Rest gebaut ist. "
-                      f"Leg jemanden selbst an oder brich ab."}, status_code=400)
-    liste, fehler = await asyncio.to_thread(
-        hiring.kandidaten, e["rolle"], e["warum"], t["brief"],
-        ag.list_agents(WORKSPACE), claude_bin() or "claude", claude_env(), hinweis)
-    if fehler:
-        return JSONResponse({"error": fehler}, status_code=502)
-
-    def _merken(x):
-        # Frisch laden statt das t von vor der Suche zurueckzuschreiben: die
-        # dauert eine halbe Minute, und ein anderer Zug koennte inzwischen
-        # gebucht haben.
-        if not x.get("einstellung"):
-            return
-        x["einstellung"]["kandidaten"] = liste
-        if nachschlag:
-            x["einstellung"]["runden"] = x["einstellung"].get("runden", 0) + 1
-    t = await engine.auftrag_aendern(tid, _merken)
-    if not t or not t.get("einstellung"):
-        return JSONResponse({"error": "Die Einstellung wurde inzwischen entschieden."},
-                            status_code=409)
-    e = t["einstellung"]
-    engine.feed(tid).emit({"type": "einstellung", **e})
-    return {"ok": True, "einstellung": e, "runden_max": hiring.RUNDEN_MAX}
-
-
-@router.post("/api/team/auftraege/{tid}/einstellen")
-async def auftrag_einstellen(tid: str, req: Request):
-    """Kevin hat gewaehlt: Akte anlegen, Auftrag laeuft weiter."""
-    t = auf.laden(tid)
-    if not t:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
-    body = await req.json()
-    k = body.get("kandidat") or {}
-    daten = hiring.als_akte(k, WORKSPACE)
-    if not ag.SLUG_RE.match(daten["slug"]):
-        return JSONResponse({"error": f"„{daten['slug']}“ ist als Kürzel unbrauchbar."},
-                            status_code=400)
-    if ag.load_agent(daten["slug"], WORKSPACE):
-        return JSONResponse({"error": f"„{daten['slug']}“ arbeitet hier schon."},
-                            status_code=409)
-    a, maengel = ag.save_agent(daten, WORKSPACE)
-    rolle = (t.get("einstellung") or {}).get("rolle", "")
-
-    def _weiter(x):
-        engine.wartezeit_abziehen(x)
-        x["einstellung"] = None
-        x["status"] = "laeuft"
-    t = await engine.auftrag_aendern(tid, _weiter) or t
-    engine.nachliefern(tid)
-    auf.anhaengen(tid, {"art": "system",
-                       "text": f"Kevin hat {a['name']} als {a['title']} eingestellt."})
-    engine.feed(tid).emit({"type": "eingestellt", "agent": a["slug"], "name": a["name"]})
-    # Der Zug der Geschaeftsfuehrung ist laengst vorbei — sie braucht eine NEUE
-    # Nachricht, sonst passiert nach dem Einstellen einfach nichts mehr.
-    engine.bus_einreihen(t, "kevin", t["owner"], "auftrag",
-                  f"{a['name']} ({a['slug']}) ist eingestellt: {a['title']}. "
-                  f"Das war die gesuchte Rolle „{rolle}\u201c. Verteile jetzt weiter.")
-    return {"ok": True, "agent": a, "problems": maengel}
-
-
-@router.post("/api/team/auftraege/{tid}/keiner")
-async def auftrag_keiner(tid: str, req: Request):
-    """Kevin will niemanden einstellen — die Firma muss mit den Vorhandenen weiter."""
-    t = auf.laden(tid)
-    if not t:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
-    body = await req.json() if req.headers.get("content-length") else {}
-    grund = str((body or {}).get("grund") or "").strip()[:600]
-    rolle = (t.get("einstellung") or {}).get("rolle", "")
-
-    def _weiter(x):
-        engine.wartezeit_abziehen(x)
-        x["einstellung"] = None
-        x["status"] = "laeuft"
-    t = await engine.auftrag_aendern(tid, _weiter) or t
-    engine.nachliefern(tid)
-    engine.bus_einreihen(t, "kevin", t["owner"], "auftrag",
-                  f"Für „{rolle}\u201c wird niemand eingestellt."
-                  + (f" Kevins Begründung: {grund}" if grund else "")
-                  + " Verteile die Arbeit auf die vorhandene Belegschaft oder mach es "
-                    "selbst. Geht das gar nicht, sag mir warum.")
-    return {"ok": True}
 
 
 

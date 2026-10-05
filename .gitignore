@@ -83,3 +83,6 @@ static/figur*/
 
 # Schattenbetrieb der automatischen Modellwahl (auto_modell.py)
 auto_schatten.jsonl
+
+# Die mitgelieferten Charaktere der Mitarbeiter gehören zum Programm (SOUL.md oben meint die des Nutzers)
+!/server/team/vorlagen/agents.default/*/SOUL.md

@@ -25,7 +25,7 @@ SOFORT = ("zugestellt \u2014 beende jetzt deinen Zug. Die Antwort erreicht dich 
           "als neue Nachricht.")
 # Werkzeuge, die eine Nachricht in den Auftrag geben. Davon eine pro Zug \u2014
 # ausser `beauftragen` an verschiedene Leute, davon bis zu:
-ROUTING = ("beauftragen", "fragen", "antworten", "liefern", "eskalieren", "einstellen")
+ROUTING = ("beauftragen", "fragen", "antworten", "liefern", "eskalieren")
 BEAUFTRAGEN_MAX = 3
 
 
@@ -342,7 +342,7 @@ async def _bus_aufruf(body: dict) -> dict:
                                    "text": text[:20000], "dateien": dateien})
             engine.feed(tid).emit({"type": "msg", **e})
             zaehl()
-            engine.auftrag_anhalten(t, "eskaliert", f"{a['name']} hat dir geantwortet.",
+            engine.auftrag_anhalten(t, "eskaliert", f"{ag.anzeige(a)['name']} hat dir geantwortet.",
                             "Wie soll es weitergehen?", an=slug)
             return {"text": "Antwort ist bei Kevin, der Auftrag wartet auf ihn. Beende deinen Zug."}
         engine.bus_einreihen(t, slug, empf, "ergebnis" if werkzeug == "liefern" else "antwort",
@@ -355,23 +355,5 @@ async def _bus_aufruf(body: dict) -> dict:
         engine.auftrag_anhalten(t, "eskaliert", str(args.get("grund") or ""),
                         str(args.get("frage") or ""), an=slug)
         return {"text": "Kevin ist informiert, der Auftrag pausiert. Beende deinen Zug."}
-
-    if werkzeug == "einstellen":
-        if not a["can_hire"]:
-            return _bus_fehler(f"{a['name']} darf niemanden einstellen.")
-        zaehl()
-
-        def _einstellung(x):
-            x["status"] = "wartet_auf_einstellung"
-            x["einstellung"] = {"rolle": str(args.get("rolle") or ""),
-                                "warum": str(args.get("warum") or ""),
-                                "kandidaten": [], "runden": 0, "seit": time.time()}
-            x["in_arbeit"] = None
-        t = await engine.auftrag_aendern(tid, _einstellung) or t
-        engine.feed(tid).emit({"type": "einstellung", **t["einstellung"]})
-        rolle = t["einstellung"]["rolle"]
-        engine.tg_send(f"\U0001f465 Auftrag \u201e{t['titel']}\u201c: {a['name']} moechte "
-                f"jemanden fuer \u201e{rolle}\u201c einstellen.")
-        return {"text": "Anfrage gestellt. Kevin waehlt aus. Beende deinen Zug."}
 
     return _bus_fehler(f"Unbekanntes Werkzeug: {werkzeug}")

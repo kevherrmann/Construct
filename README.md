@@ -107,7 +107,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **Team mode (optional).** A company of AI employees next to the single
   assistant: staff files (character, model, effort, tools, permissions, memory),
   jobs that the staff pass between each other over an internal bus, safety
-  brakes against endless loops, a hiring procedure, shared know-how
+  brakes against endless loops, a fixed crew of five, shared know-how
   ("instructions") and a fixed test bench. The assistant is the managing
   director. You decide per task: small things the assistant does alone, big ones
   you give to the company (`/firma …`, the 🏢 button on a ticket, or — if you
@@ -343,7 +343,7 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/runs.py`, `server/hermes_runs.py` | Detached chat runs (claude CLI / Hermes): start, stream, inject, background tasks |
 | `server/sessions.py` | Claude Code sessions on disk: metadata, transcripts, filters |
 | `server/tickets.py` | Tickets inside a session: storage, assignment, the assistant's marker lines |
-| `server/team/`, `team_mcp.py` | Team mode: staff files, jobs, brakes, hiring, dispatcher, the company bus (MCP server) |
+| `server/team/`, `team_mcp.py` | Team mode: staff files, jobs, brakes, dispatcher, the company bus (MCP server) |
 | `scripts/pruefstand.py` | Test bench for the company: fixed jobs, measured results, comparison with the last run |
 | `server/scheduler.py` | Scheduled tasks from calendar events |
 | `tests/` | Backend tests (`pip install -r requirements-dev.txt && pytest`) |

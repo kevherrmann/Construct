@@ -75,12 +75,6 @@ WERKZEUGE = [
      "inputSchema": {"type": "object", "properties": {
          "grund": {"type": "string"}, "frage": {"type": "string"}},
          "required": ["grund", "frage"]}},
-    {"name": "einstellen",
-     "description": ("Es fehlt eine Rolle in der Firma. Kevin bekommt einen Vorschlag "
-                     "und stellt ein, aendert oder lehnt ab. Nur fuer die Geschaeftsfuehrung."),
-     "inputSchema": {"type": "object", "properties": {
-         "rolle": {"type": "string"}, "warum": {"type": "string"}},
-         "required": ["rolle", "warum"]}},
     {"name": "rechnen",
      "description": ("Rechne einen Ausdruck exakt aus. BENUTZE DAS IMMER, wenn ein Ergebnis "
                      "stimmen muss — im Kopf rechnen geht bei Geld und langen Zahlen schief. "

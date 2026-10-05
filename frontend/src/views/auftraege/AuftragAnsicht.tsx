@@ -10,7 +10,6 @@ import {
 } from '@/api/team'
 import { Avatar } from '../personal/Person'
 import { besetzung, type Knoten } from './besetzung'
-import { Einstellung } from './Einstellung'
 import { Eskalation } from './Eskalation'
 import { LiveZug } from './LiveZug'
 import { NachrichtKarte } from './NachrichtKarte'
@@ -236,9 +235,8 @@ export function AuftragAnsicht({ id }: { id: string }) {
       </h2>
       <Stand d={d} ende={verlauf[verlauf.length - 1]?.ts ?? 0} />
       {buehne}
-      <Einstellung auftrag={tk} />
       <Eskalation auftrag={tk} leute={leute} />
-      <Einwurf id={id} offen={laeuftNoch && tk.status !== 'wartet_auf_einstellung'} />
+      <Einwurf id={id} offen={laeuftNoch} />
     </div>
   )
 }

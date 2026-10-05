@@ -41,13 +41,11 @@ export function FirmaLeiste() {
   const rufe = wartend.filter((x) => !(imAuftragBereich && x.id === auswahl))
   const ruf = rufe[0]
   const was = ruf
-    ? ruf.einstellung
-      ? t('wartet auf deine Wahl')
-      : ruf.eskalation
-        ? ruf.eskalation.bremse === 'eskaliert'
-          ? t('hat eine Rückfrage an dich')
-          : `${t('ist angehalten:')} ${t(BREMSEN[ruf.eskalation.bremse] ?? ruf.eskalation.bremse)}`
-        : t('wartet auf dich')
+    ? ruf.eskalation
+      ? ruf.eskalation.bremse === 'eskaliert'
+        ? t('hat eine Rückfrage an dich')
+        : `${t('ist angehalten:')} ${t(BREMSEN[ruf.eskalation.bremse] ?? ruf.eskalation.bremse)}`
+      : t('wartet auf dich')
     : ''
   // Fertige Aufträge, die man noch nicht gesehen hat — sonst fällt eine Lieferung
   // durch, während man woanders ist.
