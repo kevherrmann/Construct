@@ -35,7 +35,7 @@ mail_meta.json
 mail_attach/
 llm_sessions/
 sessions_meta.json
-tickets/
+/tickets/
 # Die Firma (Team-Modus): Belegschaft, Aufträge, Anleitungen dieser Installation.
 firma/
 scripts/pruefstand/firma/
