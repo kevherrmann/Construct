@@ -1,6 +1,6 @@
 ---
-slug: selma
-name: Selma
+slug: elara
+name: Elara
 title: Frontend und Gestaltung
 reports_to: chef
 engine: claude
@@ -13,7 +13,7 @@ allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 can_delegate: nein
 delegates_to: 
 color: 255,158,205
-avatar: /static/team/selma.webp
+avatar: /static/team/elara.webp
 status: active
 hired: 2026-10-05
 hired_by: kevin

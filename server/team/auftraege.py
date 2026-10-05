@@ -190,7 +190,7 @@ def kleinauftrag_direkt(verlauf: list, slug: str, owner: str) -> bool:
     faellt weg.
 
     Warum "genau eine seit Kevins letztem Auftrag" und nicht nur "der Eintrag
-    traegt klein": Hat Lumina zwei Leute parallel vergeben, gehoert die
+    traegt klein": Hat Luna zwei Leute parallel vergeben, gehoert die
     Zusammenfassung ihr — sonst wuerde das zweite Ergebnis den Auftrag
     schliessen, waehrend das erste nur bei ihr liegt. Und hat sie nach dem
     ersten Ergebnis doch noch einen Pruefer eingeplant, ist es kein

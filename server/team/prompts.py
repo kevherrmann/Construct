@@ -44,7 +44,7 @@ def auftrags_prompt(a: dict, t: dict, nachricht: dict) -> str:
     if offen and nachricht.get("art") != "auftrag":
         kopf.append("Von dir beauftragt und noch ohne Ergebnis: " + ", ".join(offen))
     # Was schon im Postfach liegt, aber erst im naechsten Zug kommt. Ohne den
-    # Satz sagte Lumina am 11.09.2026 "ich warte auf Tessa", waehrend Tessas
+    # Satz sagte Luna am 11.09.2026 "ich warte auf Miranda", waehrend Mirandas
     # Ergebnis laengst da war — nur hinter Raukes in der Reihe.
     liegt = [n for n in auf.offene_nachrichten(t["id"])
              if n.get("an") == a["slug"] and n.get("id") != nachricht.get("id")]
@@ -67,7 +67,7 @@ def zug_abschluss(a: dict, t: dict, nachricht: dict) -> str:
     Warum das hier steht, obwohl PROTOCOL.md es laengst sagt: dort ist es Punkt
     fuenf einer Liste, und danach kommen noch zwei Dokumente. Gelesen wird es,
     befolgt nicht. Der Pruefstand hat am 03.09.2026 an zwei von vier Faellen
-    gezeigt, wie das ausgeht — Lumina fasst ein fertiges Ergebnis korrekt
+    gezeigt, wie das ausgeht — Luna fasst ein fertiges Ergebnis korrekt
     zusammen und ruft `liefern` nicht auf, Chanti stellt eine gute Rueckfrage
     und ruft `eskalieren` nicht auf. Inhaltlich beide richtig, nur nie am Bus
     angekommen; die Notbremse `stiller_zug` holt dann Kevin zu einem Auftrag,
@@ -123,7 +123,7 @@ def ausstehend(slug: str, verlauf: list) -> list:
 
     Gebraucht, seit ein Verteiler mehrere Leute in EINEM Zug beauftragen darf:
     kommt das erste Ergebnis herein, muss er wissen, dass noch eines fehlt —
-    sonst liefert er an Kevin, waehrend Selma noch an der Oberflaeche sitzt.
+    sonst liefert er an Kevin, waehrend Elara noch an der Oberflaeche sitzt.
     """
     offen = []
     for e in verlauf:

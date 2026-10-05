@@ -449,9 +449,9 @@ export const PAARE: Record<PaarId, Platz> = {
  *  Bilder von Tisch und Werkbank. Alle anderen bekommen einen Platz am Rand. */
 export const SITZE: Record<string, { paar: PaarId; seite: Seite }> = {
   cody: { paar: 'a', seite: 'links' },
-  selma: { paar: 'a', seite: 'rechts' },
-  tessa: { paar: 'b', seite: 'links' },
-  veritas: { paar: 'b', seite: 'rechts' },
+  elara: { paar: 'a', seite: 'rechts' },
+  miranda: { paar: 'b', seite: 'links' },
+  janus: { paar: 'b', seite: 'rechts' },
 }
 
 /** Das Tischbild: 757 × 560 px mit 20 px Rand für den Standschatten (Inhalt

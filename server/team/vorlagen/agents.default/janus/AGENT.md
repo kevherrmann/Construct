@@ -1,6 +1,6 @@
 ---
-slug: veritas
-name: Veritas
+slug: janus
+name: Janus
 title: Code-Auditor (Sicherheit und Struktur)
 reports_to: chef
 engine: claude
@@ -13,7 +13,7 @@ allowed_tools: Read, Bash, Grep, Glob, WebSearch, WebFetch
 can_delegate: nein
 delegates_to: 
 color: 180,196,120
-avatar: /static/team/veritas.webp
+avatar: /static/team/janus.webp
 status: active
 hired: 2026-10-05
 hired_by: kevin

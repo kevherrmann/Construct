@@ -1,6 +1,6 @@
 ---
 slug: chef
-name: Lumina
+name: Luna
 title: Geschäftsführung
 reports_to: 
 engine: claude

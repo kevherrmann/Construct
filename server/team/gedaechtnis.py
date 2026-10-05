@@ -171,7 +171,7 @@ async def gedaechtnis_eindicken(a: dict) -> bool:
     Warum das eigens noetig ist: `verdichten()` haengt am Direktgespraech und
     laeuft nur an, wenn dessen Transkript ueber CHAT_MAX_BYTES waechst. Gefuellt
     wird das Gedaechtnis aber in der AUFTRAGSARBEIT. Wer viel arbeitet und
-    selten mit Kevin redet — Selma etwa, 5268 von 8000 Zeichen ohne ein
+    selten mit Kevin redet — Elara etwa, 5268 von 8000 Zeichen ohne ein
     einziges langes Gespraech — lief so auf die Grenze zu und konnte danach
     DAUERHAFT nichts mehr lernen: `merken` scheiterte jedes Mal und verwies auf
     eine Verdichtung, die nie kam. Aufgefallen waere das niemandem, die

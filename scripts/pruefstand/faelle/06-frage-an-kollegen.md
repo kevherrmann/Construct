@@ -7,8 +7,8 @@ max_hops: 6
 max_kosten: 1.00
 timeout: 420
 dateien: anzahl.md
-agenten: cody, tessa
+agenten: cody, miranda
 ---
-Frag Tessa über den Bus, wie viele Dateien in deinem Arbeitsordner liegen —
+Frag Miranda über den Bus, wie viele Dateien in deinem Arbeitsordner liegen —
 frag sie wirklich, sieh nicht selbst nach. Ihre Antwort schreibst du in
 `anzahl.md` in deinem Arbeitsordner. Danach lieferst du ab.

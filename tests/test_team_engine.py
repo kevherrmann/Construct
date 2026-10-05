@@ -136,8 +136,8 @@ def test_normaler_auftrag_geht_ueber_den_pruefer_zurueck_zum_chef(firma):
     d = api(firma, f"/api/team/auftraege/{tid}")
     assert pfad(d["verlauf"]) == [
         ("kevin", "chef", "auftrag"), ("chef", "cody", "auftrag"),
-        ("cody", "chef", "ergebnis"), ("chef", "tessa", "auftrag"),
-        ("tessa", "chef", "ergebnis"), ("chef", "kevin", "ergebnis")]
+        ("cody", "chef", "ergebnis"), ("chef", "miranda", "auftrag"),
+        ("miranda", "chef", "ergebnis"), ("chef", "kevin", "ergebnis")]
     assert t["verbraucht"]["hops"] == 5
     # die Beteiligten haben den Auftrag in ihrer Akte
     from server.team import agents as ag

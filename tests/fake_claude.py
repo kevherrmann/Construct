@@ -75,7 +75,7 @@ else:
             bus("liefern", ergebnis="Nichts zu tun.")
     elif AGENT == "chef" and art == "ergebnis":
         if "[kette]" in text and "geprüft" not in text:
-            bus("beauftragen", an="tessa", auftrag="Prüfe das Ergebnis.", groesse="normal")
+            bus("beauftragen", an="miranda", auftrag="Prüfe das Ergebnis.", groesse="normal")
         else:
             bus("liefern", ergebnis="Alles fertig, so sieht es jetzt aus.")
     elif AGENT == "cody" and art == "auftrag":
@@ -87,7 +87,7 @@ else:
             bus("liefern", ergebnis="gebaut", dateien=[])
     elif AGENT == "cody" and art == "antwort":
         bus("liefern", ergebnis="gebaut, in der gewünschten Farbe")
-    elif AGENT == "tessa":
+    elif AGENT == "miranda":
         bus("liefern", ergebnis="geprüft: in Ordnung")
 
 out({"type": "result", "subtype": "success", "session_id": sid, "total_cost_usd": 0.01,

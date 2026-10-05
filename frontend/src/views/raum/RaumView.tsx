@@ -47,7 +47,7 @@ import { RegalSchild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
 import { useTeamBlase } from './useTeamBlase'
-import { useTeamStand } from '@/api/team'
+import { useAuftraege, useTeamStand } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
@@ -442,7 +442,13 @@ export function RaumView() {
   const team = useTeamBlase(buero?.werk ?? null)
   const teamSpricht = !!team && !lage.live
   const teamAmWerk = teamSpricht && team.slug === buero?.werk
-  useRaumKlang({ ansicht, fokus, tauchen, amWerk })
+  // Wartet ein Auftrag auf dich, stellt die Chefin die Frage in ihrer Blase, sobald
+  // gerade niemand anderes spricht. „Antworten“ öffnet den Auftrag.
+  const auftraege = useAuftraege()
+  const wartet = buero ? auftraege.data?.find((a) => a.status === 'wartet_auf_kevin') : undefined
+  const rueckfrage = !teamSpricht && !lage.live && wartet?.eskalation ? wartet : null
+  // Getippt wird hörbar, wer auch immer an der Werkbank steht: du oder ein Mitarbeiter.
+  useRaumKlang({ ansicht, fokus, tauchen, amWerk: amWerk || !!buero?.werk })
   // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
   const sound = useSettings((st) => st.settings.sound)
   // Abgeschaltete Kacheln gibt es auch im Raum nicht: weder Objekt noch Station.
@@ -463,13 +469,26 @@ export function RaumView() {
   // Schlüssel = deine wievielte Frage: bleibt stehen, wenn der Lauf endet
   // und die Antwort in den Verlauf wandert.
   const fragen = conv ? conv.history.filter((i) => i.kind === 'user').length : 0
-  const blasenLage = teamSpricht ? team.lage : lage
+  const blasenLage = teamSpricht
+    ? team.lage
+    : rueckfrage?.eskalation
+      ? {
+          ...lage,
+          md: `**${rueckfrage.titel}**\n\n${rueckfrage.eskalation.frage || rueckfrage.eskalation.grund}`,
+        }
+      : lage
   const blasenStatus = teamSpricht
     ? blasenLage.phase === 'ruht'
       ? ''
       : t(PHASE_TEXT[blasenLage.phase], { d: blasenLage.detail })
-    : status
-  const antwortKey = teamSpricht ? `team:${team.run}` : `${conv?.key ?? ''}:${fragen}`
+    : rueckfrage
+      ? `⏸ ${t('wartet auf dich')}`
+      : status
+  const antwortKey = teamSpricht
+    ? `team:${team.run}`
+    : rueckfrage
+      ? `frage:${rueckfrage.id}:${rueckfrage.eskalation?.seit ?? ''}`
+      : `${conv?.key ?? ''}:${fragen}`
   const [zuFuer, setZuFuer] = useState<string | null>(null)
   const blaseZu = zuFuer === antwortKey
   const hatBlase = !!(blasenLage.md || blasenStatus)
@@ -491,11 +510,13 @@ export function RaumView() {
       ? projekt || t(st.hint)
       : st.id === 'pult'
         ? `${modelName} · ${modusName}`
-        : st.id === 'archiv'
-          ? conv?.sessionId
-            ? t('Offen: {t}', { t: sessionTitel || t('diese Session') })
-            : t('Offen: neue Session')
-          : t(st.hint)
+        : st.id === 'firma' && wartet
+          ? `⏸ ${t('wartet auf dich')}: ${wartet.titel}`
+          : st.id === 'archiv'
+            ? conv?.sessionId
+              ? t('Offen: {t}', { t: sessionTitel || t('diese Session') })
+              : t('Offen: neue Session')
+            : t(st.hint)
 
   const auftritt = ansicht ? AUFTRITT[ansicht] : null
   // Kompakt (Handy, Tablet hochkant): der Raum ist ein Panorama zum Wischen,
@@ -543,8 +564,12 @@ export function RaumView() {
         rechts={teamSpricht ? teamAmWerk : amWerk}
         team={teamAmWerk}
         unten={kompakt}
+        knopf={rueckfrage ? `↩ ${t('Antworten')}` : undefined}
         onVerlauf={() => {
-          if (teamSpricht) {
+          if (rueckfrage) {
+            useAuftraegeAnsicht.getState().oeffne(rueckfrage.id)
+            setAnsicht('auftraege')
+          } else if (teamSpricht) {
             // Der ganze Zug steht in den Aufträgen, bei der Person
             const a = useAuftraegeAnsicht.getState()
             a.oeffne(team.auftrag)
@@ -966,6 +991,7 @@ function Sprechblase({
   rechts,
   team = false,
   unten = false,
+  knopf,
   onVerlauf,
   onZu,
 }: {
@@ -980,6 +1006,8 @@ function Sprechblase({
   team?: boolean
   /** Kompakt: als Untertitel über der Sprechzeile statt neben der Figur. */
   unten?: boolean
+  /** Beschriftung des Knopfs oben (sonst „☰ Verlauf“). */
+  knopf?: string
   onVerlauf: () => void
   onZu: () => void
 }) {
@@ -1005,7 +1033,7 @@ function Sprechblase({
         <b>{name}</b>
         {status && <span className={s.status}>{status}</span>}
         <button type="button" className={s.blasenKnopf} onClick={onVerlauf}>
-          ☰ {t('Verlauf')}
+          {knopf ?? `☰ ${t('Verlauf')}`}
         </button>
         <button
           type="button"

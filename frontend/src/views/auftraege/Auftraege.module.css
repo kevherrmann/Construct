@@ -208,8 +208,8 @@
   cursor: default;
 }
 .gefahr {
-  color: #ff5c5c;
-  border-color: #5a1f1f;
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 45%, transparent);
 }
 .msg,
 .leise {
@@ -404,7 +404,7 @@
   color: var(--green-dim);
 }
 .notiz.bremse {
-  border-color: #5a1f1f;
+  border-color: color-mix(in srgb, var(--err) 45%, transparent);
 }
 .fertigbox {
   border: 1px solid #2a5f3a;
@@ -417,31 +417,38 @@
   border-left: 1px solid var(--green-faint);
 }
 
-/* Eskalation */
+/* Eskalation: die Frage als Nachricht dessen, der fragt (seine Farbe), mit
+   Antwortfeld darunter. Hervorgehoben durch Rahmen und Kopf, nicht durch Alarmrot. */
 .eskal {
-  border: 1px solid #5a1f1f;
-  background: rgba(255, 92, 92, 0.05);
-  border-radius: var(--radius);
-  padding: 12px 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.05);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
   margin: 16px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.12);
 }
-.eskal h4 {
-  margin: 0;
-  font-size: 13px;
+.eskalKopf {
+  font-size: 10.5px;
   letter-spacing: 1.5px;
-  color: #ff8c8c;
-  font-weight: normal;
+  text-transform: uppercase;
+  color: rgb(var(--accent-rgb));
 }
-.frage {
-  color: var(--soft);
+.eskal .zeile {
+  margin: 10px 0 0;
 }
-.anwen {
-  font-size: 12px;
+.anlass {
+  font-size: 12.5px;
   color: var(--green-dim);
+  padding-bottom: 7px;
+  margin-bottom: 7px;
+  border-bottom: 1px dashed var(--green-faint);
+}
+.anlass > :first-child,
+.eskal .bubble > :first-child {
+  margin-top: 0;
+}
+.antwort {
+  margin: 10px 0 0 42px;
 }
 .einwurf {
   margin-top: 18px;

@@ -93,7 +93,7 @@ class Kleinauftrag(unittest.TestCase):
         self.assertFalse(tickets.kleinauftrag_direkt(v, "cody", "lumina"))
 
     def test_zwei_parallel_vergeben_ist_nicht_klein(self):
-        # Sonst schloesse Selmas Ergebnis den Auftrag, waehrend Codys nur bei Lumina liegt.
+        # Sonst schloesse Elaras Ergebnis den Auftrag, waehrend Codys nur bei Luna liegt.
         v = self._k(("kevin", "lumina", "auftrag", ""),
                     ("lumina", "cody", "auftrag", "klein"),
                     ("lumina", "css-spezialist", "auftrag", "klein"))
@@ -114,7 +114,7 @@ class Kleinauftrag(unittest.TestCase):
         self.assertTrue(tickets.kleinauftrag_direkt(v, "cody", "lumina"))
 
     def test_kevins_neuer_auftrag_setzt_zurueck(self):
-        # Einwurf als AUFTRAG an Lumina: danach zaehlt nur, was sie neu vergibt.
+        # Einwurf als AUFTRAG an Luna: danach zaehlt nur, was sie neu vergibt.
         v = self._k(("kevin", "lumina", "auftrag", ""),
                     ("lumina", "cody", "auftrag", "klein"),
                     ("kevin", "lumina", "auftrag", ""),
@@ -125,7 +125,7 @@ class Kleinauftrag(unittest.TestCase):
     def test_nur_der_beauftragte_selbst(self):
         v = self._k(("kevin", "lumina", "auftrag", ""), ("lumina", "cody", "auftrag", "klein"),
                     ("cody", "qa", "auftrag", "klein"))
-        # Codys Unterauftrag an Tessa ist kein Kleinauftrag der Geschaeftsfuehrung.
+        # Codys Unterauftrag an Miranda ist kein Kleinauftrag der Geschaeftsfuehrung.
         self.assertFalse(tickets.kleinauftrag_direkt(v, "qa", "lumina"))
         self.assertTrue(tickets.kleinauftrag_direkt(v, "cody", "lumina"))
 

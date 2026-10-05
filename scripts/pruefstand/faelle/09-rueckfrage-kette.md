@@ -7,9 +7,9 @@ max_hops: 9
 max_kosten: 1.50
 timeout: 600
 dateien: antworten.md
-agenten: cody, tessa
+agenten: cody, miranda
 ---
-Stell Tessa über den Bus nacheinander drei getrennte Fragen — jede einzeln mit
+Stell Miranda über den Bus nacheinander drei getrennte Fragen — jede einzeln mit
 `fragen`, und warte jeweils ihre Antwort ab, bevor du die nächste stellst.
 Sieh nicht selbst nach, frag sie wirklich:
 

@@ -346,7 +346,7 @@ async def _zustellen_innen(tid: str, mid: str):
         def _ende(x):
             x["verbraucht"]["cost"] = round(x["verbraucht"]["cost"] + (run.cost_usd or 0), 4)
             # Je Mitarbeiter mitschreiben: nur so sieht Kevin, ob opus fuer
-            # Selma das Geld wert ist oder wo ein Auftrag teuer wurde.
+            # Elara das Geld wert ist oder wo ein Auftrag teuer wurde.
             je = x["verbraucht"].setdefault("je_agent", {})
             je[a["slug"]] = round(je.get(a["slug"], 0) + (run.cost_usd or 0), 4)
             # Mitschreiben statt nur anzeigen: nur so laesst sich zwischen zwei
@@ -453,7 +453,7 @@ async def _zustellen_innen(tid: str, mid: str):
         offen = ausstehend(a["slug"], auf.verlauf(tid))
         if offen:
             # Kein stiller Zug, sondern Warten: er hat Leute beauftragt, deren
-            # Ergebnis noch fehlt — etwa Tessas Befund gelesen, waehrend Cody
+            # Ergebnis noch fehlt — etwa Mirandas Befund gelesen, waehrend Cody
             # schon an der Nachbesserung sitzt. Der naechste Zug kommt von
             # selbst, sobald ein Ergebnis eintrifft.
             e = auf.anhaengen(tid, {"art": "system",
@@ -467,8 +467,8 @@ async def _zustellen_innen(tid: str, mid: str):
             # Auch kein stiller Zug: die naechste Nachricht an ihn ist schon
             # eingereiht (bei paralleler Verteilung kommen zwei Ergebnisse
             # kurz nacheinander, das zweite wartet hinter der Sperre). Am
-            # 11.09.2026 riss hier die Bremse, obwohl Tessas Ergebnis fuer
-            # Lumina laengst im Postfach lag.
+            # 11.09.2026 riss hier die Bremse, obwohl Mirandas Ergebnis fuer
+            # Luna laengst im Postfach lag.
             e = auf.anhaengen(tid, {"art": "system",
                                    "text": f"{ag.anzeige(a)['name']} ist gleich wieder dran: "
                                    + ", ".join(f"{n.get('art')} von {n.get('von')}" for n in liegt)
@@ -579,8 +579,8 @@ def kevin_ziel(t: dict, an_wunsch: str) -> tuple:
     Auftrag. Der Unterschied entscheidet, wer am Ende das Ergebnis bekommt:
     `liefern` geht an den, der zuletzt einen AUFTRAG geschickt hat. Stand da
     "kevin", lieferte der Mitarbeiter an Kevin, der Auftrag galt als fertig,
-    und die Geschaeftsfuehrung sah das Ergebnis nie. Genau so ist Lumina bei
-    der Werkstatt uebersprungen worden, und Veritas kam nie zum Pruefen.
+    und die Geschaeftsfuehrung sah das Ergebnis nie. Genau so ist Luna bei
+    der Werkstatt uebersprungen worden, und Janus kam nie zum Pruefen.
 
     Das war in /antwort laengst repariert — /say (die Eingabezeile unter dem
     Auftrag) schickte aber weiter alles als Auftrag. Wer unten tippte statt im
@@ -600,7 +600,7 @@ def nachliefern(tid: str):
     """Alles wieder einreihen, was zugestellt werden sollte, als der Auftrag anhielt.
 
     Faellt eine Bremse, waehrend im Postfach noch eine Nachricht liegt (bei
-    paralleler Verteilung der Normalfall: Lumina beauftragt Cody, geht im
+    paralleler Verteilung der Normalfall: Luna beauftragt Cody, geht im
     naechsten Zug still, Codys Auftrag ist noch unterwegs), wirft der
     Dispatcher sie weg — der Auftrag ist ja nicht mehr "laeuft". Nach Kevins
     "weiter" kaeme sie nie wieder. Doppelte Zustellung verhindert die

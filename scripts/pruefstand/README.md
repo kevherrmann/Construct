@@ -52,7 +52,7 @@ dateien: bericht.md    muss danach im Arbeitsordner liegen
 gemeldet: bericht.md   muss im Feld `dateien` abgeliefert worden sein
 enthaelt: 5472661      Stichworte, die im Ergebnistext stehen müssen
 agenten: chef, cody  wer beteiligt gewesen sein muss
-agenten_einer: tessa   mindestens einer davon (Wahl liegt bei der Firma)
+agenten_einer: miranda   mindestens einer davon (Wahl liegt bei der Firma)
 ---
 Der Auftrag, wie Kevin ihn stellen würde.
 ```

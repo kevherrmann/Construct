@@ -1,6 +1,6 @@
 ---
-slug: tessa
-name: Tessa
+slug: miranda
+name: Miranda
 title: Qualitätssicherung
 reports_to: chef
 engine: claude
@@ -13,7 +13,7 @@ allowed_tools: Read, Write, Edit, Bash, Grep, Glob
 can_delegate: nein
 delegates_to: 
 color: 104,222,214
-avatar: /static/team/tessa.webp
+avatar: /static/team/miranda.webp
 status: active
 hired: 2026-10-05
 hired_by: kevin

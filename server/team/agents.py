@@ -48,7 +48,7 @@ DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 
 # Die Geschäftsführung ist der Assistent selbst — er nimmt Aufträge an, verteilt
 # sie und fasst zusammen. Dem Nutzer gegenüber trägt sie den Namen des Assistenten
-# (⚙ Einstellungen, siehe anzeige()); in der Firma heißt sie immer Lumina, damit
+# (⚙ Einstellungen, siehe anzeige()); in der Firma heißt sie immer Luna, damit
 # der Name, den der Nutzer seinem Assistenten gegeben hat, bei ihm bleibt und in
 # keiner mitgelieferten Datei steht. Das Kürzel bleibt fest.
 OWNER_SLUG = "chef"
@@ -359,7 +359,7 @@ def load_agent(slug: str, workspace) -> dict | None:
 # ---------- Woran jemand schon gearbeitet hat ----------
 # Kevins Absicht: dieselbe Art Aufgabe soll immer wieder an dieselbe Person
 # gehen, damit sie darin Profi wird. Dafuer muss sie wissen, was sie schon
-# gemacht hat — und Lumina muss es sehen, um richtig zu verteilen.
+# gemacht hat — und Luna muss es sehen, um richtig zu verteilen.
 #
 # Getrennt von MEMORY.md, weil es zwei verschiedene Dinge sind: die Historie
 # ist ein Protokoll (schreibt das System), das Gedaechtnis sind Erkenntnisse
@@ -442,11 +442,11 @@ def faehigkeiten(a: dict) -> str:
     """Was ein Mitarbeiter mit seinen Werkzeugen wirklich KANN — als kurzer Text
     fuer die Belegschaftsliste.
 
-    Warum das gebraucht wird: am 11.09.2026 hat Lumina die Projekt-Screenshots
+    Warum das gebraucht wird: am 11.09.2026 hat Luna die Projekt-Screenshots
     an Chanti vergeben. Chanti hat kein Bash; jeder Browser- oder curl-Aufruf
     wurde mit "requires approval" abgewiesen, und in einer `claude -p`-Sitzung
     im Hintergrund gibt es niemanden, der freigibt. Sie hat zu Kevin eskaliert,
-    der Auftrag stand. Lumina konnte das nicht wissen: die Liste zeigte nur
+    der Auftrag stand. Luna konnte das nicht wissen: die Liste zeigte nur
     Slug, Name und Titel. Jetzt steht dabei, wer eine Shell hat.
     """
     tools = set(a.get("allowed_tools") or ())

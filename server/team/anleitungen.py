@@ -10,11 +10,11 @@ Der Unterschied zum Gedaechtnis, und warum es beides braucht:
                 dauerhaft, wird nicht eingedickt.
 
 Ausloeser war eine Luecke, die beim Bau von `gedaechtnis_eindicken` sichtbar
-wurde: Selmas Notiz "Playwright-Klick auf `data-bestaetigen` braucht
+wurde: Elaras Notiz "Playwright-Klick auf `data-bestaetigen` braucht
 expect_navigation, sonst geht der POST verloren" ist keine Erkenntnis, die man
 zusammenfassen darf — das ist ein Handgriff, der beim naechsten Mal genau so
 gebraucht wird. Im Gedaechtnis stand er auf Abruf zum Eindicken, und niemand
-ausser Selma haette ihn je gesehen.
+ausser Elara haette ihn je gesehen.
 
 Der Kniff, damit das den Kontext nicht sprengt (das Muster kennt man von
 Claude Code und von Hermes): **im Systemprompt steht nur der Index** — Name und

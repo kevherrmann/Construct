@@ -256,9 +256,9 @@ async def _bus_aufruf(body: dict) -> dict:
 
     if werkzeug in ("antworten", "liefern"):
         # WEM man liefert, haengt davon ab, wer einen BEAUFTRAGT hat — nicht
-        # davon, wer zuletzt geschrieben hat. Wer eine Aufgabe von Lumina
+        # davon, wer zuletzt geschrieben hat. Wer eine Aufgabe von Luna
         # bekommt, zwischendurch einen Kollegen fragt und dessen Antwort
-        # erhaelt, liefert trotzdem an Lumina zurueck.
+        # erhaelt, liefert trotzdem an Luna zurueck.
         gesucht = ("auftrag",) if werkzeug == "liefern" else ("frage",)
         empf = next((e.get("von") for e in reversed(auf.verlauf(tid))
                      if e.get("an") == slug and e.get("art") in gesucht and e.get("von")), "")
@@ -302,7 +302,7 @@ async def _bus_aufruf(body: dict) -> dict:
             for spf in ag.AGENTS_DIR.glob(f"*/.sysprompt-{tid}"):
                 spf.unlink(missing_ok=True)
             # Jeder, der mitgearbeitet hat, bekommt den Auftrag in seine Akte.
-            # Das ist die Grundlage dafuer, dass Lumina beim naechsten Mal
+            # Das ist die Grundlage dafuer, dass Luna beim naechsten Mal
             # denselben Fachmann wieder waehlt.
             beteiligt = {}
             for eintrag in auf.verlauf(tid):
