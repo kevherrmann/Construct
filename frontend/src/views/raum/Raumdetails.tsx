@@ -19,8 +19,8 @@ import s from './Raum.module.css'
 // darunter steht, wie viel vom Claude-Kontingent schon verbraucht ist, und unter
 // dem Regal, in welchem Projekt man gerade ist.
 
-/** Die Binäruhr an der Wand: dieselbe Uhr wie in der Uhr-Ansicht, als Gerät mit
- *  dunkler Glasfront, flach auf die Wand gelegt. */
+/** Die Binäruhr an der Wand: ein Gerät mit dunkler Glasfront, flach auf die Wand
+ *  gelegt. Aus der Nähe (Uhr-Ansicht) zeigt sie Digital- und Tetris-Uhr. */
 export function WandBinaeruhr({
   welt,
   weich = false,

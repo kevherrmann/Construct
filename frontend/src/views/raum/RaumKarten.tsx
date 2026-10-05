@@ -24,7 +24,7 @@ import { useSekunde } from '@/hooks/useSekunde'
 import { gruppiert, toolBlocks, useItems, useWerkstattDaten } from './daten'
 import type { PanelId } from './stationen'
 import s from './Raum.module.css'
-import { BinaerUhr } from './BinaerUhr'
+import { TetrisUhr } from './TetrisUhr'
 
 // Inhalte der Glaskarten. Wo es den Baustein schon gibt (Sessions, Kalender,
 // Mail, Skills, MCP), steht hier genau der — dieselbe Funktion wie im Chat.
@@ -334,7 +334,7 @@ function DigitalUhr() {
       <div className={s.datum}>
         {tag} · {t('KW')} {kw(jetzt)}
       </div>
-      <BinaerUhr jetzt={jetzt} />
+      <TetrisUhr jetzt={jetzt} />
       {naechster ? (
         <div className={s.naechster}>
           <span>{t('Als Nächstes')}</span>

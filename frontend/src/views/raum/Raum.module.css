@@ -1502,6 +1502,7 @@
 /* ---------------------------------------------------------------------------
    Digitaluhr (Wanduhr aus der Nähe). */
 .digitaluhr {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -1539,16 +1540,17 @@
   letter-spacing: 1.5px;
   color: var(--ink-soft);
 }
-/* Binäruhr (BinaerUhr.tsx): dunkle LED-Tafel wie die Monitorwand, Punkte
-   leuchten in der Akzentfarbe. Paare (HH MM SS) durch blinkende Doppelpunkte
-   getrennt, links die Wertigkeiten. */
-.binaer {
+/* Tetris-Uhr (TetrisUhr.tsx): dunkler Schacht wie die Monitorwand, die Steine
+   in der Akzentfarbe, je Art leicht abgestuft. Oben bleiben --himmel Zeilen
+   (HIMMEL in TetrisUhr.tsx) frei: dort drehen sich die Steine; darüber wird
+   abgeschnitten. */
+.tetris {
+  --z: min(18px, calc((100cqi - 4px) / 22));
+  --fuge: 2px;
   align-self: flex-start;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
   margin: 4px 0;
-  padding: 22px 26px 16px 18px;
+  padding: calc(var(--z) * var(--himmel)) calc(var(--z) * 1.2) calc(var(--z) * 1.1);
+  overflow: hidden;
   border-radius: 16px;
   background: linear-gradient(160deg, #101a14, #070c09);
   box-shadow:
@@ -1556,73 +1558,89 @@
     inset 0 14px 30px rgba(0, 0, 0, 0.55),
     0 22px 40px -22px rgba(0, 0, 0, 0.55);
 }
-.binaerWerte,
-.binaerSpalte,
-.binaerTrenner {
-  display: grid;
-  grid-template-rows: repeat(4, 26px) auto;
-  row-gap: 10px;
-  justify-items: center;
-  align-items: center;
+.tetrisBrett {
+  display: flex;
+  gap: calc(var(--z) * 0.6);
 }
-.binaerWerte span,
-.binaerSpalte b {
-  font-family: 'Share Tech Mono', ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 400;
-  color: rgba(var(--accent-rgb), 0.65);
+.tetrisZiffer {
+  position: relative;
+  width: calc(var(--z) * 4);
+  height: calc(var(--z) * 7);
 }
-.binaerSpalte i {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #1c2b22, #0c140f 70%);
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.14);
-  transition:
-    background 0.3s,
-    box-shadow 0.3s;
+/* Leere Felder: kaum sichtbar, nur damit man den Schacht ahnt. */
+.tetrisZiffer b {
+  position: absolute;
+  left: calc(var(--x) * var(--z) + var(--fuge) / 2);
+  top: calc(var(--y) * var(--z) + var(--fuge) / 2);
+  width: calc(var(--z) - var(--fuge));
+  height: calc(var(--z) - var(--fuge));
+  border-radius: 2px;
+  background: rgba(var(--accent-rgb), 0.035);
 }
-.binaerSpalte i.binaerAn {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #f2fff5 0 9%,
-    rgb(var(--accent-rgb)) 48%,
-    rgba(var(--accent-rgb), 0.8)
-  );
+/* Eine Zelle eines Steins: Kanten zum Nachbarn im selben Stein fallen weg
+   (--o/--r/--u/--l = 0), so liest man das Tetromino als ein Stück. */
+.tetrisZiffer i {
+  position: absolute;
+  left: calc(var(--x) * var(--z) + var(--l) * var(--fuge) / 2);
+  top: calc(var(--y) * var(--z) + var(--o) * var(--fuge) / 2);
+  width: calc(var(--z) - (var(--l) + var(--r)) * var(--fuge) / 2);
+  height: calc(var(--z) - (var(--o) + var(--u)) * var(--fuge) / 2);
+  border-radius: calc(var(--o) * var(--l) * 2px) calc(var(--o) * var(--r) * 2px)
+    calc(var(--u) * var(--r) * 2px) calc(var(--u) * var(--l) * 2px);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.1), transparent 70%),
+    oklch(from rgb(var(--accent-rgb)) var(--ton) calc(c * 1.25) h);
   box-shadow:
-    0 0 0 1px rgba(var(--accent-rgb), 0.9),
-    0 0 12px rgba(var(--accent-rgb), 0.85),
-    0 0 32px rgba(var(--accent-rgb), 0.35);
+    inset 0 calc(var(--o) * 1px) 0 rgba(255, 255, 255, 0.35),
+    inset 0 calc(var(--u) * -2px) 0 rgba(0, 0, 0, 0.18);
 }
-.binaerSpalte i.binaerLeer {
-  visibility: hidden;
+.tetrisFaellt,
+.tetrisLiegt {
+  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.55));
 }
-.binaerSpalte b {
-  font-size: 12px;
-  color: rgba(var(--accent-rgb), 0.8);
+.tetrisLiegt {
+  animation: tetrisRastet 0.3s ease-out;
 }
-/* Doppelpunkt zwischen den Paaren: Höhe der Zeilen 2 und 1 wie bei einer Uhr. */
-.binaerTrenner span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgb(var(--accent-rgb));
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
-  transition: opacity 0.4s;
+@keyframes tetrisRastet {
+  from {
+    filter: brightness(1.7) drop-shadow(0 0 9px rgba(var(--accent-rgb), 0.8));
+  }
 }
-.binaerTrenner span:first-child {
-  grid-row: 2;
+.tetrisVerlischt {
+  animation: tetrisVerlischt 0.38s ease-in forwards;
 }
-.binaerTrenner span:last-child {
+@keyframes tetrisVerlischt {
+  30% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  to {
+    opacity: 0;
+    filter: brightness(1.8);
+  }
+}
+.tetrisDoppelpunkt {
+  display: grid;
+  grid-template-rows: repeat(7, var(--z));
+  width: calc(var(--z) * 0.6);
+}
+.tetrisDoppelpunkt i {
+  align-self: center;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: oklch(from rgb(var(--accent-rgb)) 0.62 calc(c * 1.25) h);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55);
+}
+.tetrisDoppelpunkt i:first-child {
   grid-row: 3;
 }
-.binaerTrenner.binaerAus span {
-  opacity: 0.2;
+.tetrisDoppelpunkt i:last-child {
+  grid-row: 5;
 }
 @media (prefers-reduced-motion: reduce) {
-  .binaerSpalte i,
-  .binaerTrenner span {
-    transition: none;
+  .tetrisLiegt,
+  .tetrisVerlischt {
+    animation: none;
   }
 }
 .naechster {
