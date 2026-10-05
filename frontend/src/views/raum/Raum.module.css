@@ -725,11 +725,12 @@
   scroll-behavior: smooth;
 }
 
-/* Kleine Bildschirme: der Raum würde winzig — lieber ein ehrlicher Hinweis. */
+/* Winzige Fenster (z. B. ein Handy quer mit Tastatur): der Raum hätte keinen
+   Platz mehr — lieber ein ehrlicher Hinweis. */
 .zuKlein {
   display: none;
 }
-@media (max-width: 860px), (max-height: 520px) {
+@media (max-height: 300px) {
   .flaeche,
   .sprechzeile {
     display: none;
@@ -745,6 +746,172 @@
     text-align: center;
     color: var(--ink-soft);
   }
+}
+
+/* Kompakt (Handy, Tablet hochkant, kleine Fenster — hooks/useMedien.ts):
+   Die Bühne füllt die Höhe und wird breiter als der Bildschirm; man wischt
+   durch den Raum wie durch ein Panorama. RaumView rückt Cody bzw. die offene
+   Station in die Mitte. */
+@media (max-width: 860px), (max-height: 520px) {
+  .kopf {
+    padding: 10px 14px 4px;
+    gap: 10px;
+    letter-spacing: 2px;
+  }
+  .flaeche {
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .flaeche::-webkit-scrollbar {
+    display: none;
+  }
+  .buehne {
+    flex: none;
+    width: auto;
+    height: 100cqh;
+    margin: 0 auto;
+  }
+  /* Panorama: links und rechts kein Ausblenden, der Raum geht ja weiter. */
+  .fenster {
+    mask-image: linear-gradient(to bottom, #000 0, #000 96%, transparent);
+  }
+  /* .raum davor: die Grundregel steht weiter unten in der Datei. */
+  .raum .sprechzeile {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    width: auto;
+    transform: none;
+  }
+  .raum .sprechzeile::before {
+    inset: -34px -10px -10px;
+  }
+}
+
+/* Ohne Maus gibt es kein Überfahren: die Schilder stehen dauerhaft da,
+   etwas kleiner, damit sie den Raum nicht zustellen. */
+@media (hover: none) {
+  .schild {
+    opacity: 0.9;
+    padding: 5px 9px;
+    transform: translate(-50%, 0) scale(0.88);
+    transform-origin: 50% 100%;
+  }
+  .schild span {
+    display: none;
+  }
+  .weltFokus .station:not(.stationAn) .schild {
+    opacity: 0;
+  }
+}
+
+/* Station als Karte von unten (kompakt). Sitzt über der Sprechzeile, damit
+   man beim Protokoll weiter schreiben kann. */
+.blatt {
+  position: absolute;
+  z-index: 6;
+  left: 8px;
+  right: 8px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  max-height: calc(100% - 64px - 76px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px 12px;
+  border-radius: 20px;
+  background: rgba(250, 251, 250, 0.97);
+  box-shadow:
+    0 -6px 40px rgba(30, 40, 35, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  animation: blattHoch 0.38s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+.blatt::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.85), transparent);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.5);
+}
+@media (max-height: 520px) {
+  .blatt {
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    max-height: calc(100% - 52px - 64px - env(safe-area-inset-bottom));
+  }
+}
+@keyframes blattHoch {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.blatt .projektionKopf {
+  padding-bottom: 12px;
+}
+.blatt .projektionKopf h2 {
+  font-size: 18px;
+  letter-spacing: 5px;
+}
+.blatt .projektionKopf button {
+  width: 34px;
+  height: 34px;
+}
+/* Zwei Spalten (Kalender, Mail, Einstellungen) untereinander. */
+.blatt .zweispaltig {
+  grid-template-columns: minmax(0, 1fr);
+  height: auto;
+}
+.blatt .spalteLinks {
+  min-width: 0;
+}
+.blatt .projektionInhalt:has(> .zweispaltig) {
+  overflow-y: auto;
+}
+.blatt :is(.spalteLinks, .spalteRechts) {
+  overflow: visible;
+}
+/* Einstellungen: die Tabs als Chip-Leiste, die beim Scrollen oben stehen
+   bleibt — gestapelt würden sie sonst über dem Inhalt weggescrollt. */
+.blatt .spalteLinks:has(> nav) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 -16px;
+  padding: 0 16px 8px;
+  background: linear-gradient(rgba(250, 251, 250, 0.98) 80%, rgba(250, 251, 250, 0));
+}
+.blatt .spalteLinks > nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.blatt .spalteLinks > nav > button {
+  flex: none;
+  width: auto;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid #dde2df;
+  border-radius: 999px;
+  font-size: 11px;
+}
+.blatt .spalteLinks > nav > button > span:last-child {
+  display: none;
+}
+.blatt .spalteRechts > * {
+  scroll-margin-top: 56px;
 }
 
 /* ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import { Markdown } from '@/components/chat/Markdown'
 import { baseName } from '@/lib/format'
 import { MODES, modelInfo } from '@/lib/chat/models'
 import { fxLevel } from '@/lib/fx'
+import { KOMPAKT, useMedien } from '@/hooks/useMedien'
 import { useChat } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
 import { useUi } from '@/stores/ui'
@@ -486,7 +487,64 @@ export function RaumView() {
         : t(st.hint)
 
   const auftritt = ansicht ? AUFTRITT[ansicht] : null
-  const kamera: Kamera = tauchen ? EINTAUCHEN : (auftritt ?? GANZ)
+  // Kompakt (Handy, Tablet hochkant): der Raum ist ein Panorama zum Wischen,
+  // die Kamera bleibt beim ganzen Raum, Stationen öffnen als Karte von unten.
+  const kompakt = useMedien(KOMPAKT)
+  const kamera: Kamera = tauchen ? EINTAUCHEN : kompakt ? GANZ : (auftritt ?? GANZ)
+  const flaeche = useRef<HTMLDivElement>(null)
+  // Wohin das Panorama schaut: zur offenen Station, sonst zu Cody.
+  const blickX = auftritt
+    ? auftritt.ziel[0]
+    : amWerk
+      ? FIGUR_WERKBANK.l + FIGUR_WERKBANK.w / 2
+      : FIGUR.x
+  const ersterBlick = useRef(true)
+  useEffect(() => {
+    const el = flaeche.current
+    const buehne = el?.firstElementChild as HTMLElement | null | undefined
+    if (!kompakt || !el || !buehne) return
+    const zu = (glatt: boolean) =>
+      el.scrollTo({
+        left: buehne.offsetLeft + (buehne.offsetWidth * blickX) / 100 - el.clientWidth / 2,
+        behavior: glatt ? 'smooth' : 'auto',
+      })
+    zu(!ersterBlick.current)
+    ersterBlick.current = false
+    // Drehen des Geräts: neu ausrichten (nur bei anderer Breite — die
+    // Adressleiste mobiler Browser ändert ständig nur die Höhe).
+    let breite = el.clientWidth
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth !== breite) zu(false)
+      breite = el.clientWidth
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [kompakt, blickX])
+  const panel =
+    ansicht && auftritt ? (
+      <Projektion
+        key={ansicht}
+        blatt={kompakt}
+        auftritt={auftritt}
+        titel={t(TITEL[ansicht])}
+        hinweis={
+          ansicht === 'protokoll'
+            ? t('Der ganze Verlauf dieser Session')
+            : ansicht === 'einstellungen'
+              ? t('Was du siehst und womit du redest')
+              : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
+        }
+        onClose={schliessen}
+      >
+        {ansicht === 'protokoll' ? (
+          <div className={s.protokollInhalt} data-scroll>
+            <ChatView />
+          </div>
+        ) : (
+          <KartenInhalt panel={ansicht as PanelId} onDone={schliessen} />
+        )}
+      </Projektion>
+    ) : null
   return (
     <div className={`${s.raum} ${ansicht ? s.raumFokus : ''}`}>
       <header className={s.kopf}>
@@ -523,7 +581,7 @@ export function RaumView() {
           ▤ {t('Zur Chat-Ansicht')}
         </button>
       </div>
-      <div className={s.flaeche}>
+      <div className={s.flaeche} ref={flaeche}>
         <div className={s.buehne}>
           <div className={s.fenster}>
             <div
@@ -684,36 +742,17 @@ export function RaumView() {
                 />
               )}
             </div>
-            {auftritt?.seite && <Weiss auftritt={auftritt} />}
+            {!kompakt && auftritt?.seite && <Weiss auftritt={auftritt} />}
           </div>
-          {ansicht && auftritt?.seite && (
+          {!kompakt && panel && auftritt?.seite && (
             <>
               <Leitlinie auftritt={auftritt} />
-              <Projektion
-                key={ansicht}
-                auftritt={auftritt}
-                titel={t(TITEL[ansicht])}
-                hinweis={
-                  ansicht === 'protokoll'
-                    ? t('Der ganze Verlauf dieser Session')
-                    : ansicht === 'einstellungen'
-                      ? t('Was du siehst und womit du redest')
-                      : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
-                }
-                onClose={schliessen}
-              >
-                {ansicht === 'protokoll' ? (
-                  <div className={s.protokollInhalt} data-scroll>
-                    <ChatView />
-                  </div>
-                ) : (
-                  <KartenInhalt panel={ansicht as PanelId} onDone={schliessen} />
-                )}
-              </Projektion>
+              {panel}
             </>
           )}
         </div>
       </div>
+      {kompakt && panel}
       <div className={s.sprechzeile}>
         <Composer raum onPicker={(p) => setAnsicht(PICKER_ANSICHT[p])} />
       </div>
@@ -794,20 +833,27 @@ function Projektion({
   titel,
   hinweis,
   onClose,
+  blatt = false,
   children,
 }: {
   auftritt: Auftritt
   titel: string
   hinweis: string
   onClose: () => void
+  /** Kompakt: als Karte von unten statt neben der Station. */
+  blatt?: boolean
   children: ReactNode
 }) {
   const { t } = useTranslation()
   const rechts = auftritt.seite === 'rechts'
   return (
     <section
-      className={`${s.projektion} ${rechts ? s.projektionRechts : s.projektionLinks}`}
-      style={{ width: `${auftritt.breite}%`, [rechts ? 'right' : 'left']: '3%' }}
+      className={
+        blatt ? s.blatt : `${s.projektion} ${rechts ? s.projektionRechts : s.projektionLinks}`
+      }
+      style={
+        blatt ? undefined : { width: `${auftritt.breite}%`, [rechts ? 'right' : 'left']: '3%' }
+      }
     >
       <header className={s.projektionKopf}>
         <div>

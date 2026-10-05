@@ -9,6 +9,12 @@
   padding: 6px 2px 40px;
   max-width: 760px;
 }
+/* Handy: jeder Pixel Breite gehört den Karten. */
+@media (max-width: 600px) {
+  .page {
+    padding: 10px 0;
+  }
+}
 .sec {
   composes: glass-card from global;
   border: 1px solid transparent;
