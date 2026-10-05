@@ -1,4 +1,5 @@
 import { useUi } from '@/stores/ui'
+import { useChat } from '@/stores/chat'
 import { Suspense, useEffect } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { useSettings } from '@/stores/settings'
@@ -21,6 +22,11 @@ export function AppShell() {
   const sideOpen = useUi((st) => st.sideOpen)
   const setSideOpen = useUi((st) => st.setSideOpen)
   const raum = useUi((st) => st.raum)
+  // Schmal: wer eine Session wählt, will sie sehen — die Seitenleiste klappt zu.
+  const activeKey = useChat((st) => st.activeKey)
+  useEffect(() => {
+    setSideOpen(false)
+  }, [activeKey, setSideOpen])
 
   useEffect(() => {
     document.title = `CONSTRUCT // ${assistant}`
@@ -51,6 +57,7 @@ export function AppShell() {
     <>
       <Backdrop />
       <div className={s.app}>
+        {sideOpen && <div className={s.scrim} onClick={() => setSideOpen(false)} />}
         <Sidebar view={current} open={sideOpen} onNavigate={() => setSideOpen(false)} />
         <SideGrip />
         <section className={s.main}>

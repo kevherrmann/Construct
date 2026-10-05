@@ -10,6 +10,7 @@ import { runCommand } from '@/lib/chat/commands'
 import { isPdf } from '@/lib/format'
 import { useChat, type Attachment } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
+import { useMedien } from '@/hooks/useMedien'
 import { Pickers, type PickerName } from './Pickers'
 import s from './Composer.module.css'
 
@@ -36,6 +37,8 @@ export function Composer({
   onPicker,
 }: { raum?: boolean; onPicker?: (p: PickerName) => void } = {}) {
   const { t } = useTranslation()
+  // Handy: kurzer Platzhalter und ➤ statt SENDEN — sonst bleibt fürs Tippen kaum Platz.
+  const schmal = useMedien('(max-width: 600px)')
   const navigate = useNavigate()
   const location = useLocation()
   const [text, setText] = useState('')
@@ -300,7 +303,9 @@ export function Composer({
           placeholder={
             raum
               ? t('Sprich mit {name} …', { name: assistant })
-              : t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')
+              : schmal
+                ? t('> Nachricht …')
+                : t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')
           }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -344,7 +349,7 @@ export function Composer({
           onClick={submit}
           aria-label={raum ? (busy ? t('Einwerfen') : t('Senden')) : undefined}
         >
-          {raum ? '➤' : busy ? t('➤ EINWERFEN') : t('SENDEN')}
+          {raum || schmal ? '➤' : busy ? t('➤ EINWERFEN') : t('SENDEN')}
         </button>
       </div>
       {!raum && (

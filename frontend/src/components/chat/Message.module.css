@@ -378,3 +378,24 @@
   padding: 1px 5px;
   border-radius: var(--radius);
 }
+
+/* Handy: kleiner Avatar, die Nachricht nimmt die restliche Breite. */
+@media (max-width: 600px) {
+  .msg {
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .avatar {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-top: 20px;
+  }
+  .col {
+    max-width: calc(100% - 40px);
+  }
+  .bubble {
+    padding: 10px 12px;
+  }
+}

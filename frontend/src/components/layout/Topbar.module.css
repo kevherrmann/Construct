@@ -51,9 +51,12 @@
 .raum:hover {
   background: rgba(var(--accent-rgb), 0.18);
 }
+/* Der Raum läuft auch auf dem Handy (als Panorama) — der Knopf bleibt, nur knapper. */
 @media (max-width: 860px) {
   .raum {
-    display: none;
+    margin-right: 6px;
+    padding: 3px 9px;
+    letter-spacing: 1px;
   }
 }
 

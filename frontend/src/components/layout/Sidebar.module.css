@@ -92,10 +92,19 @@
     position: absolute;
     z-index: 30;
     height: 100%;
-    transform: translateX(-100%);
-    transition: 0.2s;
+    /* ganz hinaus — sonst ragt der Außenabstand der Leiste ins Bild */
+    transform: translateX(calc(-100% - 40px));
+    visibility: hidden;
+    max-width: calc(100vw - 48px);
+    /* Glas reicht hier nicht: darunter liegt die volle Oberfläche. */
+    background: var(--bg);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+    transition:
+      transform 0.2s,
+      visibility 0.2s;
   }
   .open {
     transform: none;
+    visibility: visible;
   }
 }

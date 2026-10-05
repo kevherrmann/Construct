@@ -4,6 +4,8 @@
   z-index: 10;
   display: flex;
   height: 100vh;
+  /* Handy: die wirklich sichtbare Höhe — 100vh reicht unter die Adressleiste. */
+  height: 100dvh;
   padding: 14px;
   gap: 14px;
 }
@@ -20,4 +22,32 @@
   min-height: 0;
   padding: 8px 6%;
   scroll-behavior: smooth;
+}
+
+/* Abgedunkelter Hintergrund hinter der aufgeklappten Seitenleiste (schmal).
+   Tippen daneben klappt sie zu. */
+.scrim {
+  display: none;
+}
+@media (max-width: 900px) {
+  .scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+  }
+}
+@media (max-width: 600px) {
+  .app {
+    padding: 8px;
+    gap: 8px;
+  }
+  .main {
+    gap: 8px;
+  }
+  .content {
+    padding: 4px 2%;
+  }
 }

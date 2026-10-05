@@ -181,6 +181,35 @@
   margin-bottom: 8px;
 }
 
+/* Handy: enger, ➤ statt SENDEN (Composer.tsx). 16 px Schrift im Feld, sonst
+   zoomt Safari auf dem iPhone beim Antippen in die Seite. */
+@media (max-width: 600px) {
+  .composer:not(.imRaum) {
+    padding: 10px 8px;
+  }
+  .row {
+    gap: 6px;
+  }
+  .composer:not(.imRaum) .attach {
+    padding: 6px 9px;
+    height: 42px;
+  }
+  .composer:not(.imRaum) .send {
+    min-width: 46px;
+    padding: 0 12px;
+    height: 42px;
+  }
+  .input {
+    font-size: 16px;
+  }
+}
+/* Ohne Tastatur sind die Tastenkürzel nur Rauschen. */
+@media (hover: none) and (pointer: coarse) {
+  .hint {
+    display: none;
+  }
+}
+
 /* Construct-Raum: keine Leiste, eine schwebende Sprechzeile über dem Boden.
    Text in Tinte auf einer Lichtlinie, Knöpfe als kleine runde Marken. */
 .imRaum {

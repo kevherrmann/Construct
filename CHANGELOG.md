@@ -2,6 +2,27 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 7.2.0 — 2026-10-05
+
+### Added
+- **The room on phones and tablets.** On narrow or portrait screens (below
+  860 px wide or 520 px high) the room fills the height and becomes a
+  panorama you swipe through; it starts on Cody and follows him to the
+  workbench. Stations open as a card from the bottom instead of the camera
+  move to the side, the reply appears as a subtitle above the input line, and
+  without a mouse the station labels stay visible. Settings in the card have
+  their tabs as a swipeable chip row. Phones in landscape show the whole room.
+
+### Changed
+- **Chat view on phones.** The sidebar slides in over a dimmed background
+  and closes when you pick a session, it no longer peeks in at the left edge,
+  the input line gets the width it needs (➤ instead of SEND, shorter
+  placeholder, 16 px so iOS doesn't zoom in), keyboard hints are hidden on
+  touch screens, avatars are smaller and messages use the full width. The
+  layout uses the visible height (`100dvh`), so the input line is no longer
+  hidden behind the browser's address bar. The ◧ ROOM button is back on
+  narrow screens.
+
 ## 7.1.0 — 2026-10-05
 
 ### Added
