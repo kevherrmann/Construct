@@ -1,1 +1,0 @@
-import{a as e}from"./api-CcjHZN6N.js";var t=e(e=>({auswahl:null,sicht:`uebersicht`,oeffne:t=>e({auswahl:t,sicht:`uebersicht`}),neu:()=>e({auswahl:`neu`}),sichtWechseln:t=>e({sicht:t}),schliessen:()=>e({auswahl:null,sicht:`uebersicht`})}));export{t};
