@@ -43,7 +43,7 @@ import { abschnitte, lageAus, type Phase } from './lage'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
-import { RegalSchild, WandBinaeruhr, WandKontingent } from './Raumdetails'
+import { RegalSchild, WandBild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
 import { useTeamBlase } from './useTeamBlase'
@@ -712,6 +712,7 @@ export function RaumView() {
               <Fernseher welt={weltGroesse} voll={!!tauchen} weich={weichAusser('monitore')} />
               <WandBinaeruhr welt={weltGroesse} weich={weichAusser('uhr')} />
               <WandKontingent welt={weltGroesse} weich={weichAusser('uhr')} />
+              {!da('steckfeld') && <WandBild welt={weltGroesse} weich={!!fokus && !ansicht} />}
               {(
                 [
                   ['werkzeug', LOCHWAND, lochwandBild, s.wandWeich],

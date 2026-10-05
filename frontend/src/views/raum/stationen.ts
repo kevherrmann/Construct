@@ -74,6 +74,11 @@ const wandFlaeche = (x: number, y: number, w: number, h: number) =>
 export const KONTINGENT_MASS = { w: 660, h: 170 }
 export const WAND_KONTINGENT = wandFlaeche(0, 0, KONTINGENT_MASS.w, KONTINGENT_MASS.h)
 
+/** Bilderrahmen mit deinem Profilbild: hängt dort, wo sonst die Steckdosenleiste
+ *  (MCP) ist, wenn die Kachel aus ist. Unter dem Kalender, über dem Seitenschrank. */
+export const BILD_MASS = { w: 170, h: 185 }
+export const WAND_BILD = wandFlaeche(565, 570, BILD_MASS.w, BILD_MASS.h)
+
 /** Binäruhr: mittig über dem Kontingent. */
 export const BINAER_MASS = { w: 364, h: 238 }
 export const WAND_BINAER = wandFlaeche(
@@ -115,13 +120,34 @@ const BINAER_MITTE: Punkt = [
   BINAER_FLAECHE.t + BINAER_FLAECHE.h / 2,
 ]
 
+// Regal (Projekte) und Aktenschrank (Sessions) sind im Raumbild um REGAL.s
+// verkleinert, Fixpunkt am Boden unten links (construct-raum-art/team/regal.py):
+// so steht das Büro mittig zwischen Aktenschrank und rechter Wand. Ihre Flächen
+// sind die ursprünglich ausgemessenen, hier mitverkleinert.
+const REGAL = { s: 0.85, x: 0, y: 765 }
+/** Punkt (Pixel im Raumbild) mit dem Regal mitverkleinert. */
+const regalPx = ([x, y]: Punkt): Punkt => [
+  REGAL.x + (x - REGAL.x) * REGAL.s,
+  REGAL.y + (y - REGAL.y) * REGAL.s,
+]
+/** Punkt in Prozent der Bühne mit dem Regal mitverkleinert. */
+const regalPct = ([x, y]: Punkt): Punkt => {
+  const [px, py] = regalPx([(x / 100) * 2048, (y / 100) * 1152])
+  return [(px / 2048) * 100, (py / 1152) * 100]
+}
+/** Fläche (Prozent) mit dem Regal mitverkleinert. */
+const regalFl = (r: Rechteck): Rechteck => {
+  const [l, t] = regalPct([r.l, r.t])
+  return { l, t, w: r.w * REGAL.s, h: r.h * REGAL.s }
+}
+
 // Reihenfolge = Stapelung: spätere liegen oben (Werkzeugwand über Werkbank).
 export const STATIONEN: Station[] = [
   // Team-Modus: der Büroboden zwischen den Schreibtischen. Ganz unten, damit die
   // Sitze (eigene Knöpfe) und die Wandobjekte davor Vorrang haben.
   {
     id: 'firma',
-    l: 27,
+    l: 30.2,
     t: 9,
     w: 40,
     h: 26,
@@ -131,20 +157,14 @@ export const STATIONEN: Station[] = [
   },
   {
     id: 'regal',
-    l: 0,
-    t: 5.5,
-    w: 20.6,
-    h: 60,
+    ...regalFl({ l: 0, t: 5.5, w: 20.6, h: 60 }),
     label: 'Projekte',
     hint: 'Arbeitsordner wählen',
     panel: 'projekte',
   },
   {
     id: 'archiv',
-    l: 20.3,
-    t: 19.4,
-    w: 6.1,
-    h: 30,
+    ...regalFl({ l: 20.3, t: 19.4, w: 6.1, h: 30 }),
     label: 'Sessions',
     hint: 'Frühere Gespräche öffnen',
     panel: 'sessions',
@@ -236,13 +256,13 @@ export const STATIONEN: Station[] = [
     hint: 'Posteingang',
     panel: 'mail',
   },
-  // Karteikasten auf seinem Schränkchen links neben der Werkbank.
+  // Karteikasten oben auf dem Sessions-Schrank: liegt über ihm, darum danach.
   {
     id: 'tafel',
-    l: 59.497,
-    t: 41.319,
-    w: 6.982,
-    h: 17.361,
+    l: 17.4,
+    t: 22.3,
+    w: 4.0,
+    h: 7.4,
     label: 'Tickets',
     hint: 'Aufgaben nach Tag und Projekt',
     panel: 'tickets',
@@ -282,8 +302,8 @@ const umFuss = (r: Rechteck): Rechteck => ({
  *  Überfahren stellt die Kamera darauf scharf, der Rest wird unscharf. */
 export const FORM: Record<StationId, Rechteck> = {
   klemmbrett: { l: 80.566, t: 52.083, w: 9.277, h: 13.889 },
-  regal: { l: 0.0, t: 3.385, w: 21.777, h: 64.236 },
-  archiv: { l: 19.092, t: 17.274, w: 8.496, h: 34.288 },
+  regal: regalFl({ l: 0.0, t: 3.385, w: 21.777, h: 64.236 }),
+  archiv: regalFl({ l: 19.092, t: 17.274, w: 8.496, h: 34.288 }),
   monitore: { l: 76.221, t: 38.108, w: 12.939, h: 20.573 },
   werkbank: { l: 68.848, t: 35.069, w: 28.906, h: 46.701 }, // mit Monitor + Tastatur
   werkzeug: { l: 79.102, t: 25.434, w: 13.574, h: 26.302 },
@@ -292,8 +312,8 @@ export const FORM: Record<StationId, Rechteck> = {
   steckfeld: { l: 93.408, t: 48.698, w: 6.592, h: 16.233 },
   postfach: { l: 88.054, t: 58.474, w: 4.361, h: 5.589 },
   pult: { l: 47.412, t: 47.83, w: 5.566, h: 26.823 },
-  tafel: { l: 59.497, t: 41.319, w: 6.982, h: 17.361 },
-  firma: { l: 27, t: 9, w: 40, h: 26 },
+  tafel: { l: 17.725, t: 22.917, w: 3.32, h: 6.25 },
+  firma: { l: 30.2, t: 9, w: 40, h: 26 },
 }
 
 /** Was nicht im Raumbild gemalt ist, hat statt einer Bildmaske ein Vieleck
@@ -302,14 +322,16 @@ export const VIELECK: Partial<Record<StationId, readonly Punkt[]>> = { uhr: BINA
 
 /** Projektname unter dem Regal, in der Ebene der Regalfront (Pixel im
  *  Raumbild: oben links, oben rechts, unten rechts, unten links). Die
- *  Unterkante des Regals läuft von (0, 765) nach (430, 577); rechts kleiner,
- *  weil das Regal dort weiter weg ist. */
-export const REGAL_SCHILD: readonly [Punkt, Punkt, Punkt, Punkt] = [
-  [70, 751],
-  [340, 631],
-  [340, 685],
-  [70, 815],
-]
+ *  Unterkante des Regals lief vor dem Verkleinern von (0, 765) nach (430, 577);
+ *  rechts kleiner, weil das Regal dort weiter weg ist. */
+export const REGAL_SCHILD = (
+  [
+    [70, 751],
+    [340, 631],
+    [340, 685],
+    [70, 815],
+  ] as const
+).map((p) => regalPx(p)) as unknown as readonly [Punkt, Punkt, Punkt, Punkt]
 
 // Ausschnitte aus dem Raumbild (2048×1152 px), in denen Ebenen liegen:
 // Posen-Videos am Podest (655,300 – 1215,1000) und die Werkbank-Ebenen mit
@@ -318,11 +340,10 @@ export const REGAL_SCHILD: readonly [Punkt, Punkt, Punkt, Punkt] = [
 export const PODEST_VIDEO: Rechteck = umFuss({ l: 31.982, t: 26.042, w: 27.344, h: 60.764 })
 export const WERKBANK: Rechteck = { l: 54.688, t: 23.09, w: 37.5, h: 72.222 }
 
-/** Der Karteikasten der Tickets samt Schatten (Ebene, Prozent der Bühne).
- *  Steht links neben der Werkbank, etwas nach hinten versetzt: dort, wo man an
- *  der Werkbank arbeitet, verdeckt man ihn nicht. Gebaut mit
- *  construct-raum-art/team/kasten.py 1290 676 200. */
-export const KASTEN: Rechteck = { l: 58.032, t: 38.715, w: 9.912, h: 22.569 }
+/** Der Karteikasten der Tickets samt Kontaktschatten (Ebene, Prozent der Bühne):
+ *  nur die Kartenbox, oben auf dem Sessions-Schrank (Kevins Platz, 05.10.2026).
+ *  Gebaut mit construct-raum-art/team/kasten_box.py 397 336 72. */
+export const KASTEN: Rechteck = { l: 17.041, t: 21.701, w: 4.688, h: 8.681 }
 
 /** Der Postkorb der E-Mails samt Schatten (Ebene) am rechten Ende der Werkbank.
  *  Gebaut mit construct-raum-art/team/postkorb.py 1848 738 0.58. */
@@ -389,8 +410,22 @@ export interface Auftritt extends Kamera {
 // Kamerafahrt je Ansicht: Station `f` landet bei `p` auf dem Bildschirm, der
 // Inhalt erscheint auf der anderen Seite. Schmale Listen bleiben schmal.
 export const AUFTRITT: Record<Ansicht, Auftritt> = {
-  projekte: { z: 1.7, f: [10.3, 36], p: [19, 50], seite: 'rechts', breite: 36, ziel: [10.3, 36] },
-  sessions: { z: 1.8, f: [23.4, 34], p: [22, 48], seite: 'rechts', breite: 36, ziel: [23.4, 34] },
+  projekte: {
+    z: 1.7,
+    f: regalPct([10.3, 36]),
+    p: [19, 50],
+    seite: 'rechts',
+    breite: 36,
+    ziel: regalPct([10.3, 36]),
+  },
+  sessions: {
+    z: 1.8,
+    f: regalPct([23.4, 34]),
+    p: [22, 48],
+    seite: 'rechts',
+    breite: 36,
+    ziel: regalPct([23.4, 34]),
+  },
   werkbank: { z: 1.55, f: [80, 58], p: [76, 56], seite: 'links', breite: 38, ziel: [78, 55] },
   skills: { z: 1.6, f: [85.9, 38.6], p: [80, 46], seite: 'links', breite: 58, ziel: [85.9, 38.6] },
   kalender: { z: 1.6, f: [94, 38], p: [84, 46], seite: 'links', breite: 60, ziel: [95.1, 42] },
@@ -398,9 +433,9 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.6, f: [90.2, 61.3], p: [82, 56], seite: 'links', breite: 62, ziel: [90.2, 61.3] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
-  tickets: { z: 1.5, f: [63, 50], p: [76, 52], seite: 'links', breite: 54, ziel: [63, 50] },
-  personal: { z: 1.6, f: [47, 24], p: [22, 50], seite: 'rechts', breite: 62, ziel: [47, 24] },
-  auftraege: { z: 1.6, f: [47, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [47, 24] },
+  tickets: { z: 1.8, f: [19.4, 26], p: [22, 46], seite: 'rechts', breite: 54, ziel: [19.4, 26] },
+  personal: { z: 1.6, f: [50, 24], p: [22, 50], seite: 'rechts', breite: 62, ziel: [50, 24] },
+  auftraege: { z: 1.6, f: [50, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [50, 24] },
   einstellungen: {
     z: 1.2,
     f: [50.2, 58],
@@ -436,13 +471,14 @@ export interface Platz {
 export type PaarId = 'a' | 'b'
 export type Seite = 'links' | 'rechts'
 
-/** Die Doppelschreibtische stehen im freien Hinterraum, links und rechts von der
- *  Figur auf dem Podest (deren Kopf reicht bis knapp unter ihre Vorderkante).
+/** Die Doppelschreibtische stehen im freien Hinterraum, mittig zwischen Aktenschrank
+ *  und rechter Wand, hinter der Figur auf dem Podest (deren Kopf reicht bis knapp
+ *  unter ihre Vorderkante).
  *  Zwei Leute sitzen sich gegenüber: einer links, einer rechts. Fußpunkt = Mitte der
  *  Vorderkante. */
 export const PAARE: Record<PaarId, Platz> = {
-  a: { x: 760, y: 392, s: 1.2 },
-  b: { x: 1170, y: 388, s: 1.2 },
+  a: { x: 825, y: 392, s: 1.2 },
+  b: { x: 1235, y: 388, s: 1.2 },
 }
 
 /** Wer an welchem Doppelschreibtisch sitzt (nach Kürzel): für diese vier gibt es
@@ -503,8 +539,8 @@ export function sitzFuss(paar: PaarId, seite: Seite): Platz {
 /** Plätze für Mitarbeiter ohne Doppelschreibtisch (zum Beispiel ein später
  *  Eingestellter): ihr Profilbild steht dort. */
 export const RANDPLAETZE: readonly Platz[] = [
-  { x: 1440, y: 372, s: 1 },
-  { x: 1510, y: 380, s: 1 },
+  { x: 1495, y: 372, s: 1 },
+  { x: 1555, y: 380, s: 1 },
 ]
 
 /** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort steht ein

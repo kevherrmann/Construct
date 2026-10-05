@@ -7,9 +7,11 @@ import { useSekunde } from '@/hooks/useSekunde'
 import { parallelMatrix, type Viereck } from './kamera'
 import { bcdSpalten, ZEILEN } from './binaer'
 import {
+  BILD_MASS,
   BINAER_MASS,
   KONTINGENT_MASS,
   REGAL_SCHILD,
+  WAND_BILD,
   WAND_BINAER,
   WAND_KONTINGENT,
 } from './stationen'
@@ -94,6 +96,30 @@ export function RegalSchild({
       <span className={s.regalSchildName} style={{ fontSize: schrift }}>
         {name}
       </span>
+    </div>
+  )
+}
+
+/** Dein Profilbild im Rahmen an der Wand (⚙ → Namen). Ohne Bild bleibt die Wand leer. */
+export function WandBild({
+  welt,
+  weich = false,
+}: {
+  welt: { w: number; h: number }
+  weich?: boolean
+}) {
+  const bild = useSettings((st) => st.settings.avatars?.user)
+  if (!welt.w || !bild) return null
+  const k = welt.w / 2048
+  const [ol, or, ul] = WAND_BILD.map(([x, y]) => [x * k, y * k] as const)
+  const { w, h } = BILD_MASS
+  return (
+    <div
+      className={`${s.wandBild} ${weich ? s.weich : ''}`}
+      style={{ width: w, height: h, transform: parallelMatrix(w, h, ol!, or!, ul!) }}
+      aria-hidden
+    >
+      <img src={bild} alt="" draggable={false} />
     </div>
   )
 }
