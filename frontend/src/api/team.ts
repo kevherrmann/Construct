@@ -141,6 +141,8 @@ export interface TeamStand {
     color: string
     ticket: string
     titel: string
+    /** Laufender Zug: live mitlesen über /api/stream/{run} (ältere Server: fehlt). */
+    run?: string
     seit: number
   }[]
   wartend: { id: string; titel: string; grund: string }[]

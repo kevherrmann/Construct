@@ -11,6 +11,8 @@ import {
   type Platz,
 } from './stationen'
 import { WEG_MS, type Besuch, type BueroStand, type Sitz } from './useBuero'
+import { fxLevel } from '@/lib/fx'
+import { PoseVideo } from './PoseVideo'
 import s from './Raum.module.css'
 
 // Das Büro der Firma: in der freien Ecke links stehen zwei Doppelschreibtische, an
@@ -20,6 +22,8 @@ import s from './Raum.module.css'
 // wer keinen Doppelschreibtisch hat, steht mit seinem Profilbild am Rand.
 
 const SPRITES = BUERO_SPRITES
+/** Tipp-Videos nur, wenn der Rechner Videos im Raum spielt (wie beim Assistenten). */
+const VIDEO_AN = fxLevel() !== 'off'
 
 /** Wie viele am Tisch sitzen (Reihenfolge im Bild: links, rechts). */
 type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
@@ -213,6 +217,16 @@ function Randplatz({
 /** Die Figur an der Werkbank (Ebene wie die des Assistenten). Steht der Mitarbeiter
  *  nicht dort, liegt sie klein und unsichtbar an seinem Stuhl; der Wechsel ist der Weg. */
 function Laeufer({ sitz, da }: { sitz: Sitz; da: boolean }) {
+  // Angekommen: er tippt (Video über dem Standbild, wie beim Assistenten).
+  const [angekommen, setAngekommen] = useState(false)
+  useEffect(() => {
+    if (!da) return
+    const id = setTimeout(() => setAngekommen(true), WEG_MS)
+    return () => {
+      clearTimeout(id)
+      setAngekommen(false)
+    }
+  }, [da])
   // Verschiebung vom Werkbank-Fußpunkt zum Stuhl, in Prozent der Ebene selbst
   // (translate rechnet mit der eigenen Größe), und der Maßstab dort hinten.
   const lw = (WERKBANK.w / 100) * BUERO_BUEHNE.w
@@ -220,20 +234,30 @@ function Laeufer({ sitz, da }: { sitz: Sitz; da: boolean }) {
   const dx = ((sitz.platz.x - WERKBANK_FUSS.x) / lw) * 100
   const dy = ((sitz.platz.y - WERKBANK_FUSS.y) / lh) * 100
   const k = massstab(sitz.platz.y)
+  const datei = `${SPRITES}/${sitz.agent.slug}-tippen`
   return (
-    <img
-      className={`${s.laeufer} ${da ? s.laeuferDa : ''}`}
-      style={{
-        left: `${WERKBANK.l}%`,
-        top: `${WERKBANK.t}%`,
-        width: `${WERKBANK.w}%`,
-        height: `${WERKBANK.h}%`,
-        ['--von' as string]: `translate(${dx}%, ${dy}%) scale(${k})`,
-      }}
-      src={`${SPRITES}/${sitz.agent.slug}-werkbank.webp`}
-      alt=""
-      draggable={false}
-    />
+    <>
+      <img
+        className={`${s.laeufer} ${da ? s.laeuferDa : ''}`}
+        style={{
+          left: `${WERKBANK.l}%`,
+          top: `${WERKBANK.t}%`,
+          width: `${WERKBANK.w}%`,
+          height: `${WERKBANK.h}%`,
+          ['--von' as string]: `translate(${dx}%, ${dy}%) scale(${k})`,
+        }}
+        src={`${SPRITES}/${sitz.agent.slug}-werkbank.webp`}
+        alt=""
+        draggable={false}
+      />
+      {VIDEO_AN && (
+        <PoseVideo
+          clip={{ webm: `${datei}.webm`, mp4: `${datei}.mp4`, maske: `${datei}-maske.webp` }}
+          ort={WERKBANK}
+          an={da && angekommen}
+        />
+      )}
+    </>
   )
 }
 
@@ -243,11 +267,14 @@ export function Besucher({
   besuch,
   stand,
   bild,
+  reden,
   podest,
 }: {
   besuch: Besuch
   stand: BueroStand
   bild: string
+  /** Seitlich im Gespräch (nach rechts gewandt); fehlt sie, bleibt das Standbild. */
+  reden?: string
   podest: { x: number; y: number; h: number }
 }) {
   const ziel = stand.leute.find((l) => l.agent.slug === besuch.slug)
@@ -257,15 +284,18 @@ export function Besucher({
   const fuss = { x: ziel.platz.x + seite * 80 * ziel.platz.s, y: ziel.platz.y + 22 }
   const podestFuss = (podest.y / 100) * BUERO_BUEHNE.h
   const hh = podest.h * massstab(fuss.y, podestFuss)
-  const hin = besuch.phase === 'hin'
+  const hin = besuch.phase === 'hin' || besuch.phase === 'da'
+  // Am Tisch schaut sie den Mitarbeiter an: sitzt er rechts von ihr, wie im Bild,
+  // sonst gespiegelt.
+  const imGespraech = besuch.phase === 'da' && !!reden
   const x = hin ? (fuss.x / BUERO_BUEHNE.w) * 100 : podest.x
   const y = hin ? (fuss.y / BUERO_BUEHNE.h) * 100 : podest.y
   const h = hin ? hh : podest.h
   return (
     <img
-      className={`${s.besucher} ${besuch.phase === 'start' ? s.besucherStart : ''}`}
+      className={`${s.besucher} ${besuch.phase === 'start' ? s.besucherStart : ''} ${imGespraech && seite > 0 ? s.besucherLinks : ''}`}
       style={{ left: `${x}%`, top: `${y - h}%`, height: `${h}%` }}
-      src={bild}
+      src={imGespraech ? reden : bild}
       alt=""
       draggable={false}
     />

@@ -4,12 +4,14 @@ import { RANDPLAETZE, SITZE, sitzFuss, type PaarId, type Platz, type Seite } fro
 
 /** Dauer von Hin- und Rückweg (ms); muss zur Übergangszeit im CSS passen. */
 export const WEG_MS = 1100
-const BESUCH_BLEIBT_MS = 2200
+/** So lange redet die Chefin am Tisch mit dem Mitarbeiter, bevor er aufsteht. */
+const BESUCH_BLEIBT_MS = 3200
 
 export interface Besuch {
   slug: string
-  /** 'start' = steht noch am Podest, 'hin' = geht zum Tisch, 'zurueck' = geht heim. */
-  phase: 'start' | 'hin' | 'zurueck'
+  /** 'start' = steht noch am Podest, 'hin' = geht zum Tisch, 'da' = redet mit ihm,
+   *  'zurueck' = geht heim (und der Mitarbeiter geht an die Werkbank). */
+  phase: 'start' | 'hin' | 'da' | 'zurueck'
 }
 
 /** Ein Mitarbeiter im Raum: wo er sitzt (am Doppelschreibtisch oder am Rand). */
@@ -65,21 +67,11 @@ export function useBuero(werkFrei: boolean): BueroStand | null {
     [stand, leute],
   )
 
-  // Wer an der Werkbank steht, bleibt dort, bis er fertig ist: sonst liefen zwei
-  // gleichzeitig Arbeitende ständig hin und her. Nur wer ein Bild an der Werkbank
-  // hat (die Fest-Besetzten), geht dorthin. (Zustand beim Zeichnen angepasst statt
-  // im Effekt: so gibt es keinen Zeichendurchgang mit dem alten Wert.)
-  const [werk, setWerk] = useState<string | null>(null)
-  const kannHin = (slug: string) => !!SITZE[slug]
-  const gewuenscht = !werkFrei
-    ? null
-    : werk && arbeiten.has(werk)
-      ? werk
-      : ([...arbeiten].find(kannHin) ?? null)
-  if (gewuenscht !== werk) setWerk(gewuenscht)
-
-  // Wer neu dazukommt, wird von der Chefin besucht (nicht beim ersten Laden und
-  // nicht, solange schon ein Besuch läuft).
+  // Wer neu dazukommt, wird von der Chefin besucht: sie geht zu ihm an den Tisch und
+  // gibt ihm den Auftrag, er bleibt so lange sitzen (nicht beim ersten Laden, nicht,
+  // solange schon ein Besuch läuft, und nicht, während sie selbst an der Werkbank steht).
+  // (Zustand beim Zeichnen angepasst statt im Effekt: so gibt es keinen
+  // Zeichendurchgang mit dem alten Wert.)
   const [besuch, setBesuch] = useState<Besuch | null>(null)
   const [gesehen, setGesehen] = useState<string | null>(null)
   const schluessel = [...arbeiten].sort().join(',')
@@ -87,13 +79,29 @@ export function useBuero(werkFrei: boolean): BueroStand | null {
     const frueher = new Set((gesehen ?? '').split(',').filter(Boolean))
     setGesehen(schluessel)
     const neu = gesehen === null ? undefined : [...arbeiten].find((slug) => !frueher.has(slug))
-    if (neu && !besuch) setBesuch({ slug: neu, phase: 'start' })
+    if (neu && !besuch && werkFrei) setBesuch({ slug: neu, phase: 'start' })
   }
+
+  // Wer an der Werkbank steht, bleibt dort, bis er fertig ist: sonst liefen zwei
+  // gleichzeitig Arbeitende ständig hin und her. Nur wer ein Bild an der Werkbank
+  // hat (die Fest-Besetzten), geht dorthin — und erst, wenn die Chefin mit ihm
+  // fertig geredet hat.
+  const [werk, setWerk] = useState<string | null>(null)
+  const imGespraech = besuch && besuch.phase !== 'zurueck' ? besuch.slug : null
+  const kannHin = (slug: string) => !!SITZE[slug] && slug !== imGespraech
+  const gewuenscht = !werkFrei
+    ? null
+    : werk && arbeiten.has(werk) && werk !== imGespraech
+      ? werk
+      : ([...arbeiten].find(kannHin) ?? null)
+  if (gewuenscht !== werk) setWerk(gewuenscht)
+
   useEffect(() => {
     if (!besuch) return
     const weiter: Record<Besuch['phase'], [number, Besuch | null]> = {
       start: [40, { ...besuch, phase: 'hin' }],
-      hin: [WEG_MS + BESUCH_BLEIBT_MS, { ...besuch, phase: 'zurueck' }],
+      hin: [WEG_MS, { ...besuch, phase: 'da' }],
+      da: [BESUCH_BLEIBT_MS, { ...besuch, phase: 'zurueck' }],
       zurueck: [WEG_MS, null],
     }
     const [warte, danach] = weiter[besuch.phase]

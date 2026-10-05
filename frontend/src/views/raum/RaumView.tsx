@@ -29,6 +29,7 @@ import codyDenken from './assets/cody-denken.webp'
 import codyLesen from './assets/cody-lesen.webp'
 import codyErklaeren from './assets/cody-erklaeren.webp'
 import codyWerkbank from './assets/cody-werkbank.webp'
+import codyReden from './assets/cody-reden.webp'
 import geraeteBild from './assets/werkbank-geraete.webp'
 import unscharfBild from './assets/raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
@@ -40,6 +41,9 @@ import { Fernseher } from './Fernseher'
 import { RegalSchild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
+import { useTeamBlase } from './useTeamBlase'
+import { useTeamStand } from '@/api/team'
+import { useAuftraegeAnsicht } from '../auftraege/store'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
   BUERO_FORM,
@@ -60,6 +64,7 @@ import {
   type StationId,
   VIELECK,
 } from './stationen'
+import { PoseVideo, type Clip } from './PoseVideo'
 import s from './Raum.module.css'
 
 /** 'arbeiten' ist keine Pose am Podest: dafür geht die Figur an die Werkbank
@@ -68,20 +73,15 @@ type Pose = 'idle' | 'denken' | 'lesen' | 'arbeiten' | 'erklaeren'
 type PodestPose = Exclude<Pose, 'arbeiten'>
 const POSEN: PodestPose[] = ['idle', 'denken', 'lesen', 'erklaeren']
 
-/** Kurze Schleife einer Pose. Erstes und letztes Bild = Standbild der Pose,
- *  die Maske (Figur mit Rand) lässt drumherum den Raum durch. */
-interface Clip {
-  webm: string
-  mp4: string
-  maske: string
-}
-
 interface Figur {
   /** 'cody' oder 'eigen' (static/figur dieser Installation). */
   name: string
   posen: Record<PodestPose, string>
   /** Figur an der Werkbank (Ausschnitt WERKBANK). */
   werkbank: string
+  /** Im Gespräch am Schreibtisch eines Mitarbeiters: seitlich, nach rechts gewandt
+   *  (gespiegelt, wenn er links von ihr sitzt). Fehlt sie, steht dort das Standbild. */
+  reden?: string
   /** Schleifen je Pose: am Podest im Ausschnitt PODEST_VIDEO, 'arbeiten' an
    *  der Werkbank im Ausschnitt WERKBANK. Fehlt eine, bleibt das Standbild. */
   videos: Partial<Record<Pose, Clip>>
@@ -110,13 +110,15 @@ const CODY: Figur = {
   name: 'cody',
   posen: { idle: codyIdle, denken: codyDenken, lesen: codyLesen, erklaeren: codyErklaeren },
   werkbank: codyWerkbank,
+  reden: codyReden,
   videos: videosVon((d) => VIDEO_DATEI[`./assets/video/cody-${d}`]),
 }
 
 /** Eigene Figur einer Installation statt Cody: liegt in static/figur
  *  (gitignored), der Server gibt die Dateiliste beim Start mit. Gleiche
  *  Leinwand wie Cody. Pflicht: idle, denken, lesen, erklaeren, werkbank (.webp).
- *  Freiwillig: video/<pose>.webm|mp4 + video/<pose>-maske.webp. Monitor, Tastatur,
+ *  Freiwillig: reden.webp (im Gespräch am Schreibtisch, seitlich nach rechts) und
+ *  video/<pose>.webm|mp4 + video/<pose>-maske.webp. Monitor, Tastatur,
  *  unscharfer Raum und die Werkbank-Masken gehören zum Raum und sind für alle Figuren
  *  gleich (frühere Dateien werkbank-geraete, raum-unscharf, form-/schein-werkbank
  *  werden nicht mehr gebraucht). Fehlt etwas Pflicht, bleibt es bei Cody. */
@@ -136,6 +138,7 @@ function eigeneFigur(dateien: string[]): Figur | null {
     name: 'eigen',
     posen: { idle, denken, lesen, erklaeren },
     werkbank,
+    reden: bild('reden'),
     videos: videosVon((d) => url(`video/${d}`)),
   }
 }
@@ -220,59 +223,6 @@ const platz = (r: Rechteck) => ({
   height: `${r.h}%`,
 })
 
-/** Schleife einer Pose. Startet beim Einblenden vorn, damit das erste Bild
- *  genau auf dem Standbild liegt — die Überblendung springt dann nicht. */
-function PoseVideo({
-  clip,
-  ort,
-  an,
-  onLaeuft,
-}: {
-  clip: Clip
-  ort: Rechteck
-  an: boolean
-  onLaeuft: (v: boolean) => void
-}) {
-  const ref = useRef<HTMLVideoElement>(null)
-  const [laeuft, setLaeuft] = useState(false)
-  useEffect(() => {
-    const v = ref.current
-    if (!v) return
-    if (an) {
-      v.currentTime = 0
-      v.play().catch(() => {}) // Autoplay verweigert: dann bleibt das Standbild
-    } else {
-      const id = setTimeout(() => v.pause(), 500) // erst nach der Ausblendung
-      return () => clearTimeout(id)
-    }
-  }, [an])
-  const melde = (v: boolean) => {
-    setLaeuft(v)
-    onLaeuft(v)
-  }
-  return (
-    <video
-      ref={ref}
-      className={`${s.video} ${an && laeuft ? s.videoAn : ''}`}
-      style={{
-        ...platz(ort),
-        maskImage: `url(${clip.maske})`,
-        WebkitMaskImage: `url(${clip.maske})`,
-      }}
-      muted
-      loop
-      playsInline
-      preload="auto"
-      aria-hidden
-      onPlaying={() => melde(true)}
-      onPause={() => melde(false)}
-      onError={() => melde(false)}
-    >
-      <source src={clip.webm} type="video/webm" />
-      <source src={clip.mp4} type="video/mp4" />
-    </video>
-  )
-}
 /** Jede Pose bleibt mindestens so lange stehen — sonst zappelt die Figur,
  *  wenn Text und Werkzeuge im Sekundentakt wechseln. */
 const POSE_MIN_MS = 1200
@@ -465,11 +415,21 @@ export function RaumView() {
   )
   const figurDateien = useSettings((st) => st.boot.figur)
   const figur = useMemo(() => eigeneFigur(figurDateien) ?? CODY, [figurDateien])
-  const pose = useRuhigePose(POSE_VON[lage.phase])
+  // Arbeitet die Chefin für die Firma (verteilt, prüft), während du nichts fragst,
+  // redet sie: sie erklärt. An die Werkbank geht sie dafür nicht.
+  const teamStand = useTeamStand().data
+  const chefRedet =
+    !lage.live && lage.phase === 'ruht' && !!teamStand?.aktiv.some((x) => x.agent === 'chef')
+  const pose = useRuhigePose(chefRedet ? 'erklaeren' : POSE_VON[lage.phase])
   const amWerk = pose === 'arbeiten'
   // Team-Modus: das Büro hinten im Raum; null, wenn der Modus aus ist.
   const buero = useBuero(!amWerk)
   const besucht = !!buero?.besuch
+  // Arbeitet die Firma und redest du gerade nicht mit dem Assistenten, gehört die
+  // Sprechblase dem, der dort spricht (sonst wie immer deine letzte Antwort).
+  const team = useTeamBlase(buero?.werk ?? null)
+  const teamSpricht = !!team && !lage.live
+  const teamAmWerk = teamSpricht && team.slug === buero?.werk
   useRaumKlang({ ansicht, fokus, tauchen, amWerk })
   // Lautsprecher im Kopf: alles an bzw. alles aus (fein in ⚙ → Aussehen).
   const sound = useSettings((st) => st.settings.sound)
@@ -488,10 +448,16 @@ export function RaumView() {
   // Schlüssel = deine wievielte Frage: bleibt stehen, wenn der Lauf endet
   // und die Antwort in den Verlauf wandert.
   const fragen = conv ? conv.history.filter((i) => i.kind === 'user').length : 0
-  const antwortKey = `${conv?.key ?? ''}:${fragen}`
+  const blasenLage = teamSpricht ? team.lage : lage
+  const blasenStatus = teamSpricht
+    ? blasenLage.phase === 'ruht'
+      ? ''
+      : t(PHASE_TEXT[blasenLage.phase], { d: blasenLage.detail })
+    : status
+  const antwortKey = teamSpricht ? `team:${team.run}` : `${conv?.key ?? ''}:${fragen}`
   const [zuFuer, setZuFuer] = useState<string | null>(null)
   const blaseZu = zuFuer === antwortKey
-  const hatBlase = !!(lage.md || status)
+  const hatBlase = !!(blasenLage.md || blasenStatus)
   const blaseUmschalten = () => setZuFuer(blaseZu ? null : antwortKey)
 
   // Schilder der Stationen zeigen, was gerade eingestellt ist.
@@ -545,13 +511,23 @@ export function RaumView() {
     hatBlase && !blaseZu ? (
       <Sprechblase
         key={antwortKey}
-        name={assistant}
-        status={status}
-        md={lage.md}
-        live={lage.live}
-        rechts={amWerk}
+        name={teamSpricht && team.slug !== 'chef' ? team.name : assistant}
+        farbe={teamSpricht && team.slug !== 'chef' ? team.farbe : undefined}
+        status={blasenStatus}
+        md={blasenLage.md}
+        live={blasenLage.live}
+        rechts={teamSpricht ? teamAmWerk : amWerk}
+        team={teamAmWerk}
         unten={kompakt}
-        onVerlauf={() => setAnsicht('protokoll')}
+        onVerlauf={() => {
+          if (teamSpricht) {
+            // Der ganze Zug steht in den Aufträgen, bei der Person
+            const a = useAuftraegeAnsicht.getState()
+            a.oeffne(team.auftrag)
+            a.sichtWechseln(team.slug)
+            setAnsicht('auftraege')
+          } else setAnsicht('protokoll')
+        }}
         onZu={blaseUmschalten}
       />
     ) : null
@@ -682,6 +658,7 @@ export function RaumView() {
                       besuch={buero.besuch}
                       stand={buero}
                       bild={figur.posen.idle}
+                      reden={figur.reden}
                       podest={FIGUR}
                     />
                   )}
@@ -794,7 +771,7 @@ export function RaumView() {
               {hatBlase && blaseZu && (
                 <button
                   type="button"
-                  className={`${s.denkpunkte} ${amWerk ? s.denkpunkteWerk : ''} ${lage.live ? s.denkpunkteLive : ''}`}
+                  className={`${s.denkpunkte} ${(teamSpricht ? teamAmWerk : amWerk) ? s.denkpunkteWerk : ''} ${blasenLage.live ? s.denkpunkteLive : ''}`}
                   onClick={blaseUmschalten}
                   aria-label={t('Sprechblase zeigen')}
                 >
@@ -939,19 +916,25 @@ function Projektion({
  *  Werkbank, wandert die Blase nach links. */
 function Sprechblase({
   name,
+  farbe,
   status,
   md,
   live,
   rechts,
+  team = false,
   unten = false,
   onVerlauf,
   onZu,
 }: {
   name: string
+  /** Akzentfarbe "r, g, b" (Mitarbeiter); ohne = die des Raums. */
+  farbe?: string
   status: string
   md: string
   live: boolean
   rechts: boolean
+  /** Ein Mitarbeiter an der Werkbank spricht (eigener, schmaler Platz). */
+  team?: boolean
   /** Kompakt: als Untertitel über der Sprechzeile statt neben der Figur. */
   unten?: boolean
   onVerlauf: () => void
@@ -971,7 +954,8 @@ function Sprechblase({
   const gehe = (n: number) => setWahl(n >= letzter ? null : Math.max(0, n))
   return (
     <section
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${live ? s.blaseLive : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''}`}
+      style={farbe ? { ['--accent-rgb' as string]: farbe } : undefined}
       onClick={(e) => e.stopPropagation()}
     >
       <header className={s.blasenKopf}>

@@ -330,7 +330,7 @@ def team_state():
         t = auf.laden(r.auftrag_id) or {}
         aktiv.append({"agent": r.agent_slug, "name": ag.anzeige(a).get("name", r.agent_slug),
                       "color": a.get("color", "126,231,135"),
-                      "ticket": r.auftrag_id, "titel": t.get("titel", ""),
+                      "ticket": r.auftrag_id, "titel": t.get("titel", ""), "run": r.id,
                       "seit": int(time.time() - r.started)})
     wartend = [{"id": t["id"], "titel": t["titel"],
                 "grund": (t.get("eskalation") or {}).get("bremse") or ""}

@@ -544,6 +544,13 @@
   right: 18px;
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
+/* Ein Mitarbeiter an der Werkbank spricht: schmal zwischen Podest und Werkbank,
+   der Zeiger rechts unten zeigt auf ihn (der Assistent steht dabei am Podest). */
+.blaseLinks.blaseTeam {
+  left: 49%;
+  bottom: 50%;
+  width: min(18.5%, 380px);
+}
 /* Läuft eine Antwort, glimmt der Rand in der Akzentfarbe. */
 /* Kompakt: Untertitel über der Sprechzeile, unabhängig vom Panorama. */
 .blase.blaseUnten {
@@ -2105,6 +2112,10 @@
 }
 .besucherStart {
   transition: none;
+}
+/* Im Gespräch mit jemandem, der links von ihr sitzt: das Bild schaut nach rechts, also gespiegelt. */
+.besucherLinks {
+  transform: translateX(-50%) scaleX(-1);
 }
 :global(body.fx-off) :is(.laeufer, .besucher) {
   transition-duration: 0s;
