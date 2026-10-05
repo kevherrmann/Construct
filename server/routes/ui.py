@@ -84,7 +84,8 @@ def next_redirect(rest: str = ""):
 # das Routing macht React. Bewusst nur die bekannten Ansichten und ganz am
 # Ende deklariert: ein allgemeiner Platzhalter weiter oben würde die
 # /api-Routen verschlucken, und Tippfehler sollen ein ehrliches 404 bekommen.
-APP_VIEWS = {"chat", "tickets", "skills", "calendar", "mail", "mcp", "settings"}
+APP_VIEWS = {"chat", "tickets", "auftraege", "personal", "skills", "calendar", "mail", "mcp",
+             "settings"}
 
 
 @router.get("/{view}")

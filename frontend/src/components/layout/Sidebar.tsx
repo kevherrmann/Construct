@@ -15,7 +15,8 @@ export function Sidebar({ view, open, onNavigate }: Props) {
   const { t } = useTranslation()
   const tiles = useSettings((st) => st.settings.tiles)
   const assistant = useSettings((st) => st.boot.assistant)
-  const views = visibleViews(tiles)
+  const teamAn = useSettings((st) => st.settings.team.aktiv)
+  const views = visibleViews(tiles, teamAn)
   // 1–4 Kacheln in eine Reihe, 5–6 als 3+3, mehr als 4+n.
   const spalten = views.length <= 4 ? views.length : views.length <= 6 ? 3 : 4
   return (

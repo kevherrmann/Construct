@@ -26,6 +26,18 @@ const TicketsMain = lazy(() =>
 const TicketsSide = lazy(() =>
   import('./tickets/TicketsSide').then((m) => ({ default: m.TicketsSide })),
 )
+const AuftraegeMain = lazy(() =>
+  import('./auftraege/AuftraegeMain').then((m) => ({ default: m.AuftraegeMain })),
+)
+const AuftraegeSide = lazy(() =>
+  import('./auftraege/AuftraegeSide').then((m) => ({ default: m.AuftraegeSide })),
+)
+const PersonalMain = lazy(() =>
+  import('./personal/PersonalMain').then((m) => ({ default: m.PersonalMain })),
+)
+const PersonalSide = lazy(() =>
+  import('./personal/PersonalSide').then((m) => ({ default: m.PersonalSide })),
+)
 const SettingsMain = lazy(() =>
   import('./settings/SettingsMain').then((m) => ({ default: m.SettingsMain })),
 )
@@ -33,7 +45,16 @@ const SettingsSide = lazy(() =>
   import('./settings/SettingsSide').then((m) => ({ default: m.SettingsSide })),
 )
 
-export type ViewKey = 'chat' | 'tickets' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
+export type ViewKey =
+  | 'chat'
+  | 'tickets'
+  | 'auftraege'
+  | 'personal'
+  | 'skills'
+  | 'calendar'
+  | 'mail'
+  | 'mcp'
+  | 'settings'
 
 export interface ViewDef {
   key: ViewKey
@@ -42,6 +63,8 @@ export interface ViewDef {
   label: string
   /** Abschaltbar unter ⚙ → Kacheln; fehlt = immer da. */
   tile?: keyof Settings['tiles']
+  /** Nur mit Team-Modus (⚙ → Team). */
+  team?: boolean
   /** Inhalt der Seitenleiste unter dem Menü. */
   Side: ComponentType
   /** Hauptbereich rechts. */
@@ -58,6 +81,22 @@ export const VIEWS: ViewDef[] = [
     tile: 'tickets',
     Side: TicketsSide,
     Main: TicketsMain,
+  },
+  {
+    key: 'auftraege',
+    icon: '🗂',
+    label: 'Aufträge',
+    team: true,
+    Side: AuftraegeSide,
+    Main: AuftraegeMain,
+  },
+  {
+    key: 'personal',
+    icon: '👥',
+    label: 'Personal',
+    team: true,
+    Side: PersonalSide,
+    Main: PersonalMain,
   },
   {
     key: 'skills',
@@ -80,5 +119,5 @@ export const VIEWS: ViewDef[] = [
   { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: SettingsSide, Main: SettingsMain },
 ]
 
-export const visibleViews = (tiles: Settings['tiles']) =>
-  VIEWS.filter((v) => !v.tile || tiles[v.tile] !== false)
+export const visibleViews = (tiles: Settings['tiles'], teamAn = false) =>
+  VIEWS.filter((v) => (!v.tile || tiles[v.tile] !== false) && (!v.team || teamAn))

@@ -122,6 +122,84 @@ export function TilesSection() {
   )
 }
 
+// Der Team-Modus: eine Firma aus KI-Mitarbeitern neben dem einzelnen Assistenten.
+// Aus = CONSTRUCT ist, was es war: ein Assistent. An = es gibt Belegschaft und
+// Aufträge, und je Aufgabe lässt sich entscheiden, ob nur der Assistent arbeitet
+// oder die ganze Firma.
+export function TeamSection() {
+  const { t } = useTranslation()
+  const team = useSettings((st) => st.settings.team)
+  const tickets = useSettings((st) => st.settings.tickets)
+  const save = useSettings((st) => st.save)
+  return (
+    <Section id="team">
+      <div className={s.row}>
+        <label>
+          <input
+            type="checkbox"
+            checked={team.aktiv}
+            onChange={(e) => void save({ team: { aktiv: e.target.checked } })}
+          />
+          <span>
+            <span className={s.t}>🏢 {t('Team-Modus')}</span>
+            <span className={s.d}>
+              {t(
+                'Eine Firma aus KI-Mitarbeitern: Personal und Aufträge. Große Aufgaben gibst du an die Firma, kleine erledigt der Assistent allein. Aus = alles wie bisher.',
+              )}
+            </span>
+          </span>
+        </label>
+      </div>
+      {team.aktiv && (
+        <div className={s.row}>
+          <span className={s.grow}>
+            <span className={s.t}>{t('Wer entscheidet, was an die Firma geht?')}</span>
+            <span className={s.actions}>
+              {(['zuruf', 'auto'] as const).map((m) => (
+                <label key={m}>
+                  <input
+                    type="radio"
+                    name="team-modus"
+                    checked={team.modus === m}
+                    onChange={() => void save({ team: { modus: m } })}
+                  />
+                  <span>
+                    <span className={s.t}>
+                      {m === 'zuruf' ? t('Nur auf Zuruf') : t('Der Assistent darf vorschlagen')}
+                    </span>
+                    <span className={s.d}>
+                      {m === 'zuruf'
+                        ? t('/firma, der Knopf am Ticket oder deine ausdrückliche Bitte.')
+                        : t('Bei großen Aufgaben schlägt er die Firma vor und fragt dich vorher.')}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </span>
+          </span>
+        </div>
+      )}
+      <div className={s.row}>
+        <label>
+          <input
+            type="checkbox"
+            checked={tickets.assistent}
+            onChange={(e) => void save({ tickets: { assistent: e.target.checked } })}
+          />
+          <span>
+            <span className={s.t}>🎫 {t('Assistent ordnet Tickets mit')}</span>
+            <span className={s.d}>
+              {t(
+                'Er legt neue Tickets an und ordnet Korrekturen zu (zwei kleine Werkzeuge, etwa 1 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
+              )}
+            </span>
+          </span>
+        </label>
+      </div>
+    </Section>
+  )
+}
+
 // Die Konten selbst verwaltet die E-Mail-Ansicht (/mail/accounts).
 export function MailSection() {
   const { t } = useTranslation()

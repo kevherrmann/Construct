@@ -7,6 +7,7 @@ import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
 import { speakableText } from '@/lib/chat/speak'
 import { useSettings } from '@/stores/settings'
+import { useAgentKontext } from './AgentKontext'
 import { Markdown } from './Markdown'
 import { TicketCut } from './TicketCut'
 import { ToolBox } from './ToolBox'
@@ -21,6 +22,27 @@ function Avatar({ user }: { user: boolean }) {
   const { t } = useTranslation()
   const avatars = useSettings((st) => st.settings.avatars)
   const userName = useSettings((st) => st.boot.user || st.settings.names.user)
+  const agent = useAgentKontext()
+  // Im Gespräch mit einem Mitarbeiter trägt dessen Seite sein Bild — oder, ohne
+  // Bild, den Anfangsbuchstaben in seiner Farbe.
+  if (agent && !user)
+    return (
+      <div
+        className={s.avatar}
+        style={
+          agent.avatar
+            ? { backgroundImage: `url("${agent.avatar}")` }
+            : {
+                background: `rgb(${agent.color})`,
+                color: '#04121c',
+                display: 'grid',
+                placeItems: 'center',
+              }
+        }
+      >
+        {agent.avatar ? null : agent.name.slice(0, 1).toUpperCase()}
+      </div>
+    )
   const img = user ? avatars.user : avatars.assistant || '/static/cody.png'
   // Ohne eigenes Foto steht der Anfangsbuchstabe im Kreis — ein leerer Kreis
   // sähe aus, als wäre ein Bild kaputt.
@@ -83,13 +105,15 @@ function Frame({
 }) {
   const assistant = useSettings((st) => st.boot.assistant)
   const userName = useSettings((st) => st.boot.user || st.settings.names.user)
+  const agent = useAgentKontext()
   const { t } = useTranslation()
+  const wer = agent ? agent.name : assistant
   return (
     <div className={`${s.msg} ${user ? s.user : s.bot}`} data-uuid={uuid}>
       <Avatar user={user} />
       <div className={s.col}>
         <div className={s.who}>
-          {(user ? userName || t('Du') : assistant).toUpperCase()}
+          {(user ? userName || t('Du') : wer).toUpperCase()}
           {ts != null && <Time ts={ts} />}
           {say && <SayButton {...say} />}
         </div>
@@ -195,7 +219,7 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
   )
 }
 
-function BlockView({ block }: { block: Block }) {
+export function BlockView({ block }: { block: Block }) {
   const { t } = useTranslation()
   const note = useNote()
   switch (block.t) {

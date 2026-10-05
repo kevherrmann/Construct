@@ -5,6 +5,8 @@ it('jede Ansicht kommt genau einmal vor, in der Reihenfolge des Menüs', () => {
   expect(VIEWS.map((v) => v.key)).toEqual([
     'chat',
     'tickets',
+    'auftraege',
+    'personal',
     'skills',
     'calendar',
     'mail',

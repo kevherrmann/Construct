@@ -5,6 +5,7 @@
 export const SECTIONS = [
   { id: 'sprache', title: '🌐 SPRACHE' },
   { id: 'kacheln', title: '⚙ KACHELN' },
+  { id: 'team', title: '🏢 TEAM' },
   { id: 'modelle', title: '🧠 MODELLE & ANBIETER' },
   { id: 'mail', title: '📧 E-MAIL-KONTEN' },
   { id: 'vorlesen', title: '🔊 VORLESEN' },
@@ -26,7 +27,7 @@ export const sectionDomId = (id: SectionId) => `set-${id}`
 // Tabs: links wählt man einen Bereich, rechts steht nur der — statt einer
 // langen Liste, durch die man scrollt. Jeder Abschnitt gehört genau einem Tab.
 export const TABS = [
-  { id: 'allgemein', title: '⚙ ALLGEMEIN', sections: ['sprache', 'kacheln', 'namen'] },
+  { id: 'allgemein', title: '⚙ ALLGEMEIN', sections: ['sprache', 'kacheln', 'team', 'namen'] },
   { id: 'modelle', title: '🧠 MODELLE', sections: ['modelle', 'bilder'] },
   { id: 'assistent', title: '📜 ASSISTENT', sections: ['charakter', 'vorlesen'] },
   { id: 'verbindungen', title: '🔌 VERBINDUNGEN', sections: ['mail', 'telegram'] },

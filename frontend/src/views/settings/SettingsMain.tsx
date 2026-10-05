@@ -6,7 +6,7 @@ import { BackgroundSection, ThemeSection } from './AppearanceSections'
 import { EnginesSection } from './EnginesSection'
 import { ImagesSection } from './ImagesSection'
 import { KlangSection } from './KlangSection'
-import { LanguageSection, MailSection, TilesSection } from './GeneralSections'
+import { LanguageSection, MailSection, TeamSection, TilesSection } from './GeneralSections'
 import { NamesSection } from './NamesSection'
 import { Note } from './parts'
 import { PersonaSection } from './PersonaSection'
@@ -48,6 +48,7 @@ function SavedNote() {
 const BY_ID: Record<SectionId, ComponentType> = {
   sprache: LanguageSection,
   kacheln: TilesSection,
+  team: TeamSection,
   modelle: EnginesSection,
   mail: MailSection,
   vorlesen: TtsSection,

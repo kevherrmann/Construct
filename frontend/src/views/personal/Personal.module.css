@@ -1,0 +1,356 @@
+/* Seitenleiste */
+.nav {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 2px solid var(--green-faint);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 9px 10px;
+  margin: 3px 0;
+  cursor: pointer;
+  transition: 0.12s;
+}
+.nav:hover,
+.emp:hover,
+.nav.sel,
+.emp.sel {
+  border-left-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.07);
+}
+.uh {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--green-dim);
+  margin: 14px 2px 4px;
+}
+.hint {
+  font-size: 11px;
+  color: var(--green-dim);
+  opacity: 0.8;
+  padding: 8px;
+}
+.emp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--green);
+  font-family: inherit;
+  padding: 7px 8px;
+  margin: 2px 0;
+  cursor: pointer;
+}
+.emp.sel,
+.emp:hover {
+  border-left-color: rgb(var(--accent-rgb));
+}
+.en {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.en b {
+  font-weight: normal;
+  font-size: 13px;
+  color: rgb(var(--accent-rgb));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.en i {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--green-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.warn {
+  color: #ffd24a;
+}
+.pause {
+  opacity: 0.7;
+}
+
+/* Hauptbereich */
+.wrap {
+  padding: 14px 6px 60px;
+  animation: global(fade) 0.25s ease;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.h2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 18px;
+  font-size: 19px;
+  letter-spacing: 3px;
+  font-weight: normal;
+  color: var(--green);
+}
+.zurueck {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--green-faint);
+  color: var(--green-dim);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.zurueck:hover {
+  color: var(--green);
+  border-color: var(--green-dim);
+}
+.fehler {
+  border: 1px solid #5a3f1f;
+  background: rgba(255, 210, 74, 0.06);
+  color: #ffd24a;
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  margin: 0 0 12px;
+  font-size: 12.5px;
+}
+
+/* Organigramm */
+.orgwrap {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  overflow-x: auto;
+  padding: 6px 0 20px;
+}
+.orgast {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.orgzeile {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  padding-top: 22px;
+  position: relative;
+}
+/* Verbindungslinien: senkrecht vom Kasten, waagerecht über die Geschwister. */
+.orgzeile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 11px;
+  border-left: 1px solid var(--green-faint);
+}
+.orgzeile > .orgast {
+  position: relative;
+  padding-top: 11px;
+}
+.orgzeile > .orgast::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 11px;
+  border-left: 1px solid var(--green-faint);
+}
+.orgzeile > .orgast::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -9px;
+  right: -9px;
+  border-top: 1px solid var(--green-faint);
+}
+.orgzeile > .orgast:first-child::after {
+  left: 50%;
+}
+.orgzeile > .orgast:last-child::after {
+  right: 50%;
+}
+.orgzeile > .orgast:only-child::after {
+  display: none;
+}
+.orgkarte {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 150px;
+  text-align: center;
+  background: rgba(var(--accent-rgb), 0.07);
+  border: 1px solid rgba(var(--accent-rgb), 0.55);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--green);
+  font-family: inherit;
+  cursor: pointer;
+  transition: 0.12s;
+}
+.orgkarte:hover {
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.45);
+}
+.orgkarte b {
+  color: rgb(var(--accent-rgb));
+  font-weight: normal;
+  font-size: 14px;
+}
+.ot {
+  font-size: 11px;
+  color: var(--green-dim);
+}
+.om {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* Akte */
+.akte {
+  composes: glass-card from global;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+.fr {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 6px 0;
+}
+.fr > label {
+  flex: 0 0 150px;
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--green-dim);
+  padding-top: 7px;
+}
+.feld {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.feld > input,
+.feld > select,
+.feld > textarea,
+.text {
+  flex: 1;
+  min-width: 0;
+  background: var(--deep);
+  color: var(--user);
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 13px;
+}
+.feld > input:focus,
+.feld > select:focus,
+.text:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+.text {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.hinweis {
+  margin: 2px 0 6px 162px;
+  font-size: 11.5px;
+  color: var(--green-dim);
+  opacity: 0.85;
+  line-height: 1.5;
+}
+.leise {
+  font-size: 11px;
+  opacity: 0.6;
+}
+.bildzeile,
+.gespraech,
+.haken {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.haken {
+  gap: 4px 14px;
+  font-size: 12px;
+}
+.haken label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  letter-spacing: 0;
+  font-size: 12px;
+  color: var(--soft);
+  padding: 0;
+  flex: none;
+}
+.haken input {
+  accent-color: var(--green);
+}
+.aktionen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0 162px;
+}
+.knopf {
+  background: none;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+}
+.knopf:hover:not(:disabled) {
+  background: var(--green-faint);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+}
+.knopf:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gefahr {
+  color: #ff5c5c;
+  border-color: #5a1f1f;
+}
+.msg {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+@media (max-width: 700px) {
+  .fr {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .fr > label {
+    flex: none;
+    padding-top: 0;
+  }
+  .hinweis,
+  .aktionen {
+    margin-left: 0;
+  }
+}

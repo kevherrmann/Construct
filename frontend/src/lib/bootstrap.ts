@@ -25,6 +25,10 @@ export interface Settings {
   images: { model: string }
   /** Automatische Modellwahl — vorerst nur Schattenbetrieb, ohne Schalter in der Oberfläche. */
   auto: { schatten: boolean }
+  /** Tickets: ordnet der Assistent die Nachrichten selbst zu (Werkzeuge im Prompt)? */
+  tickets: { assistent: boolean }
+  /** Team-Modus: Firma aus KI-Mitarbeitern. modus = wer eine Aufgabe an sie gibt. */
+  team: { aktiv: boolean; modus: 'zuruf' | 'auto' }
   /** Klänge im Construct-Raum (lib/klang.ts); lautstaerke 0–100. */
   sound: { effekte: boolean; musik: boolean; lautstaerke: number }
 }
@@ -65,6 +69,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   images: { model: 'openai/gpt-image-2' },
   auto: { schatten: false },
+  tickets: { assistent: true },
+  team: { aktiv: false, modus: 'zuruf' },
   sound: { effekte: true, musik: true, lautstaerke: 40 },
 }
 

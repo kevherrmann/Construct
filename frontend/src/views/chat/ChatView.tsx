@@ -2,6 +2,9 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSessions, type SessionInfo } from '@/api/chat'
 import { useSessionTickets } from '@/api/tickets'
+import { useTranslation } from 'react-i18next'
+import { useAgentGespraech } from '@/api/team'
+import { AgentKontext } from '@/components/chat/AgentKontext'
 import { ChatItemView } from '@/components/chat/Message'
 import { TicketTrenner } from '@/components/chat/TicketCut'
 import { useChat } from '@/stores/chat'
@@ -147,19 +150,70 @@ export function ChatView() {
   }, [conv, items.length, wanted, msg])
 
   return (
-    <div>
-      {items.map((it) => {
-        const tk = it.kind === 'user' && it.uuid ? tickOf.get(it.uuid) : undefined
-        const trenner = tk && tk.nr !== letztes
-        if (tk) letztes = tk.nr
-        return (
-          <Fragment key={it.id}>
-            {trenner && <TicketTrenner nr={tk.nr} titel={tk.titel} erledigt={tk.erledigt} />}
-            <ChatItemView item={it} busy={!!conv?.busy} />
-          </Fragment>
-        )
-      })}
-      <div ref={end} />
+    <AgentKontext.Provider value={conv?.agent ?? null}>
+      {conv?.agent && <AgentKopf slug={conv.agent.slug} />}
+      <div>
+        {items.map((it) => {
+          const tk = it.kind === 'user' && it.uuid ? tickOf.get(it.uuid) : undefined
+          const trenner = tk && tk.nr !== letztes
+          if (tk) letztes = tk.nr
+          return (
+            <Fragment key={it.id}>
+              {trenner && <TicketTrenner nr={tk.nr} titel={tk.titel} erledigt={tk.erledigt} />}
+              <ChatItemView item={it} busy={!!conv?.busy} />
+            </Fragment>
+          )
+        })}
+        <div ref={end} />
+      </div>
+    </AgentKontext.Provider>
+  )
+}
+
+/** Kopf über einem Gespräch mit einem Mitarbeiter: wer, womit, wie voll das Gedächtnis ist.
+ *  Bei 100 % fasst die Person das Gespräch selbst zusammen, hebt das Bleibende ins
+ *  Gedächtnis und fängt frisch an. */
+function AgentKopf({ slug }: { slug: string }) {
+  const { t } = useTranslation()
+  const { data } = useAgentGespraech(slug)
+  if (!data) return null
+  const a = data.agent
+  const u = data.umfang
+  const voll = Math.max(
+    Math.round((u.bytes / u.max_bytes) * 100),
+    Math.round((u.msgs / u.max_msgs) * 100),
+  )
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 10,
+        alignItems: 'baseline',
+        flexWrap: 'wrap',
+        padding: '4px 4px 12px',
+        borderBottom: `1px solid rgba(${a.color}, 0.35)`,
+        marginBottom: 12,
+        fontSize: 12,
+        color: 'var(--green-dim)',
+      }}
+    >
+      <b style={{ color: `rgb(${a.color})`, letterSpacing: 2, fontWeight: 'normal', fontSize: 14 }}>
+        💬 {a.name.toUpperCase()}
+      </b>
+      <span>{a.title}</span>
+      <span style={{ opacity: 0.6 }}>
+        {a.model} / {a.effort}
+      </span>
+      {voll >= 50 && (
+        <span
+          style={{ opacity: 0.55 }}
+          title={t('Ab 100 % fasst {n} das Gespräch zusammen und merkt sich das Wesentliche', {
+            n: a.name,
+          })}
+        >
+          · {t('Gedächtnis')} {voll} %
+        </span>
+      )}
     </div>
   )
 }

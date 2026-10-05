@@ -3,6 +3,7 @@ import i18n from 'i18next'
 import { tk } from '@/lib/i18n'
 import { create } from 'zustand'
 import type { SessionDetail, SessionInfo } from '@/api/chat'
+import type { Agent, AgentGespraech } from '@/api/team'
 import { apiGet, apiPost } from '@/lib/api'
 import { addRunNote, applyEvent, initialRun, newId, type RunState } from '@/lib/chat/reducer'
 import { SseParser } from '@/lib/chat/sse'
@@ -65,7 +66,15 @@ export interface Conv {
    *  Ticket der ersten Nachricht. Bei bestehenden Sessions geht der Schnitt
    *  gleich an den Server. */
   ticketVorgabe: string | null
+  /** Gespräch mit einem Mitarbeiter der Firma statt mit dem Assistenten (Team-Modus).
+   *  Eine langlebige Sitzung je Person; die Nachrichten gehen an /api/team/agent/…/chat. */
+  agent: AgentInfo | null
 }
+
+export type AgentInfo = Pick<
+  Agent,
+  'slug' | 'name' | 'title' | 'color' | 'model' | 'effort' | 'cwd' | 'avatar'
+>
 
 interface ChatStore {
   convs: Record<string, Conv>
@@ -83,6 +92,8 @@ interface ChatStore {
   newSession: () => void
   activate: (key: string) => void
   openSession: (s: SessionInfo, runningRunId?: string) => Promise<void>
+  /** Gespräch mit einem Mitarbeiter öffnen (oder wieder einblenden). */
+  openAgent: (slug: string) => Promise<void>
   send: (text: string) => Promise<void>
   resend: (itemId: string, text: string) => void
   stop: () => void
@@ -131,6 +142,7 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
     run: null,
     forkedFrom: null,
     ticketVorgabe: null,
+    agent: null,
     ...opts,
   }
 }
@@ -381,6 +393,19 @@ export const useChat = create<ChatStore>((set, get) => {
     }
     patch(key, { busy: true, stopReq: false, cwd, history: [...c0.history, user] })
     try {
+      if (c0.agent) {
+        // Gespräch mit einem Mitarbeiter: eigener Weg (Personalakte, Gedächtnis,
+        // ggf. Verdichten vorher), dieselbe Anzeige danach.
+        const a = await apiPost<{ run_id?: string; session_id?: string; error?: string }>(
+          `/api/team/agent/${encodeURIComponent(c0.agent.slug)}/chat`,
+          { message: text, images },
+        )
+        if (!a.run_id) throw new Error(a.error ?? 'keine run_id')
+        patch(key, (c) => ({ runId: a.run_id!, sessionId: a.session_id || c.sessionId }))
+        void queryClient.invalidateQueries({ queryKey: ['team'] })
+        await consumeRun(key)
+        return
+      }
       const j = await apiPost<{
         run_id?: string
         session_id?: string | null
@@ -486,6 +511,30 @@ export const useChat = create<ChatStore>((set, get) => {
       const c = conv(key)
       if (!c) return
       set({ activeKey: key, folder: c.cwd ?? (workspace() || get().folder) })
+    },
+
+    async openAgent(slug) {
+      const hier = Object.values(get().convs).find((c) => c.agent?.slug === slug)
+      if (hier) {
+        get().activate(hier.key)
+        return
+      }
+      const j = await apiGet<AgentGespraech>(`/api/team/agent/${encodeURIComponent(slug)}/chat`)
+      const c = makeConv({
+        key: `agent:${slug}`,
+        sessionId: j.session_id || null,
+        cwd: j.agent.cwd,
+        model: j.agent.model,
+        agent: j.agent,
+        history: j.messages.length
+          ? transcriptItems(j.messages)
+          : [note(tk('⌁ Neues Gespräch ⌁'), true)],
+      })
+      set((st) => ({
+        convs: { ...st.convs, [c.key]: c },
+        activeKey: c.key,
+        focusTick: st.focusTick + 1,
+      }))
     },
 
     async openSession(s, runningRunId) {
