@@ -777,7 +777,10 @@ class _Leser:
                 if not isinstance(b, dict):
                     continue
                 if b.get("type") == "text" and b.get("text"):
-                    self.run.emit({"type": "text", "text": b["text"]})
+                    # Zwei Textblöcke ohne Werkzeug dazwischen klebten sonst ohne
+                    # Leerzeile aneinander (live trennt sie der Stream selbst).
+                    davor = self.run.events and self.run.events[-1].get("type") == "text"
+                    self.run.emit({"type": "text", "text": ("\n\n" if davor else "") + b["text"]})
                 elif b.get("type") == "thinking" and not self.thinking:
                     self.thinking = True
                     self.run.emit({"type": "thinking_marker"})
@@ -789,12 +792,16 @@ class _Leser:
 async def _nachlesen(run, pid, kennung):
     """Hintergrund-Task für einen aufgenommenen Lauf: Sitzungsdatei mitlesen,
     bis der claude-Prozess weg ist."""
-    lief = _lebt(pid, kennung)
+    # Im Thread: unter macOS startet _kennung jedes Mal `ps` (bis 5 s), und das
+    # hielte im Sekundentakt die ganze Ereignisschleife an.
+    def lebt_noch():
+        return asyncio.to_thread(_lebt, pid, kennung)
+    lief = await lebt_noch()
     leser = _Leser(run)
     datei = None
     try:
         while True:
-            lebt = _lebt(pid, kennung)
+            lebt = await lebt_noch()
             if datei is None:
                 datei = next(iter(PROJECTS_DIR.glob(f"*/{run.session_id}.jsonl")), None)
             if datei is not None:
@@ -813,7 +820,7 @@ async def _nachlesen(run, pid, kennung):
     except asyncio.CancelledError:
         # Stop-Knopf: wie bei einem eigenen Lauf den Prozess beenden
         run.stopped = True
-        if _lebt(pid, kennung):
+        if await lebt_noch():
             try:
                 os.kill(pid, signal.SIGTERM)
             except OSError:

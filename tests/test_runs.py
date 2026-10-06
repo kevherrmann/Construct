@@ -260,3 +260,15 @@ def test_markerzeile_eines_aufgenommenen_laufs_wirkt(tmp_path, monkeypatch):
     run = _aufnehmen_und_warten({**_eintrag(None, sid=sid), "tickets": True})
     assert [t["titel"] for t in tk.laden(sid)["tickets"]] == ["Uhr bauen"]
     assert [e["type"] for e in run.events][-2:] == ["tickets", "done"]
+
+
+def test_geretteter_lauf_trennt_aufeinanderfolgende_textbloecke():
+    run = runs.Run("r-text", "/tmp")
+    run.started = 0
+    leser = runs._Leser(run)
+    leser.prompt_gesehen = True
+    ts = "2030-01-01T00:00:00Z"
+    for text in ("Ich schau nach.", "Passt."):
+        leser.eintrag({"type": "assistant", "timestamp": ts,
+                       "message": {"content": [{"type": "text", "text": text}]}})
+    assert run.last_text == "Ich schau nach.\n\nPasst."
