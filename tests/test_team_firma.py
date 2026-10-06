@@ -116,40 +116,89 @@ def test_fahigkeiten_sagen_wer_eine_shell_hat():
     assert "Shell" not in ag.faehigkeiten(ag.load_agent("chef", WS))
 
 
-def test_niemand_hat_shell_und_web_zugleich():
-    xs = ag.list_agents(WS)
-    for a in xs:
-        assert not ("Bash" in a["allowed_tools"] and {"WebSearch", "WebFetch"} & set(a["allowed_tools"])), a["slug"]
-        assert not a["problems"], a["slug"]
-    # Recherche bleibt möglich: bei der Geschäftsführung (ohne Shell)
-    assert "WebSearch" in next(a for a in xs if a["slug"] == "chef")["allowed_tools"]
+def test_rechte_nach_aufgabe():
+    # Kevin, 06.10.2026: jeder bekommt, was er für seine Aufgabe braucht. Shell und
+    # Web zugleich ist erlaubt; die Geschäftsführung schreibt weiterhin keinen Code.
+    xs = {a["slug"]: a for a in ag.list_agents(WS)}
+    assert not any(a["problems"] for a in xs.values())
+    for slug in ("luna", "elara", "miranda", "janus"):
+        assert {"Bash", "WebSearch", "WebFetch"} <= set(xs[slug]["allowed_tools"]), slug
+    chef = set(xs["chef"]["allowed_tools"])
+    assert "WebSearch" in chef and not {"Bash", "Write", "Edit"} & chef
+    assert xs["chef"]["permission_mode"] == "auto"
+    # Janus schreibt seinen Prüfbericht, ändert aber nichts (kein Edit)
+    assert "Write" in xs["janus"]["allowed_tools"] and "Edit" not in xs["janus"]["allowed_tools"]
 
 
-def test_shell_und_web_werden_getrennt_auch_bei_eigener_akte():
+def test_shell_und_web_zusammen_ist_kein_mangel():
     a, bad = ag.validate({"slug": "neu", "allowed_tools": "Read, Bash, WebFetch"}, WS)
-    assert a["allowed_tools"] == ["Read", "Bash"] and bad
-    a, bad = ag.validate({"slug": "neu", "allowed_tools": "Read, WebFetch"}, WS)
-    assert a["allowed_tools"] == ["Read", "WebFetch"] and not bad
+    assert a["allowed_tools"] == ["Read", "Bash", "WebFetch"] and not bad
 
 
-def test_unveraenderte_alte_akte_bekommt_die_neue_werkzeugliste(firma):
+def test_unveraenderte_alte_werkzeugliste_wird_nachgezogen(firma):
     ag.list_agents(WS)
-    f = firma / "firma" / "agents" / "luna" / "AGENT.md"
-    alt = f.read_text().replace("allowed_tools: Read, Write, Edit, Bash, Grep, Glob, Skill",
-                                "allowed_tools: " + ag.ALTE_WERKZEUGE["luna"])
-    f.write_text(alt + "\nEigener Text bleibt.\n")
-    a = ag.load_agent("luna", WS)
-    assert "WebSearch" not in a["allowed_tools"] and not a["problems"]
-    neu = f.read_text()
-    assert "allowed_tools: Read, Write, Edit, Bash, Grep, Glob, Skill" in neu
-    assert "Eigener Text bleibt." in neu and "model_grund:" in neu
-    # Angepasst (Skill fehlt): bleibt in der Datei, validate nimmt nur das Web
+    neu_liste = "allowed_tools: " + ag._werkzeuge_der_vorlage("luna")
+    for alt in ag.ALTE_WERKZEUGE["luna"]:
+        f = firma / "firma" / "agents" / "luna" / "AGENT.md"
+        # Eigener Text: die Akte ist angepasst, nur die Werkzeugzeile folgt der Vorlage
+        f.write_text(f.read_text().replace(neu_liste, "allowed_tools: " + alt)
+                     + "\nEigener Text bleibt.\n")
+        a = ag.load_agent("luna", WS)
+        assert "WebSearch" in a["allowed_tools"] and not a["problems"]
+        assert neu_liste in f.read_text() and "Eigener Text bleibt." in f.read_text()
+    # Eigene Liste: bleibt
     j = firma / "firma" / "agents" / "janus" / "AGENT.md"
-    j.write_text(j.read_text().replace("allowed_tools: Read, Bash, Grep, Glob",
+    j.write_text(j.read_text().replace("allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
                                        "allowed_tools: Read, Bash, WebFetch"))
-    a = ag.load_agent("janus", WS)
-    assert a["allowed_tools"] == ["Read", "Bash"] and a["problems"]
-    assert "WebFetch" in j.read_text()
+    assert ag.load_agent("janus", WS)["allowed_tools"] == ["Read", "Bash", "WebFetch"]
+
+
+def _vorlage(lang, slug, name):
+    d = "agents.default.en" if lang == "en" else "agents.default"
+    return (ag.VORLAGEN_DIR / d / slug / name).read_text(encoding="utf-8")
+
+
+def test_sprachwechsel_zieht_unveraenderte_akten_nach(firma):
+    ag.list_agents(WS)
+    akte = firma / "firma" / "agents"
+    eigen = akte / "elara" / "SOUL.md"
+    eigen.write_text("Elara, von Hand angepasst.\n")
+    (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
+    xs = {a["slug"]: a for a in ag.list_agents(WS)}
+    assert (akte / "luna" / "SOUL.md").read_text() == _vorlage("en", "luna", "SOUL.md")
+    assert (akte / "chef" / "AGENT.md").read_text() == _vorlage("en", "chef", "AGENT.md")
+    assert xs["luna"]["title"] == "Backend and engineering"
+    assert eigen.read_text() == "Elara, von Hand angepasst.\n"          # angepasst: bleibt
+    assert (akte / "elara" / "AGENT.md").read_text() == _vorlage("en", "elara", "AGENT.md")
+    # und zurück
+    (firma / "settings.json").write_text(json.dumps({"lang": "de"}))
+    ag.list_agents(WS)
+    assert (akte / "luna" / "SOUL.md").read_text() == _vorlage("de", "luna", "SOUL.md")
+
+
+def test_akte_einer_frueheren_fassung_folgt_der_vorlage(firma):
+    # So steht es in Installationen, die vor der Buchführung ausgerollt wurden:
+    # keine .vorlagen.json, die Akte entspricht einer älteren mitgelieferten Fassung.
+    import hashlib
+    ag.list_agents(WS)
+    akte = firma / "firma" / "agents" / "janus" / "AGENT.md"
+    alt = _vorlage("de", "janus", "AGENT.md").replace(
+        "allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
+        "allowed_tools: Read, Bash, Grep, Glob")
+    assert hashlib.sha256(alt.encode()).hexdigest() in ag._fruehere()["janus/AGENT.md"]
+    akte.write_text(alt)
+    (ag.AGENTS_DIR / ".vorlagen.json").unlink()
+    ag._ABGEGLICHEN.clear()
+    ag.load_agent("janus", WS)
+    assert akte.read_text() == _vorlage("de", "janus", "AGENT.md")
+
+
+def test_englische_vorlagen_sind_vollstaendig():
+    # Die englischen Charaktere fielen unter die .gitignore-Regel der Persona
+    # (SOUL.md) und fehlten in jedem Klon.
+    for d in (ag.VORLAGEN_DIR / "agents.default").iterdir():
+        for name in ag.AKTEN_DATEIEN:
+            assert (ag.VORLAGEN_DIR / "agents.default.en" / d.name / name).exists(), (d.name, name)
 
 
 def test_historie_nur_fuer_vorhandene_akten():

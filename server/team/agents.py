@@ -26,6 +26,7 @@ liegen im Programm (server/team/vorlagen/); eine gleichnamige Datei unter firma/
 sticht sie — so lässt sich der Hausstil anpassen, ohne Programmdateien zu ändern.
 """
 import hashlib
+import json
 import os
 import re
 from datetime import date
@@ -143,16 +144,21 @@ STATES = ("active", "paused", "fired")
 KNOWN_TOOLS = ("Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch",
                "WebFetch", "NotebookEdit", "Task", "TodoWrite", "Skill")
 
-WEB_TOOLS = ("WebSearch", "WebFetch")
-# Werkzeuglisten früherer Vorlagen, in denen Shell und Web noch zusammen standen.
-# Steht eine Akte noch genau so da, hat sie niemand angepasst: dann bekommt sie die
-# heutige Liste der Vorlage (load_agent). Angepasste Akten bleiben, wie sie sind;
-# validate() nimmt ihnen nur das Web und sagt es.
+# Werkzeuglisten früherer Vorlagen. Steht eine Akte noch genau so da, hat sie
+# niemand angepasst: dann bekommt sie die heutige Liste der Vorlage (load_agent),
+# auch wenn sonst etwas an der Akte geändert wurde. Eigene Listen bleiben.
 ALTE_WERKZEUGE = {
-    "luna": "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill",
-    "elara": "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch",
-    "janus": "Read, Bash, Grep, Glob, WebSearch, WebFetch",
+    "chef": ("Read, Grep, Glob, WebSearch, WebFetch",),
+    "luna": ("Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill",
+             "Read, Write, Edit, Bash, Grep, Glob, Skill"),
+    "elara": ("Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch",
+              "Read, Write, Edit, Bash, Grep, Glob"),
+    "miranda": ("Read, Write, Edit, Bash, Grep, Glob",),
+    "janus": ("Read, Bash, Grep, Glob, WebSearch, WebFetch",
+              "Read, Bash, Grep, Glob"),
 }
+# Die Dateien einer Akte, die aus den Vorlagen kommen (MEMORY.md schreibt er selbst).
+AKTEN_DATEIEN = ("AGENT.md", "SOUL.md")
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
 RGB_RE = re.compile(r"^\d{1,3},\d{1,3},\d{1,3}$")
@@ -302,16 +308,9 @@ def validate(raw: dict, workspace) -> tuple:
         if unknown:
             bad.append(cfg.L("unbekannte Werkzeuge: ", "unknown tools: ") + ", ".join(unknown))
         a["allowed_tools"] = [t for t in tools if t in KNOWN_TOOLS]
-    if "Bash" in a["allowed_tools"] and set(WEB_TOOLS) & set(a["allowed_tools"]):
-        # Eine präparierte Webseite könnte einem Mitarbeiter mit Shell Befehle
-        # unterschieben: per curl an die lokale API (sich selbst Rechte geben) oder
-        # gleich in die Dateien unter firma/. Eine Sperre der API hülfe da nicht,
-        # die Shell kommt an alles, was der Nutzer selbst darf. Also trennen.
-        bad.append(cfg.L("Bash und Web-Werkzeuge schließen sich aus: WebSearch/WebFetch "
-                         "entfernt (recherchieren kann, wer keine Shell hat)",
-                         "Bash and web tools exclude each other: WebSearch/WebFetch "
-                         "removed (research goes to someone without a shell)"))
-        a["allowed_tools"] = [t for t in a["allowed_tools"] if t not in WEB_TOOLS]
+    # Shell und Web zugleich ist erlaubt (Kevin, 06.10.2026: jeder bekommt, was er
+    # für seine Aufgabe braucht). Das Restrisiko, dass eine präparierte Seite einem
+    # Mitarbeiter mit Shell Befehle unterschiebt, fängt PROTOCOL.md ab, keine Sperre.
     a["delegates_to"] = [s for s in _as_list(raw.get("delegates_to", "")) if SLUG_RE.match(s)]
 
     for f in _BOOL_FIELDS:
@@ -355,6 +354,101 @@ def validate(raw: dict, workspace) -> tuple:
     return a, bad
 
 
+# ---------- Vorlagen nachziehen ----------
+# Ausgerollte Akten sind Kopien. Ohne Abgleich blieben sie für immer so, wie sie
+# beim ersten Start waren: deutsch nach einem Wechsel auf Englisch, mit alten
+# Rechten nach einem Update. Eine Akte, die noch genau einer mitgelieferten Fassung
+# entspricht, folgt deshalb der heutigen Vorlage in der heutigen Sprache. Wer sie
+# angepasst hat, behält seine Fassung.
+#
+# Woran man "unverändert" erkennt: am Hash dessen, was zuletzt ausgerollt wurde
+# (.vorlagen.json neben den Akten), an den Vorlagen beider Sprachen und an
+# fruehere.json, den Fassungen aus der Zeit vor dieser Buchführung.
+_FRUEHERE = VORLAGEN_DIR / "fruehere.json"
+_ABGEGLICHEN: dict = {}
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _stand_datei() -> Path:
+    return AGENTS_DIR / ".vorlagen.json"
+
+
+def _stand_lesen() -> dict:
+    try:
+        d = json.loads(_stand_datei().read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _stand_buchen(eintraege: dict):
+    if not eintraege:
+        return
+    stand = _stand_lesen()
+    stand.update(eintraege)
+    try:
+        _atomic(_stand_datei(), json.dumps(stand, indent=1, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+def _fruehere() -> dict:
+    try:
+        return json.loads(_FRUEHERE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _vorlage_nachziehen(slug: str):
+    quelle = vorlagen_akten() / slug
+    d = AGENTS_DIR / slug
+    try:
+        marke = _marke(d)
+    except OSError:
+        return
+    if _ABGEGLICHEN.get(slug) == marke or not quelle.is_dir():
+        return
+    stand, neu = _stand_lesen(), {}
+    for name in AKTEN_DATEIEN:
+        src, dst, key = quelle / name, d / name, f"{slug}/{name}"
+        if not (src.exists() and dst.exists()):
+            continue
+        soll = src.read_text(encoding="utf-8")
+        ist = dst.read_bytes()
+        if ist == soll.encode("utf-8"):
+            if stand.get(key) != _sha(soll):
+                neu[key] = _sha(soll)
+            continue
+        h = hashlib.sha256(ist).hexdigest()
+        bekannt = {stand.get(key), *_fruehere().get(key, ())}
+        for vorlagen in (DEFAULTS_DIR, VORLAGEN_DIR / "agents.default.en"):
+            f = vorlagen / slug / name
+            if f.exists():
+                bekannt.add(hashlib.sha256(f.read_bytes()).hexdigest())
+        if h not in bekannt:
+            continue                     # angepasst: bleibt, wie es ist
+        try:
+            _atomic(dst, soll)
+            neu[key] = _sha(soll)
+        except OSError:
+            pass                         # schreibgeschützt: dann eben die alte Fassung
+    _stand_buchen(neu)
+    try:
+        _ABGEGLICHEN[slug] = _marke(d)
+    except OSError:
+        pass
+
+
+def _marke(d: Path) -> tuple:
+    """Woran man sieht, dass seit dem letzten Abgleich nichts passiert ist: der
+    Abgleich läuft bei jedem Laden einer Akte, und das ist oft."""
+    return (cfg.lang(), str(d), *((d / n).stat().st_mtime_ns for n in AKTEN_DATEIEN
+                                  if (d / n).exists()))
+
+
 # ---------- Lesen ----------
 def _seed_from_defaults():
     """Beim ersten Start die mitgelieferten Akten anlegen — wie SOUL.default.md
@@ -365,13 +459,17 @@ def _seed_from_defaults():
     if not quellen.exists():
         return
     AGENTS_DIR.mkdir(parents=True, exist_ok=True)
+    gebucht = {}
     for quelle in sorted(quellen.glob("*/")):
         dst = AGENTS_DIR / quelle.name
         dst.mkdir(exist_ok=True)
         for f in quelle.glob("*.md"):
             tgt = dst / f.name
             if not tgt.exists():
-                tgt.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+                text = f.read_text(encoding="utf-8")
+                tgt.write_text(text, encoding="utf-8")
+                gebucht[f"{quelle.name}/{f.name}"] = _sha(text)
+    _stand_buchen(gebucht)
 
 
 def load_agent(slug: str, workspace) -> dict | None:
@@ -386,13 +484,14 @@ def load_agent(slug: str, workspace) -> dict | None:
         _seed_from_defaults()
         if not f.exists():
             return None
+    _vorlage_nachziehen(slug)
     try:
         fm, _body = _split_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
     except Exception as e:
         return {**DEFAULT_AGENT, "slug": slug, "name": slug, "problems": [cfg.L("nicht lesbar: ", "unreadable: ") + str(e)]}
     raw = {k: _fm_get(fm, k) for k in DEFAULT_AGENT}
     raw["slug"] = raw.get("slug") or slug
-    if slug in ALTE_WERKZEUGE and raw["allowed_tools"] == ALTE_WERKZEUGE[slug]:
+    if raw["allowed_tools"] in ALTE_WERKZEUGE.get(slug, ()):
         neu = _werkzeuge_der_vorlage(slug)
         if neu is not None:
             fm = re.sub(r"^allowed_tools:.*$", lambda _m: f"allowed_tools: {neu}", fm, count=1, flags=re.M)

@@ -71,6 +71,8 @@ Thumbs.db
 
 # Persona dieser Installation (Vorlage: SOUL.default.md)
 SOUL.md
+# Die Charaktere der mitgelieferten Belegschaft sind Programm, keine Persona.
+!server/team/vorlagen/**/SOUL.md
 # Persona nur für lokale Modelle (⚙ Charakter)
 SOUL.lokal.md
 

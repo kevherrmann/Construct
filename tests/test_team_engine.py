@@ -383,7 +383,6 @@ def test_werkzeuge_der_akte_sind_eine_sperre_nicht_nur_freigabe(firma, monkeypat
     for cmd in kommandos:
         assert "--tools" in cmd
         tools = cmd[cmd.index("--tools") + 1].split(",")
-        assert not ("Bash" in tools and {"WebSearch", "WebFetch"} & set(tools)), tools
         assert not any(t.startswith("mcp__") for t in tools)   # der Bus bleibt erreichbar
     chef = kommandos[0][kommandos[0].index("--tools") + 1].split(",")
     assert "Bash" not in chef and "WebSearch" in chef      # die Chefin recherchiert, ohne Shell

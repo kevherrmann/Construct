@@ -9,7 +9,7 @@ effort: high
 model_grund: Design needs judgment, hence the stronger model.
 permission_mode: acceptEdits
 cwd: 
-allowed_tools: Read, Write, Edit, Bash, Grep, Glob
+allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite
 can_delegate: nein
 delegates_to: 
 color: 255,158,205

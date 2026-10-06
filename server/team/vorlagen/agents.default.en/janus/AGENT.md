@@ -9,7 +9,7 @@ effort: high
 model_grund: A missed finding costs more than the model.
 permission_mode: auto
 cwd: 
-allowed_tools: Read, Bash, Grep, Glob
+allowed_tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, Skill
 can_delegate: nein
 delegates_to: 
 color: 180,196,120

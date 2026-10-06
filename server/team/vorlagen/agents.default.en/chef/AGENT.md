@@ -9,7 +9,7 @@ effort: high
 model_grund: Short output, but a bad briefing sends several people in the wrong direction.
 permission_mode: auto
 cwd: 
-allowed_tools: Read, Grep, Glob, WebSearch, WebFetch
+allowed_tools: Read, Grep, Glob, WebSearch, WebFetch, Skill
 can_delegate: ja
 delegates_to: 
 color: 255,182,72
