@@ -181,6 +181,14 @@ export function AuftragAnsicht({ id }: { id: string }) {
         {verlauf.map((e) => (
           <NachrichtKarte key={e.id} e={e} leute={leute} />
         ))}
+        {/* Was gerade gesprochen wird (die Blase im Raum), steht auch hier schon. */}
+        {arbeitetSlug && runId && (
+          <LiveZug
+            key={runId}
+            runId={runId}
+            person={leute[arbeitetSlug] ?? { ...GRAU, name: arbeitetSlug }}
+          />
+        )}
       </>
     )
   else if (sicht !== 'uebersicht') {
@@ -200,7 +208,7 @@ export function AuftragAnsicht({ id }: { id: string }) {
         </div>
         {!seins.length && !arbeitet && <div className={s.notiz}>{t('Noch nichts passiert.')}</div>}
         {seins.map((e) => (
-          <NachrichtKarte key={e.id} e={e} leute={leute} mitSpur />
+          <NachrichtKarte key={e.id} e={e} leute={leute} />
         ))}
         {arbeitet && runId && <LiveZug key={runId} runId={runId} person={p} />}
       </>

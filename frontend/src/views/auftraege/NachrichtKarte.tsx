@@ -13,21 +13,13 @@ const ART: Record<string, string> = {
   ergebnis: 'liefert an',
   notiz: 'notiert',
   einwurf: 'wirft ein bei',
+  gesagt: 'sagt',
 }
 
 /** Eine Zeile im Auftragsverlauf: Absender → Empfänger im Kopf, Farbe aus der
  *  Personalakte. Auch eine echte Lieferung darf lang sein — sie muss nur nicht
  *  ungefragt in voller Länge dastehen (ab 900 Zeichen eingeklappt). */
-export function NachrichtKarte({
-  e,
-  leute,
-  mitSpur = false,
-}: {
-  e: Nachricht
-  leute: Record<string, Person>
-  /** In der Ansicht einer einzelnen Person: auch ihr Arbeitsprotokoll zeigen. */
-  mitSpur?: boolean
-}) {
+export function NachrichtKarte({ e, leute }: { e: Nachricht; leute: Record<string, Person> }) {
   const { t } = useTranslation()
   const nutzer = useSettings((st) => st.boot.user || st.settings.names.user) || t('Du')
   const [offen, setOffen] = useState(false)
@@ -39,24 +31,9 @@ export function NachrichtKarte({
         {e.text}
       </div>
     )
-  // 'gesagt' ist kein Wortbeitrag an die Firma, sondern das Selbstgespräch während
-  // der Arbeit. Im Gruppenverlauf hat das nichts zu suchen — dort will man sehen,
-  // WER WEM WAS gegeben hat; in der Ansicht einer Person ist es ihr Arbeitsprotokoll.
-  if (e.art === 'gesagt') {
-    if (!mitSpur) return null
-    return (
-      <div>
-        <button type="button" className={s.spur} onClick={() => setOffen(!offen)}>
-          {offen ? '▾' : '▸'} {t('Arbeitsspur')} · {e.text.length} {t('Zeichen')}
-        </button>
-        {offen && (
-          <div className={s.spurtext}>
-            <Markdown text={e.text} />
-          </div>
-        )}
-      </div>
-    )
-  }
+  // 'gesagt' ist, was jemand während seines Zugs gesprochen hat: genau der Text
+  // seiner Sprechblase im Raum. Er steht deshalb wie jede Nachricht im Verlauf;
+  // als zugeklappte Arbeitsspur sah das Protokoll anders aus als die Blase.
   const kevin = e.von === 'kevin'
   const p: Person = kevin
     ? { name: nutzer, title: '', color: '126,231,135', avatar: '' }
