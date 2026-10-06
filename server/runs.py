@@ -18,7 +18,7 @@ from server import tickets as tickmod
 
 from server.core import (BASE_DIR, LIMIT_HIT, PROJECTS_DIR, claude_bin, claude_env, extract_text,
                          friendly_claude_error, load_persona)
-from server.sessions import model_short, nutzer_uuids_bis
+from server.sessions import model_short, nutzer_uuids_bis, ohne_ticketmarker
 
 
 # ---------- Entkoppelte Läufe (überleben Verbindungsabbruch/Reload) ----------
@@ -158,7 +158,8 @@ def maybe_notify(run):
     if not run.notify_always and (dur < NOTIFY_MIN_SECS or run.subs):
         return
     mins, secs = divmod(int(dur), 60)
-    tail = run.last_text.strip()[-600:]
+    # Die Markerzeile ([[ticket neu: …]]) ist für den Server, nicht fürs Telefon.
+    tail = ohne_ticketmarker(run.last_text.strip())[-600:]
     head = (cfg.L("🤖 Geplante Aufgabe erledigt", "🤖 Scheduled task done") if run.notify_always
             else cfg.L(f"✅ {cfg.assistant_name()} ist fertig", f"✅ {cfg.assistant_name()} is done"))
     msg = f"{head} ({mins} m {secs} s, {os.path.basename(run.cwd or '?')})"
@@ -643,6 +644,10 @@ def merken(run, programm=None):
     d = _laeufe_lesen()
     e = d.get(run.id) or {"pid": run.proc.pid, "programm": programm or "", "cwd": run.cwd,
                           "start": run.started, "model": run.model}
+    if run.auftrag_id:
+        e["auftrag"] = run.auftrag_id
+    if run.tickets:
+        e["tickets"] = True
     e["session_id"] = run.session_id
     d[run.id] = e
     _laeufe_schreiben(d)
@@ -745,6 +750,8 @@ class _Leser:
                 return
             if not self.prompt_gesehen:      # die Nachricht, mit der der Lauf begann
                 self.prompt_gesehen = True
+                # Auf sie bezieht sich eine Markerzeile am Ende der Antwort
+                self.run.letzte_uuid = str(ev.get("uuid") or "")
                 return
             self.fertig = False
             self.run.emit({"type": "user_inject", "text": txt, "urls": []})
@@ -779,6 +786,8 @@ async def _nachlesen(run, pid, programm):
                 break
             await asyncio.sleep(NACHLESEN_TAKT)
         if leser.fertig:
+            if run.tickets:
+                _tickets_marken(run)
             run.emit({"type": "done", "session_id": run.session_id})
         else:
             run.emit({"type": "error", "message": cfg.L(
@@ -809,12 +818,24 @@ def aufnehmen():
     for rid, e in _laeufe_lesen().items():
         if rid in RUNS or not isinstance(e, dict):
             continue
+        if e.get("auftrag"):
+            # Ein Zug der Firma: sein Bus-Token starb mit dem alten Server, liefern
+            # kann er nicht mehr — und der Dispatcher stellt dieselbe Nachricht
+            # gleich neu zu (engine.wieder_aufnehmen), mit --resume auf DIESELBE
+            # Sitzung. Liefe der alte weiter, schrieben zwei Prozesse in eine.
+            if _lebt(e.get("pid"), e.get("programm") or ""):
+                try:
+                    os.kill(e["pid"], signal.SIGTERM)
+                except OSError:
+                    pass
+            vergessen(rid)
+            continue
         sid = e.get("session_id")
         if not sid:
             # Vor dem ersten Lebenszeichen abgerissen: keine Sitzung, nichts nachzulesen
             vergessen(rid)
             continue
-        run = Run(rid, e.get("cwd") or "", sid, e.get("model") or "")
+        run = Run(rid, e.get("cwd") or "", sid, e.get("model") or "", tickets=bool(e.get("tickets")))
         run.started = float(e.get("start") or time.time())
         run.stdin_closed = True       # stdin hing am alten Server; Nachgeschobenes wartet
         RUNS[rid] = run

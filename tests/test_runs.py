@@ -188,3 +188,56 @@ def test_laufender_lauf_steht_in_laeufe_json_und_verschwindet_am_ende(tmp_path, 
     assert eintraege and eintraege[-1]["session_id"] == "sid-1"
     assert eintraege[0]["pid"] > 0
     assert staende[-1] == {} and not runs.LAEUFE.exists()
+
+
+def test_zug_der_firma_wird_nach_neustart_beendet_statt_aufgenommen(tmp_path, monkeypatch):
+    # Sein Bus-Token ist mit dem alten Server weg, und der Dispatcher stellt die
+    # Nachricht neu zu: liefe er weiter, schrieben zwei Prozesse in eine Sitzung.
+    import subprocess
+    _sitzung(tmp_path, monkeypatch, ANTWORT)
+    proc = subprocess.Popen([sys.executable, "-c", "import time; print(1, flush=True); time.sleep(30)"],
+                            stdout=subprocess.PIPE)
+    proc.stdout.readline()
+    try:
+        runs.RUNS.pop("lauf-alt", None)
+        runs._laeufe_schreiben({"lauf-alt": {**_eintrag(proc.pid, sys.executable), "auftrag": "a-1"}})
+        runs.aufnehmen()
+        assert "lauf-alt" not in runs.RUNS and not runs.LAEUFE.exists()
+        assert proc.wait(timeout=5) is not None
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_telegram_meldung_ohne_ticket_markerzeile(monkeypatch):
+    gesendet = []
+    monkeypatch.setattr(runs.tgmod, "load_conf",
+                        lambda: {"enabled": True, "token": "x", "chat_id": "1", "notify": True})
+    monkeypatch.setattr(runs.tgmod, "send_owner", gesendet.append)
+    run = runs.Run("test-notify", "/tmp", None, "")
+    run.started -= 3600
+    run.last_text = "Fertig gebaut.\n\n[[ticket neu: Kachel bauen]]"
+    runs.maybe_notify(run)
+    import time
+    for _ in range(50):
+        if gesendet:
+            break
+        time.sleep(0.02)
+    assert gesendet and "Fertig gebaut." in gesendet[0] and "[[ticket" not in gesendet[0]
+
+
+def test_markerzeile_eines_aufgenommenen_laufs_wirkt(tmp_path, monkeypatch):
+    # Nach dem Neustart kam die Antwort zwar an, ihr [[ticket neu: …]] verpuffte aber.
+    from server import tickets as tk
+    monkeypatch.setattr(tk, "TICKETS_DIR", tmp_path / "tickets")
+    tk._CACHE.clear()
+    sid = "abcd1234-0000-0000-0000-00000000rest"
+    tk.nachricht(sid, "u-1", "Mach die Uhr", "/home/x")
+    _sitzung(tmp_path, monkeypatch, [
+        _zeile("user", "Mach die Uhr", _ts(1), uuid="u-1"),
+        _zeile("assistant", [{"type": "text", "text": "Gemacht.\n\n[[ticket neu: Uhr bauen]]"}], _ts(2),
+               msg={"stop_reason": "end_turn"}),
+    ], sid=sid)
+    run = _aufnehmen_und_warten({**_eintrag(None, sid=sid), "tickets": True})
+    assert [t["titel"] for t in tk.laden(sid)["tickets"]] == ["Uhr bauen"]
+    assert [e["type"] for e in run.events][-2:] == ["tickets", "done"]
