@@ -11,6 +11,7 @@ Szenario-Stichwort im Auftragstext:
     [lang]       der Entwickler sagt mehr als 20 000 Zeichen, dann liefert er
     [still]      der Entwickler sagt etwas, ruft aber den Bus nicht auf
     [langsam]    der Entwickler braucht ein paar Sekunden (Not-Aus, Abbrechen)
+    [nachsatz]   der Entwickler liefert und sagt danach noch etwas
 """
 import json
 import os
@@ -90,6 +91,8 @@ else:
             bus("beauftragen", an="luna", auftrag="Baue das Ding. [fehler]", groesse="klein")
         elif "[lang]" in text:
             bus("beauftragen", an="luna", auftrag="Baue das Ding. [lang]", groesse="klein")
+        elif "[nachsatz]" in text:
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [nachsatz]", groesse="klein")
         else:
             bus("liefern", ergebnis="Nichts zu tun.")
     elif AGENT == "chef" and art == "ergebnis":
@@ -104,6 +107,9 @@ else:
             pass                                  # sagt etwas, gibt aber nichts an den Bus
         else:
             bus("liefern", ergebnis="gebaut", dateien=[])
+        if "[nachsatz]" in text:
+            out({"type": "stream_event", "event": {"type": "content_block_delta",
+                                                   "delta": {"type": "text_delta", "text": "Nachsatz"}}})
     elif AGENT == "luna" and art == "antwort":
         bus("liefern", ergebnis="gebaut, in der gewünschten Farbe")
     elif AGENT == "miranda":

@@ -97,6 +97,7 @@ class Run:
         self.bus_calls = 0               # geroutete Nachrichten dieses Zuges
         self.bus_letztes = ""            # welches Werkzeug das war (für die Fehlermeldung)
         self.bus_ziele = []              # wen er in diesem Zug schon beauftragt hat
+        self.gesagt_ab = 0               # bis wohin last_text schon im Auftragsprotokoll steht
 
     def emit(self, ev):
         self.letztes_ereignis = time.monotonic()

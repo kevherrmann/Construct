@@ -110,6 +110,13 @@ async def _bus_aufruf(body: dict) -> dict:
                     f"At most {BEAUFTRAGEN_MAX} colleagues per turn. Hand out the rest once "
                     f"the first results are in."))
 
+    if run is not None and (werkzeug in ROUTING or werkzeug == "notiz"):
+        # Was er bis hierher gesagt hat, gehoert VOR seine Nachricht ins Protokoll.
+        # Kurz Luft lassen: die Textzeile aus seiner Ausgabe liegt beim Aufruf
+        # meist schon im Puffer, ist aber womoeglich noch nicht gelesen.
+        await asyncio.sleep(0.05)
+        engine.gesagtes_buchen(run, tid, slug)
+
     # --- nur lesen ---
     if werkzeug == "rechnen":
         # Fuer jeden erlaubt, nicht nur fuer die, die mit Zahlen arbeiten: ein

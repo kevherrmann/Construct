@@ -445,6 +445,19 @@ def test_zug_mit_fehler_hinterlaesst_sein_gesagtes(firma):
     assert gesagt(firma, tid) == ["luna liest (auftrag)"]
 
 
+def test_gesagtes_steht_vor_der_lieferung(firma):
+    tid = neuer_auftrag(firma, "[nachsatz] Mach etwas")
+    warte(firma, tid, ("fertig",))
+    for _ in range(50):                                 # der Nachsatz kommt mit dem Zugende
+        if len(gesagt(firma, tid)) == 2:
+            break
+        time.sleep(0.1)
+    v = [(e["von"], e["art"], e["text"]) for e in api(firma, f"/api/team/auftraege/{tid}")["verlauf"]
+         if e.get("von") == "luna" and e["art"] in ("gesagt", "ergebnis")]
+    assert v == [("luna", "gesagt", "luna liest (auftrag)"), ("luna", "ergebnis", "gebaut"),
+                 ("luna", "gesagt", "Nachsatz")]
+
+
 def test_ueberlanges_gesagtes_behaelt_das_ende(firma):
     tid = neuer_auftrag(firma, "[lang] Mach etwas")
     warte(firma, tid, ("fertig",))
