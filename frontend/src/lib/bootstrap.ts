@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   names: { user: '', assistant: 'Cody' },
   avatars: { user: '', assistant: '' },
   hermes: { home: '' },
-  tiles: { skills: false, kalender: true, mail: false, mcp: false, tickets: true },
+  tiles: { skills: false, kalender: true, mail: false, mcp: false, tickets: false },
   background: { mode: 'matrix', image: '', dim: 60 },
   updates: { auto: true, interval_h: 6, construct: true },
   tts: {
@@ -69,7 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   images: { model: 'openai/gpt-image-2' },
   auto: { schatten: false },
-  tickets: { assistent: true },
+  tickets: { assistent: false },
   team: { aktiv: false, modus: 'zuruf' },
   sound: { effekte: true, musik: true, lautstaerke: 40 },
 }

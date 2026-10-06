@@ -317,10 +317,10 @@ function SysBox({ sys }: { sys: SysBody }) {
         <br />
         <code>/skills</code> — {t('Skills-Ansicht')}
         <br />
-        <code>/firma [Aufgabe]</code> —{' '}
+        <code>/firma [{t('Aufgabe')}]</code> —{' '}
         {t('Aufgabe an die Firma geben (Team-Modus) — ohne Aufgabe: was gerade bei ihr liegt')}
         <br />
-        <code>/ticket [Titel]</code> —{' '}
+        <code>/ticket [{t('Titel')}]</code> —{' '}
         {t('Tickets der Session zeigen — mit Titel: ab der nächsten Nachricht ein neues Ticket')}
         <br />
         <code>/login</code> — {t('bei Claude anmelden (wenn der Token abgelaufen ist)')}

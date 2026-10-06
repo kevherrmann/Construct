@@ -21,6 +21,7 @@ export function TicketZeile({
   aktuell: number | null
   onClick: () => void
 }) {
+  const { t: tr } = useTranslation()
   return (
     <button
       type="button"
@@ -32,7 +33,7 @@ export function TicketZeile({
       <span className={s.titel} title={t.titel}>
         {t.titel}
       </span>
-      {t.auftrag && <span title="Firma">🏢</span>}
+      {t.auftrag && <span title={tr('Firma')}>🏢</span>}
     </button>
   )
 }

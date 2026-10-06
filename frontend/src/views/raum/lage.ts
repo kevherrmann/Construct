@@ -1,3 +1,4 @@
+import i18n from 'i18next'
 import { ohneMarke } from '@/lib/chat/marken'
 import type { Block, ChatItem } from '@/lib/chat/types'
 import type { StationId } from './stationen'
@@ -119,6 +120,10 @@ export function klartext(md: string): string {
   )
 }
 
+/** „python · 20 Zeilen“ in der Sprache der Oberfläche (ohne i18n, etwa im Test: deutsch). */
+const zeilen = (w: string, n: number) =>
+  i18n.isInitialized ? i18n.t('{w} · {n} Zeilen', { w, n }) : `${w} · ${n} Zeilen`
+
 /** Bis zu so vielen Zeilen bleibt ein Code-Block in der Sprechblase stehen
  *  (mit Kopier-Knopf); längere werden zum Chip. */
 const BLASE_CODE_MAX = 12
@@ -132,7 +137,7 @@ export function blasenMd(md: string): string {
       const n = code.replace(/\n$/, '').split('\n').length
       if (n <= BLASE_CODE_MAX) return block
       const was = sprache.trim() || 'Code'
-      return `\n\n\`⌗ ${was} · ${n} Zeilen\`\n\n`
+      return `\n\n\`⌗ ${zeilen(was, n)}\`\n\n`
     },
   )
 }

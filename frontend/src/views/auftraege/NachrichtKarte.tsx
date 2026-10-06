@@ -51,7 +51,9 @@ export function NachrichtKarte({ e, leute }: { e: Nachricht; leute: Record<strin
         <div className={s.who}>
           {p.name.toUpperCase()}
           {ziel ? ` · ${t(art)} ${ziel}` : art ? ` · ${t(art)}` : ''}
-          {e.art === 'auftrag' && e.groesse && e.groesse !== 'normal' ? ` · ${e.groesse}` : ''}
+          {e.art === 'auftrag' && e.groesse && e.groesse !== 'normal'
+            ? ` · ${t(e.groesse === 'klein' ? 'klein' : 'groß')}`
+            : ''}
         </div>
         <div className={`${s.bubble} ${lang && !offen ? s.kurz : ''}`}>
           <Markdown text={e.text} />

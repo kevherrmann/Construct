@@ -8,6 +8,7 @@ import { FolderNav } from '@/components/chat/FolderNav'
 import { rememberFolder } from '@/lib/chat/folders'
 import { CLAUDE_MODELS, EFFORTS, MODES, extModels } from '@/lib/chat/models'
 import { baseName } from '@/lib/format'
+import { trServer } from '@/lib/serverText'
 import { locale } from '@/lib/i18n'
 import { useSettings } from '@/stores/settings'
 import { parseYMD, todayYMD, upcoming } from '@/views/calendar/dates'
@@ -245,8 +246,8 @@ function Gruppe({
             className={`${s.kachel} ${x.v === wert ? s.kachelAn : ''}`}
             onClick={() => setzen(x.v)}
           >
-            <b>{t(x.l)}</b>
-            <span>{t(x.d)}</span>
+            <b>{trServer(x.l)}</b>
+            <span>{trServer(x.d)}</span>
           </button>
         ))}
       </div>
