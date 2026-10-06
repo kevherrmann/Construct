@@ -2,10 +2,11 @@ import type { Berechtigung, Effort, Modell } from '@/api/team'
 
 // Auswahllisten der Personalakte — gespiegelt aus server/team/agents.py.
 
+// Die Aliase laufen auf das jeweils neueste Modell (wie lib/chat/models.ts).
 export const MODELLE: Record<Modell, string> = {
-  fable: 'Fable 5',
-  opus: 'Opus 5',
-  sonnet: 'Sonnet 5',
+  fable: 'Fable 5.1',
+  opus: 'Opus 5.5',
+  sonnet: 'Sonnet 5.5',
   haiku: 'Haiku 4.5 · 200K',
 }
 
