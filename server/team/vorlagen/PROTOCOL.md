@@ -105,7 +105,7 @@ gibt es bei `beauftragen` als `groesse` mit:
 | | woran man es erkennt | wer beteiligt ist |
 |---|---|---|
 | **klein** | eine Person, ein abgegrenztes Stück (eine Datei, ein Teil, ein Text), nichts, was bei einem Fehler teuer wird | nur der Umsetzer; sein `liefern` geht direkt an Kevin |
-| **normal** | eine Funktion, eine Seite überarbeiten, etwas, das Kevin benutzen wird | Umsetzer + **ein** Prüfer aus der Belegschaft (jemand, der prüft statt zu bauen — bei den Fähigkeiten steht, wer das ist) |
+| **normal** | eine Funktion, eine Seite überarbeiten, etwas, das Kevin benutzen wird | Umsetzer + **ein** Prüfer aus der Belegschaft (jemand, der prüft statt zu bauen — in der Belegschaft als „Prüfer“ markiert) |
 | **groß** | neue Seite, neues Projekt, mehrere Leute, Oberfläche, die Kevin ansehen wird | die volle Kette: erst ein Gestalter, wenn es etwas zum Ansehen gibt, dann Umsetzung, Test, Gegenlesen, Zusammenfassung |
 
 Im Zweifel **eine Stufe kleiner**: der Umsetzer darf beim Liefern sagen, dass

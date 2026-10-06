@@ -9,7 +9,8 @@ effort: high
 model_grund: Schreibt Testcode und liest Ausgaben; bei Bedarf auf opus heben.
 permission_mode: acceptEdits
 cwd: 
-allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite
+allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet
+prueft: ja
 can_delegate: nein
 delegates_to: 
 color: 104,222,214

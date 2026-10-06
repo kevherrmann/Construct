@@ -184,7 +184,7 @@ def test_akte_einer_frueheren_fassung_folgt_der_vorlage(firma):
     akte = firma / "firma" / "agents" / "janus" / "AGENT.md"
     alt = _vorlage("de", "janus", "AGENT.md").replace(
         "allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
-        "allowed_tools: Read, Bash, Grep, Glob")
+        "allowed_tools: Read, Bash, Grep, Glob").replace("prueft: ja\n", "")
     assert hashlib.sha256(alt.encode()).hexdigest() in ag._fruehere()["janus/AGENT.md"]
     akte.write_text(alt)
     (ag.AGENTS_DIR / ".vorlagen.json").unlink()
@@ -420,4 +420,36 @@ def test_rechner_und_anrede_sprechen_englisch(firma):
     (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
     with pytest.raises(rechner.CalcError, match="Division by zero"):
         rechner.calculate("1/0")
-    assert ag.anrede("Kevin's job") == "the user's job"
+    assert ag.anrede("Kevin's job") == "The user's job"
+    assert ag.anrede("Ask Kevin. Kevin decides, as Kevins wish.") == \
+        "Ask the user. The user decides, as the user's wish."
+    assert ag.anrede("- **Kevin** wants results") == "- **The user** wants results"
+
+
+def test_belegschaft_zeigt_wer_prueft(firma):
+    xs = {a["slug"]: a for a in ag.list_agents(WS)}
+    assert [s for s, a in sorted(xs.items()) if a["prueft"]] == ["janus", "miranda"]
+    j = ag.faehigkeiten(xs["janus"])
+    assert j.startswith("Prüfer (baut nicht selbst)") and "schreibt nur Berichte" in j
+    assert "Prüfer" not in ag.faehigkeiten(xs["luna"])
+    # Angepasste Akte von vor dem Feld: bleibt Prüfer
+    f = firma / "firma" / "agents" / "miranda" / "AGENT.md"
+    f.write_text(f.read_text().replace("prueft: ja\n", "").replace("model: sonnet", "model: opus"))
+    assert ag.load_agent("miranda", WS)["prueft"] is True
+    (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
+    assert ag.faehigkeiten(ag.load_agent("janus", WS)).startswith("reviewer (does not build)")
+
+
+def test_angepasste_akte_bekommt_titel_in_der_neuen_sprache(firma):
+    ag.list_agents(WS)
+    f = firma / "firma" / "agents" / "miranda" / "AGENT.md"
+    f.write_text(f.read_text().replace("model: sonnet", "model: opus"))   # in ⚙ umgestellt
+    (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
+    a = ag.load_agent("miranda", WS)
+    assert a["title"] == "Quality assurance" and a["model"] == "opus"
+    assert a["model_grund"] == ag._feld_der_vorlage("miranda", "model_grund",
+                                                   ag.VORLAGEN_DIR / "agents.default.en")
+    # Eigener Titel bleibt
+    f.write_text(f.read_text().replace("title: Quality assurance", "title: Testchefin"))
+    (firma / "settings.json").write_text(json.dumps({"lang": "de"}))
+    assert ag.load_agent("miranda", WS)["title"] == "Testchefin"

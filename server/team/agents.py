@@ -100,10 +100,22 @@ def anrede(text: str, roh=()) -> str:
     roh = sorted({r for r in roh if r and "Kevin" in r}, key=len, reverse=True)
     for i, r in enumerate(roh):
         text = text.replace(r, f"\x00{i}\x00")
-    text = re.sub(r"Kevin(s?)", lambda m: name + m.group(1), text)
+    text = re.sub(r"Kevin(s?)", lambda m: _anrede_einsetzen(name, m), text)
     for i, r in enumerate(roh):
         text = text.replace(f"\x00{i}\x00", r)
     return text
+
+
+def _anrede_einsetzen(name: str, m: re.Match) -> str:
+    if not name.startswith("the "):
+        return name + m.group(1)
+    # Ohne Namen in englischen Texten: "Kevins" ist dort kein Wort, gemeint ist
+    # der Genitiv. Am Satz- oder Zeilenanfang groß.
+    davor = m.string[:m.start()].rstrip(" *_\"“„")
+    if not davor or davor[-1] in ".!?:\n—-":
+        name = name[0].upper() + name[1:]
+    return name + ("'s" if m.group(1) else "")
+
 
 MAX_SOUL = 32_000
 MAX_MEMORY = 8_000        # gedeckelt: das Ding hängt an JEDEM Systemprompt
@@ -141,8 +153,11 @@ STATES = ("active", "paused", "fired")
 # Werkzeuge, die eine Akte vergeben darf. Bewusst eine Erlaubnisliste: wer hier
 # nicht steht, bekommt es nicht. Bash fehlt mit Absicht NICHT — aber es soll
 # eine bewusste Entscheidung pro Rolle sein, keine Vorgabe.
+# Task = Unteragent; TaskCreate/-Update/-List/-Get = die Aufgabenliste. TodoWrite
+# gibt es in CLI 2.1.291 nicht mehr: die CLI ignoriert es still (geprüft per init).
 KNOWN_TOOLS = ("Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch",
-               "WebFetch", "NotebookEdit", "Task", "TodoWrite", "Skill")
+               "WebFetch", "NotebookEdit", "Task", "Skill",
+               "TaskCreate", "TaskUpdate", "TaskList", "TaskGet")
 
 # Werkzeuglisten früherer Vorlagen. Steht eine Akte noch genau so da, hat sie
 # niemand angepasst: dann bekommt sie die heutige Liste der Vorlage (load_agent),
@@ -150,10 +165,13 @@ KNOWN_TOOLS = ("Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch",
 ALTE_WERKZEUGE = {
     "chef": ("Read, Grep, Glob, WebSearch, WebFetch",),
     "luna": ("Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill",
-             "Read, Write, Edit, Bash, Grep, Glob, Skill"),
+             "Read, Write, Edit, Bash, Grep, Glob, Skill",
+             "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite"),
     "elara": ("Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch",
-              "Read, Write, Edit, Bash, Grep, Glob"),
-    "miranda": ("Read, Write, Edit, Bash, Grep, Glob",),
+              "Read, Write, Edit, Bash, Grep, Glob",
+              "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite"),
+    "miranda": ("Read, Write, Edit, Bash, Grep, Glob",
+                "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite"),
     "janus": ("Read, Bash, Grep, Glob, WebSearch, WebFetch",
               "Read, Bash, Grep, Glob"),
 }
@@ -174,7 +192,9 @@ DEFAULT_AGENT = {
     "engine": "claude", "model": "sonnet", "effort": "high",
     "model_grund": "", "permission_mode": "acceptEdits", "cwd": "",
     "allowed_tools": ["Read", "Grep", "Glob"],
-    "can_delegate": False, "delegates_to": [],
+    # prueft = baut nicht, sondern prüft, was andere gebaut haben. Steht in der
+    # Belegschaft, damit die Geschäftsführung den Prüfer findet (PROTOCOL.md).
+    "can_delegate": False, "delegates_to": [], "prueft": False,
     "color": "", "avatar": "", "status": "active",
     "hired": "", "hired_by": "kevin",
     # KEINE Obergrenze fuer Dauer oder Geld eines Zuges: ein Auftrag wie "bau
@@ -183,7 +203,7 @@ DEFAULT_AGENT = {
     # Lebenszeichen geben, bevor er als tot gilt.
     "max_stille_s": 1800,
 }
-_BOOL_FIELDS = ("can_delegate",)
+_BOOL_FIELDS = ("can_delegate", "prueft")
 
 
 # ---------- Frontmatter ----------
@@ -429,6 +449,8 @@ def _vorlage_nachziehen(slug: str):
             if f.exists():
                 bekannt.add(hashlib.sha256(f.read_bytes()).hexdigest())
         if h not in bekannt:
+            if name == "AGENT.md":
+                _textfelder_nachziehen(dst, slug)
             continue                     # angepasst: bleibt, wie es ist
         try:
             _atomic(dst, soll)
@@ -440,6 +462,28 @@ def _vorlage_nachziehen(slug: str):
         _ABGEGLICHEN[slug] = _marke(d)
     except OSError:
         pass
+
+
+# Was die Oberfläche nicht schreibt und was die Sprache trägt. Wer in ⚙ nur das Modell
+# umstellt, hat damit nicht den deutschen Titel zu seinem gemacht.
+_TEXTFELDER = ("title", "model_grund")
+
+
+def _textfelder_nachziehen(dst: Path, slug: str):
+    txt = dst.read_text(encoding="utf-8", errors="replace")
+    neu = txt
+    for key in _TEXTFELDER:
+        soll = _feld_der_vorlage(slug, key, vorlagen_akten())
+        mitgeliefert = {_feld_der_vorlage(slug, key, q)
+                        for q in (DEFAULTS_DIR, VORLAGEN_DIR / "agents.default.en")}
+        ist = _fm_get(_split_frontmatter(neu)[0], key)
+        if soll is not None and ist != soll and ist in mitgeliefert:
+            neu = re.sub(rf"^{key}:.*$", lambda _m: f"{key}: {soll}", neu, count=1, flags=re.M)
+    if neu != txt:
+        try:
+            _atomic(dst, neu)
+        except OSError:
+            pass
 
 
 def _marke(d: Path) -> tuple:
@@ -502,6 +546,10 @@ def load_agent(slug: str, workspace) -> dict | None:
             raw["allowed_tools"] = neu
     if not re.search(r"^allowed_tools:", fm, re.M):
         raw["allowed_tools"] = None      # Zeile fehlt ganz -> Vorgabe, nicht "keine"
+    if not re.search(r"^prueft:", fm, re.M):
+        # Akten von vor dem Feld: angepasste ziehen nicht nach, Miranda und Janus
+        # sollen trotzdem als Prüfer in der Belegschaft stehen.
+        raw["prueft"] = _feld_der_vorlage(slug, "prueft")
     a, bad = validate(raw, workspace)
     a["problems"] = bad
     if slug == OWNER_SLUG:
@@ -515,12 +563,16 @@ def load_agent(slug: str, workspace) -> dict | None:
     return a
 
 
-def _werkzeuge_der_vorlage(slug: str) -> str | None:
-    f = DEFAULTS_DIR / slug / "AGENT.md"
+def _feld_der_vorlage(slug: str, key: str, quelle: Path = DEFAULTS_DIR) -> str | None:
+    f = quelle / slug / "AGENT.md"
     if not f.exists():
         return None
     fm, _ = _split_frontmatter(f.read_text(encoding="utf-8"))
-    return _fm_get(fm, "allowed_tools")
+    return _fm_get(fm, key)
+
+
+def _werkzeuge_der_vorlage(slug: str) -> str | None:
+    return _feld_der_vorlage(slug, "allowed_tools")
 
 
 # ---------- Woran jemand schon gearbeitet hat ----------
@@ -620,13 +672,16 @@ def faehigkeiten(a: dict) -> str:
     wer eine Shell hat.
     """
     tools = set(a.get("allowed_tools") or ())
-    kann = []
+    kann = [cfg.L("Prüfer (baut nicht selbst)", "reviewer (does not build)")] if a.get("prueft") else []
     if "Bash" in tools:
         kann.append(cfg.L("Shell (bauen, testen, Browser-Screenshots)",
                           "shell (build, test, browser screenshots)"))
     # acceptEdits schreibt auch ohne Write/Edit in der Liste (s. PERM_MODES).
-    if {"Write", "Edit"} & tools or a.get("permission_mode") in ("acceptEdits", "bypassPermissions"):
+    if "Edit" in tools or a.get("permission_mode") in ("acceptEdits", "bypassPermissions"):
         kann.append(cfg.L("schreibt Dateien", "writes files"))
+    elif "Write" in tools:
+        # Write ohne Edit (Janus): legt seinen Bericht an, ändert aber nichts.
+        kann.append(cfg.L("schreibt nur Berichte", "writes reports only"))
     else:
         kann.append(cfg.L("liest nur", "read only"))
     if {"WebFetch", "WebSearch"} & tools:

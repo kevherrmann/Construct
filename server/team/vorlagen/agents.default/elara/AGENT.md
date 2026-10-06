@@ -9,7 +9,7 @@ effort: high
 model_grund: Gestaltung braucht Urteil, darum das stärkere Modell.
 permission_mode: acceptEdits
 cwd: 
-allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite
+allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet
 can_delegate: nein
 delegates_to: 
 color: 255,158,205

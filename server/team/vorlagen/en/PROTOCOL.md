@@ -105,7 +105,7 @@ as `groesse`:
 | | how to recognize it | who is involved |
 |---|---|---|
 | **klein** (small) | one person, one contained piece (one file, one part, one text), nothing that gets expensive if it goes wrong | only the implementer; their `liefern` goes directly to Kevin |
-| **normal** | a feature, reworking a page, something Kevin will use | implementer + **one** reviewer from the staff (someone who checks instead of builds — the skills list says who) |
+| **normal** | a feature, reworking a page, something Kevin will use | implementer + **one** reviewer from the staff (someone who checks instead of builds — marked “reviewer” in the staff list) |
 | **groß** (large) | new page, new project, several people, an interface Kevin will look at | the full chain: first a designer if there's something to look at, then implementation, testing, review, summary |
 
 When in doubt, **one size smaller**: the implementer may say on delivery that

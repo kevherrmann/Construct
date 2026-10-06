@@ -9,7 +9,7 @@ effort: high
 model_grund: Complex code, debugging, infrastructure: mistakes are expensive here.
 permission_mode: acceptEdits
 cwd: 
-allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TodoWrite
+allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet
 can_delegate: nein
 delegates_to: 
 color: 77,184,255
