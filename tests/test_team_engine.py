@@ -316,3 +316,18 @@ def test_wartender_zug_startet_nicht_mehr_nach_dem_ausschalten(firma, tmp_path):
     t = auf.laden(tid)
     assert t["status"] == "wartet_auf_kevin" and t["eskalation"]["bremse"] == "gestoppt"
     assert t["sessions"] == {}                    # kein Zug ist gelaufen
+
+
+@pytest.mark.parametrize("pfad,body", [("/api/team/auftraege", b"kaputt"), ("/api/team/auftraege", b"[]"),
+                                       ("/api/team/auftraege/aus-ticket", b'{"session": "abcd1234", "nr": [1]}')])
+def test_kaputter_body_ist_kein_serverfehler(firma, pfad, body):
+    req = urllib.request.Request(firma + pfad, data=body, headers={"Content-Type": "application/json"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req, timeout=10)
+    assert e.value.code == 400
+
+
+def test_bus_ohne_objekt_wird_abgewiesen(firma):
+    req = urllib.request.Request(firma + "/api/team/bus", data=b"[]", headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        assert json.load(r)["error"] is True

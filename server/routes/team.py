@@ -31,6 +31,15 @@ async def team_an():
 router = APIRouter(dependencies=[Depends(team_an)])
 
 
+async def _body(req: Request) -> dict:
+    """Kaputtes JSON oder etwas anderes als ein Objekt ist ein leerer Body, kein 500."""
+    try:
+        b = await req.json()
+    except ValueError:
+        return {}
+    return b if isinstance(b, dict) else {}
+
+
 @router.get("/api/team/agents")
 def agents_list(fired: int = 0):
     return {"agents": [ag.anzeige(a) for a in ag.list_agents(WORKSPACE, include_fired=bool(fired))],
@@ -47,7 +56,7 @@ def agent_get(slug: str):
 
 @router.post("/api/team/agent/{slug}")
 async def agent_set(slug: str, req: Request):
-    body = await req.json()
+    body = await _body(req)
     body["slug"] = slug
     a, bad = ag.save_agent(body, WORKSPACE)
     if a is None:
@@ -57,7 +66,7 @@ async def agent_set(slug: str, req: Request):
 
 @router.post("/api/team/agents")
 async def agent_new(req: Request):
-    body = await req.json()
+    body = await _body(req)
     if ag.load_agent(str(body.get("slug") or ""), WORKSPACE):
         return JSONResponse({"error": "gibt es schon"}, status_code=409)
     a, bad = ag.save_agent(body, WORKSPACE)
@@ -87,7 +96,7 @@ def auftraege_liste():
 @router.post("/api/team/auftraege")
 async def auftrag_neu(req: Request):
     """Der Nutzer gibt der Firma einen Auftrag. Er geht an die Geschäftsführung."""
-    body = await req.json()
+    body = await _body(req)
     try:
         t = engine.auftrag_anlegen(body.get("titel"), body.get("brief"), body.get("cwd") or "",
                                    str(body.get("owner") or ""), body.get("bruecke"))
@@ -99,14 +108,14 @@ async def auftrag_neu(req: Request):
 @router.post("/api/team/auftraege/aus-ticket")
 async def auftrag_aus_ticket(req: Request):
     """Der Knopf am Ticket: aus den Nachrichten eines Tickets wird ein Auftrag."""
-    body = await req.json()
+    body = await _body(req)
     try:
         t = engine.auftrag_aus_ticket(str(body.get("session") or ""), int(body.get("nr") or 0))
     except engine.AuftragVorhanden as e:
         return JSONResponse({"error": str(e), "auftrag": e.auftrag_id}, status_code=409)
     except engine.AuftragFehler as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-    except ValueError:
+    except (TypeError, ValueError):
         return JSONResponse({"error": "ungültige Angabe"}, status_code=400)
     return {"ok": True, "ticket": t}
 
@@ -157,7 +166,7 @@ async def auftrag_antwort(tid: str, req: Request):
     t = auf.laden(tid)
     if not t:
         return JSONResponse({"error": "unbekannt"}, status_code=404)
-    body = await req.json()
+    body = await _body(req)
     aktion = str(body.get("aktion") or "weiter")
     text = str(body.get("text") or "").strip()
 
@@ -204,7 +213,7 @@ async def auftrag_say(tid: str, req: Request):
     t = auf.laden(tid)
     if not t:
         return JSONResponse({"error": "unbekannt"}, status_code=404)
-    body = await req.json()
+    body = await _body(req)
     text = str(body.get("text") or "").strip()
     if not text:
         return JSONResponse({"error": "leer"}, status_code=400)
@@ -292,7 +301,7 @@ def auftrag_loeschen(tid: str):
 @router.post("/api/team/pause")
 async def team_pause(req: Request):
     """Not-Aus fuer die ganze Firma."""
-    body = await req.json()
+    body = await _body(req)
     engine.PAUSIERT = bool(body.get("pause"))
     return {"pausiert": engine.PAUSIERT}
 
@@ -309,7 +318,7 @@ def user_md_get():
 async def user_md_set(req: Request):
     """Vollstaendiges Ueberschreiben — das darf NUR der Nutzer, nicht ein Agent.
     Die Mitarbeiter haengen ueber user_merken an die Ergaenzungen an, sie ersetzen nie."""
-    body = await req.json()
+    body = await _body(req)
     async with bus.USER_LOCK:
         if "text" in body:
             ag._atomic(ag.USER_FILE, str(body.get("text") or "")[:ag.MAX_USER])
@@ -321,4 +330,4 @@ async def user_md_set(req: Request):
 @router.post("/api/team/bus")
 async def team_bus(req: Request):
     """Gegenstelle von team_mcp.py: die Werkzeugaufrufe der Mitarbeiter."""
-    return JSONResponse(await bus.bus_aufruf(await req.json()))
+    return JSONResponse(await bus.bus_aufruf(await _body(req)))
