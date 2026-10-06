@@ -10,7 +10,7 @@ import s from './Tickets.module.css'
 export function TicketsSide() {
   const { t } = useTranslation()
   const lang = useSettings((st) => st.boot.lang)
-  const { data, isPending } = useTicketUebersicht()
+  const { data } = useTicketUebersicht()
   const { tag, cwd, wahl: waehle } = useTicketsAnsicht()
   const zu = useUi((st) => st.setSideOpen)
   const wahl = (t: string | null, c: string | null = null) => (waehle(t, c), zu(false))
@@ -19,11 +19,7 @@ export function TicketsSide() {
 
   return (
     <div>
-      {!isPending && !tage.length && (
-        <div className={s.hint}>
-          {t('Noch keine Tickets. Sie entstehen von selbst, sobald du in einer Session schreibst.')}
-        </div>
-      )}
+      {/* Leer: das sagt der Hauptbereich schon, hier stünde derselbe Satz ein zweites Mal. */}
       {tage.map((d) => {
         const offen = d.projekte.reduce((n, p) => n + p.offen, 0)
         const fertig = d.projekte.reduce((n, p) => n + p.erledigt, 0)
