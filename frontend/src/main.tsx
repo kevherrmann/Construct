@@ -8,7 +8,7 @@ import { applyTheme } from '@/lib/themes'
 import { useSettings } from '@/stores/settings'
 import { installExternalLinkHandler } from '@/lib/externalLinks'
 import { applyFont } from '@/lib/fonts'
-import { fxLevel } from '@/lib/fx'
+import { applyFx } from '@/lib/fx'
 import './styles/global.css'
 
 const { boot } = useSettings.getState()
@@ -16,8 +16,7 @@ initI18n(boot.lang)
 applyTheme(boot.settings.theme)
 applyFont(boot.settings.font)
 installExternalLinkHandler()
-document.body.classList.toggle('fx-off', fxLevel() === 'off')
-document.body.classList.toggle('fx-low', fxLevel() === 'low')
+applyFx()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

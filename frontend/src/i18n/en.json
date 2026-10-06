@@ -1117,5 +1117,18 @@
   "ÜBERSICHT": "OVERVIEW",
   "Ziehen ändert die Größe, Doppelklick stellt sie zurück": "Drag to resize, double-click to reset",
   "Ziehen verschiebt die Blase, Doppelklick stellt sie zurück": "Drag to move the bubble, double-click to reset",
-  "Auftrag": "Job"
+  "Auftrag": "Job",
+  "✨ EFFEKTE": "✨ EFFECTS",
+  "Effekte": "Effects",
+  "Effekte aus": "Effects off",
+  "Im Raum steht alles still: Figuren, Werkbank und Schreibtische zeigen Standbilder. Kein Matrix-Regen, keine Unschärfe. Spart Rechenleistung. Gilt nur in diesem Browser.": "Everything in the room holds still: figures, workbench and desks show still images. No Matrix rain, no blur. Saves processing power. Applies to this browser only.",
+  "Dein System hat „Bewegung reduzieren“ an: Figuren und Videos stehen schon still.": "Your system has “Reduce motion” on: figures and videos already hold still.",
+  "Höhe der Sprechblase ändern": "Resize speech bubble height",
+  "Ziehen ändert die Höhe, Doppelklick stellt sie zurück": "Drag to change the height, double-click to reset",
+  "Aufgabe": "task",
+  "Titel": "title",
+  "klein": "small",
+  "groß": "large",
+  "{w} · {n} Zeilen": "{w} · {n} lines",
+  "an „{t}“": "on “{t}”"
 }

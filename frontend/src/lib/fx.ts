@@ -1,4 +1,5 @@
-import { getItem } from './storage'
+import { useSyncExternalStore } from 'react'
+import { getItem, setItem } from './storage'
 
 // Sparmodus. Ohne GPU-Beschleunigung ist der Vollbild-Canvas auf einem
 // 4K-Schirm der mit Abstand teuerste Teil der Oberfläche — er kostet dann mehr
@@ -7,8 +8,9 @@ import { getItem } from './storage'
 // übersteuern (Browser-Konsole):
 //   localStorage.setItem('mxfx','full')  → volle Optik, mehr Last
 //   localStorage.setItem('mxfx','low')   → sparsam, auch im Browser
-//   localStorage.setItem('mxfx','off')   → Regen ganz aus
+//   localStorage.setItem('mxfx','off')   → Regen ganz aus, der Raum steht still
 //   localStorage.removeItem('mxfx')      → wieder automatisch
+// „Effekte aus“ in ⚙ → Aussehen setzt 'off' bzw. nimmt es wieder weg.
 export type FxLevel = 'full' | 'low' | 'off'
 
 // ?fx=low beim Laden festhalten: der Router leitet / sofort auf /chat um und
@@ -21,4 +23,32 @@ export function fxLevel(): FxLevel {
   if (pref === 'low') return 'low'
   if (pref !== 'full' && urlLow) return 'low'
   return 'full'
+}
+
+const hoerer = new Set<() => void>()
+
+/** Klassen am body, an denen das CSS hängt (Unschärfe, Atmen der Figur, Wege). */
+export function applyFx() {
+  const fx = fxLevel()
+  document.body.classList.toggle('fx-off', fx === 'off')
+  document.body.classList.toggle('fx-low', fx === 'low')
+}
+
+/** Effekte aus- oder wieder einschalten, wirkt sofort und bleibt gemerkt. */
+export function setEffekteAus(aus: boolean) {
+  setItem('mxfx', aus ? 'off' : null)
+  applyFx()
+  hoerer.forEach((h) => h())
+}
+
+/** fxLevel() als Hook: Videos und Regen folgen dem Schalter ohne Neuladen. */
+export function useFx(): FxLevel {
+  return useSyncExternalStore(
+    (h) => {
+      hoerer.add(h)
+      return () => hoerer.delete(h)
+    },
+    fxLevel,
+    fxLevel,
+  )
 }

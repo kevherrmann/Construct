@@ -1433,6 +1433,48 @@
   border-color: var(--green);
 }
 
+/* Kompakt (Bodenblatt): Griff oben in der Mitte wie bei jedem Bodenblatt, er
+   zieht nur die Höhe. Sichtbar ist ein Strich, getroffen wird ein breiter Streifen. */
+.blaseHebbar .blasenKopf {
+  padding-top: 18px;
+}
+.blasenHeber {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 50%;
+  width: 88px;
+  height: 22px;
+  margin-left: -44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.blasenHeber::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: #c4ccc8;
+  transition: background 0.2s;
+}
+.blasenHeber:hover::before,
+.blasenHeber:focus-visible::before,
+.blaseZieht .blasenHeber::before {
+  background: rgb(var(--accent-rgb));
+}
+.blasenHeber:focus-visible {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: -2px;
+}
+
 /* ---------------------------------------------------------------------------
    Sprechzeile: die Eingabe schwebt über dem Boden, ohne Kasten. Ein weicher
    Lichthof darunter hält den Text auf jedem Untergrund lesbar. */
@@ -1544,6 +1586,9 @@
 }
 .wandTrenner.binaerAus i {
   opacity: 0.2;
+}
+:global(body.fx-off) :is(.wandSpalte, .wandTrenner) i {
+  transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .wandSpalte i,
@@ -1744,6 +1789,9 @@
 }
 .tetrisDoppelpunkt i:last-child {
   grid-row: 5;
+}
+:global(body.fx-off) :is(.tetrisLiegt, .tetrisVerlischt) {
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .tetrisLiegt,

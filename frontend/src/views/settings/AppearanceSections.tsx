@@ -1,4 +1,6 @@
 import { FONTS } from '@/lib/fonts'
+import { setEffekteAus, useFx } from '@/lib/fx'
+import { RUHIG, useMedien } from '@/hooks/useMedien'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Settings } from '@/lib/bootstrap'
@@ -184,6 +186,36 @@ export function BackgroundSection() {
           e.target.value = ''
         }}
       />
+    </Section>
+  )
+}
+
+// Effekte aus: dasselbe wie mxfx=off. Gilt je Browser (localStorage), nicht in
+// settings.json: ob Bewegung stört oder den Rechner bremst, hängt am Gerät.
+export function EffekteSection() {
+  const { t } = useTranslation()
+  const aus = useFx() === 'off'
+  const ruhig = useMedien(RUHIG)
+  return (
+    <Section id="effekte">
+      <div className={s.row}>
+        <label>
+          <input type="checkbox" checked={aus} onChange={(e) => setEffekteAus(e.target.checked)} />
+          <span>
+            <span className={s.t}>{t('Effekte aus')}</span>
+            <span className={s.d}>
+              {t(
+                'Im Raum steht alles still: Figuren, Werkbank und Schreibtische zeigen Standbilder. Kein Matrix-Regen, keine Unschärfe. Spart Rechenleistung. Gilt nur in diesem Browser.',
+              )}
+            </span>
+          </span>
+        </label>
+      </div>
+      {ruhig && !aus && (
+        <div className={s.d} style={{ marginTop: 8 }}>
+          {t('Dein System hat „Bewegung reduzieren“ an: Figuren und Videos stehen schon still.')}
+        </div>
+      )}
     </Section>
   )
 }

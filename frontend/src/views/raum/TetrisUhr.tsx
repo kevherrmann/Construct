@@ -10,6 +10,7 @@ import {
   type Zelle,
 } from './tetris'
 import s from './Raum.module.css'
+import { fxLevel } from '@/lib/fx'
 
 // Tetris-Uhr: HH:MM aus fallenden Tetrominos. Beim Öffnen baut sich die Zeit
 // einmal auf; wechselt danach eine Ziffer, verlischt nur sie und ihre Steine
@@ -137,7 +138,8 @@ function Ziffer({ lauf, nun }: { lauf: Lauf; nun: number }) {
   )
 }
 
-const ruhig = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const ruhig = () =>
+  fxLevel() === 'off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function TetrisUhr({ jetzt }: { jetzt: Date }) {
   const { t } = useTranslation()

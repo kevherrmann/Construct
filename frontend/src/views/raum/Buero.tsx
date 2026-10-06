@@ -10,7 +10,7 @@ import {
   type Platz,
 } from './stationen'
 import { WEG_MS, type Besuch, type BueroStand, type Sitz } from './useBuero'
-import { fxLevel } from '@/lib/fx'
+import { useFx } from '@/lib/fx'
 import { PoseVideo } from './PoseVideo'
 import s from './Raum.module.css'
 
@@ -21,8 +21,6 @@ import s from './Raum.module.css'
 // wer keinen Doppelschreibtisch hat, steht mit seinem Profilbild am Rand.
 
 const SPRITES = BUERO_SPRITES
-/** Tipp-Videos nur, wenn der Rechner Videos im Raum spielt (wie beim Assistenten). */
-const VIDEO_AN = fxLevel() !== 'off'
 
 /** Wie viele am Tisch sitzen (Reihenfolge im Bild: links, rechts). */
 type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
@@ -132,6 +130,8 @@ function DoppelTisch({
   onFokus: (an: boolean) => void
 }) {
   const { t } = useTranslation()
+  // Tipp-Videos nur, wenn der Raum Videos spielt (wie beim Assistenten).
+  const videoAn = useFx() !== 'off'
   const da = (x?: Sitz) => !!x && stand.werk !== x.agent.slug
   const soll: Belegung =
     da(links) && da(rechts) ? 'beide' : da(links) ? 'links' : da(rechts) ? 'rechts' : 'leer'
@@ -198,7 +198,7 @@ function DoppelTisch({
           className={`${s.zustand} ${b === bild ? s.zustandAn : ''}`}
         />
       ))}
-      {VIDEO_AN &&
+      {videoAn &&
         TIPPT.map((b) => {
           const datei = `${SPRITES}/doppel-${kennung}-${b}`
           return (
@@ -264,6 +264,7 @@ function Randplatz({
 function Laeufer({ sitz, da }: { sitz: Sitz; da: boolean }) {
   // Angekommen: er tippt (Video über dem Standbild, wie beim Assistenten).
   const [angekommen, setAngekommen] = useState(false)
+  const videoAn = useFx() !== 'off'
   useEffect(() => {
     if (!da) return
     const id = setTimeout(() => setAngekommen(true), WEG_MS)
@@ -287,7 +288,7 @@ function Laeufer({ sitz, da }: { sitz: Sitz; da: boolean }) {
         alt=""
         draggable={false}
       />
-      {VIDEO_AN && (
+      {videoAn && (
         <PoseVideo
           clip={{ webm: `${datei}.webm`, mp4: `${datei}.mp4`, maske: `${datei}-maske.webp` }}
           ort={WERKBANK}

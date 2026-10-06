@@ -17,7 +17,7 @@ import type { PickerName } from '@/components/chat/Pickers'
 import { Markdown } from '@/components/chat/Markdown'
 import { baseName } from '@/lib/format'
 import { MODES, modelInfo } from '@/lib/chat/models'
-import { fxLevel } from '@/lib/fx'
+import { useFx } from '@/lib/fx'
 import { KOMPAKT, useMedien } from '@/hooks/useMedien'
 import { useChat } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
@@ -50,6 +50,8 @@ import { useBuero } from './useBuero'
 import { useChefZug, useTeamBlase } from './useTeamBlase'
 import {
   useBlasenGroesse,
+  useBlasenHoehe,
+  zwischen,
   useBlasenOrt,
   vergroessert,
   verschoben,
@@ -177,8 +179,7 @@ const FORM_BILD = import.meta.glob<string>('./assets/form/*.webp', {
 
 // Hover-Variante je nach Leistung: Mit voller Optik stellt die Kamera auf das
 // Objekt scharf (der Rest wird unscharf). Im Sparmodus (Software-Rendering)
-// wäre das zäh — dort bekommt das Objekt nur einen weichen Schein.
-const SCHEIN = fxLevel() !== 'full'
+// wäre das zäh — dort bekommt das Objekt nur einen weichen Schein (RaumView: schein).
 const SCHEIN_BILD = import.meta.glob<string>('./assets/schein/*.webp', {
   eager: true,
   import: 'default',
@@ -258,9 +259,6 @@ const WERKBANK_HALTEN_MS = 2500
 /** So lange muss die Chefin nichts zu tun haben, bevor sie sich einen Stuhl holt:
  *  zwischen zwei ihrer Züge bleibt sie stehen, statt kurz zu sitzen. */
 const LANGEWEILE_MS = 4000
-
-// Sparmodus "aus": keine Videos, nur Standbilder mit Überblendung.
-const VIDEO_AN = fxLevel() !== 'off'
 
 function useRuhigePose(ziel: Pose): Pose {
   const [pose, setPose] = useState(ziel)
@@ -390,6 +388,10 @@ export function RaumView() {
   const providers = useProviders()
   const version = useVersion()
   const setRaum = useUi((st) => st.setRaum)
+  // Effekte aus (⚙ → Aussehen oder mxfx=off): keine Videos, nur Standbilder mit Überblendung.
+  const fx = useFx()
+  const videoAn = fx !== 'off'
+  const schein = fx !== 'full'
   const [ansicht, setAnsicht] = useState<Ansicht | null>(null)
   const schliessen = useCallback(() => setAnsicht(null), [])
   // Überfahrene Station: die Kamera stellt darauf scharf. `form` bleibt beim
@@ -518,7 +520,7 @@ export function RaumView() {
   // Das Standbild am Podest verschwindet erst, wenn das Video der Pose wirklich
   // läuft — spielt es nicht (Codec, Autoplay), bleibt die Figur einfach stehen.
   const [videoPose, setVideoPose] = useState<Pose | null>(null)
-  const imVideo = VIDEO_AN && !amWerk && !besucht && videoPose === pose
+  const imVideo = videoAn && !amWerk && !besucht && videoPose === pose
   const videoMeldung = (p: Pose) => (laeuft: boolean) =>
     setVideoPose((v) => (laeuft ? p : v === p ? null : v))
   const status = lage.phase === 'ruht' ? '' : t(PHASE_TEXT[lage.phase], { d: lage.detail })
@@ -557,6 +559,7 @@ export function RaumView() {
   const blaseUmschalten = () => setZuFuer(blaseZu ? null : antwortKey)
   const [blasenOrt, setBlasenOrt] = useBlasenOrt()
   const [blasenGroesse, setBlasenGroesse] = useBlasenGroesse()
+  const [blasenHoehe, setBlasenHoehe] = useBlasenHoehe()
 
   // Schilder der Stationen zeigen, was gerade eingestellt ist.
   const model = conv?.model ?? ''
@@ -636,6 +639,8 @@ export function RaumView() {
         onOrt={kompakt ? undefined : setBlasenOrt}
         groesse={kompakt ? null : blasenGroesse}
         onGroesse={kompakt ? undefined : setBlasenGroesse}
+        hoehe={kompakt ? (blasenHoehe?.h ?? null) : null}
+        onHoehe={kompakt ? (h) => setBlasenHoehe(h === null ? null : { h }) : undefined}
         onVerlauf={() => {
           if (rueckfrage || abschluss) {
             useAuftraegeAnsicht.getState().oeffne((rueckfrage?.id ?? abschluss?.id)!)
@@ -737,7 +742,7 @@ export function RaumView() {
                 alt=""
                 draggable={false}
               />
-              {!SCHEIN && (
+              {!schein && (
                 <img
                   className={`${s.unschaerfe} ${fokus && !ansicht ? s.fokusAn : ''}`}
                   style={ohneStation(form)}
@@ -824,7 +829,7 @@ export function RaumView() {
                     ),
                 )}
               </div>
-              {VIDEO_AN &&
+              {videoAn &&
                 POSEN.map((p) => {
                   const clip = figur.videos[p]
                   return (
@@ -846,7 +851,7 @@ export function RaumView() {
                 alt=""
                 draggable={false}
               />
-              {VIDEO_AN && figur.videos.arbeiten && (
+              {videoAn && figur.videos.arbeiten && (
                 <PoseVideo
                   key={`${figur.name}-arbeiten`}
                   clip={figur.videos.arbeiten}
@@ -855,7 +860,7 @@ export function RaumView() {
                   onLaeuft={videoMeldung('arbeiten')}
                 />
               )}
-              {SCHEIN ? (
+              {schein ? (
                 <Schein id={form} an={!!fokus && !ansicht} />
               ) : (
                 <div
@@ -1058,6 +1063,8 @@ function Projektion({
 const MIN_BLASE = { w: 260, h: 160 }
 /** Fläche der Blase ohne eigene Größe (Prozent² des Raums, etwa 34 % × 30 %). */
 const VORGABE_FLAECHE = 34 * 30
+/** Höhe des Bodenblatts ohne eigene Höhe (Prozent des Raums, wie .blaseUnten). */
+const VORGABE_HOEHE_KOMPAKT = 30
 /** Pfeiltasten am Größengriff: Richtung, in die er sich bewegt. */
 const PFEILE: Record<string, [number, number]> = {
   ArrowRight: [1, 0],
@@ -1084,6 +1091,8 @@ function Sprechblase({
   onOrt,
   groesse = null,
   onGroesse,
+  hoehe = null,
+  onHoehe,
   onVerlauf,
   onZu,
 }: {
@@ -1108,13 +1117,22 @@ function Sprechblase({
   groesse?: BlasenGroesse | null
   /** Ziehen am Griff oben rechts ändert die Größe, Doppelklick dort stellt sie zurück. */
   onGroesse?: (g: BlasenGroesse | null) => void
+  /** Kompakt: Höhe (Prozent des Raums), bis zu der sie wächst; null = Vorgabe. */
+  hoehe?: number | null
+  /** Ziehen am Griff oben ändert die Höhe, Doppelklick dort stellt sie zurück. */
+  onHoehe?: (h: number | null) => void
   onVerlauf: () => void
   onZu: () => void
 }) {
   const { t } = useTranslation()
   // Größer gezogen: mehr Text je Abschnitt, sonst stünde dort nur mehr Weiß.
   const proAbschnitt = Math.round(
-    220 * Math.max(1, groesse ? (groesse.w * groesse.h) / VORGABE_FLAECHE : 1),
+    220 *
+      Math.max(
+        1,
+        groesse ? (groesse.w * groesse.h) / VORGABE_FLAECHE : 1,
+        hoehe ? hoehe / VORGABE_HOEHE_KOMPAKT : 1,
+      ),
   )
   const teile = useMemo(() => abschnitte(md, proAbschnitt), [md, proAbschnitt])
   // null = immer der jüngste Abschnitt; eine Zahl = selbst geblättert
@@ -1226,10 +1244,51 @@ function Sprechblase({
     onGroesse(vergroessert(m.start, schritt[0] * 2, schritt[1] * 2, m.min, m.max))
   }
   const gross = spannen ?? groesse
+  // Kompakt: Griff oben in der Mitte wie bei einem Bodenblatt, nur die Höhe.
+  const [hoch, setHoch] = useState<number | null>(null)
+  const hoehenMasse = () => {
+    const el = blase.current
+    const raum = el?.offsetParent as HTMLElement | null
+    if (!el || !raum) return null
+    const r = raum.getBoundingClientRect()
+    const b = el.getBoundingClientRect()
+    const ph = (px: number) => (px / r.height) * 100
+    // oben bleibt der Kopf des Raums frei (Titel, Knöpfe)
+    return { r, start: ph(b.height), min: ph(MIN_BLASE.h), max: ph(b.bottom - r.top - 64) }
+  }
+  const hebeLos = (e: React.PointerEvent<HTMLElement>) => {
+    const m = hoehenMasse()
+    if (!onHoehe || !m || e.button !== 0) return
+    const y0 = e.clientY
+    let jetzt = m.start
+    const bewegt = (p: PointerEvent) => {
+      jetzt = zwischen(m.start - ((p.clientY - y0) / m.r.height) * 100, m.min, m.max)
+      setHoch(jetzt)
+    }
+    const fertig = () => {
+      window.removeEventListener('pointermove', bewegt)
+      window.removeEventListener('pointerup', fertig)
+      window.removeEventListener('pointercancel', fertig)
+      setHoch(null)
+      if (jetzt !== m.start) onHoehe(jetzt)
+    }
+    window.addEventListener('pointermove', bewegt)
+    window.addEventListener('pointerup', fertig)
+    window.addEventListener('pointercancel', fertig)
+    e.preventDefault()
+  }
+  const hebeTaste = (e: React.KeyboardEvent<HTMLElement>) => {
+    const m = hoehenMasse()
+    const schritt = e.key === 'ArrowUp' ? 4 : e.key === 'ArrowDown' ? -4 : 0
+    if (!onHoehe || !m || !schritt) return
+    e.preventDefault()
+    onHoehe(zwischen(m.start + schritt, m.min, m.max))
+  }
+  const hoeheJetzt = hoch ?? hoehe
   return (
     <section
       ref={blase}
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen ? s.blaseZieht : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen || hoch !== null ? s.blaseZieht : ''} ${onHoehe ? s.blaseHebbar : ''}`}
       style={{
         ...(farbe ? { ['--accent-rgb' as string]: farbe } : {}),
         ...(lage ? { left: `${lage.l}%`, bottom: `${lage.b}%` } : {}),
@@ -1240,6 +1299,8 @@ function Sprechblase({
             ? { width: `${gross.w}%`, height: `${gross.h}%`, maxHeight: 'none' }
             : { width: `${gross.w}%`, maxHeight: `${gross.h}%` }
           : {}),
+        // Bodenblatt: bleibt, wo du es hingezogen hast, auch bei kurzer Antwort.
+        ...(hoeheJetzt !== null ? { height: `${hoeheJetzt}%`, maxHeight: 'none' } : {}),
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -1268,6 +1329,17 @@ function Sprechblase({
           ✕
         </button>
       </header>
+      {onHoehe && (
+        <button
+          type="button"
+          className={s.blasenHeber}
+          onPointerDown={hebeLos}
+          onKeyDown={hebeTaste}
+          onDoubleClick={() => onHoehe(null)}
+          aria-label={t('Höhe der Sprechblase ändern')}
+          title={t('Ziehen ändert die Höhe, Doppelklick stellt sie zurück')}
+        />
+      )}
       {onGroesse && (
         <button
           type="button"

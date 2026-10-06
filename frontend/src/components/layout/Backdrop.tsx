@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
-import { fxLevel } from '@/lib/fx'
+import { useFx } from '@/lib/fx'
 import { useSettings } from '@/stores/settings'
 import s from './Backdrop.module.css'
 
@@ -76,7 +76,7 @@ function MatrixRain({ slow }: { slow: boolean }) {
 // bleibt der ruhige Farbverlauf des Seitengrunds (styles/global.css) stehen.
 export function Backdrop() {
   const bg = useSettings((st) => st.settings.background)
-  const fx = fxLevel()
+  const fx = useFx()
   if (bg.mode === 'image' && bg.image)
     return (
       <div

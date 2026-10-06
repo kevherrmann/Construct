@@ -17,6 +17,7 @@ export interface BlasenGroesse {
 
 const ORT = 'construct.raum.blase'
 const GROESSE = 'construct.raum.blase.groesse'
+const HOEHE = 'construct.raum.blase.hoehe'
 
 function lesen<T>(schluessel: string, felder: (keyof T)[]): T | null {
   try {
@@ -49,7 +50,13 @@ export function useBlasenGroesse() {
   return useGemerkt<BlasenGroesse>(GROESSE, ['w', 'h'])
 }
 
-const zwischen = (v: number, min: number, max: number) =>
+/** Kompakt (Bodenblatt unter 861 px): nur die Höhe, bis zu der sie wächst, in
+ *  Prozent der Raumhöhe. Eigener Schlüssel: auf dem Handy passt die Desktop-Größe nicht. */
+export function useBlasenHoehe() {
+  return useGemerkt<{ h: number }>(HOEHE, ['h'])
+}
+
+export const zwischen = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), Math.max(min, max))
 
 /** Neue Lage beim Ziehen: Startlage plus Verschiebung, so begrenzt, dass die Blase

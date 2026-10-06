@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useSettings } from '@/stores/settings'
-import { BackgroundSection, ThemeSection } from './AppearanceSections'
+import { BackgroundSection, EffekteSection, ThemeSection } from './AppearanceSections'
 import { EnginesSection } from './EnginesSection'
 import { ImagesSection } from './ImagesSection'
 import { KlangSection } from './KlangSection'
@@ -59,6 +59,7 @@ const BY_ID: Record<SectionId, ComponentType> = {
   charakter: PersonaSection,
   farbwelt: ThemeSection,
   hintergrund: BackgroundSection,
+  effekte: EffekteSection,
   klang: KlangSection,
   beenden: BeendenSection,
 }
