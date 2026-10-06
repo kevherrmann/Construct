@@ -13,11 +13,17 @@ from server.runs import RUNS, Run, gc_runs, run_claude
 
 def build_claude_cmd(*, mode, model="", session_id=None, system_prompt="",
                      system_prompt_file=None, allowed_tools=None, effort="",
-                     mcp_config=None, intern=False):
+                     mcp_config=None, intern=False, tools=None):
     """Die Kommandozeile fuer einen claude-Lauf — eine Stelle, zwei Aufrufer.
 
     Der Systemprompt geht als DATEI hinein, nicht als Argument: Rollenprompts
     werden lang, und argv ist in `ps` fuer jeden auf dem Rechner lesbar.
+
+    tools: die eingebauten Werkzeuge, die es UEBERHAUPT gibt (--tools). Das ist die
+    Sperre. --allowedTools gibt nur ohne Rueckfrage frei; was dort fehlt, entscheidet
+    der Modus, und unter auto/bypassPermissions lief damit Bash bei der Chefin und
+    WebFetch bei Janus (Janus' Probe gegen echtes claude, 06.10.2026). MCP-Werkzeuge
+    (der Bus) sind davon nicht betroffen.
 
     intern=True ist fuer Laeufe, die nur DENKEN sollen (Verdichten, Eindicken,
     Kandidatensuche): keine eingebauten Werkzeuge, keine fremden MCP-Server.
@@ -52,6 +58,9 @@ def build_claude_cmd(*, mode, model="", session_id=None, system_prompt="",
         # Ohne --mcp-config heisst strict: gar keine MCP-Server. Und "" bei
         # --tools schaltet die eingebauten ab (geprueft mit 2.1.260).
         cmd += ["--strict-mcp-config", "--tools", ""]
+    if tools is not None and not intern:
+        # "" heisst: keine eingebauten Werkzeuge
+        cmd += ["--tools", ",".join(tools)]
     if allowed_tools:
         cmd += ["--allowedTools"] + list(allowed_tools)
     if session_id:

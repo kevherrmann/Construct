@@ -363,3 +363,34 @@ def test_stream_fuer_unbekannten_auftrag_ist_404(firma):
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(firma + "/api/team/auftraege/deadbeef/stream", timeout=5)
     assert e.value.code == 404 and "deadbeef" not in engine.FEEDS
+
+
+def test_werkzeuge_der_akte_sind_eine_sperre_nicht_nur_freigabe(firma, monkeypatch):
+    # --allowedTools gibt nur frei; unter auto/bypassPermissions lief sonst Bash bei
+    # der Chefin und WebFetch bei Janus. Gesperrt wird mit --tools.
+    from server.team import engine
+    kommandos = []
+    echt = engine.build_claude_cmd
+
+    def mitschreiben(**kw):
+        cmd = echt(**kw)
+        kommandos.append(cmd)
+        return cmd
+    monkeypatch.setattr(engine, "build_claude_cmd", mitschreiben)
+    tid = neuer_auftrag(firma, "[klein] Bau das Ding")
+    warte(firma, tid, ("fertig",))
+    assert len(kommandos) == 2                        # Chefin und Luna
+    for cmd in kommandos:
+        assert "--tools" in cmd
+        tools = cmd[cmd.index("--tools") + 1].split(",")
+        assert not ("Bash" in tools and {"WebSearch", "WebFetch"} & set(tools)), tools
+        assert not any(t.startswith("mcp__") for t in tools)   # der Bus bleibt erreichbar
+    chef = kommandos[0][kommandos[0].index("--tools") + 1].split(",")
+    assert "Bash" not in chef and "WebSearch" in chef      # die Chefin recherchiert, ohne Shell
+
+
+def test_leere_werkzeugliste_heisst_keine_eingebauten():
+    from server.team.lauf import build_claude_cmd
+    cmd = build_claude_cmd(mode="auto", tools=[])
+    assert cmd[cmd.index("--tools") + 1] == ""
+    assert "--tools" not in build_claude_cmd(mode="auto")

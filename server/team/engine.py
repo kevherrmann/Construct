@@ -72,6 +72,7 @@ def start_agent_turn(a: dict, t: dict, nachricht: dict):
         session_id=t["sessions"].get(a["slug"]) or None,
         system_prompt_file=spf,
         allowed_tools=list(a["allowed_tools"]) + bus_werkzeuge(a),
+        tools=list(a["allowed_tools"]),
         mcp_config=str(mcp))
     run = spawn(cmd, t.get("cwd") or a["cwd"], a["model"],
                 auftrags_prompt(a, t, nachricht),
