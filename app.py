@@ -14,6 +14,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from server import bonsai as bonsaimod
@@ -25,7 +26,8 @@ from server import runs as runsmod
 from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
-                         auth_ok, claude_bin, claude_env, load_persona, remember_server)
+                         auth_ok, claude_bin, claude_env, fremde_herkunft, load_persona,
+                         remember_server)
 from server.scheduler import scheduler_loop
 from server.team import engine
 from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, team, tickets, ui
@@ -69,6 +71,9 @@ async def basic_auth(request: Request, call_next):
     # Passwort: das stünde sonst in der Prozessliste jedes Rechners, auf dem er läuft.
     if request.url.path != "/api/team/bus" and not auth_ok(request.headers.get("Authorization", "")):
         return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
+    # Auch mit Passwort: der Browser hängt gespeicherte Zugangsdaten an fremde Anfragen an.
+    if fremde_herkunft(request.method, request.headers):
+        return JSONResponse({"error": "Anfrage von einer fremden Webseite abgelehnt"}, status_code=403)
     remember_server(request.scope)
     return await call_next(request)
 

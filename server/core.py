@@ -91,6 +91,42 @@ def auth_ok(header: str) -> bool:
     return secrets.compare_digest(user, AUTH_USER) and secrets.compare_digest(pw, AUTH_PASS)
 
 
+# Fremde Webseiten dürfen an localhost schreiben, ohne dass der Browser vorher
+# fragt (POST mit text/plain, Formulare) — und req.json() liest so einen Body
+# trotzdem. Ohne Prüfung konnte jede besuchte Seite einem Mitarbeiter Bash und
+# bypassPermissions geben und ihm einen Auftrag schicken (Janus' Audit, 06.10.2026).
+# Lesen bleibt frei: die Antwort darf eine fremde Seite ohnehin nicht sehen.
+SCHREIBEND = ("POST", "PUT", "PATCH", "DELETE")
+# Zusätzlich erlaubte Herkünfte für Reverse-Proxys, die weder Host noch
+# X-Forwarded-Host durchreichen und mit alten Browsern ohne Sec-Fetch-Site benutzt
+# werden: CONSTRUCT_ORIGINS="https://cody.example.org,https://…"
+_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("CONSTRUCT_ORIGINS", "").split(",")
+            if o.strip()}
+
+
+def fremde_herkunft(method: str, headers) -> bool:
+    """Kommt diese schreibende Anfrage von einer fremden Webseite?
+
+    Erlaubt ist, was keine Herkunft nennt (curl, Telegram, der Firmen-Bus, das
+    App-Fenster beim direkten Aufruf), was der Browser selbst als gleiche Herkunft
+    ausweist (Sec-Fetch-Site lässt sich von einer Seite nicht fälschen; das trägt
+    auch hinter einem Reverse-Proxy und durch den Vite-Proxy beim Entwickeln) und
+    eine Origin, die zum Host passt."""
+    if method.upper() not in SCHREIBEND:
+        return False
+    seite = (headers.get("sec-fetch-site") or "").lower()
+    if seite in ("same-origin", "none"):
+        return False
+    origin = (headers.get("origin") or "").strip().rstrip("/").lower()
+    if not origin:
+        return seite in ("cross-site", "same-site")
+    if origin in _ORIGINS:
+        return False
+    netloc = origin.split("://", 1)[-1]
+    eigene = {(headers.get(h) or "").split(",")[0].strip().lower() for h in ("host", "x-forwarded-host")}
+    return netloc not in eigene - {""}
+
+
 def persona_text() -> str:
     """SOUL.md + USER.md + Sprachvorgabe — der feste Teil der Persona."""
     parts = []
