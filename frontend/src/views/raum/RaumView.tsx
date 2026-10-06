@@ -60,6 +60,7 @@ import {
 } from './blasenOrt'
 import { ungelesen, useAuftrag, useAuftraege } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
+import { AuftragProtokoll } from '../auftraege/AuftragProtokoll'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
   BUERO_FORM,
@@ -484,6 +485,8 @@ export function RaumView() {
   // du dem Assistenten die nächste Nachricht schreibst: dann gehört die Blase wieder
   // eurem Gespräch (das Schild am Büro und die Aufträge zeigen es weiter).
   const auftraege = useAuftraege()
+  // Das Protokoll zeigt, was du zuletzt gewählt hast: einen Auftrag oder die Session.
+  const protokollAuftrag = useAuftraegeAnsicht((st) => st.protokoll)
   const wartet = buero ? auftraege.data?.find((a) => a.status === 'wartet_auf_kevin') : undefined
   const fertigNeu = buero
     ? auftraege.data?.find((a) => a.status === 'fertig' && ungelesen(a) > 0)
@@ -645,13 +648,11 @@ export function RaumView() {
           if (rueckfrage || abschluss) {
             useAuftraegeAnsicht.getState().oeffne((rueckfrage?.id ?? abschluss?.id)!)
             setAnsicht('auftraege')
-          } else if (teamSpricht) {
-            // Der ganze Zug steht in den Aufträgen, bei der Person
-            const a = useAuftraegeAnsicht.getState()
-            a.oeffne(team.auftrag)
-            a.sichtWechseln(team.slug)
-            setAnsicht('auftraege')
-          } else setAnsicht('protokoll')
+          } else {
+            // Spricht ein Mitarbeiter, zeigt das Protokoll seinen Auftrag, sonst euren Chat.
+            if (teamSpricht) useAuftraegeAnsicht.getState().oeffne(team.auftrag)
+            setAnsicht('protokoll')
+          }
         }}
         onZu={blaseUmschalten}
       />
@@ -665,7 +666,11 @@ export function RaumView() {
         titel={t(TITEL[ansicht])}
         hinweis={
           ansicht === 'protokoll'
-            ? t('Der ganze Verlauf dieser Session')
+            ? protokollAuftrag
+              ? t('Auftrag: {t}', {
+                  t: auftraege.data?.find((a) => a.id === protokollAuftrag)?.titel ?? '',
+                })
+              : t('Chat: {t}', { t: sessionTitel || t('neue Session') })
             : ansicht === 'einstellungen'
               ? t('Was du siehst und womit du redest')
               : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
@@ -674,7 +679,11 @@ export function RaumView() {
       >
         {ansicht === 'protokoll' ? (
           <div className={s.protokollInhalt} data-scroll>
-            <ChatView />
+            {protokollAuftrag ? (
+              <AuftragProtokoll key={protokollAuftrag} id={protokollAuftrag} />
+            ) : (
+              <ChatView />
+            )}
           </div>
         ) : (
           <KartenInhalt panel={ansicht as PanelId} onDone={schliessen} />

@@ -116,7 +116,7 @@ function firmaBefehl(raw: string) {
       void queryClient.invalidateQueries({ queryKey: ['team'] })
       void queryClient.invalidateQueries({ queryKey: ['tickets'] })
       say(tk('An die Firma gegeben: {t} — der Stand steht unter Aufträge.'), { t: j.ticket.titel })
-      useAuftraegeAnsicht.getState().oeffne(j.ticket.id)
+      useAuftraegeAnsicht.getState().vormerken(j.ticket.id)
     } catch (e) {
       say(tk('Die Firma hat den Auftrag nicht angenommen: {e}'), { e: (e as Error).message })
     }

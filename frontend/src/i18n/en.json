@@ -1151,5 +1151,9 @@
   "Prüfer stehen in der Belegschaft als solche: wer etwas gebaut hat, gibt es ihnen zum Gegenlesen, statt sich selbst zu prüfen.": "Reviewers are marked as such in the staff list: whoever built something hands it to them for review instead of checking their own work.",
   "PRÜFER": "REVIEWER",
   "baut nicht selbst, prüft, was andere gebaut haben": "does not build, reviews what others built",
-  "Sag etwas …": "Say something …"
+  "Sag etwas …": "Say something …",
+  "Auftrag: {t}": "Job: {t}",
+  "Chat: {t}": "Chat: {t}",
+  "ZUM CHAT": "TO THE CHAT",
+  "Der ganze Verlauf: Chat oder Auftrag": "The whole history: chat or job"
 }

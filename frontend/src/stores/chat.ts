@@ -20,6 +20,7 @@ import type { BotItem, ChatItem, NoteText, SysBody, TranscriptMessage } from '@/
 import { queryClient } from '@/lib/queryClient'
 import { getItem, setItem } from '@/lib/storage'
 import { useSettings } from './settings'
+import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { say } from '@/lib/audio'
 import { speakableText } from '@/lib/chat/speak'
 
@@ -468,6 +469,8 @@ export const useChat = create<ChatStore>((set, get) => {
     },
 
     newSession() {
+      // Eine Session wählen heißt: das Protokoll zeigt wieder den Chat, keinen Auftrag.
+      useAuftraegeAnsicht.getState().zurSession()
       const c = makeConv({
         history: [note(tk('⌁ Neue Session — Ordner unten wählbar, dann schreib los ⌁'), true)],
       })
@@ -489,6 +492,7 @@ export const useChat = create<ChatStore>((set, get) => {
     },
 
     async openSession(s, runningRunId) {
+      useAuftraegeAnsicht.getState().zurSession()
       // Läuft diese Session schon hier (offen / gerade am Antworten)? Dann nur
       // wieder einblenden — Stream und Verlauf bleiben unangetastet.
       const existing = Object.values(get().convs).find((c) => c.sessionId === s.id)

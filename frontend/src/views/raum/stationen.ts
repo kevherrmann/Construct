@@ -187,7 +187,7 @@ export const STATIONEN: Station[] = [
     w: 4.9,
     h: 5.0,
     label: 'Protokoll',
-    hint: 'Der ganze Verlauf dieser Session',
+    hint: 'Der ganze Verlauf: Chat oder Auftrag',
     panel: 'protokoll',
   },
   {

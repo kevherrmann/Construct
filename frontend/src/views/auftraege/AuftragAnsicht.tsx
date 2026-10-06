@@ -84,7 +84,7 @@ function Stand({ d, ende }: { d: AuftragDetail; ende: number }) {
 
 /** Einwurf: landet im laufenden Zug, wenn gerade jemand arbeitet — sonst wird er eine
  *  normale Nachricht (und wartet der Auftrag auf den Nutzer, ist es eine Antwort). */
-function Einwurf({ id, offen }: { id: string; offen: boolean }) {
+export function Einwurf({ id, offen }: { id: string; offen: boolean }) {
   const { t } = useTranslation()
   const act = useAuftragActions(id)
   const [text, setText] = useState('')
