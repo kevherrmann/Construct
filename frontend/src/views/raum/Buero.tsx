@@ -28,6 +28,10 @@ const VIDEO_AN = fxLevel() !== 'off'
 type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
 const BELEGUNGEN: Belegung[] = ['beide', 'links', 'rechts', 'leer']
 const anwesend = (b: Belegung) => (b === 'beide' ? 2 : b === 'leer' ? 0 : 1)
+/** Wer am Tisch sitzt, tippt leise vor sich hin: je Belegung eine kurze Schleife,
+ *  deckungsgleich mit dem Tischbild (Maske = nur wer sich bewegt). */
+const TIPPT: Belegung[] = ['beide', 'links', 'rechts']
+const GANZ = { l: 0, t: 0, w: 100, h: 100 }
 
 const prozent = (px: number, von: number) => `${(px / von) * 100}%`
 
@@ -176,6 +180,18 @@ function DoppelTisch({
           className={`${s.zustand} ${b === gezeigt ? s.zustandAn : ''}`}
         />
       ))}
+      {VIDEO_AN &&
+        TIPPT.map((b) => {
+          const datei = `${SPRITES}/doppel-${kennung}-${b}`
+          return (
+            <PoseVideo
+              key={b}
+              clip={{ webm: `${datei}.webm`, mp4: `${datei}.mp4`, maske: `${datei}-maske.webp` }}
+              ort={GANZ}
+              an={b === gezeigt}
+            />
+          )
+        })}
       {schild(links, 'links')}
       {schild(rechts, 'rechts')}
       {knopf(links, 'links')}
