@@ -67,3 +67,18 @@ def test_schriftwahl(tmp_path, monkeypatch):
     assert config.apply_patch({"font": "jetbrains-mono"})["font"] == "jetbrains-mono"
     assert config.apply_patch({"font": "comic-sans"})["font"] == "jetbrains-mono"
     assert config.apply_patch({"font": ""})["font"] == ""
+
+
+def test_vertippter_abschnitt_legt_die_einstellungen_nicht_lahm(tmp_path, monkeypatch):
+    f = tmp_path / "settings.json"
+    f.write_text('{"team": true, "tickets": "ja", "sound": [1], "lang": "de"}')
+    monkeypatch.setattr(config, "SETTINGS_FILE", f)
+    cur = config.load_settings()
+    assert cur["team"] == config.DEFAULT_SETTINGS["team"] and cur["lang"] == "de"
+    assert config.apply_patch({"team": True})["team"]["aktiv"] is False
+
+
+def test_einstellungen_ohne_objekt_sind_ein_400(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    assert client.post("/api/settings", json=[]).status_code == 400
+    assert client.post("/api/settings", content=b"kaputt").status_code == 400

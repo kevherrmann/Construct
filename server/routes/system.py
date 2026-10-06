@@ -178,8 +178,14 @@ def settings_get():
 
 @router.post("/api/settings")
 async def settings_set(req: Request):
+    try:
+        patch = await req.json()
+    except ValueError:
+        patch = None
+    if not isinstance(patch, dict):
+        return JSONResponse({"error": "bad request"}, status_code=400)
     vorher = cfg.load_settings()["team"]["aktiv"]
-    neu = cfg.apply_patch(await req.json())
+    neu = cfg.apply_patch(patch)
     if vorher and not neu["team"]["aktiv"]:
         from server.team import engine
         engine.abschalten()

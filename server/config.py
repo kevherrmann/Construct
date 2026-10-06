@@ -220,23 +220,30 @@ def _env(out: dict) -> dict:
     return out
 
 
+def _abschnitt(src: dict, key: str) -> dict:
+    """Ein Abschnitt der Einstellungen — von Hand zu `"team": true` vertippt, legte
+    er sonst jede Anfrage lahm, die Einstellungen liest."""
+    v = src.get(key)
+    return v if isinstance(v, dict) else {}
+
+
 def _clean_extras(src: dict, cur: dict):
     """Bildmodell, Schattenbetrieb, Tickets, Team und Klang (für Laden und Patch)."""
-    im = src.get("images") or {}
+    im = _abschnitt(src, "images")
     if im.get("model") in IMAGE_MODELS:
         cur["images"]["model"] = im["model"]
-    au = src.get("auto") or {}
+    au = _abschnitt(src, "auto")
     if "schatten" in au:
         cur["auto"]["schatten"] = bool(au["schatten"])
-    te = src.get("team") or {}
+    te = _abschnitt(src, "team")
     if "aktiv" in te:
         cur["team"]["aktiv"] = bool(te["aktiv"])
     if te.get("modus") in TEAM_MODI:
         cur["team"]["modus"] = te["modus"]
-    ti = src.get("tickets") or {}
+    ti = _abschnitt(src, "tickets")
     if "assistent" in ti:
         cur["tickets"]["assistent"] = bool(ti["assistent"])
-    so = src.get("sound") or {}
+    so = _abschnitt(src, "sound")
     for k in ("effekte", "musik"):
         if k in so:
             cur["sound"][k] = bool(so[k])
