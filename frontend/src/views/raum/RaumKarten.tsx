@@ -21,6 +21,7 @@ import { McpSide } from '@/views/mcp/McpSide'
 import { SkillsMain } from '@/views/skills/SkillsMain'
 import { SkillsSide } from '@/views/skills/SkillsSide'
 import { useSekunde } from '@/hooks/useSekunde'
+import { KOMPAKT, useMedien } from '@/hooks/useMedien'
 import { gruppiert, toolBlocks, useItems, useWerkstattDaten } from './daten'
 import type { PanelId } from './stationen'
 import s from './Raum.module.css'
@@ -270,13 +271,15 @@ function Ausruestung() {
 function Skills() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
+  // Auf dem Handy steht die Liste über diesem Platz, „links“ wäre falsch.
+  const kompakt = useMedien(KOMPAKT)
   return (
     <Zweispaltig
       links={<SkillsSide />}
       rechts={
         params.get('path') ? (
           <SkillsMain />
-        ) : (
+        ) : kompakt ? null : (
           <p className={s.hinweis}>{t('Links einen Skill wählen.')}</p>
         )
       }
@@ -363,6 +366,7 @@ function DigitalUhr() {
 }
 
 export function KartenInhalt({ panel, onDone }: { panel: PanelId; onDone: () => void }) {
+  const kompakt = useMedien(KOMPAKT)
   switch (panel) {
     case 'sessions':
       return <Sessions onDone={onDone} />
@@ -393,7 +397,7 @@ export function KartenInhalt({ panel, onDone }: { panel: PanelId; onDone: () => 
     case 'auftraege':
       return (
         <Suspense fallback={null}>
-          <Zweispaltig links={<AuftraegeSide />} rechts={<AuftraegeMain />} />
+          <Zweispaltig links={<AuftraegeSide />} rechts={<AuftraegeMain gestapelt={kompakt} />} />
         </Suspense>
       )
     case 'skills':

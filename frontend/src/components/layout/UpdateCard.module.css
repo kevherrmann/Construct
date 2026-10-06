@@ -32,7 +32,7 @@
   margin-left: auto;
   background: none;
   border: none;
-  color: var(--green-dim);
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -60,7 +60,7 @@
   flex: 1;
 }
 .v {
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 11px;
   text-align: right;
 }
@@ -75,7 +75,7 @@
   padding-top: 7px;
   border-top: 1px solid var(--green-faint);
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

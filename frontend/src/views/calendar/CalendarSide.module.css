@@ -17,12 +17,12 @@
 .uh {
   font-size: 10px;
   letter-spacing: 2px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   margin: 8px 2px 4px;
 }
 .hint {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.8;
   padding: 8px;
 }
@@ -52,7 +52,7 @@
 .d {
   display: block;
   font-size: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.8;
   margin-top: 2px;
 }

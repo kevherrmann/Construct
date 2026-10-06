@@ -232,7 +232,7 @@ select.btn {
   padding: 6px 12px;
   cursor: pointer;
   background: transparent;
-  color: var(--green-dim);
+  color: var(--text-dim);
   border: 1px solid var(--green-faint);
   border-radius: var(--radius);
 }
@@ -344,7 +344,7 @@ select.btn {
   margin: 16px 0 8px;
   font-size: 11px;
   letter-spacing: 2px;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 .fontGrid {
   display: grid;

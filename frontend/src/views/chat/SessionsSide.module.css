@@ -30,12 +30,12 @@
   box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.25);
 }
 .search::placeholder {
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.6;
 }
 .toggle {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   cursor: pointer;
   padding: 7px 8px;
   margin-bottom: 4px;
@@ -54,7 +54,7 @@
 }
 .hint {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.8;
   padding: 8px;
 }
@@ -76,7 +76,7 @@
 }
 .fa {
   width: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 .fn {
   flex: 1;
@@ -86,7 +86,7 @@
 }
 .fc {
   font-size: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   background: rgba(var(--accent-rgb), 0.08);
   padding: 1px 6px;
   border-radius: 8px;
@@ -133,7 +133,7 @@
 }
 .d {
   font-size: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.75;
   white-space: nowrap;
   overflow: hidden;

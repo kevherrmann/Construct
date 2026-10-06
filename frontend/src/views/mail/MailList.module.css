@@ -28,7 +28,7 @@
   border: 1px solid var(--green-faint);
   padding: 3px 9px;
   border-radius: var(--radius);
-  color: var(--green-dim);
+  color: var(--text-dim);
   letter-spacing: 0.5px;
   white-space: nowrap;
   user-select: none;
@@ -111,7 +111,7 @@
 }
 .date {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   flex: 0 0 auto;
   min-width: 44px;
   text-align: right;

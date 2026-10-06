@@ -971,6 +971,7 @@
   "Ton aus": "Sound off",
   "Über dich": "About you",
   "Über dich (USER.md)": "About you (USER.md)",
+  "Über ☰ einen Auftrag wählen — oder einen neuen erteilen.": "Choose a job via ☰ — or give a new one.",
   "ÜBER HERMES": "VIA HERMES",
   "Übernehmen": "Use it",
   "Übersicht um {h} Uhr": "Overview at {h}",
@@ -1116,7 +1117,7 @@
   "Antworten": "Answer",
   "Effort bestimmt, wie gründlich das Modell nachdenkt. Recherche und mechanisches Prüfen kommen mit „low“ aus, sonst gilt „xhigh“.": "Effort sets how thoroughly the model thinks. Research and mechanical checks get by with “low”, otherwise “xhigh” applies.",
   "ÜBERSICHT": "OVERVIEW",
-  "Ziehen verschiebt die Blase, Doppelklick stellt sie zurück": "Drag to move the bubble, double-click to reset",
   "Ziehen ändert die Größe, Doppelklick stellt sie zurück": "Drag to resize, double-click to reset",
+  "Ziehen verschiebt die Blase, Doppelklick stellt sie zurück": "Drag to move the bubble, double-click to reset",
   "Auftrag": "Job"
 }

@@ -12,7 +12,7 @@
   padding: 7px 11px;
   cursor: pointer;
   user-select: none;
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 12.5px;
   width: 100%;
   background: none;
@@ -41,7 +41,7 @@
   font-size: 12px;
 }
 .tg {
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 11px;
 }
 .body {
@@ -53,7 +53,7 @@
 .lbl {
   font-size: 9.5px;
   letter-spacing: 2px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.7;
   margin-bottom: 3px;
 }

@@ -22,7 +22,7 @@
   padding: 0 16px 10px;
   font-size: 10px;
   letter-spacing: 2.5px;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 .dot {
   color: var(--green);
@@ -47,7 +47,7 @@
   border: none;
   border-left: 1px solid var(--green-faint);
   border-top: 1px solid var(--green-faint);
-  color: var(--green-dim);
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 15px;
   line-height: 1;

@@ -32,7 +32,7 @@
 }
 .btn:disabled {
   background: var(--green-faint);
-  color: var(--green-dim);
+  color: var(--text-dim);
   cursor: wait;
   box-shadow: none;
 }

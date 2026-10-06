@@ -1,7 +1,7 @@
 /* Seitenleiste */
 .hint {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.8;
   padding: 8px;
 }
@@ -38,7 +38,7 @@
   margin-left: 12px;
   width: calc(100% - 12px);
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 .projekt.sel {
   color: var(--green);
@@ -53,7 +53,7 @@
   gap: 8px;
   flex: none;
   font-size: 10.5px;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 .offen {
   color: var(--green);
@@ -75,7 +75,7 @@
 }
 .leer {
   text-align: center;
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 13px;
   padding: 40px 10px;
 }
@@ -99,7 +99,7 @@
   gap: 10px;
   font-size: 11px;
   letter-spacing: 0;
-  color: var(--green-dim);
+  color: var(--text-dim);
 }
 
 .karte {
@@ -162,7 +162,7 @@
 .aktuell {
   margin-left: 10px;
   font-size: 10.5px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   letter-spacing: 1px;
   text-decoration: none;
 }
@@ -183,7 +183,7 @@
 .meta {
   flex: none;
   font-size: 10.5px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 .mini {
@@ -191,7 +191,7 @@
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius);
-  color: var(--green-dim);
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 13px;
   padding: 2px 6px;
@@ -213,7 +213,7 @@
 }
 .zeit {
   flex: none;
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 10.5px;
   width: 38px;
 }
@@ -240,7 +240,7 @@
   flex: none;
   max-width: 150px;
   background: var(--deep);
-  color: var(--green-dim);
+  color: var(--text-dim);
   border: 1px solid var(--green-faint);
   border-radius: var(--radius);
   font-family: inherit;
@@ -252,7 +252,7 @@
 }
 .rest {
   font-size: 10.5px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   padding: 3px 48px;
 }
 .aktionen {

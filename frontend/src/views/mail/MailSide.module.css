@@ -26,7 +26,7 @@
 .uh {
   font-size: 10px;
   letter-spacing: 2px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   margin: 8px 2px 4px;
 }
 .catAdd {

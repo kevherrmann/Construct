@@ -8,7 +8,7 @@
 .form label {
   font-size: 10px;
   letter-spacing: 2px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   margin-top: 8px;
 }
 .form input,

@@ -1,6 +1,6 @@
 .hint {
   font-size: 11px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.8;
   padding: 8px;
 }
@@ -47,7 +47,7 @@
 }
 .d {
   font-size: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.75;
   white-space: nowrap;
   overflow: hidden;
@@ -67,7 +67,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   font-size: 11px;
   cursor: pointer;
   transition: 0.12s;
@@ -258,7 +258,7 @@
   resize: vertical;
 }
 .in::placeholder {
-  color: var(--green-dim);
+  color: var(--text-dim);
   opacity: 0.7;
 }
 .in:focus {

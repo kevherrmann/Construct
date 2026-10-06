@@ -61,13 +61,13 @@
   text-align: center;
   font-size: 11px;
   letter-spacing: 3px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   padding: 4px 0;
 }
-/* Wochenende: in der Akzentfarbe, gedämpft. */
+/* Wochenende: in der Akzentfarbe. Nicht zusätzlich gedämpft — mit Deckkraft
+   0,55 lag es bei gut 2:1 und war als Text kaum lesbar. */
 .dow span.we {
   color: var(--green);
-  opacity: 0.55;
 }
 .grid {
   display: grid;
@@ -138,7 +138,7 @@
 }
 .more {
   font-size: 10px;
-  color: var(--green-dim);
+  color: var(--text-dim);
   letter-spacing: 1px;
 }
 /* Tagebuch: bewusst gedämpft — Termine sind Plan, das hier ist Rückblick */
