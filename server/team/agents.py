@@ -49,7 +49,7 @@ DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 # Die Geschäftsführung ist der Assistent selbst: der, mit dem der Nutzer im Chat
 # redet (mitgeliefert Cody). Sie nimmt Aufträge an, verteilt sie und fasst zusammen.
 # Ihr Name kommt immer aus ⚙ Einstellungen, für den Nutzer wie in der Firma (siehe
-# load_agent()). So steht ein eigener Name (bei Kevin Chanti) in keiner
+# load_agent()). So steht ein eigener Name (etwa der, den der Nutzer seinem Assistenten gibt) in keiner
 # mitgelieferten Datei, und niemand sonst bekommt ihn zu sehen. Das Kürzel bleibt fest.
 OWNER_SLUG = "chef"
 
@@ -446,12 +446,13 @@ def faehigkeiten(a: dict) -> str:
     """Was ein Mitarbeiter mit seinen Werkzeugen wirklich KANN — als kurzer Text
     fuer die Belegschaftsliste.
 
-    Warum das gebraucht wird: am 11.09.2026 hat Luna die Projekt-Screenshots
-    an Chanti vergeben. Chanti hat kein Bash; jeder Browser- oder curl-Aufruf
-    wurde mit "requires approval" abgewiesen, und in einer `claude -p`-Sitzung
-    im Hintergrund gibt es niemanden, der freigibt. Sie hat zu Kevin eskaliert,
-    der Auftrag stand. Luna konnte das nicht wissen: die Liste zeigte nur
-    Slug, Name und Titel. Jetzt steht dabei, wer eine Shell hat.
+    Warum das gebraucht wird: am 11.09.2026 vergab die Geschäftsführung
+    Projekt-Screenshots an eine Mitarbeiterin ohne Bash; jeder Browser- oder
+    curl-Aufruf wurde mit "requires approval" abgewiesen, und in einer
+    `claude -p`-Sitzung im Hintergrund gibt es niemanden, der freigibt. Sie
+    eskalierte an den Nutzer, der Auftrag stand. Die Geschäftsführung konnte das
+    nicht wissen: die Liste zeigte nur Slug, Name und Titel. Jetzt steht dabei,
+    wer eine Shell hat.
     """
     tools = set(a.get("allowed_tools") or ())
     kann = []

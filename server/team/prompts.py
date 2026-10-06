@@ -68,10 +68,10 @@ def zug_abschluss(a: dict, t: dict, nachricht: dict) -> str:
     Warum das hier steht, obwohl PROTOCOL.md es laengst sagt: dort ist es Punkt
     fuenf einer Liste, und danach kommen noch zwei Dokumente. Gelesen wird es,
     befolgt nicht. Der Pruefstand hat am 03.09.2026 an zwei von vier Faellen
-    gezeigt, wie das ausgeht — Luna fasst ein fertiges Ergebnis korrekt
-    zusammen und ruft `liefern` nicht auf, Chanti stellt eine gute Rueckfrage
-    und ruft `eskalieren` nicht auf. Inhaltlich beide richtig, nur nie am Bus
-    angekommen; die Notbremse `stiller_zug` holt dann Kevin zu einem Auftrag,
+    gezeigt, wie das ausgeht — eine Mitarbeiterin fasst ein fertiges Ergebnis
+    korrekt zusammen und ruft `liefern` nicht auf, eine andere stellt eine gute
+    Rueckfrage und ruft `eskalieren` nicht auf. Inhaltlich beide richtig, nur nie
+    am Bus angekommen; die Notbremse `stiller_zug` holt dann den Nutzer zu einem Auftrag,
     der eigentlich fertig war.
 
     Deshalb steht die Regel zusaetzlich als LETZTE Zeile der Nachricht, direkt

@@ -28,47 +28,47 @@ def _t(ohne_artefakt=0):
 
 class Bremsen(unittest.TestCase):
     def test_rueckfragen_sind_kein_pingpong(self):
-        v = _v(("kevin", "lumina", "auftrag"), ("lumina", "luna", "auftrag"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "antwort"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "antwort"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "antwort"))
+        v = _v(("kevin", "chef", "auftrag"), ("chef", "luna", "auftrag"),
+               ("luna", "chef", "frage"), ("chef", "luna", "antwort"),
+               ("luna", "chef", "frage"), ("chef", "luna", "antwort"),
+               ("luna", "chef", "frage"), ("chef", "luna", "antwort"))
         self.assertEqual(guards.pruefe_nach_zug(_t(), v)[0], None)
 
     def test_gegenseitiges_fragen_ist_pingpong(self):
-        v = _v(("lumina", "luna", "auftrag"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "frage"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "frage"),
-               ("luna", "lumina", "frage"), ("lumina", "luna", "frage"))
+        v = _v(("chef", "luna", "auftrag"),
+               ("luna", "chef", "frage"), ("chef", "luna", "frage"),
+               ("luna", "chef", "frage"), ("chef", "luna", "frage"),
+               ("luna", "chef", "frage"), ("chef", "luna", "frage"))
         self.assertEqual(guards.pruefe_nach_zug(_t(), v)[0], "pingpong")
 
     def test_nachbesserung_mit_ergebnissen_ist_fortschritt(self):
-        v = _v(("lumina", "luna", "auftrag"), ("luna", "lumina", "ergebnis"),
-               ("lumina", "luna", "auftrag"), ("luna", "lumina", "ergebnis"),
-               ("lumina", "luna", "auftrag"), ("luna", "lumina", "ergebnis"))
+        v = _v(("chef", "luna", "auftrag"), ("luna", "chef", "ergebnis"),
+               ("chef", "luna", "auftrag"), ("luna", "chef", "ergebnis"),
+               ("chef", "luna", "auftrag"), ("luna", "chef", "ergebnis"))
         self.assertEqual(guards.pruefe_nach_zug(_t(), v)[0], None)
 
     def test_einwurf_zaehlt_nicht_als_schritt(self):
-        v = _v(("kevin", "luna", "einwurf"), ("lumina", "luna", "auftrag"))
+        v = _v(("kevin", "luna", "einwurf"), ("chef", "luna", "auftrag"))
         self.assertEqual(len(guards.geroutet(_t(), v)), 1)
 
     def test_wiederholung(self):
-        v = _v(("lumina", "luna", "auftrag"), ("luna", "lumina", "frage"),
-               ("lumina", "luna", "antwort"), ("luna", "lumina", "frage"))
+        v = _v(("chef", "luna", "auftrag"), ("luna", "chef", "frage"),
+               ("chef", "luna", "antwort"), ("luna", "chef", "frage"))
         v[1]["text"] = v[3]["text"] = "Welchen Port soll ich nehmen, 8000 oder 8080?"
         self.assertEqual(guards.pruefe_nach_zug(_t(), v)[0], "wiederholung")
 
     def test_kein_fortschritt_erst_ab_grenze(self):
-        v = _v(("lumina", "luna", "auftrag"), ("luna", "lumina", "ergebnis"))
+        v = _v(("chef", "luna", "auftrag"), ("luna", "chef", "ergebnis"))
         self.assertEqual(guards.pruefe_nach_zug(_t(guards.OHNE_ARTEFAKT_MAX - 1), v)[0], None)
         self.assertEqual(guards.pruefe_nach_zug(_t(guards.OHNE_ARTEFAKT_MAX), v)[0],
                          "kein_fortschritt")
 
     def test_freigeben_setzt_zaehlung_zurueck(self):
         t = _t(5)
-        v = _v(*[("lumina", "luna", "auftrag"), ("luna", "lumina", "ergebnis")] * 6)
-        self.assertEqual(guards.pruefe(t, {"von": "lumina", "an": "luna"}, v)[0], "hin_und_her")
+        v = _v(*[("chef", "luna", "auftrag"), ("luna", "chef", "ergebnis")] * 6)
+        self.assertEqual(guards.pruefe(t, {"von": "chef", "an": "luna"}, v)[0], "hin_und_her")
         guards.freigeben(t)
-        self.assertEqual(guards.pruefe(t, {"von": "lumina", "an": "luna"}, v)[0], None)
+        self.assertEqual(guards.pruefe(t, {"von": "chef", "an": "luna"}, v)[0], None)
         self.assertEqual(t["wache"]["ohne_artefakt"], 0)
 
 
@@ -83,51 +83,51 @@ class Kleinauftrag(unittest.TestCase):
         return v
 
     def test_klein_und_allein_geht_direkt(self):
-        v = self._k(("kevin", "lumina", "auftrag", ""), ("lumina", "luna", "auftrag", "klein"))
-        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
+        v = self._k(("kevin", "chef", "auftrag", ""), ("chef", "luna", "auftrag", "klein"))
+        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "chef"))
 
     def test_ohne_groesse_bleibt_es_bei_der_geschaeftsfuehrung(self):
-        v = self._k(("kevin", "lumina", "auftrag", ""), ("lumina", "luna", "auftrag", "normal"))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
-        v = self._k(("kevin", "lumina", "auftrag", ""), ("lumina", "luna", "auftrag", ""))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
+        v = self._k(("kevin", "chef", "auftrag", ""), ("chef", "luna", "auftrag", "normal"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "chef"))
+        v = self._k(("kevin", "chef", "auftrag", ""), ("chef", "luna", "auftrag", ""))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "chef"))
 
     def test_zwei_parallel_vergeben_ist_nicht_klein(self):
         # Sonst schloesse Elaras Ergebnis den Auftrag, waehrend Codys nur bei Luna liegt.
-        v = self._k(("kevin", "lumina", "auftrag", ""),
-                    ("lumina", "luna", "auftrag", "klein"),
-                    ("lumina", "css-spezialist", "auftrag", "klein"))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "css-spezialist", "lumina"))
+        v = self._k(("kevin", "chef", "auftrag", ""),
+                    ("chef", "luna", "auftrag", "klein"),
+                    ("chef", "css-spezialist", "auftrag", "klein"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "chef"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "css-spezialist", "chef"))
 
     def test_nachgeplanter_pruefer_hebt_klein_auf(self):
-        v = self._k(("kevin", "lumina", "auftrag", ""),
-                    ("lumina", "luna", "auftrag", "klein"),
-                    ("luna", "lumina", "ergebnis", ""),
-                    ("lumina", "qa", "auftrag", "klein"))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "qa", "lumina"))
+        v = self._k(("kevin", "chef", "auftrag", ""),
+                    ("chef", "luna", "auftrag", "klein"),
+                    ("luna", "chef", "ergebnis", ""),
+                    ("chef", "qa", "auftrag", "klein"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "qa", "chef"))
 
     def test_kevins_antwort_auf_rueckfrage_bricht_klein_nicht(self):
-        v = self._k(("kevin", "lumina", "auftrag", ""),
-                    ("lumina", "luna", "auftrag", "klein"),
+        v = self._k(("kevin", "chef", "auftrag", ""),
+                    ("chef", "luna", "auftrag", "klein"),
                     ("kevin", "luna", "antwort", ""))
-        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
+        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "chef"))
 
     def test_kevins_neuer_auftrag_setzt_zurueck(self):
         # Einwurf als AUFTRAG an Luna: danach zaehlt nur, was sie neu vergibt.
-        v = self._k(("kevin", "lumina", "auftrag", ""),
-                    ("lumina", "luna", "auftrag", "klein"),
-                    ("kevin", "lumina", "auftrag", ""),
-                    ("lumina", "css-spezialist", "auftrag", "klein"))
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
-        self.assertTrue(tickets.kleinauftrag_direkt(v, "css-spezialist", "lumina"))
+        v = self._k(("kevin", "chef", "auftrag", ""),
+                    ("chef", "luna", "auftrag", "klein"),
+                    ("kevin", "chef", "auftrag", ""),
+                    ("chef", "css-spezialist", "auftrag", "klein"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "luna", "chef"))
+        self.assertTrue(tickets.kleinauftrag_direkt(v, "css-spezialist", "chef"))
 
     def test_nur_der_beauftragte_selbst(self):
-        v = self._k(("kevin", "lumina", "auftrag", ""), ("lumina", "luna", "auftrag", "klein"),
+        v = self._k(("kevin", "chef", "auftrag", ""), ("chef", "luna", "auftrag", "klein"),
                     ("luna", "qa", "auftrag", "klein"))
         # Codys Unterauftrag an Miranda ist kein Kleinauftrag der Geschaeftsfuehrung.
-        self.assertFalse(tickets.kleinauftrag_direkt(v, "qa", "lumina"))
-        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "lumina"))
+        self.assertFalse(tickets.kleinauftrag_direkt(v, "qa", "chef"))
+        self.assertTrue(tickets.kleinauftrag_direkt(v, "luna", "chef"))
 
 
 if __name__ == "__main__":

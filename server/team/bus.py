@@ -298,7 +298,7 @@ async def _bus_aufruf(body: dict) -> dict:
             # brach mit "Object of type set is not JSON serializable" ab —
             # der Auftrag galt danach als nicht geliefert, obwohl alles fertig war.
             # Pruefstand-Auftraege bleiben draussen: die Historie haengt am
-            # Systemprompt, und nach ein paar Laeufen bestand Chantis Akte zu
+            # Systemprompt, und nach ein paar Laeufen bestand die Akte der Geschäftsführung zu
             # 43 von 43 Zeilen aus Testauftraegen — die echte Arbeit war raus.
             if not t["titel"].startswith(auf.TEST_MARKE):
                 for wer, wessen_dateien in beteiligt.items():

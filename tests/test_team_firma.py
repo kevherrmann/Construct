@@ -24,7 +24,7 @@ def firma(tmp_path, monkeypatch):
     return tmp_path
 
 
-WS = "/home/z0mb1"
+WS = "/tmp/construct-test-ws"
 
 
 # ---------- Belegschaft ----------
@@ -53,8 +53,8 @@ def test_geschaeftsfuehrung_ist_der_assistent(firma):
     assert chef["name"] == "Momo"                         # so heißt sie auch für die Kollegen
     assert ag.anzeige(chef)["name"] == "Momo"
     assert ag.anzeige(chef)["avatar"] == "/static/cody.png"   # ohne eigenes Bild das des Assistenten
-    (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Chanti"}}))
-    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Chanti"
+    (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Nova"}}))
+    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Nova"
     # In der Akte selbst steht weiter der mitgelieferte Name, nie der eigene
     assert "name: Cody" in (ag.AGENTS_DIR / "chef" / "AGENT.md").read_text()
 
