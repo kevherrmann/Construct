@@ -492,7 +492,7 @@ export const SITZE: Record<string, { paar: PaarId; seite: Seite }> = {
 
 /** Das Tischbild: 757 × 560 px mit 20 px Rand für den Standschatten (Inhalt
  *  717 × 520); bei Maßstab 1 steht der Inhalt DOPPEL_HOEHE Pixel hoch im Raum. */
-export const DOPPEL = { w: 757, h: 560, rand: 20, inhaltW: 717, inhaltH: 520 }
+export const DOPPEL = { w: 758, h: 560, rand: 20, inhaltW: 718, inhaltH: 520 }
 export const DOPPEL_HOEHE = 235
 
 /** Bilder des Büros (mitgeliefert). */
