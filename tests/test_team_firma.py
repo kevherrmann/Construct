@@ -207,3 +207,16 @@ def test_uebersicht_zaehlt_ohne_quittungen():
 def test_titel_wird_gekuerzt_und_leerer_brief_hat_einen_titel():
     assert len(auf.neu("x" * 500, "b")["titel"]) == 120
     assert auf.neu("", "")["titel"] == "Auftrag"
+
+
+def test_chef_prompt_ist_der_assistent_plus_firmenzusatz(firma, monkeypatch):
+    soul = firma / "SOUL.md"
+    soul.write_text("Ich bin Momo, dein Assistent.", encoding="utf-8")
+    monkeypatch.setitem(cfg.PERSONA_FILES, "soul", (soul, None))
+    ag.list_agents(WS)
+    from server.team import prompts as pr
+    p = pr.agent_system_prompt(ag.load_agent("chef", WS), WS)
+    assert p.startswith("Ich bin Momo") and "# Zusätzlich: du führst die Firma" in p
+    # Die Mitarbeiter bekommen ihren eigenen Charakter, nicht den des Assistenten
+    q = pr.agent_system_prompt(ag.load_agent("luna", WS), WS)
+    assert "Ich bin Momo" not in q and "Backend und Technik" in q

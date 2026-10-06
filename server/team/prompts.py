@@ -11,6 +11,7 @@ Was an ein Modell geht, läuft durch ag.anrede(): die mitgelieferten Regeln
 sprechen den Nutzer mit Kevins Namen an, hier wird daraus der Name der
 Installation.
 """
+from server import config as cfg
 from server.team import agents as ag
 from server.team import anleitungen as anl
 from server.team import auftraege as auf
@@ -163,6 +164,14 @@ def agent_system_prompt(a: dict, workspace) -> str:
     zu holen, solange Claude Code dazwischen steht.
     """
     soul = (a.get("soul") or f"Du bist {a['name']}, {a['title']}.").replace("{name}", a["name"])
+    if a["slug"] == ag.OWNER_SLUG:
+        # Die Geschäftsführung ist der Assistent: zuerst sein Charakter wie im Chat
+        # (SOUL.md der Installation, sonst die mitgelieferte Vorlage), dann ihre Akte
+        # als Zusatz für die Firma. Zusammengesetzt wird nur hier, die Akte selbst
+        # enthält nur den Zusatz (sonst stünde er nach dem Speichern doppelt da).
+        eigen = cfg.persona_read("soul").strip()
+        if eigen:
+            soul = eigen + "\n\n" + soul
     teile = [soul]
     stil = ag.style_read().strip()
     if stil:

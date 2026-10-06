@@ -70,7 +70,19 @@ async def basic_auth(request: Request, call_next):
     return await call_next(request)
 
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+class _NachfragenStatic(StaticFiles):
+    """Raumbilder, Figuren, Gesichter: Namen ohne Hash, die sich beim Update ändern
+    können. Ohne Anweisung hält der Browser sie stundenlang für aktuell (am 06.10.2026
+    saß so nach dem Umbau noch Cody statt Luna am Tisch). no-cache heißt: vor Gebrauch
+    kurz nachfragen; unverändert kommt nur ein 304 zurück."""
+
+    def file_response(self, *args, **kwargs):
+        r = super().file_response(*args, **kwargs)
+        r.headers["Cache-Control"] = "no-cache"
+        return r
+
+
+app.mount("/static", _NachfragenStatic(directory=str(STATIC_DIR)), name="static")
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 # Oberfläche (React, frontend/ → static/app). Die Assets tragen einen Hash im
 # Namen und dürfen deshalb gecacht werden; index.html liefert routes/ui.py.
