@@ -37,11 +37,14 @@ llm_sessions/
 sessions_meta.json
 /tickets/
 # Die Firma (Team-Modus): Belegschaft, Aufträge, Anleitungen dieser Installation.
-firma/
+# Verankert: ein künftiger Quellordner namens firma/ (etwa unter frontend/) bliebe sonst still draußen.
+/firma/
 scripts/pruefstand/firma/
 scripts/pruefstand/arbeit/
-scripts/pruefstand/laeufe/*
-!scripts/pruefstand/laeufe/*-factoria.json
+# Läufe und eigene Fallsammlungen des Prüfstands gehören dem, der misst — sie nennen
+# seine Mitarbeiter und Pfade. Mitgeliefert wird nur scripts/pruefstand/faelle/.
+scripts/pruefstand/laeufe/
+scripts/pruefstand/faelle-*/
 laeufe.json
 laeufe.json.tmp
 telegram_state.json
@@ -88,3 +91,7 @@ auto_schatten.jsonl
 
 # Die mitgelieferten Charaktere der Mitarbeiter gehören zum Programm (SOUL.md oben meint die des Nutzers)
 !/server/team/vorlagen/agents.default/*/SOUL.md
+
+# Prüfberichte (Großtests, Audits) sind Arbeitsstand, nicht Programm
+/PRUEFBERICHT-*.md
+/docs/grosstest-*.md

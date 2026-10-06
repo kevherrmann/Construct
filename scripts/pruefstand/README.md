@@ -11,7 +11,7 @@ ein Modellwechsel in einer `AGENT.md`.
 python3 scripts/pruefstand.py lauf                    alle Fälle (startet CONSTRUCT auf Port 8798, falls nötig)
 python3 scripts/pruefstand.py lauf --nur smoke        nur passende
 python3 scripts/pruefstand.py lauf --budget 1.00      abbrechen, bevor es teuer wird
-python3 scripts/pruefstand.py lauf --faelle faelle-factoria   dieselben Fälle wie in FACTORIA
+python3 scripts/pruefstand.py lauf --faelle faelle-<name>     eigene Fallsammlung (nicht im Git)
 python3 scripts/pruefstand.py liste                   welche Fälle es gibt
 python3 scripts/pruefstand.py vergleich               letzter Lauf gegen den davor
 python3 scripts/pruefstand.py aufraeumen              Testaufträge und Arbeitsordner weg

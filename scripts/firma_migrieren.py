@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 """Eine Firma aus FACTORIA nach CONSTRUCT (Team-Modus) übernehmen.
 
-    python3 scripts/firma_migrieren.py --aus ~/projects/factoria            # nur zeigen
-    python3 scripts/firma_migrieren.py --aus ~/projects/factoria --ausfuehren
+    python3 scripts/firma_migrieren.py --aus ~/projects/factoria --chef-aus <kürzel>            # nur zeigen
+    python3 scripts/firma_migrieren.py --aus ~/projects/factoria --chef-aus <kürzel> --ausfuehren
 
 Was geschieht (und ist nach `--ausfuehren` in `firma/` zu finden):
 
   * Mitarbeiter: alle Akten aus agents/ — samt Gedächtnis und Historie.
-    Die Geschäftsführung (--chef-aus, Vorgabe lumina) wird
+    Die Geschäftsführung (--chef-aus) wird
     zu `chef`; sie heißt dann für alle wie der Assistent dieser Installation und trägt den
     Namen aus ⚙ Einstellungen. Ihr Foto kommt nicht mit: die Chefin ist die Figur des
     Assistenten.
-  * Umbenannt werden (--umbenennen) die Kürzel, die CONSTRUCT mitliefert, damit Raum und
-    Vorlagen sie wiederfinden: cody -> luna (Backend; Cody ist jetzt der Assistent und damit
-    die Geschäftsführung), css-spezialist -> elara, qa -> miranda, auditor -> janus.
-    Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, cody,
-    elara, miranda, janus), gelten dieser und der Name aus der Vorlage (Selma heißt jetzt Elara,
-    Tessa Miranda, Veritas Janus, die Backend-Stelle Luna); Gedächtnis und Historie bleiben die Factoria-Fassung.
-  * Zusammengelegt (--zusammenlegen) wird, wer künftig nicht mehr einzeln arbeitet: chanti
-    geht in die Chefin, design (Rauke) in Elara. Akte und Charakter kommen nicht mit, aber
-    Gedächtnis und Historie wandern an das Ziel, damit nichts verloren geht.
-  * Weggelassen (--weglassen) wird, wen die Firma nicht mehr braucht: druck (3D-Druck).
-    Seine Akte kommt nicht mit, und aus `delegates_to` der anderen verschwindet er.
+  * Umbenannt werden (--umbenennen alt=neu,…) die Kürzel, die CONSTRUCT mitliefert, damit
+    Raum und Vorlagen sie wiederfinden (luna, elara, miranda, janus).
+    Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, luna, elara, miranda,
+    janus), gelten dieser und der Name aus der Vorlage; Gedächtnis und Historie bleiben die
+    FACTORIA-Fassung.
+  * Zusammengelegt (--zusammenlegen alt=ziel,…) wird, wer künftig nicht mehr einzeln arbeitet.
+    Akte und Charakter kommen nicht mit, aber Gedächtnis und Historie wandern an das Ziel,
+    damit nichts verloren geht.
+  * Weggelassen (--weglassen kürzel,…) wird, wen die Firma nicht mehr braucht. Seine Akte
+    kommt nicht mit, und aus `delegates_to` der anderen verschwindet er.
   * `reports_to` zeigt danach auf `chef`; das Einstellen gibt es nicht mehr (`can_hire`
     fällt weg).
   * Anleitungen, bisherige Aufträge (mit umbenannten Absendern) und die Regelwerke
@@ -65,12 +64,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--aus", required=True, help="Ordner der FACTORIA-Installation")
     ap.add_argument("--nach", default=str(BASE / "firma"), help="Ziel (Vorgabe: firma/ hier)")
-    ap.add_argument("--chef-aus", default="lumina", help="Wessen Akte zur Geschäftsführung wird")
-    ap.add_argument("--umbenennen", default="cody=luna,css-spezialist=elara,qa=miranda,auditor=janus",
-                    help="alt=neu, kommagetrennt")
-    ap.add_argument("--zusammenlegen", default="chanti=chef,design=elara",
+    ap.add_argument("--chef-aus", required=True, help="Wessen Akte zur Geschäftsführung wird")
+    ap.add_argument("--umbenennen", default="", help="alt=neu, kommagetrennt")
+    ap.add_argument("--zusammenlegen", default="",
                     help="alt=ziel: nur Gedächtnis und Historie wandern, kommagetrennt")
-    ap.add_argument("--weglassen", default="druck",
+    ap.add_argument("--weglassen", default="",
                     help="Kürzel, die gar nicht übernommen werden, kommagetrennt")
     ap.add_argument("--ausfuehren", action="store_true", help="wirklich kopieren (sonst nur zeigen)")
     ap.add_argument("--ersetzen", action="store_true", help="vorhandene Dateien überschreiben")
@@ -176,10 +174,12 @@ def main():
             if alt in zusammen:
                 hinweise.append(alt)
         if slug_neu == "chef":
-            hinweise_text = (f"- {heute}: Die frühere Mitarbeiterin {', '.join(hinweise) or 'Chanti'} gibt es in der "
-                             f"Firma nicht mehr. Recherche, Inhalte sammeln und Texte schreiben machst du selbst. "
-                             f"Du bist die Geschäftsführung und zugleich der Assistent, mit dem der Nutzer im Chat redet. "
-                             f"Namen in diesem Gedächtnis, die auf sie zeigen, sind historisch.")
+            hinweise_text = (f"- {heute}: Du bist die Geschäftsführung und zugleich der Assistent, mit dem "
+                             f"der Nutzer im Chat redet.")
+            if hinweise:
+                hinweise_text += (f" {', '.join(hinweise)} arbeitet nicht mehr einzeln in der Firma; "
+                                  f"diese Aufgaben machst du selbst. Namen in diesem Gedächtnis, die "
+                                  f"darauf zeigen, sind historisch.")
             gedaechtnis.append(hinweise_text)
         elif hinweise:
             gedaechtnis.append(f"- {heute}: {', '.join(hinweise)} arbeitet nicht mehr einzeln; seine Aufgaben "
@@ -203,7 +203,6 @@ def main():
             text = lesen(quelle / name)
             # Stellen, die auf FACTORIA zeigen und sonst ins Leere liefen.
             text = text.replace("factoria_mcp.py", "team_mcp.py").replace("Cody, er baut Factoria", "Cody, er baut die Firma")
-            text = text.replace("Lumina ist die Geschäftsführerin, Chanti die Assistentin.", "Die Geschäftsführung ist die Assistentin.")
             text = re.sub(r"(?m)^\| `einstellen` \|.*\n", "", text)           # das Werkzeug gibt es nicht mehr
             schreiben(ziel / name, text)
 

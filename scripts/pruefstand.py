@@ -23,7 +23,7 @@ Personalakten in server/team/agents.py: man muss einen Fall im Editor aufmachen,
 anpassen und wieder laufen lassen koennen, ohne dieses Programm anzufassen.
 
     scripts/pruefstand/faelle/<name>.md       der Auftrag + was dabei herauskommen muss
-    scripts/pruefstand/faelle-factoria/       dieselben Faelle wie in FACTORIA (Lumina, Chanti …)
+    scripts/pruefstand/faelle-<name>/         eigene Fallsammlungen (nicht im Git)
     scripts/pruefstand/laeufe/<stempel>.json  was tatsaechlich herauskam, pro Lauf einer
     scripts/pruefstand/arbeit/<name>/         der Ordner, in dem der Fall arbeiten darf
     scripts/pruefstand/firma/                 die Firma, an der gemessen wird (eine Kopie)
@@ -33,7 +33,7 @@ Benutzung:
     python3 scripts/pruefstand.py lauf                 alle Faelle
     python3 scripts/pruefstand.py lauf --nur smoke     nur passende
     python3 scripts/pruefstand.py lauf --budget 1.00   abbrechen, bevor es teuer wird
-    python3 scripts/pruefstand.py lauf --faelle faelle-factoria
+    python3 scripts/pruefstand.py lauf --faelle faelle-<name>
     python3 scripts/pruefstand.py liste                welche Faelle es gibt
     python3 scripts/pruefstand.py vergleich            letzter Lauf gegen den davor
     python3 scripts/pruefstand.py aufraeumen           Eval-Auftraege und Arbeitsordner weg
@@ -711,7 +711,7 @@ def main():
                    help="abbrechen, sobald so viel Dollar verbraucht sind")
     p.add_argument("--faelle", default="faelle",
                    help="Ordner unter scripts/pruefstand/ (Vorgabe: faelle; "
-                        "faelle-factoria = dieselben Faelle wie frueher)")
+                        "oder ein eigener Ordner faelle-<name>)")
     p.set_defaults(fn=cmd_lauf)
 
     p = sub.add_parser("liste", help="vorhandene Faelle zeigen")
