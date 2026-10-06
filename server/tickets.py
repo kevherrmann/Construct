@@ -533,11 +533,22 @@ def _firma_stand():
 def regeln() -> str:
     """Der feste Teil im Systemprompt. Ändert sich nie während einer Session —
     nur so bleibt er im Zwischenspeicher."""
-    wer = cfg.user_name() or cfg.L("der Nutzer", "the user")
-    return _tickets_regeln(wer) + _firma_regeln(wer) + _tickets_schluss(wer)
+    return _tickets_regeln(_wer()) + _firma_regeln(_wer()) + _tickets_schluss(_wer())
 
 
-def _firma_regeln(wer: str) -> str:
+def _wer() -> dict:
+    """Der Nutzer in den Formen, die der Regeltext braucht: n(ominativ), d(ativ),
+    g(enitiv). Ohne Namen stand dort sonst „von der Nutzer“ und „der Nutzers Wahl“."""
+    name = cfg.user_name()
+    if name != cfg.L("der Nutzer", "the user"):       # das ist user_name() ohne Namen
+        # Klaus → „Klaus’ Wahl“, nicht „Klauss Wahl“
+        de = name + ("’" if name[-1:].lower() in "sxzß" else "s")
+        return {"n": name, "d": name, "g": cfg.L(de, name + "'s")}
+    return cfg.L({"n": "der Nutzer", "d": "dem Nutzer", "g": "des Nutzers"},
+                 {"n": "the user", "d": "the user", "g": "the user's"})
+
+
+def _firma_regeln(wer: dict) -> str:
     """Nur mit Team-Modus: wann eine Aufgabe an die Firma geht. Steht wie der Rest
     im festen Teil des Systemprompts und ändert sich nur, wenn der Nutzer den
     Modus umstellt."""
@@ -545,38 +556,38 @@ def _firma_regeln(wer: str) -> str:
     if not team["aktiv"]:
         return ""
     if team["modus"] == "auto":
-        wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer} "
-                f"vor und fragst; erst nach seinem Ja schreibst du die Zeile. Kleines machst du selbst.")
-        when = (f"Big tasks (several files or steps, interface, tests) you suggest to {wer} and ask; "
+        wann = (f"Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer['d']} "
+                f"vor und fragst; erst nach dem Ja schreibst du die Zeile. Kleines machst du selbst.")
+        when = (f"Big tasks (several files or steps, interface, tests) you suggest to {wer['d']} and ask; "
                 f"only after a yes do you write the line. Small things you do yourself.")
     else:
-        wann = f"Nur wenn {wer} es ausdrücklich verlangt („gib das an die Firma“); sonst machst du es selbst."
-        when = f"Only when {wer} explicitly asks (“give this to the company”); otherwise do it yourself."
+        wann = f"Nur wenn {wer['n']} es ausdrücklich verlangt („gib das an die Firma“); sonst machst du es selbst."
+        when = f"Only when {wer['n']} explicitly asks (“give this to the company”); otherwise do it yourself."
     return cfg.L(
         f"""
-- `[[ticket firma]]` — Ticket an die Firma geben (KI-Mitarbeiter im Hintergrund; Briefing sind {wer}s Nachrichten des Tickets). {wann} Sag es {wer} im selben Text und arbeite nicht selbst daran weiter. Stand: Ticket-Zeile; Ergebnis: `firma/auftraege/<Kennung aus der Ticket-Zeile>/ticket.json` (Feld `ergebnis`), nur auf Nachfrage lesen.""",
+- `[[ticket firma]]` — Ticket an die Firma geben (KI-Mitarbeiter im Hintergrund; Briefing sind die Nachrichten des Tickets von {wer['d']}). {wann} Sag es {wer['d']} im selben Text und arbeite nicht selbst daran weiter. Stand: Ticket-Zeile; Ergebnis: `firma/auftraege/<Kennung aus der Ticket-Zeile>/ticket.json` (Feld `ergebnis`), nur auf Nachfrage lesen.""",
         f"""
-- `[[ticket firma]]` — give the ticket to the company (AI employees in the background; briefing = {wer}'s messages of the ticket). {when} Tell {wer} in the same text and do not keep working on it. State: ticket line; result: `firma/auftraege/<id from the ticket line>/ticket.json` (field `ergebnis`), read only when asked.""")
+- `[[ticket firma]]` — give the ticket to the company (AI employees in the background; briefing = {wer['g']} messages of the ticket). {when} Tell {wer['d']} in the same text and do not keep working on it. State: ticket line; result: `firma/auftraege/<id from the ticket line>/ticket.json` (field `ergebnis`), read only when asked.""")
 
 
-def _tickets_regeln(wer: str) -> str:
+def _tickets_regeln(wer: dict) -> str:
     return cfg.L(
         f"""## Tickets
-Jede Nachricht von {wer} gehört zu einem Ticket (am Ende seiner Nachricht aufgelistet), ohne dein Zutun zum aktuellen. Ändern: als letzte Zeile deiner Antwort
+Jede Nachricht von {wer['d']} gehört zu einem Ticket (am Ende der Nachricht aufgelistet), ohne dein Zutun zum aktuellen. Ändern: als letzte Zeile deiner Antwort
 - `[[ticket neu: Titel]]` — neue, eigenständige Aufgabe (3–6 Wörter; schließt das vorige)
 - `[[ticket zu: 2]]` — gehört zu Ticket 2""",
         f"""## Tickets
-Every message from {wer} belongs to a ticket (listed at the end of the message), by default the current one. To change that, write as the last line of your answer
+Every message from {wer['n']} belongs to a ticket (listed at the end of the message), by default the current one. To change that, write as the last line of your answer
 - `[[ticket new: title]]` — a new, separate task (3–6 words; closes the previous one)
 - `[[ticket to: 2]]` — belongs to ticket 2""")
 
 
-def _tickets_schluss(wer: str) -> str:
+def _tickets_schluss(wer: dict) -> str:
     return cfg.L(
         f"""
-Sonst schreibst du nichts davon (die Zeile wird vor der Anzeige entfernt, erwähne sie nicht). Ist {wer}s Wahl in der Ticket-Zeile vermerkt oder bist du unsicher: nichts.""",
+Sonst schreibst du nichts davon (die Zeile wird vor der Anzeige entfernt, erwähne sie nicht). Ist {wer['g']} Wahl in der Ticket-Zeile vermerkt oder bist du unsicher: nichts.""",
         f"""
-Otherwise write none of this (the line is removed before display, do not mention it). If {wer}'s choice is noted in the ticket line or you are unsure: nothing.""")
+Otherwise write none of this (the line is removed before display, do not mention it). If {wer['g']} choice is noted in the ticket line or you are unsure: nothing.""")
 
 
 # ---------- Kevins Eingriffe ----------

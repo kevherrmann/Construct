@@ -461,3 +461,18 @@ def test_kachel_aus_chat_schreibt_keine_tickets(client, monkeypatch, tmp_path, a
     r = client.post("/api/chat", json={"message": "hallo", "cwd": str(tmp_path)})
     assert r.status_code == 200
     assert gesehen["tickets"] is an
+
+
+@pytest.mark.parametrize("name,muss,darf_nicht", [
+    ("", ["von dem Nutzer", "des Nutzers Wahl"], ["von der Nutzer", "der Nutzers", "seiner Nachricht"]),
+    ("Klaus", ["Klaus’ Wahl", "von Klaus"], ["Klauss"]),
+    ("Anna", ["Annas Wahl"], []),
+])
+def test_regeltext_ohne_und_mit_namen_ist_deutsch(tmp_path, name, muss, darf_nicht):
+    (tmp_path / "settings.json").write_text(json.dumps(
+        {"lang": "de", "names": {"user": name}, "team": {"aktiv": True}}))
+    text = tk.regeln()
+    for m in muss:
+        assert m in text
+    for d in darf_nicht:
+        assert d not in text
