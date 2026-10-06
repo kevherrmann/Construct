@@ -46,7 +46,7 @@ import { Fernseher } from './Fernseher'
 import { RegalSchild, WandBild, WandBinaeruhr, WandKontingent } from './Raumdetails'
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
-import { useTeamBlase } from './useTeamBlase'
+import { useChefZug, useTeamBlase } from './useTeamBlase'
 import {
   useBlasenGroesse,
   useBlasenOrt,
@@ -55,7 +55,7 @@ import {
   type BlasenGroesse,
   type BlasenOrt,
 } from './blasenOrt'
-import { ungelesen, useAuftrag, useAuftraege, useTeamStand } from '@/api/team'
+import { ungelesen, useAuftrag, useAuftraege } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
@@ -83,11 +83,9 @@ import {
   VIELECK,
 } from './stationen'
 import { PoseVideo, type Clip } from './PoseVideo'
+import { zielPose, type Pose } from './pose'
 import s from './Raum.module.css'
 
-/** 'arbeiten' ist keine Pose am Podest: dafür geht die Figur an die Werkbank
- *  und tippt dort an der Tastatur (statt in die Luft). */
-type Pose = 'idle' | 'denken' | 'lesen' | 'arbeiten' | 'erklaeren'
 type PodestPose = Exclude<Pose, 'arbeiten'>
 const POSEN: PodestPose[] = ['idle', 'denken', 'lesen', 'erklaeren']
 
@@ -267,20 +265,6 @@ function useRuhigePose(ziel: Pose): Pose {
   return pose
 }
 
-const POSE_VON: Record<Phase, Pose> = {
-  ruht: 'idle',
-  denkt: 'denken',
-  wartet: 'denken',
-  liest: 'lesen',
-  sucht: 'lesen',
-  recherchiert: 'lesen',
-  schreibt: 'arbeiten',
-  terminal: 'arbeiten',
-  werkzeug: 'arbeiten',
-  delegiert: 'arbeiten',
-  antwortet: 'erklaeren',
-}
-
 const TITEL: Record<Ansicht, string> = {
   protokoll: 'Protokoll',
   uhr: 'Uhr',
@@ -434,11 +418,9 @@ export function RaumView() {
   const figurDateien = useSettings((st) => st.boot.figur)
   const figur = useMemo(() => eigeneFigur(figurDateien) ?? CODY, [figurDateien])
   // Arbeitet die Chefin für die Firma (verteilt, prüft), während du nichts fragst,
-  // redet sie: sie erklärt. An die Werkbank geht sie dafür nicht.
-  const teamStand = useTeamStand().data
-  const chefRedet =
-    !lage.live && lage.phase === 'ruht' && !!teamStand?.aktiv.some((x) => x.agent === 'chef')
-  const pose = useRuhigePose(chefRedet ? 'erklaeren' : POSE_VON[lage.phase])
+  // folgt die Figur ihrem Zug. An die Werkbank geht sie dafür nicht.
+  const chefZug = useChefZug()
+  const pose = useRuhigePose(zielPose(lage, chefZug?.lage ?? null))
   const amWerk = pose === 'arbeiten'
   // Team-Modus: das Büro hinten im Raum; null, wenn der Modus aus ist.
   const buero = useBuero(!amWerk)
@@ -447,7 +429,7 @@ export function RaumView() {
   const besucht = !!buero?.besuch && buero.besuch.phase !== 'zurueck'
   // Arbeitet die Firma und redest du gerade nicht mit dem Assistenten, gehört die
   // Sprechblase dem, der dort spricht (sonst wie immer deine letzte Antwort).
-  const team = useTeamBlase(buero?.werk ?? null)
+  const team = useTeamBlase(buero?.werk ?? null, chefZug)
   const teamSpricht = !!team && !lage.live
   const teamAmWerk = teamSpricht && team.slug === buero?.werk
   // Deine wievielte Frage in dieser Session (Schlüssel der Sprechblase, siehe unten).
