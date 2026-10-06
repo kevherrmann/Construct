@@ -377,6 +377,7 @@
   "Beenden": "Quit",
   "Beenden geht nur am Rechner, auf dem CONSTRUCT läuft.": "Quitting only works on the computer CONSTRUCT runs on.",
   "Beenden hat nicht geklappt.": "Quitting did not work.",
+  "Gerade läuft noch eine Antwort. Beim Beenden bricht sie ab.": "An answer is still running. Quitting cuts it off.",
   "Befehl": "command",
   "Befehle": "commands",
   "Befehle und ihre Ausgabe": "Commands and their output",

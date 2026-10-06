@@ -21,6 +21,7 @@ from server import config as cfg
 from server import llm as llmmod
 from server import telegram_bot as tgmod
 from server import updates as updmod
+from server import runs as runsmod
 from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
@@ -34,6 +35,8 @@ from server.routes import auth, calendar, chat, files, mail, providers, sessions
 async def lifespan(_app: FastAPI):
     """Start und Stopp des Servers (Tests ohne `with TestClient(...)` lösen das nicht aus)."""
     asyncio.create_task(scheduler_loop())
+    # Läufe, die der vorige Server mitten im Zug zurückgelassen hat
+    runsmod.aufnehmen()
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
                persona=load_persona, workspace=WORKSPACE)
     tgmod.restart()
