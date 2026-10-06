@@ -258,3 +258,61 @@ def test_ticket_darf_nach_abbruch_erneut_an_die_firma(firma, tmp_path):
     zweit = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})["ticket"]["id"]
     assert zweit != erst                           # ein fertiger Auftrag blockiert nicht
     warte(firma, zweit, ("fertig",))
+
+
+def test_abbrechen_eines_abgeschlossenen_auftrags_wird_abgewiesen(firma):
+    tid = neuer_auftrag(firma, "[klein] Bau das Ding")
+    warte(firma, tid, ("fertig",))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        api(firma, f"/api/team/auftraege/{tid}/antwort", {"aktion": "abbrechen"})
+    assert e.value.code == 400
+    assert api(firma, f"/api/team/auftraege/{tid}")["ticket"]["status"] == "fertig"
+
+
+def test_abbruch_nennt_den_nutzer_nicht_kevin(firma):
+    tid = neuer_auftrag(firma, "[rueckfrage] Mach etwas")
+    warte(firma, tid, ("wartet_auf_kevin",))
+    api(firma, f"/api/team/auftraege/{tid}/antwort", {"aktion": "abbrechen"})
+    texte = [e.get("text", "") for e in api(firma, f"/api/team/auftraege/{tid}")["verlauf"]
+             if e["art"] == "system"]
+    assert any("Anna" in x for x in texte) and not any("Kevin" in x for x in texte)
+
+
+def test_antwort_an_einen_unbrauchbaren_empfaenger_wird_abgewiesen(firma):
+    tid = neuer_auftrag(firma, "[rueckfrage] Mach etwas")
+    warte(firma, tid, ("wartet_auf_kevin",))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        api(firma, f"/api/team/auftraege/{tid}/antwort", {"aktion": "weiter", "an": "../.."})
+    assert e.value.code == 400
+
+
+def test_loeschen_beendet_den_laufenden_zug(firma):
+    from server.runs import RUNS
+    tid = neuer_auftrag(firma, "[langsam] Mach etwas")
+    for _ in range(60):
+        t = api(firma, f"/api/team/auftraege/{tid}")["ticket"]
+        rid = (t.get("in_arbeit") or {}).get("run_id")
+        if rid and t["verbraucht"]["hops"] >= 2:
+            break
+        time.sleep(0.2)
+    api(firma, f"/api/team/auftraege/{tid}", methode="DELETE")
+    for _ in range(25):
+        if RUNS[rid].done:
+            break
+        time.sleep(0.1)
+    assert RUNS[rid].done
+
+
+def test_wartender_zug_startet_nicht_mehr_nach_dem_ausschalten(firma, tmp_path):
+    from server.team import auftraege as auf
+    api(firma, "/api/team/pause", {"pause": True})
+    tid = neuer_auftrag(firma, "[klein] Bau das Ding")
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "team": {"aktiv": False}}))
+    from server.team import engine
+    engine.PAUSIERT = False                       # die Route dafür ist jetzt aus
+    ende = time.time() + 15
+    while time.time() < ende and auf.laden(tid)["status"] == "laeuft":
+        time.sleep(0.3)
+    t = auf.laden(tid)
+    assert t["status"] == "wartet_auf_kevin" and t["eskalation"]["bremse"] == "gestoppt"
+    assert t["sessions"] == {}                    # kein Zug ist gelaufen

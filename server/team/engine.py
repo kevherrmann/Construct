@@ -23,6 +23,7 @@ import time
 import uuid
 from pathlib import Path
 
+from server import config as cfg
 from server import telegram_bot as tgmod
 from server.core import BASE_DIR, WORKSPACE, bus_base
 from server.runs import RUNS
@@ -289,7 +290,12 @@ async def dispatcher_loop():
 
 async def _zustellen(tid: str, mid: str):
     async with zug_lock(tid):
-        await _zustellen_innen(tid, mid)
+        try:
+            await _zustellen_innen(tid, mid)
+        except FileNotFoundError:
+            if auf.laden(tid):
+                raise
+            # Der Auftrag wurde gelöscht, während sein Zug lief: nichts mehr zu buchen.
 
 
 async def _zustellen_innen(tid: str, mid: str):
@@ -336,6 +342,12 @@ async def _zustellen_innen(tid: str, mid: str):
     t = await auftrag_aendern(tid, _start) or t
 
     async with TURN_SEM:
+        if not cfg.load_settings()["team"]["aktiv"]:
+            # Während er auf einen freien Platz wartete, wurde der Team-Modus
+            # ausgeschaltet (abschalten() erreicht nur laufende Züge). Ohne das
+            # startete hier noch ein Zug, dessen Bus-Aufrufe alle ins Leere gehen.
+            return auftrag_anhalten(t, "gestoppt", "Der Team-Modus wurde ausgeschaltet.",
+                                    an=a["slug"])
         run = start_agent_turn(a, t, nachricht)
         await auftrag_aendern(tid, lambda x: x["in_arbeit"].update({"run_id": run.id})
                              if x.get("in_arbeit") else None)
