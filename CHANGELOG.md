@@ -39,6 +39,14 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   and a monotonic heartbeat (needed by the company's hang detection), and the
   replay buffer no longer mutates events in place.
 - The sidebar menu adapts its column count to the number of tiles.
+- **Without `MATRIX_PASS` the server only answers on local names** (`localhost`,
+  `127.0.0.1`, `[::1]`, `MATRIX_HOST`), against DNS rebinding. Reached under another
+  address (LAN, reverse proxy) without a password? Set `MATRIX_PASS` or list it in
+  `CONSTRUCT_ORIGINS`. Write requests a browser marks as cross-site are always refused.
+- **No employee has a shell and web tools at once.** A prepared web page could
+  otherwise slip commands to someone who can run them. Research goes to the
+  managing director (no shell); unchanged staff files are updated, edited ones lose
+  the web tools with a notice.
 
 ## 7.2.1 — 2026-10-06
 

@@ -9,7 +9,7 @@ effort: high
 model_grund: Komplexer Code, Fehlersuche, Infrastruktur: Fehler sind hier teuer.
 permission_mode: acceptEdits
 cwd: 
-allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill
+allowed_tools: Read, Write, Edit, Bash, Grep, Glob, Skill
 can_delegate: nein
 delegates_to: 
 color: 77,184,255

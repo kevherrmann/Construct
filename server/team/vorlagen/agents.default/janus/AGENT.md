@@ -9,7 +9,7 @@ effort: high
 model_grund: Ein übersehener Fund kostet mehr als das Modell.
 permission_mode: auto
 cwd: 
-allowed_tools: Read, Bash, Grep, Glob, WebSearch, WebFetch
+allowed_tools: Read, Bash, Grep, Glob
 can_delegate: nein
 delegates_to: 
 color: 180,196,120

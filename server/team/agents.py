@@ -122,6 +122,17 @@ STATES = ("active", "paused", "fired")
 KNOWN_TOOLS = ("Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebSearch",
                "WebFetch", "NotebookEdit", "Task", "TodoWrite", "Skill")
 
+WEB_TOOLS = ("WebSearch", "WebFetch")
+# Werkzeuglisten früherer Vorlagen, in denen Shell und Web noch zusammen standen.
+# Steht eine Akte noch genau so da, hat sie niemand angepasst: dann bekommt sie die
+# heutige Liste der Vorlage (load_agent). Angepasste Akten bleiben, wie sie sind;
+# validate() nimmt ihnen nur das Web und sagt es.
+ALTE_WERKZEUGE = {
+    "luna": "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill",
+    "elara": "Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch",
+    "janus": "Read, Bash, Grep, Glob, WebSearch, WebFetch",
+}
+
 SLUG_RE = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
 RGB_RE = re.compile(r"^\d{1,3},\d{1,3},\d{1,3}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -267,6 +278,16 @@ def validate(raw: dict, workspace) -> tuple:
         if unknown:
             bad.append(f"unbekannte Werkzeuge: {', '.join(unknown)}")
         a["allowed_tools"] = [t for t in tools if t in KNOWN_TOOLS]
+    if "Bash" in a["allowed_tools"] and set(WEB_TOOLS) & set(a["allowed_tools"]):
+        # Eine präparierte Webseite könnte einem Mitarbeiter mit Shell Befehle
+        # unterschieben: per curl an die lokale API (sich selbst Rechte geben) oder
+        # gleich in die Dateien unter firma/. Eine Sperre der API hülfe da nicht,
+        # die Shell kommt an alles, was der Nutzer selbst darf. Also trennen.
+        bad.append(cfg.L("Bash und Web-Werkzeuge schließen sich aus: WebSearch/WebFetch "
+                         "entfernt (recherchieren kann, wer keine Shell hat)",
+                         "Bash and web tools exclude each other: WebSearch/WebFetch "
+                         "removed (research goes to someone without a shell)"))
+        a["allowed_tools"] = [t for t in a["allowed_tools"] if t not in WEB_TOOLS]
     a["delegates_to"] = [s for s in _as_list(raw.get("delegates_to", "")) if SLUG_RE.match(s)]
 
     for f in _BOOL_FIELDS:
@@ -345,6 +366,15 @@ def load_agent(slug: str, workspace) -> dict | None:
         return {**DEFAULT_AGENT, "slug": slug, "name": slug, "problems": [f"nicht lesbar: {e}"]}
     raw = {k: _fm_get(fm, k) for k in DEFAULT_AGENT}
     raw["slug"] = raw.get("slug") or slug
+    if slug in ALTE_WERKZEUGE and raw["allowed_tools"] == ALTE_WERKZEUGE[slug]:
+        neu = _werkzeuge_der_vorlage(slug)
+        if neu is not None:
+            fm = re.sub(r"^allowed_tools:.*$", lambda _m: f"allowed_tools: {neu}", fm, count=1, flags=re.M)
+            try:
+                _atomic(f, f"---\n{fm}\n---\n{_body}")
+            except OSError:
+                pass                     # schreibgeschützt: dann greift validate()
+            raw["allowed_tools"] = neu
     if not re.search(r"^allowed_tools:", fm, re.M):
         raw["allowed_tools"] = None      # Zeile fehlt ganz -> Vorgabe, nicht "keine"
     a, bad = validate(raw, workspace)
@@ -358,6 +388,14 @@ def load_agent(slug: str, workspace) -> dict | None:
     a["memory"] = _read_capped(d / "MEMORY.md", MAX_MEMORY)
     a["historie"] = historie_lesen(slug)
     return a
+
+
+def _werkzeuge_der_vorlage(slug: str) -> str | None:
+    f = DEFAULTS_DIR / slug / "AGENT.md"
+    if not f.exists():
+        return None
+    fm, _ = _split_frontmatter(f.read_text(encoding="utf-8"))
+    return _fm_get(fm, "allowed_tools")
 
 
 # ---------- Woran jemand schon gearbeitet hat ----------

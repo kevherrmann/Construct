@@ -116,6 +116,42 @@ def test_fahigkeiten_sagen_wer_eine_shell_hat():
     assert "Shell" not in ag.faehigkeiten(ag.load_agent("chef", WS))
 
 
+def test_niemand_hat_shell_und_web_zugleich():
+    xs = ag.list_agents(WS)
+    for a in xs:
+        assert not ("Bash" in a["allowed_tools"] and {"WebSearch", "WebFetch"} & set(a["allowed_tools"])), a["slug"]
+        assert not a["problems"], a["slug"]
+    # Recherche bleibt möglich: bei der Geschäftsführung (ohne Shell)
+    assert "WebSearch" in next(a for a in xs if a["slug"] == "chef")["allowed_tools"]
+
+
+def test_shell_und_web_werden_getrennt_auch_bei_eigener_akte():
+    a, bad = ag.validate({"slug": "neu", "allowed_tools": "Read, Bash, WebFetch"}, WS)
+    assert a["allowed_tools"] == ["Read", "Bash"] and bad
+    a, bad = ag.validate({"slug": "neu", "allowed_tools": "Read, WebFetch"}, WS)
+    assert a["allowed_tools"] == ["Read", "WebFetch"] and not bad
+
+
+def test_unveraenderte_alte_akte_bekommt_die_neue_werkzeugliste(firma):
+    ag.list_agents(WS)
+    f = firma / "firma" / "agents" / "luna" / "AGENT.md"
+    alt = f.read_text().replace("allowed_tools: Read, Write, Edit, Bash, Grep, Glob, Skill",
+                                "allowed_tools: " + ag.ALTE_WERKZEUGE["luna"])
+    f.write_text(alt + "\nEigener Text bleibt.\n")
+    a = ag.load_agent("luna", WS)
+    assert "WebSearch" not in a["allowed_tools"] and not a["problems"]
+    neu = f.read_text()
+    assert "allowed_tools: Read, Write, Edit, Bash, Grep, Glob, Skill" in neu
+    assert "Eigener Text bleibt." in neu and "model_grund:" in neu
+    # Angepasst (Skill fehlt): bleibt in der Datei, validate nimmt nur das Web
+    j = firma / "firma" / "agents" / "janus" / "AGENT.md"
+    j.write_text(j.read_text().replace("allowed_tools: Read, Bash, Grep, Glob",
+                                       "allowed_tools: Read, Bash, WebFetch"))
+    a = ag.load_agent("janus", WS)
+    assert a["allowed_tools"] == ["Read", "Bash"] and a["problems"]
+    assert "WebFetch" in j.read_text()
+
+
 def test_historie_nur_fuer_vorhandene_akten():
     ag.list_agents(WS)
     ag.historie_eintragen("luna", "Login-Fix", "mitgearbeitet", ["/x/a.py"])
