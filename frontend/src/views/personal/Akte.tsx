@@ -1,15 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
-import {
-  useAgent,
-  useAgentActions,
-  useAgentGespraech,
-  useBelegschaft,
-  type Agent,
-} from '@/api/team'
-import { EFFORTS, MODELLE, MODI, WERKZEUGE, fmtGroesse } from '@/lib/team'
-import { useChat } from '@/stores/chat'
+import { useAgent, useAgentActions, useBelegschaft, type Agent } from '@/api/team'
+import { EFFORTS, MODELLE, MODI, WERKZEUGE } from '@/lib/team'
 import { Avatar } from './Person'
 import { usePersonal } from './store'
 import s from './Personal.module.css'
@@ -61,12 +53,9 @@ function Zeile({ label, children }: { label: React.ReactNode; children: React.Re
  *  danach hier, sonst wundert man sich später. */
 function Formular({ a }: { a: Agent }) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const slug = a.slug
   const zeigeOrg = usePersonal((st) => st.zeigeOrg)
-  const openAgent = useChat((st) => st.openAgent)
   const { data: bel } = useBelegschaft()
-  const { data: chat } = useAgentGespraech(slug)
   const act = useAgentActions()
   const [e, setE] = useState<Entwurf>(() => ausAkte(a))
   // Der Stand, den der Server zuletzt kannte — Grundlage für „was habe ich geändert“.
@@ -74,8 +63,6 @@ function Formular({ a }: { a: Agent }) {
   const [msg, setMsg] = useState<{ text: string; warn?: boolean }>({ text: '' })
   const set = <K extends keyof Entwurf>(k: K, v: Entwurf[K]) =>
     setE((x) => (x ? { ...x, [k]: v } : x))
-  const uf = chat?.umfang
-  const hatChat = !!uf?.msgs
 
   // Gesendet wird nur, was DU geändert hast. Das Gedächtnis schreibt auch der Mitarbeiter
   // selbst, während die Akte offen ist; ein blindes Zurückschreiben des Formulars würde
@@ -330,50 +317,6 @@ function Formular({ a }: { a: Agent }) {
             onChange={(x) => set('memory', x.target.value)}
           />
         </Zeile>
-        <Zeile label={t('GESPRÄCH')}>
-          <span className={s.gespraech}>
-            <button
-              type="button"
-              className={s.knopf}
-              onClick={() => {
-                openAgent(slug).then(
-                  () => navigate('/chat'),
-                  (e: Error) => alert(e.message),
-                )
-              }}
-            >
-              💬 {t('Mit {n} reden', { n: a.name })}
-            </button>
-            <span className={s.leise}>
-              {hatChat
-                ? `${uf!.msgs} ${t('Nachrichten')} · ${fmtGroesse(uf!.bytes)}`
-                : t('noch kein Gespräch')}
-            </span>
-            {hatChat && (
-              <button
-                type="button"
-                className={s.knopf}
-                onClick={() => {
-                  if (
-                    confirm(
-                      `${t('Gesprächsverlauf mit {n} leeren?', { n: a.name })}\n\n${t('Der Verlauf wird gelöscht und lässt sich nicht zurückholen. Das Gedächtnis, die erledigten Aufträge und die USER.md bleiben unberührt.')}`,
-                    )
-                  )
-                    act.gespraechLeeren.mutate(slug, {
-                      onError: (err) => alert(err.message),
-                    })
-                }}
-              >
-                {t('Verlauf leeren')}
-              </button>
-            )}
-          </span>
-        </Zeile>
-        <div className={s.hinweis}>
-          {t(
-            'Leeren wirft nur den Gesprächsverlauf weg. Das Gedächtnis oben, die erledigten Aufträge und alles in der USER.md bleiben — danach fängt die Person mit dem an, was sie gelernt hat, nur ohne den alten Wortlaut. Sinnvoll, wenn ein Thema durch ist: der alte Verlauf wird sonst bei jedem Zug mitbezahlt.',
-          )}
-        </div>
         <div className={s.aktionen}>
           <button
             type="button"

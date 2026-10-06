@@ -1,8 +1,7 @@
 # Wie wir in Aufträgen zusammenarbeiten
 
 Diese Regeln gelten, wenn du an einem **Auftrag** arbeitest — also wenn die
-Firma untereinander redet. Im Direktgespräch mit Kevin gelten sie nicht; da
-redest du einfach mit ihm.
+Firma untereinander redet.
 
 ## Jeder Zug endet am Bus
 

@@ -1,4 +1,4 @@
-"""Die Firma bei der Arbeit: Dispatcher, Züge, Bremsen, Direktgespräch.
+"""Die Firma bei der Arbeit: Dispatcher, Züge, Bremsen.
 
 Ein Auftrag ist ein Verlauf von Nachrichten zwischen Mitarbeitern (auftraege.py).
 Der Dispatcher stellt sie zu: je Nachricht ein Zug, das ist ein `claude -p`-
@@ -29,7 +29,6 @@ from server.runs import RUNS
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import guards
-from server.team.gedaechtnis import CHAT_WERKZEUGE, chat_session_id
 from server.team.lauf import build_claude_cmd, spawn
 from server.team.prompts import agent_system_prompt, auftrags_prompt, ausstehend
 
@@ -61,7 +60,7 @@ def start_agent_turn(a: dict, t: dict, nachricht: dict):
     d = ag.AGENTS_DIR / a["slug"]
     d.mkdir(parents=True, exist_ok=True)
     spf = d / f".sysprompt-{t['id']}"
-    ag._atomic(spf, agent_system_prompt(a, WORKSPACE, auftrag=True))
+    ag._atomic(spf, agent_system_prompt(a, WORKSPACE))
 
     token = uuid.uuid4().hex
     BUS_TOKENS[token] = (a["slug"], t["id"])
@@ -538,37 +537,13 @@ def wieder_aufnehmen():
 
 
 def bus_config(slug: str, token: str, ticket_id: str = "") -> str:
-    """Die MCP-Konfiguration fuer einen Lauf — eine Stelle, zwei Aufrufer."""
+    """Die MCP-Konfiguration fuer einen Zug."""
     return json.dumps({"mcpServers": {"firma": {
         "command": sys.executable or "python3",
         "args": [str(BASE_DIR / "team_mcp.py")],
         "env": {"FIRMA_AGENT": slug, "FIRMA_AUFTRAG": ticket_id,
                 "FIRMA_TOKEN": token, "FIRMA_BASE": bus_base(),
                 "FIRMA_NUTZER": ag.anrede("Kevin")}}}})
-
-
-def start_agent_chat(a: dict, prompt: str, images=None):
-    """Ein Zug im Direktgespräch.
-
-    Anders als in der Auftragsarbeit gibt es hier NUR die Gedaechtnis-Werkzeuge.
-    Wer mit Kevin redet, soll nicht nebenbei Kollegen beauftragen — will er
-    Arbeit erledigt haben, legt er einen Auftrag an.
-    """
-    d = ag.AGENTS_DIR / a["slug"]
-    d.mkdir(parents=True, exist_ok=True)
-    spf = d / ".systemprompt"
-    ag._atomic(spf, agent_system_prompt(a, WORKSPACE))
-    sid = chat_session_id(a["slug"])
-    token = uuid.uuid4().hex
-    BUS_TOKENS[token] = (a["slug"], "")
-    cmd = build_claude_cmd(mode=a["permission_mode"], model=a["model"],
-                           effort=a["effort"], session_id=sid or None,
-                           system_prompt_file=spf,
-                           mcp_config=bus_config(a["slug"], token),
-                           allowed_tools=list(a["allowed_tools"])
-                           + [f"mcp__firma__{w}" for w in CHAT_WERKZEUGE])
-    return spawn(cmd, a["cwd"], a["model"], prompt, sid or None,
-                  agent_slug=a["slug"], bus_token=token)
 
 
 def kevin_ziel(t: dict, an_wunsch: str) -> tuple:

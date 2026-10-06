@@ -70,8 +70,8 @@ class Run:
         self.fork = fork
         self.ticket_vorgabe = None
         self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
-        # Team-Modus (server/team/): Läufe, die einem Mitarbeiter gehören — ein
-        # Zug in einem Auftrag oder ein Gespräch mit ihm. Im Chat bleibt alles leer.
+        # Team-Modus (server/team/): Läufe, die einem Mitarbeiter gehören, also
+        # Züge in einem Auftrag. Im Chat bleibt alles leer.
         self.agent_slug = ""             # gehört der Lauf einem Mitarbeiter?
         self.auftrag_id = ""             # läuft er in einem Auftrag?
         self.bus_token = ""              # Einmal-Token für den Firmen-Bus
@@ -372,14 +372,6 @@ async def run_claude(run, cmd):
                     "model": echt or run.model,
                 })
                 run.zug_offen = False
-                if run.agent_slug and run.session_id and not run.auftrag_id:
-                    # Langlebige Sitzung im Direktgespräch mit einem Mitarbeiter:
-                    # beim nächsten Mal wird fortgesetzt. Züge in einem Auftrag
-                    # gehören dem Auftrag — sie dürfen diese Beziehung nicht
-                    # überschreiben, sonst landet das nächste Gespräch mitten im
-                    # Auftragskontext.
-                    from server.team import gedaechtnis
-                    gedaechtnis.set_chat_session(run.agent_slug, run.session_id)
                 if (run.hintergrund and not run.auftrag_id
                         and time.time() - run.started < NACHLAUF_MAX):
                     # NACHLAUF. Der Zug ist fertig, aber claude hat noch

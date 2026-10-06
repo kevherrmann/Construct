@@ -98,7 +98,7 @@ export function TicketChip() {
     setOpen(false)
     setUmbenennen(false)
   })
-  if (!an || !conv || conv.agent) return null
+  if (!an || !conv) return null
 
   const d = q.data
   const ak = d?.tickets.find((x) => x.nr === d.aktuell)

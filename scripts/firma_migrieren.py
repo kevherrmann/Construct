@@ -6,8 +6,8 @@
 
 Was geschieht (und ist nach `--ausfuehren` in `firma/` zu finden):
 
-  * Mitarbeiter: alle Akten aus agents/ — samt Gedächtnis, Historie und Zeiger auf ihr
-    Direktgespräch (chat.json). Die Geschäftsführung (--chef-aus, Vorgabe lumina) wird
+  * Mitarbeiter: alle Akten aus agents/ — samt Gedächtnis und Historie.
+    Die Geschäftsführung (--chef-aus, Vorgabe lumina) wird
     zu `chef` und heißt in der Firma Luna (in FACTORIA Lumina); dem Nutzer gegenüber trägt sie den
     Namen aus ⚙ Einstellungen. Ihr Foto kommt nicht mit: die Chefin ist die Figur des
     Assistenten.
@@ -151,9 +151,8 @@ def main():
             schreiben(zd / "SOUL.md", lesen(mit / "SOUL.md"))
         elif (d / "SOUL.md").is_file():
             kopieren(d / "SOUL.md", zd / "SOUL.md")
-        for name in ("VORSTELLUNG.md", "chat.json"):
-            if (d / name).is_file():
-                kopieren(d / name, zd / name)
+        if (d / "VORSTELLUNG.md").is_file():
+            kopieren(d / "VORSTELLUNG.md", zd / "VORSTELLUNG.md")
 
     # ---- Gedächtnis und Historie: jede Akte bekommt ihre eigenen und die der Zusammengelegten
     heute = date.today().strftime("%d.%m.%Y")

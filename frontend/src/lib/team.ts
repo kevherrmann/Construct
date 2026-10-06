@@ -55,10 +55,3 @@ export const BREMSEN: Record<string, string> = {
   eskaliert: 'Rückfrage aus der Firma',
   unbekannt: 'Empfänger unbekannt',
 }
-
-export const fmtGroesse = (b: number) =>
-  b < 1024
-    ? `${b} B`
-    : b < 1048576
-      ? `${Math.round(b / 1024)} kB`
-      : `${(b / 1048576).toFixed(1)} MB`

@@ -640,9 +640,8 @@ def user_append(fact: str, by: str) -> tuple:
 
 
 def style_read() -> str:
-    """Der Hausstil — gilt IMMER, im Direktgespraech wie im Auftrag. Deshalb
-    getrennt von PROTOCOL.md, das nur die Bus-Regeln der Auftragsarbeit
-    enthaelt."""
+    """Der Hausstil — gilt IMMER. Getrennt von PROTOCOL.md, das nur die
+    Bus-Regeln der Auftragsarbeit enthaelt."""
     return _vorlage_lesen("HAUSSTIL.md")
 
 
