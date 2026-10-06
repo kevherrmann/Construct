@@ -54,7 +54,7 @@ DEFAULT_SETTINGS = {
     # Zurückhaltende Vorgabe: wer frisch klont, bekommt Chat und Kalender.
     # Alles Weitere schaltet er sich selbst dazu und weiß dann, was es tut.
     "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False,
-              "tickets": True},
+              "tickets": False},
     # dim = Abdunklung des Hintergrundbildes in Prozent. Farbige Schrift auf
     # einem hellen Foto ist unlesbar, darum ein hoher Startwert.
     "background": {"mode": "matrix", "image": "", "dim": 60},
@@ -79,7 +79,9 @@ DEFAULT_SETTINGS = {
     # kleine Werkzeuge, ein fester Absatz im Systemprompt und eine Zeile an
     # jeder Nachricht. Aus = nur die Vorgabe des Servers und deine eigenen
     # Eingriffe (kostet keine Tokens). Ein/Aus der Kachel selbst: tiles.tickets.
-    "tickets": {"assistent": True},
+    # Aus als Vorgabe: Regeltext und Ticketzeile kosten Tokens und ändern, wie
+    # der Assistent arbeitet. Das schaltet man sich bewusst dazu.
+    "tickets": {"assistent": False},
     # Team-Modus (server/team/): eine Firma aus KI-Mitarbeitern neben dem
     # einzelnen Assistenten. aktiv = es gibt Belegschaft und Aufträge; modus =
     # wer entscheidet, ob eine Aufgabe an die Firma geht: "zuruf" nur auf

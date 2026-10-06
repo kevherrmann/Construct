@@ -10,7 +10,7 @@ from server.sessions import load_meta
 def _kachel_an():
     """Ist die Kachel aus, gibt es die Tickets nicht — auch nicht für Aufrufe am
     Bildschirm vorbei (wie /api/team/* bei ausgeschaltetem Team-Modus)."""
-    if not cfg.load_settings()["tiles"].get("tickets", True):
+    if not cfg.load_settings()["tiles"].get("tickets", False):
         raise HTTPException(status_code=404, detail=cfg.L("Tickets sind abgeschaltet", "Tickets are switched off"))
 
 

@@ -13,7 +13,9 @@ def ordner(tmp_path, monkeypatch):
     from server import config as cfg
     monkeypatch.setattr(tk, "TICKETS_DIR", tmp_path / "tickets")
     # Texte hängen an der Sprache der Installation: die Tests sollen nicht davon abhängen.
-    (tmp_path / "settings.json").write_text('{"lang": "de", "names": {"user": "Kevin"}}')
+    # Tickets sind ab Werk aus, hier geht es um das eingeschaltete System.
+    (tmp_path / "settings.json").write_text(
+        '{"lang": "de", "names": {"user": "Kevin"}, "tiles": {"tickets": true}}')
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
     tk._CACHE.clear()
 
@@ -484,3 +486,10 @@ def test_ticket_routen_ohne_kachel_404(client, tmp_path):
     assert client.post(f"/api/tickets/{SID}/schnitt", json={"titel": "x"}).status_code == 404
     (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": True}}))
     assert client.get("/api/tickets").status_code == 200
+
+
+def test_tickets_ab_werk_aus(tmp_path):
+    from server import config as cfg
+    (tmp_path / "settings.json").write_text('{"lang": "de"}')
+    s = cfg.load_settings()
+    assert s["tiles"]["tickets"] is False and s["tickets"]["assistent"] is False
