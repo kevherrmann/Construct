@@ -7,13 +7,17 @@ import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { wartetAufNutzer } from '@/views/auftraege/zustand'
 import s from './FirmaLeiste.module.css'
 
-/** Zwei schmale Streifen über dem Hauptbereich, nur wenn etwas los ist:
+/** Ein schmaler Streifen über dem Hauptbereich, nur wenn etwas los ist. Er zeigt
+ *  die wichtigste Meldung, die anderen zählt er nur (alle stehen in den Aufträgen):
  *
  *   Ruf         ein Auftrag wartet auf eine Entscheidung — die einzige Meldung, die
  *               nicht verpasst werden darf, deshalb bleibt sie, bis man reagiert hat;
- *   Aktivität   wer gerade arbeitet, plus der Not-Aus (nichts mehr zustellen).
+ *   Fertig      eine Lieferung, die man noch nicht gesehen hat;
+ *   Aktivität   wer gerade arbeitet (bei einer Meldung nur als farbige Punkte),
+ *               rechts immer der Not-Aus (nichts mehr zustellen).
  *
- *  Ein dauerhaft sichtbarer leerer Balken wäre nur Rahmen. */
+ *  Ein dauerhaft sichtbarer leerer Balken wäre nur Rahmen; zwei übereinander kosten
+ *  auf dem Handy ein Viertel des Bildschirms. */
 export function FirmaLeiste() {
   const { t } = useTranslation()
   const an = useTeamAn()
@@ -55,72 +59,83 @@ export function FirmaLeiste() {
   const aktiv = stand?.aktiv ?? []
   const zeigenAktiv = aktiv.length > 0 || !!stand?.pausiert
 
+  const fertigEins = fertig[0]
+  const meldung = ruf ?? fertigEins
+  if (!meldung && !zeigenAktiv) return null
+  const weitere = ruf ? rufe.length - 1 + fertig.length : fertig.length - 1
+  const titel = (x: { titel: string }) =>
+    x.titel.length > 60 ? `${x.titel.slice(0, 60)}…` : x.titel
+  const arbeitetAn = (a: (typeof aktiv)[number]) =>
+    `${a.name} ${t('arbeitet')}${a.titel ? ` ${t('an „{t}“', { t: a.titel.slice(0, 34) })}` : ''}`
+
   return (
-    <>
-      {ruf && (
+    <div className={`${s.leiste} ${ruf ? s.ruf : fertigEins ? s.fertig : ''}`}>
+      {meldung ? (
         <button
           type="button"
-          className={s.ruf}
+          className={s.meldung}
           onClick={() => {
-            oeffne(ruf.id)
+            oeffne(meldung.id)
             navigate('/auftraege')
           }}
         >
-          <span>⏸</span>
+          <span className={s.zeichen}>{ruf ? '!' : '✓'}</span>
           <span className={s.rt}>
-            <b>{ruf.titel.length > 44 ? `${ruf.titel.slice(0, 44)}…` : ruf.titel}</b> — {was}
-            {rufe.length > 1 && (
-              <span className={s.leise}> ({t('und {n} weitere', { n: rufe.length - 1 })})</span>
-            )}
+            <b>{titel(meldung)}</b>
+            <span className={s.was}>{ruf ? was : t('ist fertig')}</span>
           </span>
+          {weitere > 0 && (
+            <span className={s.mehr} title={t('und {n} weitere', { n: weitere })}>
+              +{weitere}
+            </span>
+          )}
           <span className={s.rk}>{t('ANSEHEN')}</span>
         </button>
-      )}
-      {fertig[0] && (
-        <button
-          type="button"
-          className={`${s.ruf} ${s.fertig}`}
-          onClick={() => {
-            oeffne(fertig[0]!.id)
-            navigate('/auftraege')
-          }}
-        >
-          <span>✓</span>
-          <span className={s.rt}>
-            <b>
-              {fertig[0].titel.length > 44 ? `${fertig[0].titel.slice(0, 44)}…` : fertig[0].titel}
-            </b>{' '}
-            — {t('ist fertig')}
-            {fertig.length > 1 && (
-              <span className={s.leise}> ({t('und {n} weitere', { n: fertig.length - 1 })})</span>
-            )}
-          </span>
-          <span className={s.rk}>{t('ANSEHEN')}</span>
-        </button>
-      )}
-      {zeigenAktiv && (
-        <div className={s.aktiv}>
+      ) : (
+        <span className={s.wer}>
           {aktiv.map((a) => (
             <span key={`${a.agent}:${a.ticket}`} style={{ ['--accent-rgb' as string]: a.color }}>
               <span className={s.punkt}>●</span>
               {a.name} {t('arbeitet')}
-              {a.titel ? ` ${t('an')} „${a.titel.slice(0, 34)}“` : ''}{' '}
-              <span className={s.leise}>{a.seit}s</span>
+              <span className={s.ziel}>
+                {a.titel ? ` ${t('an „{t}“', { t: a.titel.slice(0, 34) })}` : ''}{' '}
+                <span className={s.leise}>{a.seit}s</span>
+              </span>
             </span>
           ))}
-          <span className={s.pz}>
-            {stand?.pausiert && <span className={s.angehalten}>{t('ANGEHALTEN')}</span>}
-            <button
-              type="button"
-              className={stand?.pausiert ? s.an : ''}
-              disabled={notAus.isPending}
-              onClick={() => notAus.mutate(!stand?.pausiert)}
-            >
-              {stand?.pausiert ? `▶ ${t('WEITER')}` : `⏸ ${t('ALLES ANHALTEN')}`}
-            </button>
-          </span>
-        </div>
+        </span>
       )}
-    </>
+      {zeigenAktiv && (
+        <span className={s.pz}>
+          {meldung &&
+            aktiv.map((a) => (
+              <span
+                key={`${a.agent}:${a.ticket}`}
+                className={s.punkt}
+                style={{ ['--accent-rgb' as string]: a.color }}
+                title={arbeitetAn(a)}
+                aria-label={arbeitetAn(a)}
+                role="img"
+              >
+                ●<span className={s.name}>{a.name}</span>
+              </span>
+            ))}
+          {stand?.pausiert && <span className={s.angehalten}>{t('ANGEHALTEN')}</span>}
+          <button
+            type="button"
+            className={`${s.notaus} ${stand?.pausiert ? s.an : ''}`}
+            disabled={notAus.isPending}
+            onClick={() => notAus.mutate(!stand?.pausiert)}
+            title={stand?.pausiert ? t('WEITER') : t('ALLES ANHALTEN')}
+            aria-label={stand?.pausiert ? t('WEITER') : t('ALLES ANHALTEN')}
+          >
+            {stand?.pausiert ? '▶' : '⏸'}
+            <span className={s.notausText}>
+              {stand?.pausiert ? t('WEITER') : t('ALLES ANHALTEN')}
+            </span>
+          </button>
+        </span>
+      )}
+    </div>
   )
 }

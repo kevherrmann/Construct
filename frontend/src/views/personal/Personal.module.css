@@ -142,8 +142,11 @@
   align-items: center;
   gap: 0;
 }
+/* Geschwister in gleich breiten Spalten: ungleich breite Kästen wirken zufällig. */
 .orgzeile {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 176px;
   gap: 18px;
   justify-content: center;
   padding-top: 22px;
@@ -221,6 +224,60 @@
 .om {
   font-size: 10px;
   opacity: 0.6;
+}
+
+/* Schmal: kein Wischen, sondern ein Strang links, an dem die Mitarbeiter
+   untereinander hängen (wie ein Dateibaum). Trägt beliebig viele und tiefere Ebenen. */
+@media (max-width: 600px) {
+  .orgwrap {
+    display: block;
+    overflow: visible;
+  }
+  .orgast {
+    align-items: stretch;
+  }
+  .orgkarte {
+    min-width: 0;
+    width: 100%;
+    text-align: left;
+    padding: 9px 12px;
+  }
+  .orgzeile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0 0 22px;
+  }
+  .orgzeile::before {
+    display: none;
+  }
+  .orgzeile > .orgast {
+    padding-top: 0;
+  }
+  /* waagerechter Abzweig zur Karte */
+  .orgzeile > .orgast::before {
+    top: 50%;
+    left: -12px;
+    width: 12px;
+    height: 0;
+    border-left: 0;
+    border-top: 1px solid var(--green-faint);
+  }
+  /* senkrechter Strang: vom Kasten darüber bis zum letzten Abzweig */
+  .orgzeile > .orgast::after,
+  .orgzeile > .orgast:first-child::after,
+  .orgzeile > .orgast:only-child::after {
+    display: block;
+    top: -8px;
+    bottom: 0;
+    left: -12px;
+    right: auto;
+    border-top: 0;
+    border-left: 1px solid var(--green-faint);
+  }
+  .orgzeile > .orgast:last-child::after {
+    bottom: 50%;
+  }
 }
 
 /* Akte */

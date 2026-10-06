@@ -1,69 +1,134 @@
-.ruf {
+/* Ein Streifen: links die wichtigste Meldung (oder wer arbeitet), rechts der Not-Aus. */
+.leiste {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 4px 6px 4px 14px;
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  color: var(--green);
+}
+.leiste.ruf {
+  background: rgba(255, 210, 74, 0.08);
+  border-color: #5a3f1f;
+  color: var(--warn, #ffd24a);
+}
+.leiste.fertig {
+  background: rgba(var(--accent-rgb), 0.07);
+  border-color: rgba(var(--accent-rgb), 0.5);
+}
+.meldung {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 9px 14px;
-  background: rgba(255, 210, 74, 0.08);
-  border: 1px solid #5a3f1f;
-  border-radius: var(--radius);
-  color: var(--warn, #ffd24a);
-  font-family: inherit;
-  font-size: 12.5px;
+  align-self: stretch;
+  margin: -4px 0 -4px -14px;
+  padding: 4px 0 4px 14px;
+  border: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.ruf:hover {
-  box-shadow: 0 0 12px rgba(255, 210, 74, 0.3);
+.meldung:hover .rk {
+  box-shadow: 0 0 10px currentColor;
+}
+.zeichen {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 .rt {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .rt b {
   font-weight: 600;
+}
+.was::before {
+  content: ' — ';
+}
+.mehr {
+  flex: none;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
 }
 .rk {
   flex: none;
   letter-spacing: 2px;
   font-size: 11px;
-  border: 1px solid #5a3f1f;
+  border: 1px solid currentColor;
   border-radius: var(--radius);
   padding: 3px 9px;
+  opacity: 0.85;
 }
 .leise {
   opacity: 0.6;
 }
-.aktiv {
+.wer {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
   gap: 18px;
-  flex-wrap: wrap;
-  padding: 6px 14px;
-  border: 1px solid var(--green-faint);
-  border-radius: var(--radius);
-  font-size: 12px;
-  color: var(--green);
+  row-gap: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
 }
-.aktiv > span:not(.pz) {
+.wer > span {
   color: color-mix(in srgb, rgb(var(--accent-rgb)), #000 var(--akzent-dunkler, 0%));
 }
 .punkt {
   margin-right: 5px;
+  color: color-mix(in srgb, rgb(var(--accent-rgb)), #000 var(--akzent-dunkler, 0%));
   animation: global(blink) 1.2s infinite;
 }
 .pz {
-  margin-left: auto;
+  flex: none;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+}
+.pz > .punkt {
+  margin: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.name {
+  margin-left: 4px;
+  font-size: 12px;
 }
 .angehalten {
   color: var(--warn, #ffd24a);
   letter-spacing: 2px;
   font-size: 11px;
 }
-.pz button {
+.notaus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
   background: none;
   border: 1px solid #5a1f1f;
   color: #ff8c8c;
@@ -74,15 +139,45 @@
   letter-spacing: 1.5px;
   cursor: pointer;
 }
-.pz button.an {
+.notaus.an {
   border-color: var(--green-dim);
   color: var(--green);
 }
-.ruf.fertig {
-  background: rgba(var(--accent-rgb), 0.07);
-  border-color: rgba(var(--accent-rgb), 0.5);
-  color: var(--green);
-}
-.ruf.fertig .rk {
-  border-color: rgba(var(--accent-rgb), 0.5);
+/* Schmal: nur die Zeichen, der Text steht im title. */
+@media (max-width: 600px) {
+  .leiste {
+    gap: 8px;
+    padding-left: 12px;
+  }
+  .meldung {
+    margin-left: -12px;
+    padding-left: 12px;
+  }
+  .rk,
+  .notausText,
+  .name,
+  .ziel {
+    display: none;
+  }
+  /* Titel und Grund je eine Zeile: der Grund ist das Wichtigste und wird nie abgeschnitten. */
+  .rt {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.35;
+  }
+  .rt b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .was {
+    font-size: 11.5px;
+    white-space: normal;
+  }
+  .was::before {
+    content: none;
+  }
+  .notaus {
+    min-width: 34px;
+    justify-content: center;
+  }
 }
