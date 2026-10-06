@@ -331,3 +331,27 @@ def test_bus_ohne_objekt_wird_abgewiesen(firma):
     req = urllib.request.Request(firma + "/api/team/bus", data=b"[]", headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=10) as r:
         assert json.load(r)["error"] is True
+
+
+def test_bus_token_steht_nicht_in_der_kommandozeile(firma, tmp_path, monkeypatch):
+    import os
+    from server.team import engine
+    gesehen = []
+    echt = engine.build_claude_cmd
+
+    def mitschreiben(**kw):
+        cmd = echt(**kw)
+        datei = Path(kw["mcp_config"])
+        gesehen.append((cmd, datei, stat.S_IMODE(os.stat(datei).st_mode), datei.read_text()))
+        return cmd
+    monkeypatch.setattr(engine, "build_claude_cmd", mitschreiben)
+    tid = neuer_auftrag(firma, "[klein] Bau das Ding")
+    warte(firma, tid, ("fertig",))
+    assert gesehen
+    for cmd, datei, modus, inhalt in gesehen:
+        token = json.loads(inhalt)["mcpServers"]["firma"]["env"]["FIRMA_TOKEN"]
+        assert token and not any(token in a for a in cmd)     # nicht in `ps`
+        if os.name != "nt":
+            assert modus == 0o600
+    time.sleep(0.5)                                          # letzter Zug räumt ab
+    assert not list((tmp_path / "firma" / "agents").glob("*/.bus-*.json"))

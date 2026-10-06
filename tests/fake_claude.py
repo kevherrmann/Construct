@@ -22,7 +22,11 @@ def arg(name):
     return a[a.index(name) + 1] if name in a else ""
 
 
-cfg = json.loads(arg("--mcp-config") or "{}")
+_mcp = arg("--mcp-config") or "{}"
+if not _mcp.lstrip().startswith("{"):          # Pfad einer Datei (so übergibt es CONSTRUCT)
+    with open(_mcp, encoding="utf-8") as fh:
+        _mcp = fh.read()
+cfg = json.loads(_mcp)
 srv = (cfg.get("mcpServers") or {}).get("firma") or {}
 env = srv.get("env") or {}
 AGENT = env.get("FIRMA_AGENT", "")

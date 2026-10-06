@@ -65,18 +65,45 @@ def start_agent_turn(a: dict, t: dict, nachricht: dict):
 
     token = uuid.uuid4().hex
     BUS_TOKENS[token] = (a["slug"], t["id"])
-    mcp = bus_config(a["slug"], token, t["id"])
+    mcp = bus_datei(d, a["slug"], token, t["id"])
 
     cmd = build_claude_cmd(
         mode=a["permission_mode"], model=a["model"], effort=a["effort"],
         session_id=t["sessions"].get(a["slug"]) or None,
         system_prompt_file=spf,
         allowed_tools=list(a["allowed_tools"]) + bus_werkzeuge(a),
-        mcp_config=mcp)
-    return spawn(cmd, t.get("cwd") or a["cwd"], a["model"],
-                  auftrags_prompt(a, t, nachricht),
-                  t["sessions"].get(a["slug"]) or None, agent_slug=a["slug"],
-                  auftrag_id=t["id"], bus_token=token)
+        mcp_config=str(mcp))
+    run = spawn(cmd, t.get("cwd") or a["cwd"], a["model"],
+                auftrags_prompt(a, t, nachricht),
+                t["sessions"].get(a["slug"]) or None, agent_slug=a["slug"],
+                auftrag_id=t["id"], bus_token=token)
+    run.bus_datei = mcp
+    return run
+
+
+def bus_datei(d: Path, slug: str, token: str, ticket_id: str) -> Path:
+    """Die MCP-Konfiguration samt Bus-Token als Datei, die nur der Besitzer lesen
+    darf. Als Argument stand das Token in `ps`, und jeder andere Benutzer des
+    Rechners konnte während des Zugs im Namen des Mitarbeiters liefern — auch mit
+    MATRIX_PASS, denn der Bus ist davon ausgenommen. claude liest die Datei beim
+    Start; am Zugende wird sie gelöscht (bus_datei_weg)."""
+    p = d / f".bus-{ticket_id}-{uuid.uuid4().hex[:8]}.json"
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(bus_config(slug, token, ticket_id))
+    return p
+
+
+def bus_datei_weg(run=None):
+    """Die Datei eines Zugs löschen — ohne run alle (nach einem Neustart sind die
+    Token darin ohnehin tot)."""
+    dateien = [run.bus_datei] if run is not None and getattr(run, "bus_datei", None) \
+        else ag.AGENTS_DIR.glob("*/.bus-*.json")
+    for p in dateien:
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 # ---------- Auftraege: der Dispatcher ----------
@@ -384,6 +411,7 @@ async def _zustellen_innen(tid: str, mid: str):
             if quittung:
                 auf.quittieren(tid, mid)
             BUS_TOKENS.pop(run.bus_token, None)
+            bus_datei_weg(run)
             neu = await auftrag_aendern(tid, _ende) or t
             feed(tid).emit({"type": "zug_ende", "agent": a["slug"], "run_id": run.id})
             return neu
@@ -515,6 +543,7 @@ def wieder_aufnehmen():
     wird es benannt statt uebertuencht: Warnhinweis in der Nachricht, und ab dem
     dritten Versuch entscheidet Kevin.
     """
+    bus_datei_weg()
     for t in auf.alle():
         if t["status"] != "laeuft":
             continue
