@@ -244,6 +244,11 @@
   animation: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .figur {
+    animation: none;
+  }
+}
 /* Stationen: unsichtbare Flächen; beim Überfahren Licht und ein Schild. */
 .station {
   position: absolute;

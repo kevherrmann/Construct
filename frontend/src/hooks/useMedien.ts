@@ -4,6 +4,9 @@ import { useSyncExternalStore } from 'react'
  *  und Stationen öffnen als Karte von unten. Gleiche Grenze wie im CSS. */
 export const KOMPAKT = '(max-width: 860px), (max-height: 520px)'
 
+/** Im System „Bewegung reduzieren“ an: Schleifen und Videos stehen still. */
+export const RUHIG = '(prefers-reduced-motion: reduce)'
+
 /** Trifft die Media Query zu? Aktualisiert sich bei Drehen und Größenänderung. */
 export function useMedien(query: string): boolean {
   return useSyncExternalStore(
