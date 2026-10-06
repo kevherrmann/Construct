@@ -832,6 +832,7 @@
   "CONSTRUCT beenden?": "Quit CONSTRUCT?",
   "Der Server fährt herunter. Telegram-Bot und geplante Aufgaben laufen danach nicht mehr, bis du CONSTRUCT wieder startest.": "The server shuts down. The Telegram bot and scheduled tasks stop until you start CONSTRUCT again.",
   "Beenden hat nicht geklappt.": "Quitting did not work.",
+  "Gerade läuft noch eine Antwort. Beim Beenden bricht sie ab.": "An answer is still running. Quitting cuts it off.",
   "Beenden": "Quit",
   "CONSTRUCT ist beendet.": "CONSTRUCT has quit.",
   "Du kannst das Fenster schließen.": "You can close this window.",

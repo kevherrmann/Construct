@@ -5,15 +5,18 @@ import asyncio
 import json
 import os
 import re
+import signal
 import threading
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from server import config as cfg
 from server import telegram_bot as tgmod
 
-from server.core import claude_bin, claude_env, friendly_claude_error, load_persona
+from server.core import (BASE_DIR, PROJECTS_DIR, claude_bin, claude_env, extract_text,
+                         friendly_claude_error, load_persona)
 from server.sessions import model_short
 
 
@@ -169,6 +172,19 @@ def build_prompt(text: str, images) -> str:
     return prompt
 
 
+def _werkzeug_ereignis(block) -> dict:
+    return {"type": "tool", "id": block.get("id"), "name": block.get("name", "?"),
+            "input": block.get("input", {})}
+
+
+def _ergebnis_ereignis(block) -> dict:
+    c = block.get("content")
+    if isinstance(c, list):
+        c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict))
+    return {"type": "tool_result", "id": block.get("tool_use_id"), "content": str(c)[:6000],
+            "is_error": bool(block.get("is_error"))}
+
+
 async def run_claude(run, cmd):
     """Hintergrund-Task: schreibt Events in den Run-Puffer (NICHT an einen Client)."""
     stderr_chunks = []
@@ -203,6 +219,7 @@ async def run_claude(run, cmd):
             limit=64 * 1024 * 1024,   # große stream-json-Zeilen (Tool-Ergebnisse)
         )
         run.proc = proc
+        merken(run, cmd[0])
         # Erste Nachricht über stdin einspeisen; die Leitung bleibt offen, damit
         # Kevin dem laufenden Cody weitere Nachrichten nachschieben kann (Inject).
         proc.stdin.write(stdin_message(run.initial_prompt))
@@ -238,6 +255,7 @@ async def run_claude(run, cmd):
             if t == "system" and ev.get("subtype") == "init":
                 run.session_id = ev.get("session_id", run.session_id)
                 run.emit({"type": "session", "session_id": run.session_id})
+                merken(run)
             elif t == "system" and ev.get("subtype") == "background_tasks_changed":
                 # Die eine verlaessliche Liste: claude schickt sie bei jedem
                 # Start und Ende einer Hintergrundaufgabe komplett.
@@ -257,26 +275,13 @@ async def run_claude(run, cmd):
                         thinking_sent = True
                         run.emit({"type": "thinking_marker"})
                     elif block.get("type") == "tool_use":
-                        run.emit({
-                            "type": "tool",
-                            "id": block.get("id"),
-                            "name": block.get("name", "?"),
-                            "input": block.get("input", {}),
-                        })
+                        run.emit(_werkzeug_ereignis(block))
             elif t == "user":
                 content = ev.get("message", {}).get("content")
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_result":
-                            c = block.get("content")
-                            if isinstance(c, list):
-                                c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict))
-                            run.emit({
-                                "type": "tool_result",
-                                "id": block.get("tool_use_id"),
-                                "content": str(c)[:6000],
-                                "is_error": bool(block.get("is_error")),
-                            })
+                            run.emit(_ergebnis_ereignis(block))
             elif t == "result":
                 run.session_id = ev.get("session_id", run.session_id)
                 # Fehler-Resultate (Limit erreicht, Login abgelaufen, …) wurden
@@ -368,6 +373,7 @@ async def run_claude(run, cmd):
         print(f"[run] fehler: {type(e).__name__}: {e}", flush=True)
         run.emit({"type": "error", "message": f"Server-Fehler: {e}"})
     finally:
+        vergessen(run.id)
         run.stdin_closed = True
         if run.nachlauf:
             # claude ist gegangen, waehrend noch Hintergrundaufgaben offen
@@ -437,3 +443,227 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     RUNS[run_id] = run
     run.task = asyncio.create_task(run_claude(run, cmd))
     return run
+
+
+# ---------- Läufe über einen Server-Neustart retten ----------
+# Ein Lauf lebt nur im Speicher dieses Prozesses (RUNS). Endet der Server, ohne
+# herunterzufahren (kill, ein neuer Start mit neuerem Code beendet den alten,
+# Absturz), läuft der claude-Prozess trotzdem weiter und schreibt seine Antwort
+# fertig in die Sitzungsdatei — nur kannte der neue Server die Lauf-ID nicht.
+# Die Oberfläche bekam 404 („Lauf nicht mehr verfügbar"), die Antwort sah
+# niemand, im Raum fehlte die Sprechblase (06.10.2026 zweimal hintereinander).
+#
+# Darum steht jeder laufende claude-Prozess in laeufe.json. Der neue Server
+# nimmt ihn beim Start unter DERSELBEN Lauf-ID wieder auf und liest die Antwort
+# aus der Sitzungsdatei mit; die Oberfläche dockt einfach wieder an. Text kommt
+# dabei blockweise statt Wort für Wort. ⏻ fährt dagegen sauber herunter und
+# beendet die Läufe selbst — dort bleibt nichts übrig, was zu retten wäre.
+LAEUFE = BASE_DIR / "laeufe.json"
+NACHLESEN_TAKT = 1.0
+
+
+def _laeufe_lesen() -> dict:
+    try:
+        d = json.loads(LAEUFE.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _laeufe_schreiben(d: dict):
+    try:
+        if not d:
+            LAEUFE.unlink(missing_ok=True)
+            return
+        tmp = LAEUFE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(LAEUFE)
+    except OSError as e:
+        print(f"[run] laeufe.json: {e}", flush=True)
+
+
+def merken(run, programm=None):
+    """Laufenden claude-Prozess vermerken: beim Start und sobald die Sitzung feststeht."""
+    if not run.proc:
+        return
+    d = _laeufe_lesen()
+    e = d.get(run.id) or {"pid": run.proc.pid, "programm": programm or "", "cwd": run.cwd,
+                          "start": run.started, "model": run.model}
+    e["session_id"] = run.session_id
+    d[run.id] = e
+    _laeufe_schreiben(d)
+
+
+def vergessen(run_id):
+    d = _laeufe_lesen()
+    if d.pop(run_id, None) is not None:
+        _laeufe_schreiben(d)
+
+
+def _lebt(pid, programm="") -> bool:
+    """Läuft der Prozess noch — und ist es noch unser claude? PIDs werden
+    wiederverwendet; wo es /proc gibt, wird darum das Programm mitgeprüft."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":
+        # os.kill(pid, 0) wäre hier CTRL_C_EVENT, kein Nachsehen.
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259        # STILL_ACTIVE
+    if Path("/proc/self/cmdline").exists():
+        try:
+            data = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            return False
+        # Zombie (beendet, noch nicht abgeholt): leere Kommandozeile. Verglichen
+        # wird nur der Programmname — argv[0] kann auch relativ dastehen.
+        return bool(data) and (not programm or os.fsencode(os.path.basename(programm)) in data)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _zeit(ts) -> float:
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+class _Leser:
+    """Neue Zeilen der Sitzungsdatei -> dieselben Ereignisse, die run_claude aus
+    dem Live-Strom macht. Gelesen wird nur, was nach dem Start des Laufs kam."""
+
+    def __init__(self, run):
+        self.run = run
+        self.ab = run.started - 2       # die Zeitstempel schreibt claude selbst
+        self.pos = 0
+        self.rest = b""
+        self.prompt_gesehen = False
+        self.thinking = False
+        self.fertig = False             # letzte Antwort regulär abgeschlossen
+
+    def lesen(self, datei):
+        try:
+            with datei.open("rb") as fh:
+                fh.seek(self.pos)
+                data = fh.read()
+        except OSError:
+            return
+        self.pos += len(data)
+        data = self.rest + data
+        cut = data.rfind(b"\n") + 1          # halbe letzte Zeile wird gerade geschrieben
+        data, self.rest = data[:cut], data[cut:]
+        for line in data.split(b"\n"):
+            if not line.strip():
+                continue
+            try:
+                ev = json.loads(line.decode("utf-8", "replace"))
+            except Exception:
+                continue
+            if isinstance(ev, dict):
+                self.eintrag(ev)
+
+    def eintrag(self, ev):
+        if ev.get("isSidechain") or _zeit(ev.get("timestamp")) < self.ab:
+            return
+        msg = ev.get("message") if isinstance(ev.get("message"), dict) else {}
+        content = msg.get("content")
+        if ev.get("type") == "user":
+            if isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
+                                                 for b in content):
+                for b in content:
+                    if isinstance(b, dict) and b.get("type") == "tool_result":
+                        self.run.emit(_ergebnis_ereignis(b))
+                return
+            txt = extract_text(content).strip()
+            if ev.get("isMeta") or not txt or txt.startswith("<"):
+                return
+            if not self.prompt_gesehen:      # die Nachricht, mit der der Lauf begann
+                self.prompt_gesehen = True
+                return
+            self.fertig = False
+            self.run.emit({"type": "user_inject", "text": txt, "urls": []})
+        elif ev.get("type") == "assistant" and isinstance(content, list):
+            for b in content:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text" and b.get("text"):
+                    self.run.emit({"type": "text", "text": b["text"]})
+                elif b.get("type") == "thinking" and not self.thinking:
+                    self.thinking = True
+                    self.run.emit({"type": "thinking_marker"})
+                elif b.get("type") == "tool_use":
+                    self.run.emit(_werkzeug_ereignis(b))
+            self.fertig = msg.get("stop_reason") in ("end_turn", "stop_sequence")
+
+
+async def _nachlesen(run, pid, programm):
+    """Hintergrund-Task für einen aufgenommenen Lauf: Sitzungsdatei mitlesen,
+    bis der claude-Prozess weg ist."""
+    lief = _lebt(pid, programm)
+    leser = _Leser(run)
+    datei = None
+    try:
+        while True:
+            lebt = _lebt(pid, programm)
+            if datei is None:
+                datei = next(iter(PROJECTS_DIR.glob(f"*/{run.session_id}.jsonl")), None)
+            if datei is not None:
+                leser.lesen(datei)           # nach dem Lebenszeichen: steht dann alles drin
+            if not lebt:
+                break
+            await asyncio.sleep(NACHLESEN_TAKT)
+        if leser.fertig:
+            run.emit({"type": "done", "session_id": run.session_id})
+        else:
+            run.emit({"type": "error", "message": cfg.L(
+                "⚠ CONSTRUCT wurde neu gestartet, bevor die Antwort fertig war. Schick einfach nochmal.",
+                "⚠ CONSTRUCT restarted before the answer was finished. Just send it again.")})
+    except asyncio.CancelledError:
+        # Stop-Knopf: wie bei einem eigenen Lauf den Prozess beenden
+        run.stopped = True
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (OSError, TypeError):
+            pass
+        run.emit({"type": "error", "message": "⏹ Gestoppt."})
+        raise
+    except Exception as e:
+        print(f"[run] nachlesen: {type(e).__name__}: {e}", flush=True)
+        run.emit({"type": "error", "message": f"Server-Fehler: {e}"})
+    finally:
+        vergessen(run.id)
+        run.finish()
+        if lief and not getattr(run, "stopped", False):
+            maybe_notify(run)
+
+
+def aufnehmen():
+    """Beim Serverstart: Läufe des vorigen Servers unter ihrer Lauf-ID wieder
+    aufnehmen. Auch schon beendete — deren Antwort steht dann fertig da."""
+    for rid, e in _laeufe_lesen().items():
+        if rid in RUNS or not isinstance(e, dict):
+            continue
+        sid = e.get("session_id")
+        if not sid:
+            # Vor dem ersten Lebenszeichen abgerissen: keine Sitzung, nichts nachzulesen
+            vergessen(rid)
+            continue
+        run = Run(rid, e.get("cwd") or "", sid, e.get("model") or "")
+        run.started = float(e.get("start") or time.time())
+        run.stdin_closed = True       # stdin hing am alten Server; Nachgeschobenes wartet
+        RUNS[rid] = run
+        run.emit({"type": "session", "session_id": sid})
+        run.task = asyncio.create_task(_nachlesen(run, e.get("pid"), e.get("programm") or ""))
+        print(f"[run] Lauf {rid[:8]} nach Neustart wieder aufgenommen (Sitzung {sid[:8]})", flush=True)

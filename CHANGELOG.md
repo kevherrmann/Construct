@@ -2,6 +2,19 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 7.2.1 — 2026-10-06
+
+### Fixed
+- **Answers survive a server restart.** If the server stopped without shutting
+  down (killed, replaced by a newer start, crashed) while Cody was answering,
+  Claude finished the answer anyway, but the new server no longer knew the
+  run: the chat showed "Run no longer available" and the room lost the speech
+  bubble. Running Claude processes are now noted in `laeufe.json`; after a
+  restart the server picks them up under the same run ID and reads the answer
+  from the session file, so the view simply reconnects. An answer that was cut
+  off says so instead of ending silently.
+- **⏻ warns while an answer is running**, because quitting does cut it off.
+
 ## 7.2.0 — 2026-10-05
 
 ### Added

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { beenden, istLokal } from '@/api/system'
 import { Dialog } from '@/components/dialogs/Dialog'
+import { useChat } from '@/stores/chat'
 import s from './Beenden.module.css'
 
 // ⏻ CONSTRUCT beenden. Seit das Fenster ein Browser-Fenster ist, läuft der
@@ -19,6 +20,8 @@ export function BeendenKnopf({
   const { t } = useTranslation()
   const [frage, setFrage] = useState(false)
   const [stand, setStand] = useState<'' | 'laeuft' | 'fertig' | 'fehler'>('')
+  // Anders als ein Neustart nimmt ⏻ laufende Antworten mit — das soll man vorher wissen.
+  const antwortet = useChat((st) => Object.values(st.convs).some((c) => c.busy || c.nachlauf))
   if (!istLokal()) return null
 
   const los = async () => {
@@ -51,6 +54,11 @@ export function BeendenKnopf({
             'Der Server fährt herunter. Telegram-Bot und geplante Aufgaben laufen danach nicht mehr, bis du CONSTRUCT wieder startest.',
           )}
         </p>
+        {antwortet && (
+          <p className={s.fehler}>
+            ⚠ {t('Gerade läuft noch eine Antwort. Beim Beenden bricht sie ab.')}
+          </p>
+        )}
         {stand === 'fehler' && <p className={s.fehler}>⚠ {t('Beenden hat nicht geklappt.')}</p>}
         <div className={s.knoepfe}>
           <button type="button" className={s.nein} onClick={() => setFrage(false)}>
