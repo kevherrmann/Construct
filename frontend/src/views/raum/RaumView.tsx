@@ -47,7 +47,14 @@ import { RegalSchild, WandBild, WandBinaeruhr, WandKontingent } from './Raumdeta
 import { Besucher, Buero } from './Buero'
 import { useBuero } from './useBuero'
 import { useTeamBlase } from './useTeamBlase'
-import { useBlasenOrt, verschoben, type BlasenOrt } from './blasenOrt'
+import {
+  useBlasenGroesse,
+  useBlasenOrt,
+  vergroessert,
+  verschoben,
+  type BlasenGroesse,
+  type BlasenOrt,
+} from './blasenOrt'
 import { ungelesen, useAuftrag, useAuftraege, useTeamStand } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
@@ -525,6 +532,7 @@ export function RaumView() {
   const hatBlase = !!(blasenLage.md || blasenStatus)
   const blaseUmschalten = () => setZuFuer(blaseZu ? null : antwortKey)
   const [blasenOrt, setBlasenOrt] = useBlasenOrt()
+  const [blasenGroesse, setBlasenGroesse] = useBlasenGroesse()
 
   // Schilder der Stationen zeigen, was gerade eingestellt ist.
   const model = conv?.model ?? ''
@@ -602,6 +610,8 @@ export function RaumView() {
         knopf={rueckfrage ? `↩ ${t('Antworten')}` : abschluss ? `☰ ${t('Auftrag')}` : undefined}
         ort={kompakt ? null : blasenOrt}
         onOrt={kompakt ? undefined : setBlasenOrt}
+        groesse={kompakt ? null : blasenGroesse}
+        onGroesse={kompakt ? undefined : setBlasenGroesse}
         onVerlauf={() => {
           if (rueckfrage || abschluss) {
             useAuftraegeAnsicht.getState().oeffne((rueckfrage?.id ?? abschluss?.id)!)
@@ -1016,6 +1026,18 @@ function Projektion({
   )
 }
 
+/** Kleinste Blase in Pixeln: Kopf, Fuß und drei Zeilen Text bleiben lesbar. */
+const MIN_BLASE = { w: 260, h: 160 }
+/** Fläche der Blase ohne eigene Größe (Prozent² des Raums, etwa 34 % × 30 %). */
+const VORGABE_FLAECHE = 34 * 30
+/** Pfeiltasten am Größengriff: Richtung, in die er sich bewegt. */
+const PFEILE: Record<string, [number, number]> = {
+  ArrowRight: [1, 0],
+  ArrowLeft: [-1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
 /** Sprechblase neben der Figur. Wie Untertitel steht darin immer nur ein
  *  Abschnitt der Antwort — beim Sprechen der jüngste, danach lässt sich mit
  *  ‹ › blättern. Alles am Stück steht im Verlauf. Steht die Figur an der
@@ -1032,6 +1054,8 @@ function Sprechblase({
   knopf,
   ort = null,
   onOrt,
+  groesse = null,
+  onGroesse,
   onVerlauf,
   onZu,
 }: {
@@ -1052,11 +1076,19 @@ function Sprechblase({
   ort?: BlasenOrt | null
   /** Ziehen am Kopf verschiebt, Doppelklick gibt den Platz wieder frei. */
   onOrt?: (o: BlasenOrt | null) => void
+  /** Selbst aufgezogen (Prozent des Raums); null = Vorgabe. */
+  groesse?: BlasenGroesse | null
+  /** Ziehen am Griff oben rechts ändert die Größe, Doppelklick dort stellt sie zurück. */
+  onGroesse?: (g: BlasenGroesse | null) => void
   onVerlauf: () => void
   onZu: () => void
 }) {
   const { t } = useTranslation()
-  const teile = useMemo(() => abschnitte(md), [md])
+  // Größer gezogen: mehr Text je Abschnitt, sonst stünde dort nur mehr Weiß.
+  const proAbschnitt = Math.round(
+    220 * Math.max(1, groesse ? (groesse.w * groesse.h) / VORGABE_FLAECHE : 1),
+  )
+  const teile = useMemo(() => abschnitte(md, proAbschnitt), [md, proAbschnitt])
   // null = immer der jüngste Abschnitt; eine Zahl = selbst geblättert
   const [wahl, setWahl] = useState<number | null>(null)
   const letzter = Math.max(0, teile.length - 1)
@@ -1106,13 +1138,80 @@ function Sprechblase({
     e.preventDefault()
   }
   const lage = ziehen ?? ort
+  // Größe: Griff oben rechts, die Blase hängt unten fest. Grenzen in Pixeln (lesbar
+  // bleiben), umgerechnet in Prozent des Raums wie beim Verschieben.
+  const [spannen, setSpannen] = useState<BlasenGroesse | null>(null)
+  const masse = () => {
+    const el = blase.current
+    const raum = el?.offsetParent as HTMLElement | null
+    if (!el || !raum) return null
+    const r = raum.getBoundingClientRect()
+    const b = el.getBoundingClientRect()
+    const pw = (px: number) => (px / r.width) * 100
+    const ph = (px: number) => (px / r.height) * 100
+    return {
+      r,
+      start: { w: pw(b.width), h: ph(b.height) },
+      min: { w: pw(MIN_BLASE.w), h: ph(MIN_BLASE.h) },
+      // bis an den Rand des Raums, rechts und oben ein wenig Luft
+      max: {
+        w: Math.min(70, pw(r.right - b.left) - 1),
+        h: Math.min(90, ph(b.bottom - r.top) - 2),
+      },
+    }
+  }
+  const spanneLos = (e: React.PointerEvent<HTMLElement>) => {
+    const m = masse()
+    if (!onGroesse || !m || e.button !== 0) return
+    const x0 = e.clientX
+    const y0 = e.clientY
+    let jetzt = m.start
+    const bewegt = (p: PointerEvent) => {
+      jetzt = vergroessert(
+        m.start,
+        ((p.clientX - x0) / m.r.width) * 100,
+        ((p.clientY - y0) / m.r.height) * 100,
+        m.min,
+        m.max,
+      )
+      setSpannen(jetzt)
+    }
+    const fertig = () => {
+      window.removeEventListener('pointermove', bewegt)
+      window.removeEventListener('pointerup', fertig)
+      window.removeEventListener('pointercancel', fertig)
+      setSpannen(null)
+      if (jetzt !== m.start) onGroesse(jetzt)
+    }
+    window.addEventListener('pointermove', bewegt)
+    window.addEventListener('pointerup', fertig)
+    window.addEventListener('pointercancel', fertig)
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  // Tastatur: Pfeile ändern die Größe in kleinen Schritten.
+  const spanneTaste = (e: React.KeyboardEvent<HTMLElement>) => {
+    const schritt = PFEILE[e.key]
+    const m = masse()
+    if (!onGroesse || !schritt || !m) return
+    e.preventDefault()
+    onGroesse(vergroessert(m.start, schritt[0] * 2, schritt[1] * 2, m.min, m.max))
+  }
+  const gross = spannen ?? groesse
   return (
     <section
       ref={blase}
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen ? s.blaseZieht : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen ? s.blaseZieht : ''}`}
       style={{
         ...(farbe ? { ['--accent-rgb' as string]: farbe } : {}),
         ...(lage ? { left: `${lage.l}%`, bottom: `${lage.b}%` } : {}),
+        // Beim Aufziehen steht die Höhe fest, damit du siehst, wohin; danach ist sie
+        // die Grenze, bis zu der die Blase wächst.
+        ...(gross
+          ? spannen
+            ? { width: `${gross.w}%`, height: `${gross.h}%`, maxHeight: 'none' }
+            : { width: `${gross.w}%`, maxHeight: `${gross.h}%` }
+          : {}),
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -1120,7 +1219,9 @@ function Sprechblase({
         className={`${s.blasenKopf} ${onOrt ? s.blasenGriff : ''}`}
         onPointerDown={zieheLos}
         onDoubleClick={(e) => {
-          if (!(e.target as HTMLElement).closest('button')) onOrt?.(null)
+          if ((e.target as HTMLElement).closest('button')) return
+          onOrt?.(null)
+          onGroesse?.(null)
         }}
         title={onOrt ? t('Ziehen verschiebt die Blase, Doppelklick stellt sie zurück') : undefined}
       >
@@ -1133,12 +1234,23 @@ function Sprechblase({
           type="button"
           className={s.blasenZu}
           onClick={onZu}
-          aria-label={t('Sprechblase ausblenden')}
-          title={t('Sprechblase ausblenden')}
+          aria-label={t('Sprechblase schließen')}
+          title={t('Sprechblase schließen')}
         >
           ✕
         </button>
       </header>
+      {onGroesse && (
+        <button
+          type="button"
+          className={s.blasenGroesse}
+          onPointerDown={spanneLos}
+          onKeyDown={spanneTaste}
+          onDoubleClick={() => onGroesse(null)}
+          aria-label={t('Größe der Sprechblase ändern')}
+          title={t('Ziehen ändert die Größe, Doppelklick stellt sie zurück')}
+        />
+      )}
       {teile.length > 0 && (
         <div ref={ref} className={s.blasenText} data-scroll>
           <Markdown

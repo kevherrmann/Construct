@@ -588,6 +588,7 @@
   "Google Gemma 4, effiziente Stufe — Reasoning & multimodal": "Google Gemma 4, efficient tier — reasoning & multimodal",
   "Google-Konto → Sicherheit → 2-Faktor aktivieren → „App-Passwörter“ → neues App-Passwort (16 Zeichen) erzeugen und hier eintragen (NICHT das normale Passwort).": "Google account → Security → enable 2-step verification → “App passwords” → create a new app password (16 characters) and enter it here (NOT your normal password).",
   "Grün auf Schwarz. Der Ursprung.": "Green on black. The original.",
+  "Größe der Sprechblase ändern": "Resize speech bubble",
   "gründlicher — für knifflige Aufgaben": "more thorough — for tricky tasks",
   "h geprüft": "h ago",
   "Hallo {u}, ich bin {a}. So klinge ich mit dieser Stimme.": "Hi {u}, I'm {a}. This is how I sound with this voice.",
@@ -923,6 +924,7 @@
   "Sprache der Oberfläche und des Assistenten. Die Seite lädt danach neu.": "Language of the interface and the assistant. The page reloads afterwards.",
   "Spracheingabe — klicken und sprechen, der Text erscheint gleich im Feld": "Voice input — click and speak, the text appears in the field right away",
   "Sprechblase ausblenden": "Hide speech bubble",
+  "Sprechblase schließen": "Close speech bubble",
   "Sprechblase zeigen": "Show speech bubble",
   "Sprechweise": "Speaking style",
   "Sprich mit {a} von unterwegs — per Text oder Sprachnachricht. Dazu Erinnerungen an Termine, eine Meldung, wenn ein langer Lauf fertig ist, und geplante Aufgaben aus dem Kalender. Läuft nur, solange CONSTRUCT läuft.": "Talk to {a} on the go — by text or voice message. Plus reminders for events, a message when a long run finishes, and scheduled tasks from the calendar. Only works while CONSTRUCT is running.",
@@ -1115,5 +1117,6 @@
   "Effort bestimmt, wie gründlich das Modell nachdenkt. Recherche und mechanisches Prüfen kommen mit „low“ aus, sonst gilt „xhigh“.": "Effort sets how thoroughly the model thinks. Research and mechanical checks get by with “low”, otherwise “xhigh” applies.",
   "ÜBERSICHT": "OVERVIEW",
   "Ziehen verschiebt die Blase, Doppelklick stellt sie zurück": "Drag to move the bubble, double-click to reset",
+  "Ziehen ändert die Größe, Doppelklick stellt sie zurück": "Drag to resize, double-click to reset",
   "Auftrag": "Job"
 }

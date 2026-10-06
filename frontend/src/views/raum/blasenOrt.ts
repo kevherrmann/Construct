@@ -8,30 +8,49 @@ export interface BlasenOrt {
   b: number
 }
 
-const SCHLUESSEL = 'construct.raum.blase'
+/** Wie groß du sie gezogen hast, ebenfalls in Prozent des Raums: Breite und die
+ *  Höhe, bis zu der sie wächst (kurze Antworten bleiben kurz). null = Vorgabe. */
+export interface BlasenGroesse {
+  w: number
+  h: number
+}
 
-function lesen(): BlasenOrt | null {
+const ORT = 'construct.raum.blase'
+const GROESSE = 'construct.raum.blase.groesse'
+
+function lesen<T>(schluessel: string, felder: (keyof T)[]): T | null {
   try {
-    const o = JSON.parse(localStorage.getItem(SCHLUESSEL) ?? 'null') as BlasenOrt | null
-    return o && Number.isFinite(o.l) && Number.isFinite(o.b) ? o : null
+    const o = JSON.parse(localStorage.getItem(schluessel) ?? 'null') as T | null
+    return o && felder.every((f) => Number.isFinite(o[f])) ? o : null
   } catch {
     return null
   }
 }
 
-export function useBlasenOrt() {
-  const [ort, setOrt] = useState<BlasenOrt | null>(lesen)
-  const setzen = (o: BlasenOrt | null) => {
-    setOrt(o)
+function useGemerkt<T>(schluessel: string, felder: (keyof T)[]) {
+  const [wert, setWert] = useState<T | null>(() => lesen<T>(schluessel, felder))
+  const setzen = (o: T | null) => {
+    setWert(o)
     try {
-      if (o) localStorage.setItem(SCHLUESSEL, JSON.stringify(o))
-      else localStorage.removeItem(SCHLUESSEL)
+      if (o) localStorage.setItem(schluessel, JSON.stringify(o))
+      else localStorage.removeItem(schluessel)
     } catch {
       /* privater Modus: dann gilt es nur bis zum Neuladen */
     }
   }
-  return [ort, setzen] as const
+  return [wert, setzen] as const
 }
+
+export function useBlasenOrt() {
+  return useGemerkt<BlasenOrt>(ORT, ['l', 'b'])
+}
+
+export function useBlasenGroesse() {
+  return useGemerkt<BlasenGroesse>(GROESSE, ['w', 'h'])
+}
+
+const zwischen = (v: number, min: number, max: number) =>
+  Math.min(Math.max(v, min), Math.max(min, max))
 
 /** Neue Lage beim Ziehen: Startlage plus Verschiebung, so begrenzt, dass die Blase
  *  ganz im Raum bleibt. Alles in Prozent des Raums. */
@@ -41,9 +60,24 @@ export function verschoben(
   dy: number,
   groesse: { w: number; h: number },
 ): BlasenOrt {
-  const zwischen = (v: number, max: number) => Math.min(Math.max(v, 0), Math.max(0, max))
   return {
-    l: zwischen(start.l + dx, 100 - groesse.w),
-    b: zwischen(start.b - dy, 100 - groesse.h),
+    l: zwischen(start.l + dx, 0, 100 - groesse.w),
+    b: zwischen(start.b - dy, 0, 100 - groesse.h),
+  }
+}
+
+/** Neue Größe beim Ziehen am Griff oben rechts: nach rechts breiter, nach oben höher
+ *  (die Blase hängt unten fest, der Zipfel bleibt bei der Figur). Begrenzt auf
+ *  min/max — max ist zugleich der Platz bis zum Rand des Raums. */
+export function vergroessert(
+  start: BlasenGroesse,
+  dx: number,
+  dy: number,
+  min: BlasenGroesse,
+  max: BlasenGroesse,
+): BlasenGroesse {
+  return {
+    w: zwischen(start.w + dx, min.w, max.w),
+    h: zwischen(start.h - dy, min.h, max.h),
   }
 }
