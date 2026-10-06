@@ -38,4 +38,13 @@ describe('zielPose', () => {
     expect(zielPose(lage('schreibt'), lage('denkt'))).toBe('arbeiten')
     expect(zielPose(lage('antwortet'), lage('denkt'))).toBe('erklaeren')
   })
+
+  it('setzt sich gelangweilt nur, wenn sie wirklich nichts tut', () => {
+    expect(zielPose(lage('ruht'), null, true)).toBe('sitzen')
+    // Chat-Antwort, eigener Zug, laufender Lauf ohne Text: sie steht
+    expect(zielPose(lage('antwortet'), null, true)).toBe('erklaeren')
+    expect(zielPose(lage('ruht'), lage('denkt'), true)).toBe('denken')
+    expect(zielPose(lage('ruht'), lage('ruht'), true)).toBe('erklaeren')
+    expect(zielPose(lage('ruht', true), null, true)).toBe('idle')
+  })
 })

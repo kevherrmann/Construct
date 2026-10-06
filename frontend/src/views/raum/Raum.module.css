@@ -196,6 +196,11 @@
 .figur img.poseAn {
   opacity: 1;
 }
+/* Im Bürostuhl: Leinwand 960 × 1000 statt 760 × 1000, je Seite 100 px breiter. */
+.figur img.poseBreit {
+  left: -13.158%;
+  width: 126.316%;
+}
 /* Figur steht an der Werkbank: Podest leer. */
 .figur.weg {
   opacity: 0;

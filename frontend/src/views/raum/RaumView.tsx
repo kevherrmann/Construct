@@ -31,6 +31,7 @@ import codyLesen from './assets/cody-lesen.webp'
 import codyErklaeren from './assets/cody-erklaeren.webp'
 import codyWerkbank from './assets/cody-werkbank.webp'
 import codyReden from './assets/cody-reden.webp'
+import codySitzen from './assets/cody-sitzen.webp'
 import geraeteBild from './assets/werkbank-geraete.webp'
 import unscharfBild from './assets/raum-unscharf.webp'
 import klemmbrettBild from './assets/klemmbrett.webp'
@@ -87,12 +88,14 @@ import { zielPose, type Pose } from './pose'
 import s from './Raum.module.css'
 
 type PodestPose = Exclude<Pose, 'arbeiten'>
-const POSEN: PodestPose[] = ['idle', 'denken', 'lesen', 'erklaeren']
+const POSEN: PodestPose[] = ['idle', 'denken', 'lesen', 'erklaeren', 'sitzen']
 
 interface Figur {
   /** 'cody' oder 'eigen' (static/figur dieser Installation). */
   name: string
-  posen: Record<PodestPose, string>
+  /** 'sitzen' (im Bürostuhl, Leinwand 960 × 1000 statt 760 × 1000, Fußmitte gleich)
+   *  ist freiwillig: ohne bleibt die Figur stehen. */
+  posen: Record<Exclude<PodestPose, 'sitzen'>, string> & { sitzen?: string }
   /** Figur an der Werkbank (Ausschnitt WERKBANK). */
   werkbank: string
   /** Im Gespräch am Schreibtisch eines Mitarbeiters: seitlich, nach rechts gewandt
@@ -124,7 +127,13 @@ function videosVon(datei: (pfad: string) => string | undefined): Figur['videos']
 // in der Mitte — ein Wechsel springt nicht.
 const CODY: Figur = {
   name: 'cody',
-  posen: { idle: codyIdle, denken: codyDenken, lesen: codyLesen, erklaeren: codyErklaeren },
+  posen: {
+    idle: codyIdle,
+    denken: codyDenken,
+    lesen: codyLesen,
+    erklaeren: codyErklaeren,
+    sitzen: codySitzen,
+  },
   werkbank: codyWerkbank,
   reden: codyReden,
   videos: videosVon((d) => VIDEO_DATEI[`./assets/video/cody-${d}`]),
@@ -133,7 +142,8 @@ const CODY: Figur = {
 /** Eigene Figur einer Installation statt Cody: liegt in static/figur
  *  (gitignored), der Server gibt die Dateiliste beim Start mit. Gleiche
  *  Leinwand wie Cody. Pflicht: idle, denken, lesen, erklaeren, werkbank (.webp).
- *  Freiwillig: reden.webp (im Gespräch am Schreibtisch, seitlich nach rechts) und
+ *  Freiwillig: reden.webp (im Gespräch am Schreibtisch, seitlich nach rechts),
+ *  sitzen.webp (gelangweilt im Bürostuhl, 960 × 1000) und
  *  video/<pose>.webm|mp4 + video/<pose>-maske.webp. Monitor, Tastatur,
  *  unscharfer Raum und die Werkbank-Masken gehören zum Raum und sind für alle Figuren
  *  gleich (frühere Dateien werkbank-geraete, raum-unscharf, form-/schein-werkbank
@@ -152,7 +162,7 @@ function eigeneFigur(dateien: string[]): Figur | null {
   if (!idle || !denken || !lesen || !erklaeren || !werkbank) return null
   return {
     name: 'eigen',
-    posen: { idle, denken, lesen, erklaeren },
+    posen: { idle, denken, lesen, erklaeren, sitzen: bild('sitzen') },
     werkbank,
     reden: bild('reden'),
     videos: videosVon((d) => url(`video/${d}`)),
@@ -245,6 +255,9 @@ const POSE_MIN_MS = 1200
 /** Kurzes Nachdenken zwischen zwei Werkzeugen holt die Figur nicht jedes Mal
  *  von der Werkbank zurück: erst wenn es so lange dauert, geht sie zum Podest. */
 const WERKBANK_HALTEN_MS = 2500
+/** So lange muss die Chefin nichts zu tun haben, bevor sie sich einen Stuhl holt:
+ *  zwischen zwei ihrer Züge bleibt sie stehen, statt kurz zu sitzen. */
+const LANGEWEILE_MS = 4000
 
 // Sparmodus "aus": keine Videos, nur Standbilder mit Überblendung.
 const VIDEO_AN = fxLevel() !== 'off'
@@ -255,7 +268,9 @@ function useRuhigePose(ziel: Pose): Pose {
   useEffect(() => {
     if (ziel === pose) return
     const halten = pose === 'arbeiten' && ziel === 'denken' ? WERKBANK_HALTEN_MS : 0
-    const warten = Math.max(halten, POSE_MIN_MS - (Date.now() - seit.current))
+    // Aus dem Stuhl steht sie sofort auf, sobald sie etwas tut.
+    const warten =
+      pose === 'sitzen' ? 0 : Math.max(halten, POSE_MIN_MS - (Date.now() - seit.current))
     const id = setTimeout(() => {
       seit.current = Date.now()
       setPose(ziel)
@@ -263,6 +278,20 @@ function useRuhigePose(ziel: Pose): Pose {
     return () => clearTimeout(id)
   }, [ziel, pose])
   return pose
+}
+
+/** Auf wessen Stuhl die Chefin sitzt: `frei` = der Mitarbeiter, der gerade an der
+ *  Werkbank steht, solange sie nichts zu tun hat (sonst null). Sie setzt sich erst
+ *  nach LANGEWEILE_MS und steht sofort auf, wenn sich das ändert. */
+function useLangeweile(frei: string | null): string | null {
+  const [stuhl, setStuhl] = useState<string | null>(null)
+  if (stuhl && stuhl !== frei) setStuhl(null)
+  useEffect(() => {
+    if (!frei) return
+    const id = setTimeout(() => setStuhl(frei), LANGEWEILE_MS)
+    return () => clearTimeout(id)
+  }, [frei])
+  return stuhl
 }
 
 const TITEL: Record<Ansicht, string> = {
@@ -420,10 +449,23 @@ export function RaumView() {
   // Arbeitet die Chefin für die Firma (verteilt, prüft), während du nichts fragst,
   // folgt die Figur ihrem Zug. An die Werkbank geht sie dafür nicht.
   const chefZug = useChefZug()
-  const pose = useRuhigePose(zielPose(lage, chefZug?.lage ?? null))
+  // Hat sie nichts zu tun, während ein Mitarbeiter an der Werkbank arbeitet, holt sie
+  // sich seinen Stuhl ans Podest und dreht sich darin (Figuren ohne Sitzpose stehen).
+  const [langeweileStuhl, setLangeweileStuhl] = useState<string | null>(null)
+  const stuhl = useLangeweile(langeweileStuhl)
+  const pose = useRuhigePose(zielPose(lage, chefZug?.lage ?? null, !!stuhl))
   const amWerk = pose === 'arbeiten'
   // Team-Modus: das Büro hinten im Raum; null, wenn der Modus aus ist.
   const buero = useBuero(!amWerk)
+  // (Wer an der Werkbank steht, weiß erst das Büro, das wiederum die Pose braucht:
+  // darum über einen Zustand, angepasst beim Zeichnen.)
+  const langweilig =
+    figur.posen.sitzen && !buero?.besuch && zielPose(lage, chefZug?.lage ?? null) === 'idle'
+      ? (buero?.werk ?? null)
+      : null
+  if (langweilig !== langeweileStuhl) setLangeweileStuhl(langweilig)
+  // Am Tisch fehlt der Stuhl, solange sie darauf sitzt.
+  const stuhlWeg = pose === 'sitzen' ? stuhl : null
   // Ist die Chefin am Tisch, ist das Podest leer. Beim Abschied blendet sie dort
   // schon wieder ein, während sie am Tisch verschwindet.
   const besucht = !!buero?.besuch && buero.besuch.phase !== 'zurueck'
@@ -733,6 +775,7 @@ export function RaumView() {
                 <>
                   <Buero
                     stand={buero}
+                    stuhlWeg={stuhlWeg}
                     weich={weichAusser('firma')}
                     onOeffnen={(slug) => {
                       usePersonal.getState().zeigeAkte(slug)
@@ -768,15 +811,18 @@ export function RaumView() {
                   height: `${FIGUR.h}%`,
                 }}
               >
-                {POSEN.map((p) => (
-                  <img
-                    key={p}
-                    src={figur.posen[p]}
-                    alt=""
-                    draggable={false}
-                    className={p === pose ? s.poseAn : ''}
-                  />
-                ))}
+                {POSEN.map(
+                  (p) =>
+                    figur.posen[p] && (
+                      <img
+                        key={p}
+                        src={figur.posen[p]}
+                        alt=""
+                        draggable={false}
+                        className={`${p === pose ? s.poseAn : ''} ${p === 'sitzen' ? s.poseBreit : ''}`}
+                      />
+                    ),
+                )}
               </div>
               {VIDEO_AN &&
                 POSEN.map((p) => {

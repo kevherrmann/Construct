@@ -27,6 +27,8 @@ const VIDEO_AN = fxLevel() !== 'off'
 /** Wie viele am Tisch sitzen (Reihenfolge im Bild: links, rechts). */
 type Belegung = 'beide' | 'links' | 'rechts' | 'leer'
 const BELEGUNGEN: Belegung[] = ['beide', 'links', 'rechts', 'leer']
+/** Tischbilder, in denen ein leerer Stuhl fehlt: den hat sich die Chefin geholt. */
+const OHNE_STUHL = ['rechts-ohne-links', 'links-ohne-rechts', 'leer-ohne-links', 'leer-ohne-rechts']
 const anwesend = (b: Belegung) => (b === 'beide' ? 2 : b === 'leer' ? 0 : 1)
 /** Wer am Tisch sitzt, tippt leise vor sich hin: je Belegung eine kurze Schleife,
  *  deckungsgleich mit dem Tischbild (Maske = nur wer sich bewegt). */
@@ -51,11 +53,14 @@ function rahmen(p: Platz) {
 /** Die Schreibtische samt Menschen, die Randplätze und die Wege zur Werkbank. */
 export function Buero({
   stand,
+  stuhlWeg,
   weich,
   onOeffnen,
   onFokus,
 }: {
   stand: BueroStand
+  /** Auf wessen Stuhl die Chefin gerade am Podest sitzt: an seinem Tisch fehlt er. */
+  stuhlWeg?: string | null
   weich?: boolean
   onOeffnen: (slug: string) => void
   /** Maus oder Tastatur auf einem Platz: das Büro wird scharf gestellt. */
@@ -74,6 +79,7 @@ export function Buero({
           kennung={id}
           links={an(id, 'links')}
           rechts={an(id, 'rechts')}
+          stuhlWeg={stuhlWeg}
           stand={stand}
           onOeffnen={onOeffnen}
           onFokus={onFokus}
@@ -111,6 +117,7 @@ function DoppelTisch({
   kennung,
   links,
   rechts,
+  stuhlWeg,
   stand,
   onOeffnen,
   onFokus,
@@ -119,6 +126,7 @@ function DoppelTisch({
   kennung: PaarId
   links?: Sitz
   rechts?: Sitz
+  stuhlWeg?: string | null
   stand: BueroStand
   onOeffnen: (slug: string) => void
   onFokus: (an: boolean) => void
@@ -135,6 +143,16 @@ function DoppelTisch({
     const id = setTimeout(() => setGezeigt(soll), wartet)
     return () => clearTimeout(id)
   }, [soll, gezeigt])
+  // Fehlt ein Stuhl, zeigt der Tisch das Bild ohne ihn (nur solange dort niemand sitzt).
+  const leererPlatz = (seite: 'links' | 'rechts') =>
+    gezeigt === 'leer' || gezeigt === (seite === 'links' ? 'rechts' : 'links')
+  const ohne =
+    links && links.agent.slug === stuhlWeg && leererPlatz('links')
+      ? 'links'
+      : rechts && rechts.agent.slug === stuhlWeg && leererPlatz('rechts')
+        ? 'rechts'
+        : null
+  const bild = ohne ? `${gezeigt}-ohne-${ohne}` : gezeigt
 
   const knopf = (x: Sitz | undefined, seite: 'links' | 'rechts') =>
     x && (
@@ -171,13 +189,13 @@ function DoppelTisch({
     )
   return (
     <div className={s.tisch} style={rahmen(platz)}>
-      {BELEGUNGEN.map((b) => (
+      {[...BELEGUNGEN, ...OHNE_STUHL].map((b) => (
         <img
           key={b}
           src={`${SPRITES}/doppel-${kennung}-${b}.webp`}
           alt=""
           draggable={false}
-          className={`${s.zustand} ${b === gezeigt ? s.zustandAn : ''}`}
+          className={`${s.zustand} ${b === bild ? s.zustandAn : ''}`}
         />
       ))}
       {VIDEO_AN &&
