@@ -56,7 +56,7 @@ def test_open_url_von_loopback(monkeypatch):
     import app as appmod
     geoeffnet = []
     monkeypatch.setattr(webbrowser, "open", lambda u: geoeffnet.append(u) or True)
-    c = TestClient(appmod.app, client=("127.0.0.1", 50000))
+    c = TestClient(appmod.app, client=("127.0.0.1", 50000), base_url="http://127.0.0.1")
     assert c.post("/api/open-url", json={"url": "https://example.com"}).json() == {"ok": True}
     assert c.post("/api/open-url", json={"url": "file:///etc/passwd"}).status_code == 400
     fremd = c.post("/api/open-url", json={"url": "https://x.example"},
@@ -74,9 +74,9 @@ def test_beenden_nur_von_hier(monkeypatch):
     # Die Route ruft beenden() zeitverzögert: hier nie den echten Prozess treffen.
     monkeypatch.setattr(system, "beenden", lambda: None)
     monkeypatch.setattr(core, "_beim_beenden", [lambda: gerufen.append(1)])
-    fremd = TestClient(appmod.app)               # "testclient", kein Loopback
+    fremd = TestClient(appmod.app, base_url="http://127.0.0.1")             # "testclient", kein Loopback
     assert fremd.post("/api/shutdown").status_code == 403
-    c = TestClient(appmod.app, client=("127.0.0.1", 50000))
+    c = TestClient(appmod.app, client=("127.0.0.1", 50000), base_url="http://127.0.0.1")
     assert c.post("/api/shutdown", headers={"origin": "https://boese.example"}).status_code == 403
     assert c.post("/api/shutdown").json() == {"ok": True}
     core.beenden()                               # was die Route verzögert aufruft

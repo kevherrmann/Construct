@@ -14,7 +14,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from server import bonsai as bonsaimod
@@ -26,7 +26,7 @@ from server import runs as runsmod
 from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
-                         auth_ok, claude_bin, claude_env, fremde_herkunft, load_persona,
+                         auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host, load_persona,
                          remember_server)
 from server.scheduler import scheduler_loop
 from server.team import engine
@@ -69,6 +69,12 @@ async def basic_auth(request: Request, call_next):
     # Der Firmen-Bus ist der Rückweg der Mitarbeiter-Prozesse an den Server. Er weist
     # sich mit einem Einmal-Token je Zug aus (server/team/bus.py) und hat kein
     # Passwort: das stünde sonst in der Prozessliste jedes Rechners, auf dem er läuft.
+    if fremder_host(request.headers):
+        return PlainTextResponse(cfg.L(
+            "Ohne Passwort antwortet CONSTRUCT nur unter localhost. Öffne http://127.0.0.1:…, "
+            "setze MATRIX_PASS oder trag diese Adresse in CONSTRUCT_ORIGINS ein.",
+            "Without a password CONSTRUCT answers only on localhost. Open http://127.0.0.1:…, "
+            "set MATRIX_PASS, or add this address to CONSTRUCT_ORIGINS."), status_code=403)
     if request.url.path != "/api/team/bus" and not auth_ok(request.headers.get("Authorization", "")):
         return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Cody"'})
     # Auch mit Passwort: der Browser hängt gespeicherte Zugangsdaten an fremde Anfragen an.

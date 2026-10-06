@@ -118,13 +118,45 @@ def fremde_herkunft(method: str, headers) -> bool:
     if seite in ("same-origin", "none"):
         return False
     origin = (headers.get("origin") or "").strip().rstrip("/").lower()
-    if not origin:
-        return seite in ("cross-site", "same-site")
-    if origin in _ORIGINS:
+    if origin in _ORIGINS and origin:
         return False
+    # Sagt der Browser selbst „fremd“, zählen Origin und Host nicht mehr: beide
+    # ließen sich mit einem umgeschriebenen X-Forwarded-Host passend machen.
+    if not origin or seite == "cross-site":
+        return seite in ("cross-site", "same-site")
     netloc = origin.split("://", 1)[-1]
     eigene = {(headers.get(h) or "").split(",")[0].strip().lower() for h in ("host", "x-forwarded-host")}
     return netloc not in eigene - {""}
+
+
+_LOOPBACK = {"127.0.0.1", "localhost", "[::1]"}
+
+
+def _hostname(host: str) -> str:
+    """"[::1]:8765" → "[::1]", "localhost:8765" → "localhost"."""
+    host = host.strip().lower()
+    return host[:host.index("]") + 1] if host.startswith("[") and "]" in host else host.split(":")[0]
+
+
+def fremder_host(headers) -> bool:
+    """DNS-Rebinding: Eine fremde Seite lässt ihren Namen auf 127.0.0.1 zeigen und
+    ist für den Browser dann „gleiche Herkunft“ — mit Lese- und Schreibzugriff auf
+    die ganze API. Ohne Passwort gilt deshalb nur, wer den Server unter einem
+    lokalen Namen anspricht, unter MATRIX_HOST oder unter CONSTRUCT_ORIGINS. Mit
+    MATRIX_PASS schützt das Passwort, das kennt die fremde Seite nicht."""
+    if AUTH_PASS:
+        return False
+    host = (headers.get("host") or "").strip().lower()
+    if not host:
+        return False                      # HTTP/1.0 ohne Host: kein Browser
+    name = _hostname(host)
+    if name in _LOOPBACK or name.endswith(".localhost"):
+        return False
+    gebunden = os.environ.get("MATRIX_HOST", "").strip().lower()
+    if gebunden and gebunden not in ("0.0.0.0", "::") and name in (gebunden, f"[{gebunden}]"):
+        return False
+    erlaubt = {o.split("://", 1)[-1] for o in _ORIGINS}
+    return host not in erlaubt and name not in {_hostname(o) for o in erlaubt}
 
 
 def persona_text() -> str:

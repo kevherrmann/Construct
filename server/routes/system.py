@@ -20,7 +20,7 @@ from server import stt as sttmod
 from server import tts as ttsmod
 from server import updates as updmod
 
-from server.core import (BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, auth_ok,
+from server.core import (BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, auth_ok, fremder_host,
                          beenden, claude_bin)
 from server.runs import RUNS
 
@@ -265,7 +265,7 @@ async def shutdown(req: Request):
 @router.websocket("/api/stt/live")
 async def stt_live(ws: WebSocket):
     """Spracheingabe live (Gemini 3.5 Transcribe Live) — Ablauf in server/stt.py."""
-    if not (_same_origin(ws) and auth_ok(ws.headers.get("authorization", ""))):
+    if fremder_host(ws.headers) or not (_same_origin(ws) and auth_ok(ws.headers.get("authorization", ""))):
         await ws.close(code=1008)
         return
     await ws.accept()

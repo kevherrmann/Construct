@@ -23,4 +23,5 @@ def _laeufe_im_tmp(tmp_path, monkeypatch):
 def client():
     from fastapi.testclient import TestClient
     import app as appmod
-    return TestClient(appmod.app)
+    # Ohne MATRIX_PASS antwortet der Server nur unter lokalen Namen (DNS-Rebinding).
+    return TestClient(appmod.app, base_url="http://127.0.0.1")

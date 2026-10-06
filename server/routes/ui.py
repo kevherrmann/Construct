@@ -76,7 +76,9 @@ def index():
 @router.get("/next")
 @router.get("/next/{rest:path}")
 def next_redirect(rest: str = ""):
-    return RedirectResponse("/" + rest, status_code=301)
+    # Ohne lstrip leitete /next//evil.com nach //evil.com um (eine fremde Seite).
+    # Browser lesen "/\\" wie "//", deshalb auch Backslashes weg.
+    return RedirectResponse("/" + rest.lstrip("/\\"), status_code=301)
 
 
 # ---------- Oberfläche: Direktlinks ----------

@@ -267,6 +267,7 @@ when it writes it.
 |---|---|
 | `MATRIX_HOST`, `MATRIX_PORT` | Bind address (default `127.0.0.1:8765`) |
 | `MATRIX_USER`, `MATRIX_PASS` | Enable HTTP Basic Auth when `MATRIX_PASS` is set (default user `Cody`) |
+| `CONSTRUCT_ORIGINS` | Extra addresses the server answers on, comma-separated (e.g. `https://cody.example.org`). Without `MATRIX_PASS` it only answers on `localhost`/`127.0.0.1`/`[::1]` and `MATRIX_HOST` |
 | `CODY_WORKSPACE` | Root folder for the folder picker, skills and file access (default `~/projects` or `~/Projekte`, then `$HOME`) |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude token (the web-login token takes precedence) |
 | `CONSTRUCT_NO_UPDATE` | Skip the CONSTRUCT self-update |

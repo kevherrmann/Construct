@@ -66,7 +66,7 @@ def test_spracheingabe_ohne_key_meldet_sich_verstaendlich(client, monkeypatch):
         raise GeminiError("Kein Gemini-Key hinterlegt")
     monkeypatch.setattr(sttmod, "api_key", kein_key)
     with client.websocket_connect("/api/stt/live",
-                                  headers={"origin": "http://localhost:5173"}) as ws:
+                                  headers={"origin": "http://localhost:5173", "host": "127.0.0.1:8765"}) as ws:
         assert ws.receive_json() == {"error": "Kein Gemini-Key hinterlegt"}
 
 
