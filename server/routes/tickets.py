@@ -64,7 +64,7 @@ async def ticket_waehlen(sid: str, req: Request):
     try:
         return tk.waehlen(sid, int((await _body(req)).get("nr")))
     except (KeyError, TypeError, ValueError):
-        return _fehler("kein solches Ticket", 404)
+        return _fehler(cfg.L("kein solches Ticket", "no such ticket"), 404)
 
 
 @router.post("/api/tickets/{sid}/{nr:int}")
@@ -76,7 +76,7 @@ async def ticket_aendern(sid: str, nr: int, req: Request):
     try:
         return tk.aendern(sid, nr, b.get("titel"), b.get("status"))
     except KeyError:
-        return _fehler("kein solches Ticket", 404)
+        return _fehler(cfg.L("kein solches Ticket", "no such ticket"), 404)
 
 
 @router.delete("/api/tickets/{sid}/{nr:int}")
@@ -86,7 +86,7 @@ def ticket_loeschen(sid: str, nr: int):
     try:
         return tk.loeschen(sid, nr)
     except KeyError:
-        return _fehler("kein solches Ticket", 404)
+        return _fehler(cfg.L("kein solches Ticket", "no such ticket"), 404)
 
 
 @router.post("/api/tickets/{sid}/{nr:int}/zusammenfuehren")
@@ -97,7 +97,7 @@ async def ticket_zusammenfuehren(sid: str, nr: int, req: Request):
     try:
         return tk.zusammenfuehren(sid, nr, int((await _body(req)).get("in")))
     except (KeyError, TypeError, ValueError):
-        return _fehler("kein solches Ticket", 404)
+        return _fehler(cfg.L("kein solches Ticket", "no such ticket"), 404)
 
 
 @router.post("/api/tickets/{sid}/umhaengen")
@@ -110,7 +110,7 @@ async def ticket_umhaengen(sid: str, req: Request):
     try:
         return tk.umhaengen(sid, uuids, int(b.get("nr")))
     except (KeyError, TypeError, ValueError):
-        return _fehler("kein solches Ticket", 404)
+        return _fehler(cfg.L("kein solches Ticket", "no such ticket"), 404)
 
 
 @router.post("/api/tickets/{sid}/ab-hier")
@@ -122,4 +122,4 @@ async def ticket_ab_hier(sid: str, req: Request):
     try:
         return tk.ab_hier(sid, str(b.get("uuid") or ""), str(b.get("titel") or "").strip())
     except KeyError:
-        return _fehler("Nachricht gehört zu keinem Ticket", 404)
+        return _fehler(cfg.L("Nachricht gehört zu keinem Ticket", "message belongs to no ticket"), 404)

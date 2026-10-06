@@ -413,3 +413,11 @@ def test_deutsch_bleibt_vorgabe(firma):
     xs = {a["slug"]: a for a in ag.list_agents(WS)}
     assert xs["luna"]["title"] == "Backend und Technik"
     assert "Hausstil" in ag.style_read()
+
+
+def test_rechner_und_anrede_sprechen_englisch(firma):
+    from server.team import rechner
+    (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
+    with pytest.raises(rechner.CalcError, match="Division by zero"):
+        rechner.calculate("1/0")
+    assert ag.anrede("Kevin's job") == "the user's job"

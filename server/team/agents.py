@@ -94,7 +94,7 @@ def anrede(text: str, roh=()) -> str:
     wie sie sind. Sonst schickte ein Nutzer Alex, dessen Auftrag „Kevin Costner“
     erwähnt, der Firma „Alex Costner“.
     """
-    name = cfg.user_name() or "Nutzer"
+    name = cfg.user_name() or cfg.L("Nutzer", "the user")
     if name == "Kevin":
         return text
     roh = sorted({r for r in roh if r and "Kevin" in r}, key=len, reverse=True)
