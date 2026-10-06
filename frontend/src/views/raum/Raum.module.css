@@ -589,6 +589,8 @@
   display: none;
 }
 .blaseZieht {
+  /* ohne den weichen Seitenwechsel (transition: left), sonst hinkt sie der Maus nach */
+  transition: none;
   animation: none;
   user-select: none;
   box-shadow: 0 24px 60px rgba(30, 40, 35, 0.26);
