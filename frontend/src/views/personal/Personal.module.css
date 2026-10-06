@@ -371,6 +371,11 @@
 .haken input {
   accent-color: var(--green);
 }
+/* Werkzeug, das der Server nicht (mehr) kennt: zum Abwählen da, sichtbar anders. */
+.haken label.fremd {
+  color: var(--warn, #ffd24a);
+  text-decoration: line-through;
+}
 .aktionen {
   display: flex;
   align-items: center;

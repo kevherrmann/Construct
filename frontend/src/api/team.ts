@@ -21,6 +21,8 @@ export interface Agent {
   cwd: string
   allowed_tools: string[]
   can_delegate: boolean
+  /** Prüfer: baut nicht selbst, prüft, was andere gebaut haben. */
+  prueft?: boolean
   delegates_to: string[]
   /** r,g,b — fließt als --accent-rgb in alles, was der Person gehört. */
   color: string

@@ -17,6 +17,7 @@ interface Entwurf {
   cwd: string
   allowed_tools: string[]
   can_delegate: boolean
+  prueft: boolean
   stille_min: string
   soul: string
   memory: string
@@ -33,6 +34,7 @@ const ausAkte = (a: Agent): Entwurf => ({
   cwd: a.cwd,
   allowed_tools: a.allowed_tools,
   can_delegate: a.can_delegate,
+  prueft: !!a.prueft,
   stille_min: String(Math.round(a.max_stille_s / 60)),
   soul: a.soul,
   memory: a.memory,
@@ -83,6 +85,7 @@ function Formular({ a }: { a: Agent }) {
     if (d.allowed_tools.join() !== alt.allowed_tools.join())
       neu.allowed_tools = d.allowed_tools.join(', ')
     if (d.can_delegate !== alt.can_delegate) neu.can_delegate = d.can_delegate
+    if (d.prueft !== alt.prueft) neu.prueft = d.prueft
     if (d.stille_min !== alt.stille_min)
       neu.max_stille_s = Math.round((Number(d.stille_min) || 30) * 60)
     if (d.soul !== alt.soul) neu.soul = d.soul
@@ -237,8 +240,19 @@ function Formular({ a }: { a: Agent }) {
         </Zeile>
         <Zeile label={t('WERKZEUGE')}>
           <span className={s.haken}>
-            {WERKZEUGE.map((w) => (
-              <label key={w}>
+            {[
+              ...WERKZEUGE,
+              // Was die Akte hat, die Liste aber nicht kennt (ältere Akten): sichtbar,
+              // damit man es abwählen kann, statt dass es still mitgespeichert wird.
+              ...e.allowed_tools
+                .filter((w) => !WERKZEUGE.some((x) => x.w === w))
+                .map((w) => ({ w, d: '', fremd: true })),
+            ].map(({ w, d, ...x }) => (
+              <label
+                key={w}
+                title={'fremd' in x ? t('unbekanntes Werkzeug') : t(d)}
+                className={'fremd' in x ? s.fremd : undefined}
+              >
                 <input
                   type="checkbox"
                   checked={e.allowed_tools.includes(w)}
@@ -273,6 +287,23 @@ function Formular({ a }: { a: Agent }) {
             </label>
           </span>
         </Zeile>
+        <Zeile label={t('PRÜFER')}>
+          <span className={s.haken}>
+            <label>
+              <input
+                type="checkbox"
+                checked={e.prueft}
+                onChange={(x) => set('prueft', x.target.checked)}
+              />{' '}
+              {t('baut nicht selbst, prüft, was andere gebaut haben')}
+            </label>
+          </span>
+        </Zeile>
+        <div className={s.hinweis}>
+          {t(
+            'Prüfer stehen in der Belegschaft als solche: wer etwas gebaut hat, gibt es ihnen zum Gegenlesen, statt sich selbst zu prüfen.',
+          )}
+        </div>
         <Zeile label={t('HÄNGT, WENN')}>
           <input
             style={{ maxWidth: 90 }}

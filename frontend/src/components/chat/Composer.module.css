@@ -273,6 +273,15 @@
   opacity: 0.75;
   font-weight: 300;
   letter-spacing: 1px;
+  /* einzeilig: auf 320 px bräche „Sprich mit … …“ sonst um (Composer.tsx kürzt
+     lange Namen, text-overflow wirkt am Platzhalter einer textarea nicht) */
+  white-space: nowrap;
+  overflow: hidden;
+}
+@media (max-width: 400px) {
+  .imRaum .input::placeholder {
+    letter-spacing: 0;
+  }
 }
 .imRaum .attach,
 .imRaum .send,

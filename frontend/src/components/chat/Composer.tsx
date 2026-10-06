@@ -1,7 +1,7 @@
 import { canDictate, startDictation, type Dictation } from '@/lib/dictation'
 import { tipp } from '@/lib/klang'
 import { trServer } from '@/lib/serverText'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { useFolders } from '@/api/chat'
@@ -61,6 +61,29 @@ export function Composer({
   const conv = useChat((st) => st.active())
   const busy = !!conv?.busy
   const assistant = useSettings((st) => st.boot.assistant)
+  // Im Raum: „Sprich mit Chanti …“, ist dafür kein Platz (320 px, langer Name), die
+  // kurze Fassung. Gemessen, weil text-overflow am Platzhalter einer textarea nicht wirkt.
+  const sprich = t('Sprich mit {name} …', { name: assistant })
+  const [sprichPasst, setSprichPasst] = useState(true)
+  useLayoutEffect(() => {
+    const el = input.current
+    if (!raum || !el) return
+    const messen = () => {
+      const ctx = document.createElement('canvas').getContext('2d')
+      if (!ctx) return
+      const ph = getComputedStyle(el, '::placeholder')
+      const st = getComputedStyle(el)
+      ctx.font = `${ph.fontWeight} ${ph.fontSize} ${ph.fontFamily}`
+      const sperr = (parseFloat(ph.letterSpacing) || 0) * sprich.length
+      const platz = el.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight)
+      setSprichPasst(ctx.measureText(sprich).width + sperr <= platz)
+    }
+    messen()
+    void document.fonts?.ready.then(messen) // die Schrift lädt evtl. erst nach
+    const ro = new ResizeObserver(messen)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [raum, sprich])
 
   // Höhe mitwachsen lassen — höchstens einmal pro Bild. Die Folge "height=auto
   // schreiben → scrollHeight lesen" erzwingt ein Neu-Layout der ganzen Seite;
@@ -302,7 +325,9 @@ export function Composer({
           readOnly={rec.state !== 'idle'}
           placeholder={
             raum
-              ? t('Sprich mit {name} …', { name: assistant })
+              ? sprichPasst
+                ? sprich
+                : t('Sag etwas …')
               : schmal
                 ? t('> Nachricht …')
                 : t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')

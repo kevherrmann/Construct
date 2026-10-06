@@ -23,19 +23,24 @@ export const MODI: { v: Berechtigung; l: string }[] = [
   },
 ]
 
-export const WERKZEUGE = [
-  'Read',
-  'Write',
-  'Edit',
-  'Bash',
-  'Grep',
-  'Glob',
-  'WebSearch',
-  'WebFetch',
-  'NotebookEdit',
-  'Task',
-  'TodoWrite',
-  'Skill',
+/** Werkzeuge, die eine Akte vergeben darf (wie KNOWN_TOOLS in server/team/agents.py),
+ *  mit kurzer Erklärung für den Tooltip. TodoWrite gibt es in der CLI nicht mehr. */
+export const WERKZEUGE: { w: string; d: string }[] = [
+  { w: 'Read', d: 'Dateien lesen' },
+  { w: 'Write', d: 'Dateien anlegen und überschreiben' },
+  { w: 'Edit', d: 'Dateien gezielt ändern' },
+  { w: 'Bash', d: 'Befehle ausführen (bauen, testen, Screenshots)' },
+  { w: 'Grep', d: 'in Dateien suchen' },
+  { w: 'Glob', d: 'Dateien nach Muster finden' },
+  { w: 'WebSearch', d: 'im Netz suchen' },
+  { w: 'WebFetch', d: 'Webseiten abrufen' },
+  { w: 'NotebookEdit', d: 'Jupyter-Notebooks ändern' },
+  { w: 'Task', d: 'Unteragenten starten' },
+  { w: 'Skill', d: 'Skills benutzen' },
+  { w: 'TaskCreate', d: 'Aufgabenliste: Aufgabe anlegen' },
+  { w: 'TaskUpdate', d: 'Aufgabenliste: Aufgabe abhaken oder ändern' },
+  { w: 'TaskList', d: 'Aufgabenliste: alle zeigen' },
+  { w: 'TaskGet', d: 'Aufgabenliste: eine Aufgabe lesen' },
 ]
 
 /** Wie die Bremsen der Firma heißen, wenn sie einen Auftrag anhalten (guards.NAMEN). */
