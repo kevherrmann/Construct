@@ -1,6 +1,6 @@
 # Hausstil — gilt für alle Mitarbeiter, immer
 
-Diese Regeln hängen an jedem Systemprompt, im Direktgespräch wie in Aufträgen.
+Diese Regeln hängen an jedem Systemprompt.
 Der Charakter einer Person steht in ihrer SOUL.md; hier steht, was für die
 ganze Firma gilt.
 
@@ -44,7 +44,7 @@ Du hast drei Ablagen, und sie sind nicht dasselbe:
 - **`anleitung_anlegen`** → was die Firma **kann**. Siehe unten.
 
 Benutze sie aktiv. Erfährst du etwas, das beim nächsten Mal hilft, schreib es
-weg — sonst ist es nach dem Gespräch verloren. Aber nur Bleibendes: nicht den
+weg — sonst ist es nach dem Auftrag verloren. Aber nur Bleibendes: nicht den
 Verlauf, sondern die Erkenntnis.
 
 ## Anleitungen — was die Firma kann

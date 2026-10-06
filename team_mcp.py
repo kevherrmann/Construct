@@ -16,7 +16,7 @@ Wer der Aufrufer ist, steht in der Umgebung — nicht in den Argumenten. Ein
 Agent kann sich damit nicht als jemand anderes ausgeben:
 
     FIRMA_AGENT    Slug des Mitarbeiters
-    FIRMA_AUFTRAG  Auftrag, in dem er gerade arbeitet (leer im Direktgespraech)
+    FIRMA_AUFTRAG  Auftrag, in dem er gerade arbeitet
     FIRMA_TOKEN    Einmal-Token dieses Laufs
     FIRMA_BASE     http://127.0.0.1:<port>
 """
@@ -104,17 +104,6 @@ WERKZEUGE = [
      "description": "Etwas in DEIN eigenes Gedaechtnis schreiben (MEMORY.md).",
      "inputSchema": {"type": "object", "properties": {
          "text": {"type": "string"}}, "required": ["text"]}},
-    {"name": "auftrag_anlegen",
-     "description": ("Nur im Direktgespraech: aus dem, worueber ihr gerade redet, einen "
-                     "Auftrag fuer die Firma machen. Die Geschaeftsfuehrung verteilt ihn "
-                     "dann. Nimm das, wenn Kevin sagt 'kuemmer dich drum' oder "
-                     "'mach das' und es echte Arbeit ist."),
-     "inputSchema": {"type": "object", "properties": {
-         "titel": {"type": "string"},
-         "brief": {"type": "string", "description": "Die Aufgabe so beschrieben, dass "
-                                                    "jemand ohne euren Gespraechsverlauf "
-                                                    "sofort loslegen kann"}},
-         "required": ["titel", "brief"]}},
     {"name": "user_merken",
      "description": ("Etwas Dauerhaftes ueber Kevin in die gemeinsame USER.md schreiben — "
                      "was du hier eintraegst, wissen alle Kollegen. Nur anhaengen, "

@@ -147,17 +147,6 @@ export interface TeamStand {
   pausiert: boolean
 }
 
-export interface AgentGespraech {
-  session_id: string
-  messages: { role: 'user' | 'assistant'; text: string; ts?: string; uuid?: string }[]
-  umfang: { bytes: number; msgs: number; max_bytes: number; max_msgs: number }
-  memory: string
-  agent: Pick<
-    Agent,
-    'slug' | 'name' | 'title' | 'color' | 'model' | 'effort' | 'cwd' | 'permission_mode' | 'avatar'
-  >
-}
-
 /** Läuft der Team-Modus? Ein Schalter für Ansichten, Leiste und Befehle. */
 export const useTeamAn = () => useSettings((st) => st.settings.team?.aktiv === true)
 
@@ -181,14 +170,6 @@ export const useAgent = (slug: string | null) =>
     refetchOnMount: 'always',
   })
 
-export const useAgentGespraech = (slug: string | null) =>
-  useQuery({
-    queryKey: ['team', 'agent', slug, 'chat'],
-    queryFn: () => apiGet<AgentGespraech>(`${P}/agent/${encodeURIComponent(slug!)}/chat`),
-    enabled: !!slug,
-    refetchOnMount: 'always',
-  })
-
 export function useAgentActions() {
   const qc = useQueryClient()
   const neu = () => void qc.invalidateQueries({ queryKey: ['team'] })
@@ -204,11 +185,6 @@ export function useAgentActions() {
     entlassen: useMutation({
       mutationFn: (slug: string) =>
         apiDelete<{ ok: boolean }>(`${P}/agent/${encodeURIComponent(slug)}`),
-      onSuccess: neu,
-    }),
-    gespraechLeeren: useMutation({
-      mutationFn: (slug: string) =>
-        apiDelete<{ ok: boolean }>(`${P}/agent/${encodeURIComponent(slug)}/chat`),
       onSuccess: neu,
     }),
   }

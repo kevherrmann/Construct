@@ -242,7 +242,7 @@ export function Composer({
           ))}
         </div>
       )}
-      {!raum && !conv?.agent && <Pickers open={picker} setOpen={setPicker} />}
+      {!raum && <Pickers open={picker} setOpen={setPicker} />}
       {!!pending.length && (
         <div className={s.thumbs}>
           {pending.map((p, i) => (

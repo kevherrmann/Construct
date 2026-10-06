@@ -1,4 +1,4 @@
-"""API des Team-Modus: Belegschaft, Aufträge, Direktgespräch.
+"""API des Team-Modus: Belegschaft und Aufträge.
 
 Alles unter /api/team/… und nur, wenn der Team-Modus an ist (⚙ Einstellungen).
 Die Arbeit selbst steht in server/team/ (engine.py: Dispatcher und Züge,
@@ -13,14 +13,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from server import config as cfg
-from server.core import PROJECTS_DIR, WORKSPACE, claude_bin, claude_env, sse
-from server.runs import RUNS, SSE_HEADERS, build_prompt, stdin_message
-from server.sessions import SID_RE, _parse_transcript_lines
+from server.core import WORKSPACE, claude_env, sse
+from server.runs import RUNS, SSE_HEADERS, stdin_message
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import bus, engine
-from server.team.gedaechtnis import (CHAT_MAX_BYTES, CHAT_MAX_MSGS, chat_session_id,
-                                      chat_state_file, chat_umfang, verdichten)
 
 
 async def team_an():
@@ -72,91 +69,6 @@ async def agent_new(req: Request):
 @router.delete("/api/team/agent/{slug}")
 def agent_fire(slug: str):
     return {"ok": ag.fire_agent(slug, WORKSPACE)}
-
-
-@router.post("/api/team/agent/{slug}/chat")
-async def agent_chat(slug: str, req: Request):
-    """Direktgespräch: Kevin redet mit EINEM Mitarbeiter."""
-    a = ag.load_agent(slug, WORKSPACE)
-    if not a:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
-    if a["status"] == "fired":
-        return JSONResponse({"error": f"{a['name']} arbeitet hier nicht mehr."},
-                            status_code=400)
-    if not claude_bin():
-        return JSONResponse({"error": "Claude Code ist nicht installiert."},
-                            status_code=400)
-    body = await req.json()
-    text = str(body.get("message") or "")[:200_000]
-    images = [str(x) for x in (body.get("images") or [])][:8]
-    if not text.strip() and not images:
-        return JSONResponse({"error": "leer"}, status_code=400)
-    verdichtet = await verdichten(a)
-    a = ag.load_agent(slug, WORKSPACE) or a      # MEMORY.md hat sich geaendert
-    run = engine.start_agent_chat(a, build_prompt(text, images), images)
-    run.verdichtet = verdichtet
-    return {"run_id": run.id, "session_id": run.session_id or "", "verdichtet": verdichtet,
-            "agent": {k: ag.anzeige(a)[k] for k in ("slug", "name", "title", "color", "model", "effort")}}
-
-
-@router.get("/api/team/agent/{slug}/chat")
-def agent_chat_history(slug: str):
-    """Bisheriger Verlauf des Direktgesprächs (aus dem Claude-Code-Transkript)."""
-    a = ag.load_agent(slug, WORKSPACE)
-    if not a:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
-    sid = chat_session_id(slug)
-    msgs = []
-    if sid and SID_RE.match(sid):
-        f = next(iter(PROJECTS_DIR.glob(f"*/{sid}.jsonl")), None)
-        if f is not None:
-            try:
-                msgs = _parse_transcript_lines(f.read_bytes())
-            except OSError:
-                # Nur Lesefehler abfangen. Ein Programmfehler beim Auswerten
-                # soll krachen und nicht als "Gespraech ist leer" durchgehen.
-                msgs = []
-    groesse, anzahl = chat_umfang(slug)
-    return {"session_id": sid, "messages": msgs,
-            "umfang": {"bytes": groesse, "msgs": anzahl,
-                       "max_bytes": CHAT_MAX_BYTES, "max_msgs": CHAT_MAX_MSGS},
-            "memory": a.get("memory", ""),
-            "agent": {k: ag.anzeige(a)[k] for k in ("slug", "name", "title", "color", "model",
-                                                    "effort", "cwd", "permission_mode", "avatar")}}
-
-
-@router.delete("/api/team/agent/{slug}/chat")
-async def agent_chat_reset(slug: str):
-    """Gespräch leeren: Sitzungszeiger weg, Transkript von der Platte.
-
-    Nur der Verlauf. MEMORY.md und USER.md bleiben, wo sie sind — was der
-    Mitarbeiter gelernt hat, ueberlebt das Leeren.
-
-    Bewusst async und ohne await zwischen Pruefung und Loeschen: Laeufe werden
-    ausnahmslos im Event-Loop gestartet, also kann dazwischen keiner dazukommen.
-    Als sync-Handler liefe das im Threadpool und genau das waere moeglich.
-    """
-    a = ag.load_agent(slug, WORKSPACE)
-    if not a:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
-    if any(r.agent_slug == slug and not r.done for r in RUNS.values()):
-        return JSONResponse({"error": "Der Mitarbeiter arbeitet gerade — "
-                                      "warte, bis er fertig ist."},
-                            status_code=409)
-    sid = chat_session_id(slug)
-    try:
-        chat_state_file(slug).unlink()
-    except OSError:
-        pass
-    # Das Transkript liegt in Claude Codes eigenem Projektordner. Ohne das
-    # Loeschen bliebe der ganze Verlauf lesbar und nur abgekoppelt.
-    if sid and SID_RE.match(sid):
-        for f in PROJECTS_DIR.glob(f"*/{sid}.jsonl"):
-            try:
-                f.unlink()
-            except OSError:
-                pass
-    return {"ok": True}
 
 
 @router.get("/api/team/auftraege")

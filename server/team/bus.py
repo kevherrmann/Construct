@@ -16,7 +16,7 @@ from server.team import auftraege as auf
 from server.team import engine
 from server.team import guards
 from server.team import kontrast, rechner
-from server.team.gedaechtnis import CHAT_WERKZEUGE, gedaechtnis_eindicken, mem_lock
+from server.team.gedaechtnis import gedaechtnis_eindicken, mem_lock
 
 USER_LOCK = asyncio.Lock()      # die geteilte USER.md hat genau EINEN Schreiber
 ANLEITUNG_LOCK = asyncio.Lock()  # dito fuer die gemeinsamen Anleitungen
@@ -53,14 +53,13 @@ async def _bus_aufruf(body: dict) -> dict:
     args = body.get("args") or {}
     print(f"[bus] {slug} -> {werkzeug}", flush=True)
     a = ag.load_agent(slug, WORKSPACE)
-    # Im Direktgespraech gibt es keinen Auftrag — dann sind nur die
-    # Gedaechtnis-Werkzeuge erlaubt (s. CHAT_WERKZEUGE).
+    # Jeder Zug gehoert zu einem Auftrag. Ist der nicht (mehr) da, nimmt der
+    # Bus nichts an.
     t = auf.laden(tid) if tid else None
     if not a:
         return _bus_fehler("Personalakte nicht auffindbar.")
-    if not t and werkzeug not in CHAT_WERKZEUGE:
-        return _bus_fehler(f"„{werkzeug}\u201c geht nur in einem Auftrag. "
-                           f"Hier redest du direkt mit Kevin.")
+    if not t:
+        return _bus_fehler("Zu diesem Zug gibt es keinen Auftrag. Beende deinen Zug.")
 
     run = next((r for r in list(RUNS.values()) if getattr(r, "bus_token", "") == token), None)
 
@@ -100,8 +99,8 @@ async def _bus_aufruf(body: dict) -> dict:
 
     # --- nur lesen ---
     if werkzeug == "rechnen":
-        # Ueberall erlaubt, auch ohne Auftrag: ein Rechenfehler ist in einem
-        # Gespraech genauso schaedlich wie in einem Auftrag.
+        # Fuer jeden erlaubt, nicht nur fuer die, die mit Zahlen arbeiten: ein
+        # Rechenfehler schadet in jeder Rolle.
         try:
             return {"text": rechner.calculate(str(args.get("ausdruck") or ""))}
         except rechner.CalcError as e:
@@ -128,23 +127,6 @@ async def _bus_aufruf(body: dict) -> dict:
         engine.feed(tid).emit({"type": "msg", **e})
         return {"text": "notiert (zaehlt nicht als Schritt)"}
 
-    if werkzeug == "auftrag_anlegen":
-        # Die Bruecke vom Gespraech in die Auftragsarbeit: Kevin sagt "kuemmer
-        # dich drum", und daraus wird ein richtiger Auftrag mit Verlauf und
-        # Bremsen — statt dass der Mitarbeiter im Gespraech drauflosarbeitet.
-        if t:
-            return _bus_fehler("Du bist schon in einem Auftrag. Liefere oder eskaliere.")
-        chef = ag.load_agent(ag.OWNER_SLUG, WORKSPACE) or a
-        neu = auf.neu(str(args.get("titel") or "")[:120] or "Auftrag",
-                     str(args.get("brief") or ""), owner=chef["slug"], cwd=chef["cwd"])
-        neu["status"] = "laeuft"
-        auf.speichern(neu)
-        engine.bus_einreihen(neu, "kevin", chef["slug"], "auftrag",
-                      f"{neu['brief']}\n\n(Aufgenommen von {a['name']} "
-                      f"aus dem Gespräch mit Kevin.)")
-        return {"text": f"Auftrag „{neu['titel']}\u201c angelegt (Nummer {neu['id']}). "
-                        f"{chef['name']} verteilt ihn. Sag Kevin Bescheid."}
-
     if werkzeug == "merken":
         d = ag.AGENTS_DIR / slug
         neu_txt = " ".join(str(args.get("text") or "").split())[:400]
@@ -160,10 +142,9 @@ async def _bus_aufruf(body: dict) -> dict:
                 return {"text": "steht schon in deinem Gedaechtnis"}
             if len(alt) + len(neu_txt) + 4 > ag.MAX_MEMORY:
                 # Voll: JETZT eindicken und danach anhaengen. Vorher stand hier
-                # nur eine Fehlermeldung, die auf eine Verdichtung im
-                # Direktgespraech verwies — die bei einem Mitarbeiter, mit dem
-                # Kevin selten redet, nie kam. Der Agent lernte ab da nichts
-                # mehr, dauerhaft und unbemerkt.
+                # nur eine Fehlermeldung, die auf eine Verdichtung verwies, die
+                # nie kam. Der Agent lernte ab da nichts mehr, dauerhaft und
+                # unbemerkt.
                 eingedickt = await gedaechtnis_eindicken(a)
                 if eingedickt:
                     alt = ag._read_capped(d / "MEMORY.md", 10 ** 9)

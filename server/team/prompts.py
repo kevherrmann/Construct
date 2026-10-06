@@ -22,8 +22,8 @@ def auftrags_prompt(a: dict, t: dict, nachricht: dict) -> str:
 
     Auftragslage und die eigentliche Nachricht aendern sich bei jedem Zug.
     Stuende das im Systemprompt, waere dessen Zwischenspeicher jedes Mal
-    wertlos — im Direktgespraech hat genau diese Trennung den zweiten Zug
-    achtmal billiger gemacht.
+    wertlos — gemessen hat genau diese Trennung den zweiten Zug achtmal
+    billiger gemacht.
 
     Der Zaehlerstand der Bremsen steht hier BEWUSST nicht drin: wer bei jedem
     Zug liest, wie viel er noch darf, plant danach statt zu arbeiten. Erst wenn
@@ -135,7 +135,7 @@ def ausstehend(slug: str, verlauf: list) -> list:
     return offen
 
 
-def agent_system_prompt(a: dict, workspace, auftrag: bool = False) -> str:
+def agent_system_prompt(a: dict, workspace) -> str:
     """SOUL + eigenes Gedächtnis + das gemeinsame Wissen über den Nutzer.
 
     Reihenfolge und Inhalt sind bewusst STABIL: alles hier ändert sich über ein
@@ -175,18 +175,16 @@ def agent_system_prompt(a: dict, workspace, auftrag: bool = False) -> str:
     nutzer = ag.user_read().strip()
     if nutzer:
         teile.append("## Was die Firma über den Nutzer weiß\n\n" + nutzer)
-    if auftrag:
-        # Nur in der Auftragsarbeit: die Bus-Regeln. Im Direktgespraech waeren
-        # sie falsch — dort gibt es keinen Bus und keine Bremsen.
-        proto = ag.protocol_read().strip()
-        if proto:
-            teile.append(proto)
-        # Was "gut aussehen" heisst. Auch fuer die, die nicht selbst gestalten:
-        # die Geschaeftsfuehrung muss den Schritt einplanen, der Pruefer muss
-        # ihn beurteilen koennen.
-        gest = ag.gestaltung_read().strip()
-        if gest:
-            teile.append(gest)
+    # Die Bus-Regeln der Auftragsarbeit.
+    proto = ag.protocol_read().strip()
+    if proto:
+        teile.append(proto)
+    # Was "gut aussehen" heisst. Auch fuer die, die nicht selbst gestalten:
+    # die Geschaeftsfuehrung muss den Schritt einplanen, der Pruefer muss
+    # ihn beurteilen koennen.
+    gest = ag.gestaltung_read().strip()
+    if gest:
+        teile.append(gest)
     # Mit dem, was jeder KANN — nicht nur, wer er ist. Wer Screenshots, Builds
     # oder Tests vergibt, muss sehen, wer eine Shell hat (s. ag.faehigkeiten).
     teile.append("Du arbeitest in einer Firma aus KI-Mitarbeitern. Die Belegschaft:\n"
