@@ -99,7 +99,7 @@ export function Hud({
           >
             {t('⛔ Limit — bis {t}', { t: until })}
           </span>
-          <UsageChip label={t('7T')} u={u.seven_day} title={t('Auslastung der Woche')} />
+          <UsageChip label={t('7 Tage')} u={u.seven_day} title={t('Auslastung der Woche')} />
         </>
       )
     } else if (u && !u.available) {
@@ -110,7 +110,7 @@ export function Hud({
             5h —
           </span>
           <span className={s.chip} title={title}>
-            {t('7T')} —
+            {t('7 Tage')} —
           </span>
         </>
       )
@@ -118,7 +118,7 @@ export function Hud({
       limitChips = (
         <>
           <UsageChip label="5h" u={u?.five_hour} title={t('Auslastung des 5-Stunden-Fensters')} />
-          <UsageChip label={t('7T')} u={u?.seven_day} title={t('Auslastung der Woche')} />
+          <UsageChip label={t('7 Tage')} u={u?.seven_day} title={t('Auslastung der Woche')} />
         </>
       )
   }

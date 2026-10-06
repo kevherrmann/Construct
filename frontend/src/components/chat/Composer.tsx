@@ -354,7 +354,7 @@ export function Composer({
       </div>
       {!raum && (
         <div className={s.hint}>
-          {t('ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Mode · 🧠 Modell ·')}{' '}
+          {t('ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Modus · 🧠 Modell ·')}{' '}
           <code>/help</code> {t('= Befehle')}
         </div>
       )}

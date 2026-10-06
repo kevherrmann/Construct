@@ -9,7 +9,8 @@ export const SECTIONS = [
   { id: 'modelle', title: '🧠 MODELLE & ANBIETER' },
   { id: 'mail', title: '📧 E-MAIL-KONTEN' },
   { id: 'vorlesen', title: '🔊 VORLESEN' },
-  { id: 'bilder', title: '🖌 BILDER ERZEUGEN' },
+  // nav: wo navLabel falsch großschreibt (deutsch nur Hauptwörter groß)
+  { id: 'bilder', title: '🖌 BILDER ERZEUGEN', nav: 'Bilder erzeugen' },
   { id: 'telegram', title: '✈ TELEGRAM' },
   { id: 'updates', title: '🔄 AKTUALISIERUNG' },
   { id: 'namen', title: '🙋 NAMEN' },
@@ -51,3 +52,7 @@ export const navLabel = (title: string) =>
     .trim()
     .toLowerCase()
     .replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase())
+
+/** Menüname eines Abschnitts (deutscher Schlüssel): eigener, sonst aus der Überschrift. */
+export const abschnittName = (x: (typeof SECTIONS)[number]) =>
+  'nav' in x ? x.nav : navLabel(x.title)

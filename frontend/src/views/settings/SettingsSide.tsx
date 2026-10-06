@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useUi } from '@/stores/ui'
-import { SECTIONS, TABS, navLabel } from './sections'
+import { SECTIONS, TABS, abschnittName } from './sections'
 import { useSettingsTab } from './tab'
 import s from './SettingsSide.module.css'
 
@@ -10,7 +10,7 @@ export function SettingsSide({ ohneHinweis = false }: { ohneHinweis?: boolean })
   const [tab, setTab] = useSettingsTab()
   // Schmal liegt die Leiste als Schublade über dem Inhalt: nach der Wahl zu.
   const zu = useUi((st) => st.setSideOpen)
-  const titel = (id: string) => t(navLabel(SECTIONS.find((x) => x.id === id)!.title))
+  const titel = (id: string) => t(abschnittName(SECTIONS.find((x) => x.id === id)!))
   return (
     <>
       {/* Im Raum steht derselbe Satz schon als Untertitel der Projektion. */}

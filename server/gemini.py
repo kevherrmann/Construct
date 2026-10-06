@@ -7,6 +7,7 @@ import json
 import urllib.error
 import urllib.request
 
+from server import config as cfg
 from server import llm as llmmod
 
 API = "https://generativelanguage.googleapis.com/v1beta"
@@ -19,8 +20,10 @@ class GeminiError(Exception):
 def api_key() -> str:
     k = llmmod.provider_conf("gemini")["api_key"]
     if not k:
-        raise GeminiError("Kein Gemini-Key hinterlegt — unter ⚙ Einstellungen → "
-                          "🔊 Vorlesen → „Gemini-Key eintragen“.")
+        raise GeminiError(cfg.L("Kein Gemini-Key hinterlegt — unter ⚙ Einstellungen → "
+                                "🔊 Vorlesen → „Gemini-Key eintragen“.",
+                                "No Gemini key stored — add it under ⚙ Settings → "
+                                "🔊 Read aloud → “Enter Gemini key”."))
     return k
 
 
@@ -40,12 +43,18 @@ def call(path: str, body=None, timeout: int = 60, what: str = "Gemini") -> dict:
             msg = ""
         if e.code == 429:
             if "PerDay" in raw:  # z. B. GenerateRequestsPerDayPerProjectPerModel-FreeTier
-                raise GeminiError(f"{what}: Tageskontingent des Gemini-Keys "
-                                  "aufgebraucht — morgen wieder.") from None
-            raise GeminiError("Gemini-Kontingent erschöpft — kurz warten oder "
-                              "morgen wieder.") from None
+                raise GeminiError(cfg.L(f"{what}: Tageskontingent des Gemini-Keys "
+                                        "aufgebraucht — morgen wieder.",
+                                        f"{what}: daily quota of the Gemini key used up — "
+                                        "try again tomorrow.")) from None
+            raise GeminiError(cfg.L("Gemini-Kontingent erschöpft — kurz warten oder "
+                                    "morgen wieder.",
+                                    "Gemini quota exhausted — wait a moment or try "
+                                    "again tomorrow.")) from None
         raise GeminiError(f"{what}: {msg or e.reason} ({e.code})") from None
     except urllib.error.URLError as e:
-        raise GeminiError(f"Gemini nicht erreichbar: {e.reason}") from None
+        raise GeminiError(cfg.L("Gemini nicht erreichbar: ", "Gemini unreachable: ")
+                          + str(e.reason)) from None
     except TimeoutError:
-        raise GeminiError(f"{what}: keine Antwort nach {timeout} s.") from None
+        raise GeminiError(cfg.L(f"{what}: keine Antwort nach {timeout} s.",
+                                f"{what}: no answer after {timeout} s.")) from None
