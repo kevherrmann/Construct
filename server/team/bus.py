@@ -261,13 +261,17 @@ async def _bus_aufruf(body: dict) -> dict:
             # Auftrags — den, in dem Opus zehn Zeilen in acht uebersetzt.
             fertig = True
 
+        # Im Thread und vor der Sperre: eine grosse Datei hielt sonst den ganzen
+        # Server an, solange sie gelesen wurde.
+        shas = [await asyncio.to_thread(engine._sha, pf) for pf in dateien]
+
         def _buchen(x):
             # Unter der Ticket-Sperre, nicht mit dem beim Aufruf geladenen t:
             # parallel bucht der Dispatcher hops/in_arbeit, und ein veralteter
             # Stand wuerde das ueberschreiben.
-            for pf in dateien:
+            for pf, sha in zip(dateien, shas):
                 x["artefakte"].append({"pfad": pf, "von": slug, "ts": time.time(),
-                                       "sha": engine._sha(pf)})
+                                       "sha": sha})
             # Nur Lieferungen von Schreibenden zaehlen (siehe guards.py).
             schreibt = bool({"Write", "Edit"} & set(a["allowed_tools"]))
             if dateien:

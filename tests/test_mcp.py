@@ -11,6 +11,23 @@ from server.routes import files
 EXE = "/opt/claude/bin/claude"
 
 
+@pytest.fixture(autouse=True)
+def kachel_an(tmp_path, monkeypatch):
+    from server import config as cfg
+    (tmp_path / "settings.json").write_text(json.dumps({"tiles": {"mcp": True}}))
+    monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
+    return tmp_path / "settings.json"
+
+
+def test_ohne_kachel_gibt_es_die_routen_nicht(client, cli, kachel_an):
+    kachel_an.write_text(json.dumps({"tiles": {"mcp": False}}))
+    calls, _ = cli
+    assert client.get("/api/mcp").status_code == 404
+    assert client.post("/api/mcp", json={"name": "x", "command": "y"}).status_code == 404
+    assert client.delete("/api/mcp/x").status_code == 404
+    assert not calls
+
+
 @pytest.fixture
 def cli(monkeypatch):
     """Fängt jeden subprocess.run ab und merkt sich Argumente und Schalter."""

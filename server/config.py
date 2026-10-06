@@ -156,14 +156,14 @@ def _clean_image(v) -> str:
     return v if (v.startswith("/uploads/") and ".." not in v and "//" not in v[1:]) else ""
 
 
-def load_settings() -> dict:
+def load_settings(_umgebung: bool = True) -> dict:
     out = json.loads(json.dumps(DEFAULT_SETTINGS))   # tiefe Kopie
     try:
         raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
-        return _env(out)
+        return _env(out) if _umgebung else out
     if not isinstance(raw, dict):
-        return _env(out)
+        return _env(out) if _umgebung else out
     if raw.get("theme") in THEMES:
         out["theme"] = raw["theme"]
     elif raw.get("theme") == "plasma":
@@ -209,7 +209,7 @@ def load_settings() -> dict:
         pass
     _clean_tts(raw.get("tts") or {}, out["tts"])
     _clean_extras(raw, out)
-    return _env(out)
+    return _env(out) if _umgebung else out
 
 
 def _env(out: dict) -> dict:
@@ -256,7 +256,9 @@ def _clean_extras(src: dict, cur: dict):
 
 def apply_patch(patch: dict) -> dict:
     """Teil-Update: was nicht mitkommt, bleibt wie es war."""
-    cur = load_settings()
+    # Ohne Umgebung: CONSTRUCT_TEAM=1 (Prüfstand) landete sonst beim nächsten
+    # Speichern dauerhaft in settings.json.
+    cur = load_settings(_umgebung=False)
     if patch.get("theme") in THEMES:
         cur["theme"] = patch["theme"]
     if patch.get("font") in FONTS:
@@ -304,7 +306,7 @@ def apply_patch(patch: dict) -> dict:
     tmp = SETTINGS_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(SETTINGS_FILE)
-    return cur
+    return _env(json.loads(json.dumps(cur)))
 
 
 # ---------- Persona ----------

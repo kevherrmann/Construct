@@ -476,3 +476,11 @@ def test_regeltext_ohne_und_mit_namen_ist_deutsch(tmp_path, name, muss, darf_nic
         assert m in text
     for d in darf_nicht:
         assert d not in text
+
+
+def test_ticket_routen_ohne_kachel_404(client, tmp_path):
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": False}}))
+    assert client.get("/api/tickets").status_code == 404
+    assert client.post(f"/api/tickets/{SID}/schnitt", json={"titel": "x"}).status_code == 404
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": True}}))
+    assert client.get("/api/tickets").status_code == 200

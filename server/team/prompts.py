@@ -59,7 +59,7 @@ def auftrags_prompt(a: dict, t: dict, nachricht: dict) -> str:
            "antwort": "antwortet dir", "ergebnis": "liefert dir"}.get(nachricht.get("art"), "schreibt dir")
     kopf.append(f"\n## {wer} {art}:\n\n{nachricht.get('text', '')}")
     kopf.append("\n" + zug_abschluss(a, t, nachricht))
-    return ag.anrede("\n".join(kopf))
+    return ag.anrede("\n".join(kopf), roh=(t["titel"], t["brief"], nachricht.get("text", "")))
 
 
 def zug_abschluss(a: dict, t: dict, nachricht: dict) -> str:
@@ -207,4 +207,5 @@ def agent_system_prompt(a: dict, workspace) -> str:
     idx = anl.index()
     if idx:
         teile.append(idx)
-    return ag.anrede("\n\n---\n\n".join(teile))
+    # Was der Nutzer selbst geschrieben hat (USER.md), bleibt wörtlich.
+    return ag.anrede("\n\n---\n\n".join(teile), roh=(nutzer,))

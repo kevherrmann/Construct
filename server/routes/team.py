@@ -133,6 +133,9 @@ def auftrag_detail(tid: str):
 @router.get("/api/team/auftraege/{tid}/stream")
 async def auftrag_stream(tid: str):
     """Wie /api/stream: erst der Rueckstand, dann live."""
+    if not auf.laden(tid):
+        # Sonst legte jede ausgedachte ID dauerhaft einen leeren Feed an.
+        return JSONResponse({"error": "unbekannt"}, status_code=404)
     f = engine.feed(tid)
 
     async def gen():

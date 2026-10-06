@@ -180,6 +180,16 @@ def test_anrede_setzt_den_namen_des_nutzers_ein():
     assert ag.anrede("von kevin") == "von kevin"       # das Kürzel im Verlauf bleibt
 
 
+def test_anrede_laesst_eingesetzte_inhalte_stehen():
+    from server.team import prompts
+    t = auf.neu("Film", "Schreib über Kevin Costner.")
+    a = ag.load_agent("luna", WS)
+    p = prompts.auftrags_prompt(a, t, {"von": "kevin", "art": "auftrag",
+                                       "text": "Kevin Costner, bitte."})
+    assert "Annas Worte: Schreib über Kevin Costner." in p
+    assert "Kevin Costner, bitte." in p and "Anna Costner" not in p
+
+
 def test_vorlage_der_installation_sticht(firma):
     assert "Hausstil" in ag.style_read()
     (ag.FIRMA_DIR).mkdir(parents=True, exist_ok=True)
@@ -256,3 +266,52 @@ def test_chef_prompt_ist_der_assistent_plus_firmenzusatz(firma, monkeypatch):
     # Die Mitarbeiter bekommen ihren eigenen Charakter, nicht den des Assistenten
     q = pr.agent_system_prompt(ag.load_agent("luna", WS), WS)
     assert "Ich bin Momo" not in q and "Backend und Technik" in q
+
+
+# ---------- Kleinzeug aus dem Großtest ----------
+@pytest.mark.parametrize("inhalt", ["[]", "{}", '{"status": 5, "verbraucht": "x", "titel": null}',
+                                    '{"status": "erfunden"}', "kaputt"])
+def test_verkorkste_auftragsdatei_legt_nichts_lahm(firma, inhalt):
+    t = auf.neu("Heil", "brief")
+    d = firma / "firma" / "auftraege" / "0badc0de"
+    d.mkdir(parents=True)
+    (d / "ticket.json").write_text(inhalt)
+    xs = auf.alle()
+    assert t["id"] in [x["id"] for x in xs]
+    for x in xs:
+        assert x["status"] in auf.STATUS and isinstance(x["verbraucht"]["hops"], int)
+        assert isinstance(x["titel"], str)
+
+
+@pytest.mark.parametrize("tid", ["..", "../../settings", "ABCDEF12", "abc", ""])
+def test_auftrags_id_wird_nie_zum_pfad(tid):
+    assert auf.laden(tid) is None and auf.verlauf(tid) == []
+
+
+@pytest.mark.parametrize("ausdruck", ["-" * 1990 + "1", "(" * 999 + "1" + ")" * 999, "1+" * 1500 + "1"])
+def test_rechnen_mit_absurden_ausdruecken_ist_ein_rechenfehler(ausdruck):
+    from server.team import rechner
+    with pytest.raises(rechner.CalcError):
+        rechner.calculate(ausdruck)
+
+
+def test_prüfstand_schalter_landet_nicht_in_settings(firma, monkeypatch):
+    monkeypatch.setenv("CONSTRUCT_TEAM", "1")
+    assert cfg.load_settings()["team"]["aktiv"]
+    assert cfg.apply_patch({"theme": "matrix"})["team"]["aktiv"]
+    assert not json.loads((firma / "settings.json").read_text())["team"]["aktiv"]
+
+
+def test_fingerabdruck_nur_von_echten_dateien(tmp_path):
+    from server.team import engine
+    f = tmp_path / "a.txt"
+    f.write_text("x")
+    assert len(engine._sha(str(f))) == 12
+    assert engine._sha("/dev/zero") == "" and engine._sha(str(tmp_path)) == ""
+
+
+def test_geschaeftsfuehrung_laesst_sich_nicht_entlassen(firma):
+    ag.list_agents(WS)
+    vorher = (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text()
+    assert not ag.fire_agent("chef", WS)
+    assert (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text() == vorher

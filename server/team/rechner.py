@@ -160,11 +160,20 @@ def fmt(value):
     return format(value, "f")
 
 
+MAX_LAENGE = 2000
+
+
 def calculate(expression):
+    # Absurd tief verschachtelte Ausdruecke ("("*5000) sprengten Parser oder
+    # _eval mit RecursionError/MemoryError -- am Bus ein 500 statt einer Antwort.
+    if len(expression) > MAX_LAENGE:
+        raise CalcError(f"Ausdruck zu lang (max. {MAX_LAENGE} Zeichen)")
     try:
         tree = ast.parse(expression.strip(), mode="eval")
     except SyntaxError as exc:
         raise CalcError(f"Ungueltiger Ausdruck: {exc.msg}") from None
+    except (RecursionError, MemoryError):
+        raise CalcError("Ausdruck zu tief verschachtelt") from None
     try:
         result = _eval(tree)
     except (DivisionByZero, ZeroDivisionError):
@@ -179,6 +188,8 @@ def calculate(expression):
         raise CalcError(f"Rechenfehler: {exc}") from None
     except TypeError as exc:
         raise CalcError(f"Falsche Argumente: {exc}") from None
+    except (RecursionError, MemoryError):
+        raise CalcError("Ausdruck zu tief verschachtelt") from None
     if not isinstance(result, Decimal):
         raise CalcError("Kein numerisches Ergebnis")
     return fmt(result)

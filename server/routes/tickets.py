@@ -1,11 +1,20 @@
 """API: Tickets innerhalb der Sessions (Logik in server/tickets.py)."""
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from server import config as cfg
 from server import tickets as tk
 from server.sessions import load_meta
 
-router = APIRouter()
+
+def _kachel_an():
+    """Ist die Kachel aus, gibt es die Tickets nicht — auch nicht für Aufrufe am
+    Bildschirm vorbei (wie /api/team/* bei ausgeschaltetem Team-Modus)."""
+    if not cfg.load_settings()["tiles"].get("tickets", True):
+        raise HTTPException(status_code=404, detail="Tickets sind abgeschaltet")
+
+
+router = APIRouter(dependencies=[Depends(_kachel_an)])
 
 
 def _fehler(msg: str, code: int = 400):

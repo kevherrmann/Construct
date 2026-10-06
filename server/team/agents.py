@@ -69,7 +69,7 @@ def vorlage(name: str) -> Path:
     return eigene if eigene.exists() else VORLAGEN_DIR / name
 
 
-def anrede(text: str) -> str:
+def anrede(text: str, roh=()) -> str:
     """Setzt den Namen des Nutzers in Texte, die an Modelle gehen.
 
     Die mitgelieferten Regeln sind in Kevins Firma entstanden und sprechen ihn
@@ -77,11 +77,21 @@ def anrede(text: str) -> str:
     wird daraus der Name der Installation; bei Kevin selbst bleibt alles wie es
     ist. Das interne Kürzel `kevin` (Absender im Verlauf) bleibt unberührt —
     es ist klein geschrieben und kein Text.
+
+    `roh`: eingesetzte Inhalte (Auftragstext, Nachrichten, USER.md), die so bleiben,
+    wie sie sind. Sonst schickte ein Nutzer Alex, dessen Auftrag „Kevin Costner“
+    erwähnt, der Firma „Alex Costner“.
     """
     name = cfg.user_name() or "Nutzer"
     if name == "Kevin":
         return text
-    return re.sub(r"Kevin(s?)", lambda m: name + m.group(1), text)
+    roh = sorted({r for r in roh if r and "Kevin" in r}, key=len, reverse=True)
+    for i, r in enumerate(roh):
+        text = text.replace(r, f"\x00{i}\x00")
+    text = re.sub(r"Kevin(s?)", lambda m: name + m.group(1), text)
+    for i, r in enumerate(roh):
+        text = text.replace(f"\x00{i}\x00", r)
+    return text
 
 MAX_SOUL = 32_000
 MAX_MEMORY = 8_000        # gedeckelt: das Ding hängt an JEDEM Systemprompt
@@ -615,8 +625,11 @@ def save_agent(data: dict, workspace) -> tuple:
 
 def fire_agent(slug: str, workspace) -> bool:
     """Entlassen heisst status=fired, nicht loeschen. Alte Auftraege sollen
-    lesbar bleiben — auch die von Leuten, die nicht mehr da sind."""
-    a = load_agent(slug, workspace)
+    lesbar bleiben — auch die von Leuten, die nicht mehr da sind.
+
+    Die Geschäftsführung ist der Assistent selbst und lässt sich nicht entlassen
+    (sonst stand danach auch noch dessen Name in ihrer Akte)."""
+    a = load_agent(slug, workspace) if slug != OWNER_SLUG else None
     if not a:
         return False
     a["status"] = "fired"

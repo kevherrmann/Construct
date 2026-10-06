@@ -18,6 +18,7 @@ auf eine run_id: fertige Laeufe werden nach einer Viertelstunde weggeraeumt
 (gc_runs), die Auftragsansicht muss aber auch in einer Woche noch stimmen.
 """
 import json
+import re
 import time
 import uuid
 from datetime import datetime
@@ -40,8 +41,24 @@ def _atomic(p: Path, text: str):
     tmp.replace(p)
 
 
+ID_RE = re.compile(r"^[0-9a-f]{8}$")
+STATUS = ("neu", "laeuft", "wartet_auf_kevin", "fertig", "abgebrochen")
+
+
 def _dir(tid: str) -> Path:
+    # Zentral statt in jeder Route: die ID wird hier zum Pfad. "../settings"
+    # endete bisher nur deshalb harmlos, weil immer ticket.json angehängt wurde.
+    if not isinstance(tid, str) or not ID_RE.match(tid):
+        raise ValueError(f"keine Auftrags-ID: {tid!r}")
     return AUFTRAEGE_DIR / tid
+
+
+def _felder() -> dict:
+    """Was jeder Auftrag hat, mit Vorgabe — siehe neu()."""
+    return {"titel": "", "brief": "", "status": "neu", "owner": "chef", "cwd": "",
+            "erstellt": "", "in_arbeit": None, "sessions": {}, "artefakte": [],
+            "verbraucht": {"hops": 0, "cost": 0.0, "start": 0.0}, "eskalation": None,
+            "wache": {"ohne_artefakt": 0, "frei_seit": 0.0}}
 
 
 def neu(titel: str, brief: str, owner: str = "chef", cwd: str = "") -> dict:
@@ -77,10 +94,33 @@ def speichern(t: dict):
 
 
 def laden(tid: str) -> dict | None:
+    """Der Auftrag, oder None. Eine von Hand verkorkste Datei (Liste statt Objekt,
+    fehlende Felder, falsche Typen) legte sonst Auftragsliste und Stand mit 500
+    lahm: fehlende Felder bekommen ihre Vorgabe, ein unbekannter Status wird zu
+    „abgebrochen“ (dann passiert mit dem Auftrag nichts mehr von selbst)."""
     try:
-        return json.loads((_dir(tid) / "ticket.json").read_text(encoding="utf-8"))
+        t = json.loads((_dir(tid) / "ticket.json").read_text(encoding="utf-8"))
     except Exception:
         return None
+    if not isinstance(t, dict):
+        return None
+    t["id"] = tid
+    for k, vorgabe in _felder().items():
+        v = t.get(k)
+        if v is None and vorgabe is None:
+            continue
+        if vorgabe is None:
+            ok = isinstance(v, dict)
+        else:
+            ok = isinstance(v, type(vorgabe)) or (isinstance(vorgabe, float) and isinstance(v, int))
+        if not ok:
+            t[k] = vorgabe
+    if t["status"] not in STATUS:
+        t["status"] = "abgebrochen"
+    for k, vorgabe in _felder()["verbraucht"].items():
+        if not isinstance(t["verbraucht"].get(k), (int, float)):
+            t["verbraucht"][k] = vorgabe
+    return t
 
 
 def alle() -> list:
@@ -104,6 +144,8 @@ def anhaengen(tid: str, eintrag: dict) -> dict:
 
 
 def verlauf(tid: str) -> list:
+    if not ID_RE.match(str(tid)):
+        return []
     p = _dir(tid) / "thread.jsonl"
     if not p.exists():
         return []

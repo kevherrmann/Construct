@@ -210,9 +210,21 @@ def feed(tid) -> AuftragsFeed:
     return FEEDS[tid]
 
 
+SHA_MAX = 64 * 1024 * 1024
+
+
 def _sha(pfad: str) -> str:
+    """Fingerabdruck einer gelieferten Datei. Nur echte Dateien bis SHA_MAX:
+    `/dev/zero` oder eine FIFO in `dateien` liessen das Lesen nie enden."""
     try:
-        return hashlib.sha1(Path(pfad).read_bytes()).hexdigest()[:12]
+        p = Path(pfad)
+        if not p.is_file() or p.stat().st_size > SHA_MAX:
+            return ""
+        h = hashlib.sha1()
+        with p.open("rb") as fh:
+            for block in iter(lambda: fh.read(1 << 20), b""):
+                h.update(block)
+        return h.hexdigest()[:12]
     except Exception:
         return ""
 

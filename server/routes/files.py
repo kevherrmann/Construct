@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Body, File, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from server import attach
@@ -193,7 +193,13 @@ def file_get(path: str, dl: int = 0):
                         headers={"Content-Disposition": f'inline; filename="{fname}"'})
 
 
-@router.get("/api/mcp")
+def _mcp_kachel_an():
+    """Wie bei den Tickets: ist die Kachel aus, gibt es die Routen nicht."""
+    if not cfg.load_settings()["tiles"].get("mcp"):
+        raise HTTPException(status_code=404, detail="MCP-Kachel ist abgeschaltet")
+
+
+@router.get("/api/mcp", dependencies=[Depends(_mcp_kachel_an)])
 def mcp():
     """Liste der konfigurierten MCP-Server / Konnektoren (via `claude mcp list`)."""
     try:
@@ -330,7 +336,7 @@ def _cli_error(res: subprocess.CompletedProcess, secrets: list[str]) -> str:
     return text[:300] or f"Exit-Code {res.returncode}"
 
 
-@router.post("/api/mcp")
+@router.post("/api/mcp", dependencies=[Depends(_mcp_kachel_an)])
 def mcp_add(payload: Any = Body(None)):
     """MCP-Server für Claude Code einrichten (via `claude mcp add-json`).
 
@@ -353,7 +359,7 @@ def mcp_add(payload: Any = Body(None)):
     return {"ok": True}
 
 
-@router.delete("/api/mcp/{name}")
+@router.delete("/api/mcp/{name}", dependencies=[Depends(_mcp_kachel_an)])
 def mcp_remove(name: str, scope: str | None = None):
     """MCP-Server entfernen. Ohne scope sucht die CLI ihn in allen Bereichen."""
     _check_name(name)

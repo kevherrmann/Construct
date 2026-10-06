@@ -355,3 +355,11 @@ def test_bus_token_steht_nicht_in_der_kommandozeile(firma, tmp_path, monkeypatch
             assert modus == 0o600
     time.sleep(0.5)                                          # letzter Zug räumt ab
     assert not list((tmp_path / "firma" / "agents").glob("*/.bus-*.json"))
+
+
+def test_stream_fuer_unbekannten_auftrag_ist_404(firma):
+    from server.team import engine
+    import urllib.error
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(firma + "/api/team/auftraege/deadbeef/stream", timeout=5)
+    assert e.value.code == 404 and "deadbeef" not in engine.FEEDS
