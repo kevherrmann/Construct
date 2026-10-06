@@ -473,7 +473,11 @@ async def _zustellen_innen(tid: str, mid: str):
                 f"{a['max_stille_s'] // 60} minutes — it is probably stuck."), an=a["slug"])
         except asyncio.CancelledError:
             if not run.task.done():
-                raise           # WIR wurden abgebrochen (Server faehrt herunter)
+                # WIR wurden abgebrochen (Server faehrt herunter). Der Zug wird nach
+                # dem Neustart neu zugestellt; was er bis hier gesagt hat, gehoert
+                # trotzdem ins Protokoll, sonst fehlt es dort fuer immer (N6).
+                gesagtes_buchen(run, tid, a["slug"])
+                raise
             # Der Lauf selbst wurde gestoppt (Stop-Knopf) — ohne diesen Zweig
             # stirbt die Zustellung hier, und der Auftrag bleibt fuer immer
             # auf "laeuft" mit gesetztem in_arbeit stehen.

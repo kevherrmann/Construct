@@ -2,7 +2,7 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
-## 7.3.0 — unreleased (branch `team`)
+## 7.3.0 — 2026-10-06
 
 ### Added
 - **Tickets inside a session.** A ticket is a section of a session; it collects
