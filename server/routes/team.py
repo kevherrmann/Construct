@@ -24,7 +24,7 @@ async def team_an():
     """Alle Routen hängen daran: ohne Team-Modus gibt es sie nicht. Mit ihm läuft
     der Dispatcher, sobald die erste Anfrage kommt."""
     if not cfg.load_settings()["team"]["aktiv"]:
-        raise HTTPException(status_code=404, detail="Der Team-Modus ist aus.")
+        raise HTTPException(status_code=404, detail=cfg.L("Der Team-Modus ist aus.", "Team mode is off."))
     engine.starten()
 
 
@@ -50,7 +50,7 @@ def agents_list(fired: int = 0):
 def agent_get(slug: str):
     a = ag.load_agent(slug, WORKSPACE)
     if not a:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     return ag.anzeige(a)
 
 
@@ -60,7 +60,7 @@ async def agent_set(slug: str, req: Request):
     body["slug"] = slug
     a, bad = ag.save_agent(body, WORKSPACE)
     if a is None:
-        return JSONResponse({"error": bad[0] if bad else "ungueltig"}, status_code=400)
+        return JSONResponse({"error": bad[0] if bad else cfg.L("ungueltig", "invalid")}, status_code=400)
     return {"ok": True, "agent": ag.anzeige(a), "problems": bad}
 
 
@@ -68,10 +68,10 @@ async def agent_set(slug: str, req: Request):
 async def agent_new(req: Request):
     body = await _body(req)
     if ag.load_agent(str(body.get("slug") or ""), WORKSPACE):
-        return JSONResponse({"error": "gibt es schon"}, status_code=409)
+        return JSONResponse({"error": cfg.L("gibt es schon", "already exists")}, status_code=409)
     a, bad = ag.save_agent(body, WORKSPACE)
     if a is None:
-        return JSONResponse({"error": bad[0] if bad else "ungueltig"}, status_code=400)
+        return JSONResponse({"error": bad[0] if bad else cfg.L("ungueltig", "invalid")}, status_code=400)
     return {"ok": True, "agent": a, "problems": bad}
 
 
@@ -116,7 +116,7 @@ async def auftrag_aus_ticket(req: Request):
     except engine.AuftragFehler as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except (TypeError, ValueError):
-        return JSONResponse({"error": "ungültige Angabe"}, status_code=400)
+        return JSONResponse({"error": cfg.L("ungültige Angabe", "invalid input")}, status_code=400)
     return {"ok": True, "ticket": t}
 
 
@@ -124,7 +124,7 @@ async def auftrag_aus_ticket(req: Request):
 def auftrag_detail(tid: str):
     t = auf.laden(tid)
     if not t:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     return {"ticket": t, "verlauf": auf.verlauf(tid),
             "agents": {x["slug"]: {k: ag.anzeige(x)[k] for k in ("name", "title", "color", "avatar")}
                        for x in ag.list_agents(WORKSPACE, include_fired=True)}}
@@ -135,7 +135,7 @@ async def auftrag_stream(tid: str):
     """Wie /api/stream: erst der Rueckstand, dann live."""
     if not auf.laden(tid):
         # Sonst legte jede ausgedachte ID dauerhaft einen leeren Feed an.
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     f = engine.feed(tid)
 
     async def gen():
@@ -168,7 +168,7 @@ async def auftrag_antwort(tid: str, req: Request):
     """
     t = auf.laden(tid)
     if not t:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     body = await _body(req)
     aktion = str(body.get("aktion") or "weiter")
     text = str(body.get("text") or "").strip()
@@ -177,7 +177,7 @@ async def auftrag_antwort(tid: str, req: Request):
         if t["status"] in ("fertig", "abgebrochen"):
             # Sonst kippte ein fertiger Auftrag auf "abgebrochen", und ein
             # Doppelklick schrieb den Hinweis zweimal in den Verlauf.
-            return JSONResponse({"error": "Der Auftrag ist abgeschlossen."}, status_code=400)
+            return JSONResponse({"error": cfg.L("Der Auftrag ist abgeschlossen.", "The job is closed.")}, status_code=400)
 
         def _abbrechen(x):
             x["status"] = "abgebrochen"
@@ -190,16 +190,17 @@ async def auftrag_antwort(tid: str, req: Request):
         lauf = RUNS.get((t.get("in_arbeit") or {}).get("run_id") or "")
         if lauf and lauf.task and not lauf.done:
             lauf.task.cancel()
-        auf.anhaengen(tid, {"art": "system", "text": ag.anrede("Kevin hat den Auftrag abgebrochen.")})
+        auf.anhaengen(tid, {"art": "system", "text": ag.anrede(cfg.L("Kevin hat den Auftrag abgebrochen.",
+                                                                     "Kevin cancelled the job."))})
         engine.feed(tid).emit({"type": "abgebrochen"})
         for spf in ag.AGENTS_DIR.glob(f"*/.sysprompt-{tid}"):
             spf.unlink(missing_ok=True)
         return {"ok": True, "ticket": t}
     if t["status"] in ("fertig", "abgebrochen"):
-        return JSONResponse({"error": "Der Auftrag ist abgeschlossen."}, status_code=400)
+        return JSONResponse({"error": cfg.L("Der Auftrag ist abgeschlossen.", "The job is closed.")}, status_code=400)
     an = str(body.get("an") or "").strip()
     if an and not ag.SLUG_RE.match(an):
-        return JSONResponse({"error": "ungueltig"}, status_code=400)
+        return JSONResponse({"error": cfg.L("ungueltig", "invalid")}, status_code=400)
     t = await engine.kevin_weiter(tid, an, text)
     return {"ok": True, "ticket": t}
 
@@ -215,21 +216,24 @@ async def auftrag_say(tid: str, req: Request):
     """
     t = auf.laden(tid)
     if not t:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     body = await _body(req)
     text = str(body.get("text") or "").strip()
     if not text:
-        return JSONResponse({"error": "leer"}, status_code=400)
+        return JSONResponse({"error": cfg.L("leer", "empty")}, status_code=400)
 
     lauf = t.get("in_arbeit") or {}
     run = RUNS.get(lauf.get("run_id") or "")
     if run and not run.done and not run.stdin_closed and run.proc:
         try:
-            run.proc.stdin.write(stdin_message(ag.anrede(
-                "[Kevin wirft ein, waehrend du arbeitest. Das ist eine ERGAENZUNG zu "
+            run.proc.stdin.write(stdin_message(ag.anrede(cfg.L(
+                "[Kevin wirft ein, während du arbeitest. Das ist eine ERGÄNZUNG zu "
                 "deiner laufenden Aufgabe, kein neuer Auftrag: arbeite sie in DIESEN "
-                "Zug ein und liefere danach EINMAL. Gib sie nicht zusaetzlich noch "
-                "einmal weiter.]") + "\n\n" + text))
+                "Zug ein und liefere danach EINMAL. Gib sie nicht zusätzlich noch "
+                "einmal weiter.]",
+                "[Kevin chimes in while you work. This is an ADDITION to your current "
+                "task, not a new job: work it into THIS turn and then deliver ONCE. Do "
+                "not pass it on separately.]")) + "\n\n" + text))
             await run.proc.stdin.drain()
             e = auf.anhaengen(tid, {"von": "kevin", "an": run.agent_slug,
                                    "art": "einwurf", "text": text})
@@ -245,10 +249,10 @@ async def auftrag_say(tid: str, req: Request):
             pass          # Prozess ist doch schon zu — dann eben einreihen
 
     if t["status"] in ("fertig", "abgebrochen"):
-        return JSONResponse({"error": "Der Auftrag ist abgeschlossen."}, status_code=400)
+        return JSONResponse({"error": cfg.L("Der Auftrag ist abgeschlossen.", "The job is closed.")}, status_code=400)
     an = str(body.get("an") or "").strip()
     if an and not ag.SLUG_RE.match(an):
-        return JSONResponse({"error": "ungueltig"}, status_code=400)
+        return JSONResponse({"error": cfg.L("ungueltig", "invalid")}, status_code=400)
     t = await engine.kevin_weiter(tid, an, text)
     return {"ok": True, "wohin": "eingereiht"}
 
@@ -281,7 +285,7 @@ def auftrag_loeschen(tid: str):
     Mitarbeiters wird hier wirklich geloescht — ein Auftrag hat keine
     Geschichte, auf die sich spaeter noch jemand berufen muesste."""
     if not re.fullmatch(r"[0-9a-f]{8}", tid or ""):
-        return JSONResponse({"error": "ungueltig"}, status_code=400)
+        return JSONResponse({"error": cfg.L("ungueltig", "invalid")}, status_code=400)
     d = auf.AUFTRAEGE_DIR / tid
     # Ein laufender Zug arbeitete sonst für einen Auftrag weiter, den es nicht mehr gibt.
     lauf = RUNS.get(((auf.laden(tid) or {}).get("in_arbeit") or {}).get("run_id") or "")
@@ -289,10 +293,10 @@ def auftrag_loeschen(tid: str):
         lauf.task.cancel()
     try:
         if d.resolve().parent != auf.AUFTRAEGE_DIR.resolve():
-            return JSONResponse({"error": "ungueltig"}, status_code=400)
+            return JSONResponse({"error": cfg.L("ungueltig", "invalid")}, status_code=400)
         shutil.rmtree(d)
     except FileNotFoundError:
-        return JSONResponse({"error": "unbekannt"}, status_code=404)
+        return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
     engine.FEEDS.pop(tid, None)
     engine.AUFTRAG_LOCKS.pop(tid, None)
     engine.ZUG_LOCKS.pop(tid, None)

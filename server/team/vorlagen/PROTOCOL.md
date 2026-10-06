@@ -147,7 +147,7 @@ zehn Nachrichten, die nichts klären.
 | `anleitung` | einen erprobten Ablauf holen, der im Index oben steht |
 | `anleitung_anlegen` | einen Ablauf festhalten, den die Firma wieder braucht |
 
-Bei `beauftragen` und `fragen` gibst du den **Slug** an (z. B. `entwickler`),
+Bei `beauftragen` und `fragen` gibst du den **Slug** an (z. B. `luna`),
 nicht den Namen.
 
 Die `USER.md` änderst du **ausschließlich** über `user_merken`. Nie mit Write

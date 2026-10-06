@@ -315,3 +315,52 @@ def test_geschaeftsfuehrung_laesst_sich_nicht_entlassen(firma):
     vorher = (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text()
     assert not ag.fire_agent("chef", WS)
     assert (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text() == vorher
+
+
+# ---------- Englische Installation (F2) ----------
+@pytest.fixture()
+def englisch(firma):
+    (firma / "settings.json").write_text(json.dumps(
+        {"lang": "en", "names": {"user": "Anna", "assistant": "Momo"}}))
+    return firma
+
+
+def test_englische_installation_bekommt_englische_belegschaft(englisch):
+    xs = {a["slug"]: a for a in ag.list_agents(WS)}
+    assert xs["luna"]["title"] == "Backend and engineering"
+    assert all(not a["problems"] for a in xs.values())
+    assert "You" in xs["luna"]["soul"] and "Du " not in xs["luna"]["soul"]
+    # dieselben Werkzeuge wie die deutsche Vorlage
+    de = ag._split_frontmatter((ag.DEFAULTS_DIR / "luna" / "AGENT.md").read_text())[0]
+    assert xs["luna"]["allowed_tools"] == ag._as_list(ag._fm_get(de, "allowed_tools"))
+
+
+def test_englischer_systemprompt_und_zug(englisch):
+    from server.team import prompts
+    a = ag.load_agent("luna", WS)
+    sp = prompts.agent_system_prompt(a, WS)
+    assert "House style" in sp and "You work in a company of AI employees" in sp
+    assert "Anna" in sp and "Kevin" not in sp
+    for deutsch in ("Hausstil", "Belegschaft:", "Beende deinen Zug", "Woran du"):
+        assert deutsch not in sp, deutsch
+    t = auf.neu("Film", "Write about Kevin Costner.")
+    p = prompts.auftrags_prompt(a, t, {"von": "kevin", "art": "auftrag", "text": "Go."})
+    assert "# Job: Film" in p and "Anna's words: Write about Kevin Costner." in p
+    assert "End your turn" in p
+
+
+def test_englische_bremsen_und_meldungen(englisch):
+    from server.team import guards
+    t = auf.neu("x", "y")
+    verlauf = [{"von": "luna", "an": "elara", "art": "frage", "text": str(i), "ts": 1}
+               for i in range(10)]
+    bremse, grund = guards.pruefe(t, {"von": "luna", "an": "elara"}, verlauf)
+    assert bremse == "hin_und_her" and "going in circles" in grund
+    assert guards.name("stille") == "turn hangs"
+    assert ag.user_append("", "luna") == (False, "empty entry")
+
+
+def test_deutsch_bleibt_vorgabe(firma):
+    xs = {a["slug"]: a for a in ag.list_agents(WS)}
+    assert xs["luna"]["title"] == "Backend und Technik"
+    assert "Hausstil" in ag.style_read()

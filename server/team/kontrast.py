@@ -10,6 +10,8 @@ Farben: #rgb, #rrggbb, "r,g,b" oder rgb(r,g,b).
 """
 import re
 
+from server import config as cfg
+
 AA_TEXT = 4.5       # normaler Text
 AA_GROSS = 3.0      # grosser Text (ab 24 px, oder 19 px fett) und Bedienelemente
 AAA_TEXT = 7.0
@@ -30,7 +32,8 @@ def parse(farbe: str) -> tuple:
     m = re.fullmatch(r"(?:rgb\()?\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)?", s)
     if m and all(0 <= int(x) <= 255 for x in m.groups()):
         return tuple(int(x) for x in m.groups())
-    raise FarbFehler(f"'{farbe}' ist keine Farbe. Erlaubt: #rgb, #rrggbb, r,g,b oder rgb(r,g,b).")
+    raise FarbFehler(cfg.L(f"'{farbe}' ist keine Farbe. Erlaubt: #rgb, #rrggbb, r,g,b oder rgb(r,g,b).",
+                           f"'{farbe}' is not a colour. Allowed: #rgb, #rrggbb, r,g,b or rgb(r,g,b)."))
 
 
 def _linear(c: int) -> float:
@@ -53,6 +56,8 @@ def bericht(vorne: str, hinten: str) -> str:
     """Eine Zeile Zahl, eine Zeile Urteil — mehr braucht niemand."""
     q = verhaeltnis(vorne, hinten)
     urteil = []
-    urteil.append("Text: " + ("AAA" if q >= AAA_TEXT else "AA" if q >= AA_TEXT else "FAELLT DURCH (min 4,5:1)"))
-    urteil.append("grosser Text / Bedienelemente: " + ("ok" if q >= AA_GROSS else "FAELLT DURCH (min 3:1)"))
-    return f"{vorne} auf {hinten}: {q:.2f}:1 — " + "; ".join(urteil)
+    durch = cfg.L("FAELLT DURCH", "FAILS")
+    urteil.append("Text: " + ("AAA" if q >= AAA_TEXT else "AA" if q >= AA_TEXT else f"{durch} (min 4,5:1)"))
+    urteil.append(cfg.L("grosser Text / Bedienelemente: ", "large text / controls: ")
+                  + ("ok" if q >= AA_GROSS else f"{durch} (min 3:1)"))
+    return f"{vorne} {cfg.L('auf', 'on')} {hinten}: {q:.2f}:1 — " + "; ".join(urteil)

@@ -264,11 +264,16 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
         # Luecke, die er fuellen muss (11.09.2026). Die meisten Bremsen wollen
         # nur ein Hinsehen; das muss dastehen.
         wer = ag.anzeige(ag.load_agent(an, WORKSPACE) or {}).get("name") if an else ""
-        wer = wer or ag.anzeige(ag.load_agent(frisch["owner"], WORKSPACE) or {}).get("name") or "die Geschäftsführung"
-        frage = (f"Sieh kurz hin, ob der Auftrag noch auf dem richtigen Weg ist. Dann "
-                 f"WEITERMACHEN — ohne Text bekommt {wer} \u201eMach bitte weiter\u201c und die "
-                 f"Bremsen zählen von vorn. Willst du etwas ändern, schreib es {wer} in "
-                 f"einem Satz; abbrechen geht auch.")
+        wer = (wer or ag.anzeige(ag.load_agent(frisch["owner"], WORKSPACE) or {}).get("name")
+               or cfg.L("die Geschäftsführung", "the managing director"))
+        frage = cfg.L(f"Sieh kurz hin, ob der Auftrag noch auf dem richtigen Weg ist. Dann "
+                      f"WEITERMACHEN — ohne Text bekommt {wer} \u201eMach bitte weiter\u201c und die "
+                      f"Bremsen zählen von vorn. Willst du etwas ändern, schreib es {wer} in "
+                      f"einem Satz; abbrechen geht auch.",
+                      f"Take a quick look whether the job is still on track. Then CONTINUE — "
+                      f"without text {wer} gets \u201cPlease carry on\u201d and the brakes count "
+                      f"from zero. If you want something changed, tell {wer} in one sentence; "
+                      f"you can also cancel.")
     grund, frage = ag.anrede(grund), ag.anrede(frage)
     frisch["eskalation"] = {"bremse": bremse, "grund": grund, "frage": frage,
                             "seit": time.time(), "an": an}
@@ -280,10 +285,14 @@ def auftrag_anhalten(t: dict, bremse: str, grund: str, frage: str = "", an: str 
                         "frage": t["eskalation"]["frage"]})
     v = t["verbraucht"]
     titel = t["titel"]
-    tg_send(f"\u23f8 Auftrag \u201e{titel}\u201c wartet auf dich\n"
-            f"{guards.NAMEN.get(bremse, bremse)}: {grund}\n"
-            f"Was du tun kannst: {frage}\n"
-            f"{v['hops']} Schritte")
+    tg_send(cfg.L(f"\u23f8 Auftrag \u201e{titel}\u201c wartet auf dich\n"
+                  f"{guards.name(bremse)}: {grund}\n"
+                  f"Was du tun kannst: {frage}\n"
+                  f"{v['hops']} Schritte",
+                  f"\u23f8 Job \u201c{titel}\u201d is waiting for you\n"
+                  f"{guards.name(bremse)}: {grund}\n"
+                  f"What you can do: {frage}\n"
+                  f"{v['hops']} steps"))
 
 
 async def warte_auf_zug(run, stille_max: int):
@@ -361,15 +370,16 @@ async def _zustellen_innen(tid: str, mid: str):
     a = ag.load_agent(nachricht["an"], WORKSPACE)
     if not a or a["status"] == "fired":
         wer = nachricht["an"]
-        return auftrag_anhalten(t, "unbekannt",
-                               f"\u201e{wer}\u201c arbeitet hier nicht (mehr).")
+        return auftrag_anhalten(t, "unbekannt", cfg.L(f"\u201e{wer}\u201c arbeitet hier nicht (mehr).",
+                                                      f"\u201c{wer}\u201d does not work here (any more)."))
     if a["status"] == "paused":
         # Pausiert heisst: bekommt gerade keine Arbeit. Vorher wurde der
         # Zustand zwar in der Akte gefuehrt, aber nirgends beachtet.
-        return auftrag_anhalten(t, "unbekannt",
-                               f"{ag.anzeige(a)['name']} ist pausiert und nimmt gerade nichts an. "
-                               f"Leite die Nachricht um oder hebe die Pause in der "
-                               f"Personalakte auf.")
+        return auftrag_anhalten(t, "unbekannt", cfg.L(
+            f"{ag.anzeige(a)['name']} ist pausiert und nimmt gerade nichts an. "
+            f"Leite die Nachricht um oder hebe die Pause in der Personalakte auf.",
+            f"{ag.anzeige(a)['name']} is paused and takes nothing right now. "
+            f"Redirect the message or lift the pause in the staff file."))
 
     def _start(x):
         x["status"] = "laeuft"
@@ -385,7 +395,8 @@ async def _zustellen_innen(tid: str, mid: str):
             # Während er auf einen freien Platz wartete, wurde der Team-Modus
             # ausgeschaltet (abschalten() erreicht nur laufende Züge). Ohne das
             # startete hier noch ein Zug, dessen Bus-Aufrufe alle ins Leere gehen.
-            return auftrag_anhalten(t, "gestoppt", "Der Team-Modus wurde ausgeschaltet.",
+            return auftrag_anhalten(t, "gestoppt", cfg.L("Der Team-Modus wurde ausgeschaltet.",
+                                                         "Team mode was switched off."),
                                     an=a["slug"])
         run = start_agent_turn(a, t, nachricht)
         await auftrag_aendern(tid, lambda x: x["in_arbeit"].update({"run_id": run.id})
@@ -436,10 +447,11 @@ async def _zustellen_innen(tid: str, mid: str):
             # an=Slug: Kevins "weiter" geht zurueck an den, der haengen blieb.
             # Der hat den Kontext in seiner Sitzung — ueber die
             # Geschaeftsfuehrung kostete es einen Zug Neubriefing.
-            return auftrag_anhalten(t, "stille",
-                                   f"Der Zug von {ag.anzeige(a)['name']} hat sich "
-                                   f"{a['max_stille_s'] // 60} Minuten nicht geruehrt — "
-                                   f"er haengt vermutlich.", an=a["slug"])
+            return auftrag_anhalten(t, "stille", cfg.L(
+                f"Der Zug von {ag.anzeige(a)['name']} hat sich "
+                f"{a['max_stille_s'] // 60} Minuten nicht gerührt — er hängt vermutlich.",
+                f"{ag.anzeige(a)['name']}'s turn has not moved for "
+                f"{a['max_stille_s'] // 60} minutes — it is probably stuck."), an=a["slug"])
         except asyncio.CancelledError:
             if not run.task.done():
                 raise           # WIR wurden abgebrochen (Server faehrt herunter)
@@ -447,9 +459,9 @@ async def _zustellen_innen(tid: str, mid: str):
             # stirbt die Zustellung hier, und der Auftrag bleibt fuer immer
             # auf "laeuft" mit gesetztem in_arbeit stehen.
             t = await _abschliessen()
-            return auftrag_anhalten(t, "gestoppt",
-                                   f"Der Zug von {ag.anzeige(a)['name']} wurde von Hand gestoppt.",
-                                   an=a["slug"])
+            return auftrag_anhalten(t, "gestoppt", cfg.L(
+                f"Der Zug von {ag.anzeige(a)['name']} wurde von Hand gestoppt.",
+                f"{ag.anzeige(a)['name']}'s turn was stopped by hand."), an=a["slug"])
         except Exception as e:
             print(f"[zug] {type(e).__name__}: {e}", flush=True)
 
@@ -465,14 +477,16 @@ async def _zustellen_innen(tid: str, mid: str):
         wann = time.strftime("%H:%M", time.localtime(run.limit_bis))
         await auftrag_aendern(tid, lambda x: x["verbraucht"].__setitem__(
             "hops", max(0, x["verbraucht"]["hops"] - 1)))     # der Versuch zaehlt nicht
-        e = auf.anhaengen(tid, {"art": "system", "text":
-                               f"Nutzungslimit erreicht — der Zug von {ag.anzeige(a)['name']} wird um "
-                               f"{wann} Uhr wiederholt."})
+        e = auf.anhaengen(tid, {"art": "system", "text": cfg.L(
+            f"Nutzungslimit erreicht — der Zug von {ag.anzeige(a)['name']} wird um "
+            f"{wann} Uhr wiederholt.",
+            f"Usage limit reached — {ag.anzeige(a)['name']}'s turn will be repeated at {wann}.")})
         feed(tid).emit({"type": "msg", **e})
         if run.limit_bis not in LIMIT_GEMELDET:
             LIMIT_GEMELDET.add(run.limit_bis)
-            tg_send(f"\u23f3 Nutzungslimit erreicht — die Firma macht um {wann} Uhr von "
-                    f"selbst weiter.")
+            tg_send(cfg.L(f"\u23f3 Nutzungslimit erreicht — die Firma macht um {wann} Uhr von "
+                          f"selbst weiter.",
+                          f"\u23f3 Usage limit reached — the company carries on by itself at {wann}."))
         MAILBOX.put_nowait((tid, mid))
         return
 
@@ -480,11 +494,12 @@ async def _zustellen_innen(tid: str, mid: str):
         # Login abgelaufen, Prozess abgestuerzt, API ueberlastet: der Zug hat
         # nicht gearbeitet. Das ist ein anderer Befund als "hat geantwortet,
         # aber nichts geliefert", und Kevin muss den Grund lesen koennen.
-        return auftrag_anhalten(t, "fehler",
-                               f"Der Zug von {ag.anzeige(a)['name']} endete mit einem Fehler: "
-                               f"{run.fehler[:400]}",
-                               "Ursache beheben (Login, Netz), dann weiter — der Zug wird "
-                               "wiederholt.", an=a["slug"])
+        return auftrag_anhalten(t, "fehler", cfg.L(
+            f"Der Zug von {ag.anzeige(a)['name']} endete mit einem Fehler: {run.fehler[:400]}",
+            f"{ag.anzeige(a)['name']}'s turn ended with an error: {run.fehler[:400]}"),
+            cfg.L("Ursache beheben (Login, Netz), dann weiter — der Zug wird wiederholt.",
+                  "Fix the cause (login, network), then continue — the turn is repeated."),
+            an=a["slug"])
 
     # Den Antworttext mitschreiben: fertige Laeufe raeumt gc_runs weg, der
     # Auftrag muss aber auch spaeter noch lesbar sein.
@@ -507,7 +522,8 @@ async def _zustellen_innen(tid: str, mid: str):
             # schon an der Nachbesserung sitzt. Der naechste Zug kommt von
             # selbst, sobald ein Ergebnis eintrifft.
             e = auf.anhaengen(tid, {"art": "system",
-                                   "text": f"{ag.anzeige(a)['name']} wartet auf: {', '.join(offen)}."})
+                                   "text": cfg.L(f"{ag.anzeige(a)['name']} wartet auf: {', '.join(offen)}.",
+                                                 f"{ag.anzeige(a)['name']} is waiting for: {', '.join(offen)}.")})
             feed(tid).emit({"type": "msg", **e})
             feed(tid).emit({"type": "stand", **t["verbraucht"]})
             return
@@ -519,25 +535,32 @@ async def _zustellen_innen(tid: str, mid: str):
             # kurz nacheinander, das zweite wartet hinter der Sperre). Am
             # 11.09.2026 riss hier die Bremse, obwohl Mirandas Ergebnis fuer
             # Luna laengst im Postfach lag.
-            e = auf.anhaengen(tid, {"art": "system",
-                                   "text": f"{ag.anzeige(a)['name']} ist gleich wieder dran: "
-                                   + ", ".join(f"{n.get('art')} von {n.get('von')}" for n in liegt)
-                                   + " liegt schon vor."})
+            vor = ", ".join(f"{n.get('art')} {cfg.L('von', 'from')} {n.get('von')}" for n in liegt)
+            e = auf.anhaengen(tid, {"art": "system", "text": cfg.L(
+                f"{ag.anzeige(a)['name']} ist gleich wieder dran: {vor} liegt schon vor.",
+                f"{ag.anzeige(a)['name']} is up again shortly: {vor} is already waiting.")})
             feed(tid).emit({"type": "msg", **e})
             feed(tid).emit({"type": "stand", **t["verbraucht"]})
             return
         # Ein Zug, der nichts an den Bus gegeben hat, ist eine Sackgasse: der
         # Auftrag wuerde stehenbleiben, ohne dass es jemand merkt.
         zuletzt = " ".join((run.last_text or "").split())[:300]
+        name = ag.anzeige(a)["name"]
         return auftrag_anhalten(
             t, "stiller_zug",
-            f"{ag.anzeige(a)['name']} hat geantwortet, aber weder geliefert noch weitergegeben — "
-            f"der Auftrag würde sonst unbemerkt stehenbleiben."
-            + (f" Zuletzt gesagt: \u201e{zuletzt}\u201c" if zuletzt else ""),
-            f"Sag {ag.anzeige(a)['name']} in einem Satz, wie es weitergeht — etwa \u201eLiefer den "
-            f"Stand an mich\u201c oder \u201eGib das an <Kollege> weiter\u201c. Meist reicht "
-            f"WEITERMACHEN ohne Text: dann bekommt {ag.anzeige(a)['name']} \u201eMach bitte weiter\u201c "
-            f"und entscheidet selbst.",
+            cfg.L(f"{name} hat geantwortet, aber weder geliefert noch weitergegeben — "
+                  f"der Auftrag würde sonst unbemerkt stehenbleiben."
+                  + (f" Zuletzt gesagt: \u201e{zuletzt}\u201c" if zuletzt else ""),
+                  f"{name} answered but neither delivered nor passed it on — the job would "
+                  f"otherwise stall unnoticed."
+                  + (f" Last said: \u201c{zuletzt}\u201d" if zuletzt else "")),
+            cfg.L(f"Sag {name} in einem Satz, wie es weitergeht — etwa \u201eLiefer den "
+                  f"Stand an mich\u201c oder \u201eGib das an <Kollege> weiter\u201c. Meist reicht "
+                  f"WEITERMACHEN ohne Text: dann bekommt {name} \u201eMach bitte weiter\u201c "
+                  f"und entscheidet selbst.",
+                  f"Tell {name} in one sentence how to go on — e.g. \u201cDeliver the current "
+                  f"state to me\u201d or \u201cPass this to <colleague>\u201d. Usually CONTINUE "
+                  f"without text is enough: {name} then gets \u201cPlease carry on\u201d and decides."),
             an=a["slug"])
 
     bremse, grund = guards.pruefe_nach_zug(t, auf.verlauf(tid))
@@ -562,18 +585,21 @@ def wieder_aufnehmen():
         offen = auf.offene_nachrichten(t["id"])
         versuch = (t.get("in_arbeit") or {}).get("versuch", 0)
         if versuch >= 3:
-            auftrag_anhalten(t, "neustart",
-                            f"Dieser Zug wurde {versuch} Mal durch einen Neustart "
-                            f"unterbrochen. Da stimmt etwas nicht.")
+            auftrag_anhalten(t, "neustart", cfg.L(
+                f"Dieser Zug wurde {versuch} Mal durch einen Neustart unterbrochen. "
+                f"Da stimmt etwas nicht.",
+                f"This turn was interrupted by a restart {versuch} times. Something is wrong."))
             continue
         if not offen:
             # Status "laeuft", aber nichts mehr zuzustellen: der Zug ist beim
             # Absturz verlorengegangen. Ohne diesen Zweig bliebe der Auftrag
             # fuer immer auf "laeuft" stehen, ohne dass je wieder etwas
             # passiert — sichtbar haengen ist besser als still haengen.
-            auftrag_anhalten(t, "neustart",
-                            "Der Auftrag lief beim Neustart, aber es ist keine "
-                            "offene Nachricht mehr da. Der letzte Zug ging verloren.")
+            auftrag_anhalten(t, "neustart", cfg.L(
+                "Der Auftrag lief beim Neustart, aber es ist keine offene Nachricht mehr da. "
+                "Der letzte Zug ging verloren.",
+                "The job was running at the restart, but there is no open message left. "
+                "The last turn was lost."))
             continue
         # Den Zaehler BEHALTEN: _start rechnet versuch+1 auf das, was hier
         # steht. Mit None stuende er nach jedem Neustart wieder auf 1, und der
@@ -583,9 +609,12 @@ def wieder_aufnehmen():
         for n in offen:
             auf.anhaengen(t["id"], {
                 "art": "system",
-                "text": "[Der Server wurde neu gestartet. Pruefe erst den Zustand "
-                        "der Dateien, bevor du weiterarbeitest — dein vorheriger "
-                        "Zug wurde mittendrin abgebrochen.]"})
+                "text": cfg.L("[Der Server wurde neu gestartet. Prüfe erst den Zustand "
+                              "der Dateien, bevor du weiterarbeitest — dein vorheriger "
+                              "Zug wurde mittendrin abgebrochen.]",
+                              "[The server was restarted. Check the state of the files "
+                              "before you carry on — your previous turn was cut off "
+                              "midway.]")})
             MAILBOX.put_nowait((t["id"], n["id"]))
 
 
@@ -596,7 +625,7 @@ def bus_config(slug: str, token: str, ticket_id: str = "") -> str:
         "args": [str(BASE_DIR / "team_mcp.py")],
         "env": {"FIRMA_AGENT": slug, "FIRMA_AUFTRAG": ticket_id,
                 "FIRMA_TOKEN": token, "FIRMA_BASE": bus_base(),
-                "FIRMA_NUTZER": ag.anrede("Kevin")}}}})
+                "FIRMA_NUTZER": ag.anrede("Kevin"), "FIRMA_LANG": cfg.lang()}}}})
 
 
 def kevin_ziel(t: dict, an_wunsch: str) -> tuple:
@@ -663,7 +692,8 @@ async def kevin_weiter(tid: str, an_wunsch: str, text: str) -> dict | None:
     t = await auftrag_aendern(tid, _weiter)
     if t:
         nachliefern(tid)
-        bus_einreihen(t, "kevin", ziel["an"], ziel["art"], text or ag.anrede("Mach bitte weiter."))
+        bus_einreihen(t, "kevin", ziel["an"], ziel["art"],
+                      text or cfg.L("Mach bitte weiter.", "Please carry on."))
     return t
 
 # ---------- Aufträge anlegen und abschließen ----------
@@ -682,22 +712,24 @@ def auftrag_anlegen(titel: str, brief: str, cwd: str = "", owner: str = "",
     """
     brief = str(brief or "").strip()
     if not brief:
-        raise AuftragFehler("leer")
+        raise AuftragFehler(cfg.L("leer", "empty"))
     chef = ag.load_agent(owner or ag.OWNER_SLUG, WORKSPACE)
     if not chef:
-        raise AuftragFehler("Es gibt niemanden, der Aufträge verteilt.")
+        raise AuftragFehler(cfg.L("Es gibt niemanden, der Aufträge verteilt.",
+                                  "There is nobody who hands out jobs."))
     # Dieselbe Prüfung wie für das cwd einer Akte: ein Auftrag mit Arbeitsordner
     # außerhalb des Workspace ließe einen Zug mit acceptEdits überall auf der
     # Platte arbeiten.
     ordner = ag._clean_cwd(cwd or chef["cwd"], WORKSPACE)
     if not ordner:
-        raise AuftragFehler(f"Der Arbeitsordner muss in {WORKSPACE} liegen.")
+        raise AuftragFehler(cfg.L(f"Der Arbeitsordner muss in {WORKSPACE} liegen.",
+                                  f"The working folder must be inside {WORKSPACE}."))
     ziel = None
     if isinstance(bruecke, dict) and bruecke.get("session") and bruecke.get("nr"):
         try:
             ziel = {"session": str(bruecke["session"]), "nr": int(bruecke["nr"])}
         except (TypeError, ValueError):
-            raise AuftragFehler("ungültige Angabe zum Ticket")
+            raise AuftragFehler(cfg.L("ungültige Angabe zum Ticket", "invalid ticket reference"))
     t = auf.neu(str(titel or "").strip() or brief[:80], brief, owner=chef["slug"], cwd=ordner)
     t["status"] = "laeuft"
     if ziel:
@@ -717,7 +749,8 @@ class AuftragVorhanden(AuftragFehler):
     """Dieses Ticket ist schon bei der Firma."""
 
     def __init__(self, auftrag_id: str):
-        super().__init__("Dieses Ticket ist schon bei der Firma.")
+        super().__init__(cfg.L("Dieses Ticket ist schon bei der Firma.",
+                               "This ticket is already with the company."))
         self.auftrag_id = auftrag_id
 
 
@@ -730,7 +763,7 @@ def auftrag_aus_ticket(sid: str, nr: int) -> dict:
     d = tickmod.laden(sid)
     tk = next((x for x in d["tickets"] if x["nr"] == int(nr)), None)
     if tk is None:
-        raise AuftragFehler("Dieses Ticket gibt es nicht.")
+        raise AuftragFehler(cfg.L("Dieses Ticket gibt es nicht.", "This ticket does not exist."))
     alt = auf.laden(tk["auftrag"]) if tk.get("auftrag") else None
     if alt and alt["status"] not in ("fertig", "abgebrochen"):
         # Ein laufender oder wartender Auftrag blockiert; ein fertiger oder

@@ -24,6 +24,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from server import config as cfg
 from server.team.pfade import FIRMA_DIR
 
 AUFTRAEGE_DIR = FIRMA_DIR / "auftraege"
@@ -65,7 +66,7 @@ def neu(titel: str, brief: str, owner: str = "chef", cwd: str = "") -> dict:
     tid = uuid.uuid4().hex[:8]
     t = {
         "id": tid,
-        "titel": (titel or brief or "Auftrag")[:120],
+        "titel": (titel or brief or cfg.L("Auftrag", "Job"))[:120],
         "brief": brief,                      # Kevins Worte, werden nie umgeschrieben
         "status": "neu",
         "owner": owner,

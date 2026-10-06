@@ -31,32 +31,40 @@ def auftrags_prompt(a: dict, t: dict, nachricht: dict) -> str:
     es wirklich eng wird, kommt ein Satz dazu.
     """
     kopf = [
-        f"# Auftrag: {t['titel']}",
-        f"Kevins Worte: {t['brief']}",
+        cfg.L(f"# Auftrag: {t['titel']}", f"# Job: {t['titel']}"),
+        cfg.L(f"Kevins Worte: {t['brief']}", f"Kevin's words: {t['brief']}"),
     ]
     rest = guards.rest_schritte(t, auf.verlauf(t["id"]))
     if rest <= guards.WARNUNG_AB:
-        kopf.append(f"Achtung: noch {rest} Schritte, dann haelt der Auftrag an und Kevin muss "
-                    f"ran. Liefere lieber ein ehrliches Teilergebnis mit dem, was fehlt.")
+        kopf.append(cfg.L(f"Achtung: noch {rest} Schritte, dann hält der Auftrag an und Kevin muss "
+                          f"ran. Liefere lieber ein ehrliches Teilergebnis mit dem, was fehlt.",
+                          f"Careful: {rest} steps left, then the job stops and Kevin has to step "
+                          f"in. Better deliver an honest partial result that says what is missing."))
     if t.get("artefakte"):
-        kopf.append("Bisher angefasste Dateien: "
+        kopf.append(cfg.L("Bisher angefasste Dateien: ", "Files touched so far: ")
                     + ", ".join(x["pfad"] for x in t["artefakte"][-8:]))
     offen = ausstehend(a["slug"], auf.verlauf(t["id"]))
     if offen and nachricht.get("art") != "auftrag":
-        kopf.append("Von dir beauftragt und noch ohne Ergebnis: " + ", ".join(offen))
+        kopf.append(cfg.L("Von dir beauftragt und noch ohne Ergebnis: ",
+                          "Briefed by you and still without a result: ") + ", ".join(offen))
     # Was schon im Postfach liegt, aber erst im naechsten Zug kommt. Ohne den
     # Satz sagte Luna am 11.09.2026 "ich warte auf Miranda", waehrend Mirandas
     # Ergebnis laengst da war — nur hinter Raukes in der Reihe.
     liegt = [n for n in auf.offene_nachrichten(t["id"])
              if n.get("an") == a["slug"] and n.get("id") != nachricht.get("id")]
     if liegt:
-        kopf.append("Liegt schon für dich bereit und kommt im nächsten Zug von selbst "
-                    "(nicht darauf warten, nicht danach fragen): "
-                    + ", ".join(f"{n.get('art')} von {n.get('von')}" for n in liegt))
+        kopf.append(cfg.L("Liegt schon für dich bereit und kommt im nächsten Zug von selbst "
+                          "(nicht darauf warten, nicht danach fragen): ",
+                          "Already waiting for you and arrives by itself in your next turn "
+                          "(do not wait for it, do not ask for it): ")
+                    + ", ".join(f"{n.get('art')} {cfg.L('von', 'from')} {n.get('von')}" for n in liegt))
     absender = nachricht.get("von") or "kevin"
     wer = "Kevin" if absender == "kevin" else absender
-    art = {"auftrag": "beauftragt dich", "frage": "fragt dich",
-           "antwort": "antwortet dir", "ergebnis": "liefert dir"}.get(nachricht.get("art"), "schreibt dir")
+    art = cfg.L({"auftrag": "beauftragt dich", "frage": "fragt dich",
+                 "antwort": "antwortet dir", "ergebnis": "liefert dir"},
+                {"auftrag": "briefs you", "frage": "asks you",
+                 "antwort": "answers you", "ergebnis": "delivers to you"}
+                ).get(nachricht.get("art"), cfg.L("schreibt dir", "writes to you"))
     kopf.append(f"\n## {wer} {art}:\n\n{nachricht.get('text', '')}")
     kopf.append("\n" + zug_abschluss(a, t, nachricht))
     return ag.anrede("\n".join(kopf), roh=(t["titel"], t["brief"], nachricht.get("text", "")))
@@ -79,44 +87,63 @@ def zug_abschluss(a: dict, t: dict, nachricht: dict) -> str:
     bis zwei, die in dieser Lage richtig sind — eine Liste mit allen ist wieder
     nur Protokoll zum Ueberlesen.
     """
-    schluss = "Ein Zug ohne Bus-Aufruf haelt den ganzen Auftrag an."
+    schluss = cfg.L("Ein Zug ohne Bus-Aufruf hält den ganzen Auftrag an.",
+                    "A turn without a bus call stops the whole job.")
     art = nachricht.get("art")
 
     if art == "frage":
-        return f"**Beende deinen Zug mit `antworten`.** {schluss}"
+        return cfg.L(f"**Beende deinen Zug mit `antworten`.** {schluss}",
+                     f"**End your turn with `antworten` (answer).** {schluss}")
 
     if art == "ergebnis" and a["slug"] == t["owner"]:
         # Der heikelste Fall: der Auftrag ist faktisch fertig, und genau hier
         # blieb er im Pruefstand liegen.
         offen = ausstehend(a["slug"], auf.verlauf(t["id"]))
         if offen:
-            return ("**Du fuehrst diesen Auftrag.** Es arbeiten noch: "
-                    + ", ".join(offen) + ". Warte deren Ergebnis ab, bevor du "
-                    "lieferst — `notiz`, wenn du dir etwas festhalten willst, "
-                    f"sonst vergib den naechsten Schritt. {schluss}")
-        return ("**Du fuehrst diesen Auftrag.** Pruefe, ob er damit erledigt "
-                "ist — wenn ja, `liefern` (das geht an Kevin und schliesst den "
-                f"Auftrag ab). Wenn nicht, vergib den naechsten Schritt. {schluss}")
+            return cfg.L("**Du führst diesen Auftrag.** Es arbeiten noch: "
+                         + ", ".join(offen) + ". Warte deren Ergebnis ab, bevor du "
+                         "lieferst — `notiz`, wenn du dir etwas festhalten willst, "
+                         f"sonst vergib den nächsten Schritt. {schluss}",
+                         "**You lead this job.** Still working: "
+                         + ", ".join(offen) + ". Wait for their result before you "
+                         "deliver — `notiz` (note) if you want to record something, "
+                         f"otherwise hand out the next step. {schluss}")
+        return cfg.L("**Du führst diesen Auftrag.** Prüfe, ob er damit erledigt "
+                     "ist — wenn ja, `liefern` (das geht an Kevin und schließt den "
+                     f"Auftrag ab). Wenn nicht, vergib den nächsten Schritt. {schluss}",
+                     "**You lead this job.** Check whether this completes it — if so, "
+                     "`liefern` (deliver; it goes to Kevin and closes the job). If not, "
+                     f"hand out the next step. {schluss}")
 
     if art == "auftrag" and nachricht.get("groesse") == "klein":
         # Der Umsetzer schreibt hier fuer Kevin, nicht fuer die
         # Geschaeftsfuehrung — die liest sein Ergebnis nicht mehr.
-        return ("**Das ist ein Kleinauftrag: dein `liefern` geht direkt an Kevin "
-                "und schliesst den Auftrag ab.** Schreib das Ergebnis also fuer ihn — "
-                "was jetzt anders ist, was er wissen muss. Kommst du ohne ihn nicht "
-                f"weiter: `eskalieren`. {schluss}")
+        return cfg.L("**Das ist ein Kleinauftrag: dein `liefern` geht direkt an Kevin "
+                     "und schließt den Auftrag ab.** Schreib das Ergebnis also für ihn — "
+                     "was jetzt anders ist, was er wissen muss. Kommst du ohne ihn nicht "
+                     f"weiter: `eskalieren`. {schluss}",
+                     "**This is a small job: your `liefern` (deliver) goes straight to "
+                     "Kevin and closes the job.** So write the result for Kevin — what is "
+                     "different now, what Kevin needs to know. If you cannot go on without "
+                     f"Kevin: `eskalieren` (escalate). {schluss}")
 
     if art in ("auftrag", "antwort") and a.get("can_delegate"):
         # Wer verteilen darf, soll das auch tun. Stand hier frueher nur
         # "liefern oder eskalieren", war das eine Einladung an die
         # Geschaeftsfuehrung, es doch schnell selbst zu machen.
-        return ("**Beende deinen Zug mit `beauftragen`** (du gibst die Arbeit "
-                "an den Richtigen weiter — unabhaengige Teile auch an mehrere), "
-                "**`liefern`** (nichts zu verteilen, dein Teil steht) **oder "
-                f"`eskalieren`** (du kommst ohne Kevin nicht weiter). {schluss}")
+        return cfg.L("**Beende deinen Zug mit `beauftragen`** (du gibst die Arbeit "
+                     "an den Richtigen weiter — unabhängige Teile auch an mehrere), "
+                     "**`liefern`** (nichts zu verteilen, dein Teil steht) **oder "
+                     f"`eskalieren`** (du kommst ohne Kevin nicht weiter). {schluss}",
+                     "**End your turn with `beauftragen`** (brief: you pass the work to "
+                     "the right person — independent parts also to several), "
+                     "**`liefern`** (deliver: nothing to hand out, your part is done) **or "
+                     f"`eskalieren`** (escalate: you cannot go on without Kevin). {schluss}")
 
-    return ("**Beende deinen Zug mit `liefern`** (dein Teil steht) **oder "
-            f"`eskalieren`** (du kommst ohne Kevin nicht weiter). {schluss}")
+    return cfg.L("**Beende deinen Zug mit `liefern`** (dein Teil steht) **oder "
+                 f"`eskalieren`** (du kommst ohne Kevin nicht weiter). {schluss}",
+                 "**End your turn with `liefern`** (deliver: your part is done) **or "
+                 f"`eskalieren`** (escalate: you cannot go on without Kevin). {schluss}")
 
 
 def ausstehend(slug: str, verlauf: list) -> list:
@@ -163,7 +190,8 @@ def agent_system_prompt(a: dict, workspace) -> str:
     Also kein Gewinn. Die Quote liegt ohnehin bei rund 90 % — hier ist nichts
     zu holen, solange Claude Code dazwischen steht.
     """
-    soul = (a.get("soul") or f"Du bist {a['name']}, {a['title']}.").replace("{name}", a["name"])
+    soul = (a.get("soul") or cfg.L(f"Du bist {a['name']}, {a['title']}.",
+                                   f"You are {a['name']}, {a['title']}.")).replace("{name}", a["name"])
     if a["slug"] == ag.OWNER_SLUG:
         # Die Geschäftsführung ist der Assistent: zuerst sein Charakter wie im Chat
         # (SOUL.md der Installation, sonst die mitgelieferte Vorlage), dann ihre Akte
@@ -177,13 +205,15 @@ def agent_system_prompt(a: dict, workspace) -> str:
     if stil:
         teile.append(stil)
     if a.get("memory", "").strip():
-        teile.append("## Was du dir gemerkt hast\n\n" + a["memory"].strip())
+        teile.append(cfg.L("## Was du dir gemerkt hast\n\n", "## What you have remembered\n\n")
+                     + a["memory"].strip())
     hist = ag.historie_text(a["slug"])
     if hist:
         teile.append(hist)
     nutzer = ag.user_read().strip()
     if nutzer:
-        teile.append("## Was die Firma über den Nutzer weiß\n\n" + nutzer)
+        teile.append(cfg.L("## Was die Firma über den Nutzer weiß\n\n",
+                           "## What the company knows about the user\n\n") + nutzer)
     # Die Bus-Regeln der Auftragsarbeit.
     proto = ag.protocol_read().strip()
     if proto:
@@ -196,11 +226,14 @@ def agent_system_prompt(a: dict, workspace) -> str:
         teile.append(gest)
     # Mit dem, was jeder KANN — nicht nur, wer er ist. Wer Screenshots, Builds
     # oder Tests vergibt, muss sehen, wer eine Shell hat (s. ag.faehigkeiten).
-    teile.append("Du arbeitest in einer Firma aus KI-Mitarbeitern. Die Belegschaft:\n"
+    teile.append(cfg.L("Du arbeitest in einer Firma aus KI-Mitarbeitern. Die Belegschaft:\n",
+                       "You work in a company of AI employees. The staff:\n")
                  + "\n".join(f"- {x['slug']} = {x['name']}, {x['title']} ({ag.faehigkeiten(x)})"
                              for x in ag.list_agents(workspace) if x["slug"] != a["slug"])
-                 + "\nBeim Beauftragen und Fragen benutzt du den slug, nicht den Namen. "
-                 "Arbeit, die eine Shell braucht, geht nur an jemanden mit Shell.")
+                 + cfg.L("\nBeim Beauftragen und Fragen benutzt du den slug, nicht den Namen. "
+                         "Arbeit, die eine Shell braucht, geht nur an jemanden mit Shell.",
+                         "\nWhen briefing or asking, use the slug, not the name. "
+                         "Work that needs a shell only goes to someone with a shell."))
     # Nur der INDEX der Anleitungen — Name und Anlass, nicht der Inhalt. Den
     # holt sich ein Mitarbeiter ueber das Werkzeug `anleitung`, wenn die Lage
     # passt. Zwanzig Anleitungen kosten so rund 1200 Zeichen statt 40 000.

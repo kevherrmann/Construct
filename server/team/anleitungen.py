@@ -35,6 +35,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from server import config as cfg
 from server.team.pfade import FIRMA_DIR
 
 DIR = FIRMA_DIR / "anleitungen"
@@ -116,10 +117,14 @@ def index() -> str:
     xs = alle()
     if not xs:
         return ""
-    zeilen = ["## Anleitungen der Firma", "",
-              "Fuer diese Lagen hat sich schon einmal jemand einen Ablauf "
-              "erarbeitet. Passt eine auf deine Aufgabe, hol sie dir mit "
-              "`anleitung` — bevor du selbst probierst.", ""]
+    zeilen = cfg.L(["## Anleitungen der Firma", "",
+                    "Für diese Lagen hat sich schon einmal jemand einen Ablauf "
+                    "erarbeitet. Passt eine auf deine Aufgabe, hol sie dir mit "
+                    "`anleitung` — bevor du selbst probierst.", ""],
+                   ["## The company's guides", "",
+                    "For these situations someone has already worked out a procedure. "
+                    "If one fits your task, fetch it with `anleitung` — before you try "
+                    "things yourself.", ""])
     for x in xs:
         zeilen.append(f"- **{x['name']}** — {x['wann']}")
     txt = "\n".join(zeilen)
@@ -146,23 +151,30 @@ def anlegen(name: str, wann: str, text: str, von: str) -> tuple:
     """
     name = " ".join(str(name or "").split()).lower().replace(" ", "-")
     if not slug_ok(name):
-        return False, ("Der Name taugt nicht. Nur Kleinbuchstaben, Ziffern und "
-                       "Bindestriche, hoechstens 48 Zeichen — z. B. "
-                       "`playwright-bestaetigen`.")
+        return False, cfg.L("Der Name taugt nicht. Nur Kleinbuchstaben, Ziffern und "
+                            "Bindestriche, höchstens 48 Zeichen — z. B. "
+                            "`playwright-bestaetigen`.",
+                            "The name does not work. Only lowercase letters, digits and "
+                            "hyphens, at most 48 characters — e.g. `playwright-confirm`.")
     wann = " ".join(str(wann or "").split())
     if len(wann) < 10:
-        return False, ("Es fehlt das `wann`: in einem Satz, woran ein Kollege "
-                       "erkennt, dass diese Anleitung seine Lage trifft. Ohne "
-                       "das findet sie nie jemand.")
+        return False, cfg.L("Es fehlt das `wann`: in einem Satz, woran ein Kollege "
+                            "erkennt, dass diese Anleitung seine Lage trifft. Ohne "
+                            "das findet sie nie jemand.",
+                            "`wann` (when) is missing: one sentence on how a colleague "
+                            "recognises that this guide fits their situation. Without it "
+                            "nobody will ever find it.")
     text = str(text or "").strip()
     if len(text) < 40:
-        return False, "Die Anleitung ist zu duenn. Schreib die Schritte auf."
+        return False, cfg.L("Die Anleitung ist zu dünn. Schreib die Schritte auf.",
+                            "The guide is too thin. Write down the steps.")
 
     p = DIR / name / "ANLEITUNG.md"
     vorher = lesen(name)
     if vorher is None and len(alle()) >= 200:
-        return False, ("Es gibt schon 200 Anleitungen. Sag Kevin, dass "
-                       "ausgemistet werden muss.")
+        return False, cfg.L("Es gibt schon 200 Anleitungen. Sag Kevin, dass "
+                            "ausgemistet werden muss.",
+                            "There are already 200 guides. Tell Kevin they need clearing out.")
     kopf = [f"name: {name}", f"wann: {wann[:MAX_WANN]}",
             f"von: {(vorher or {}).get('von') or von}",
             f"angelegt: {(vorher or {}).get('angelegt') or date.today().isoformat()}"]
@@ -174,8 +186,9 @@ def anlegen(name: str, wann: str, text: str, von: str) -> tuple:
         if vorher.get("benutzt"):
             kopf.append(f"benutzt: {vorher['benutzt']}")
     _atomic(p, "---\n" + "\n".join(kopf) + "\n---\n\n" + text[:MAX_TEXT] + "\n")
-    return True, ("Anleitung aktualisiert." if vorher else
-                  "Anleitung angelegt — deine Kollegen sehen sie ab dem naechsten Zug.")
+    return True, (cfg.L("Anleitung aktualisiert.", "Guide updated.") if vorher else
+                  cfg.L("Anleitung angelegt — deine Kollegen sehen sie ab dem nächsten Zug.",
+                        "Guide created — your colleagues see it from their next turn."))
 
 
 def benutzt_vermerken(name: str):

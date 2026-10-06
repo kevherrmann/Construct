@@ -8,6 +8,8 @@ Zug statt eines hängenden Prozessbaums.
 import asyncio
 import time
 
+from server import config as cfg
+
 from server.runs import RUNS
 from server.core import WORKSPACE
 from server.team import agents as ag
@@ -21,8 +23,10 @@ from server.team.gedaechtnis import gedaechtnis_eindicken, mem_lock
 USER_LOCK = asyncio.Lock()      # die geteilte USER.md hat genau EINEN Schreiber
 ANLEITUNG_LOCK = asyncio.Lock()  # dito fuer die gemeinsamen Anleitungen
 
-SOFORT = ("zugestellt \u2014 beende jetzt deinen Zug. Die Antwort erreicht dich "
-          "als neue Nachricht.")
+def sofort():
+    return cfg.L("zugestellt \u2014 beende jetzt deinen Zug. Die Antwort erreicht dich "
+                 "als neue Nachricht.",
+                 "delivered \u2014 end your turn now. The answer reaches you as a new message.")
 # Werkzeuge, die eine Nachricht in den Auftrag geben. Davon eine pro Zug \u2014
 # ausser `beauftragen` an verschiedene Leute, davon bis zu:
 ROUTING = ("beauftragen", "fragen", "antworten", "liefern", "eskalieren")
@@ -47,7 +51,8 @@ async def bus_aufruf(body: dict) -> dict:
 async def _bus_aufruf(body: dict) -> dict:
     token = str(body.get("token") or "")
     if token not in engine.BUS_TOKENS:
-        return _bus_fehler("Dieser Zug ist beendet. Der Bus nimmt nichts mehr an.")
+        return _bus_fehler(cfg.L("Dieser Zug ist beendet. Der Bus nimmt nichts mehr an.",
+                                 "This turn has ended. The bus accepts nothing more."))
     slug, tid = engine.BUS_TOKENS[token]
     werkzeug = str(body.get("tool") or "")
     args = body.get("args") or {}
@@ -57,9 +62,10 @@ async def _bus_aufruf(body: dict) -> dict:
     # Bus nichts an.
     t = auf.laden(tid) if tid else None
     if not a:
-        return _bus_fehler("Personalakte nicht auffindbar.")
+        return _bus_fehler(cfg.L("Personalakte nicht auffindbar.", "Staff file not found."))
     if not t:
-        return _bus_fehler("Zu diesem Zug gibt es keinen Auftrag. Beende deinen Zug.")
+        return _bus_fehler(cfg.L("Zu diesem Zug gibt es keinen Auftrag. Beende deinen Zug.",
+                                 "There is no job for this turn. End your turn."))
 
     run = next((r for r in list(RUNS.values()) if getattr(r, "bus_token", "") == token), None)
 
@@ -76,8 +82,10 @@ async def _bus_aufruf(body: dict) -> dict:
         if t and t["status"] == "abgebrochen":
             # Kevin hat abgebrochen, waehrend dieser Zug noch lief. Ein
             # `liefern` jetzt wuerde den Auftrag wieder auf "fertig" setzen.
-            return _bus_fehler("Kevin hat diesen Auftrag abgebrochen. Beende deinen Zug, "
-                               "ohne weiter zu arbeiten.")
+            return _bus_fehler(cfg.L("Kevin hat diesen Auftrag abgebrochen. Beende deinen Zug, "
+                                     "ohne weiter zu arbeiten.",
+                                     "Kevin cancelled this job. End your turn without "
+                                     "working on."))
         if run is not None and run.bus_calls >= 1:
             # "Ein Zug, eine Nachricht" — vorher stand das nur in PROTOCOL.md,
             # und der Bus liess `fragen` gefolgt von `liefern` durch. Die
@@ -88,14 +96,19 @@ async def _bus_aufruf(body: dict) -> dict:
             # ein Verteiler unabhaengige Teile parallel vergibt.
             mehrfach = (werkzeug == "beauftragen" and run.bus_letztes == "beauftragen")
             if not mehrfach:
-                return _bus_fehler(
+                return _bus_fehler(cfg.L(
                     f"Du hast in diesem Zug schon `{run.bus_letztes}` aufgerufen — ein "
                     f"Zug, eine Nachricht. Beende jetzt deinen Zug; was du noch sagen "
-                    f"willst, sagst du, wenn du wieder dran bist.")
+                    f"willst, sagst du, wenn du wieder dran bist.",
+                    f"You already called `{run.bus_letztes}` in this turn — one turn, one "
+                    f"message. End your turn now; whatever else you want to say, say it "
+                    f"when it is your turn again."))
             if len(run.bus_ziele) >= BEAUFTRAGEN_MAX:
-                return _bus_fehler(
-                    f"Hoechstens {BEAUFTRAGEN_MAX} Kollegen pro Zug. Den Rest vergibst du, "
-                    f"wenn die ersten Ergebnisse da sind.")
+                return _bus_fehler(cfg.L(
+                    f"Höchstens {BEAUFTRAGEN_MAX} Kollegen pro Zug. Den Rest vergibst du, "
+                    f"wenn die ersten Ergebnisse da sind.",
+                    f"At most {BEAUFTRAGEN_MAX} colleagues per turn. Hand out the rest once "
+                    f"the first results are in."))
 
     # --- nur lesen ---
     if werkzeug == "rechnen":
@@ -116,22 +129,22 @@ async def _bus_aufruf(body: dict) -> dict:
     if werkzeug == "belegschaft":
         return {"text": "\n".join(
             f"{x['slug']}: {x['name']}, {x['title']} "
-            f"({'darf verteilen' if x['can_delegate'] else 'arbeitet selbst'}; "
+            f"({cfg.L('darf verteilen', 'may hand out work') if x['can_delegate'] else cfg.L('arbeitet selbst', 'works alone')}; "
             f"{ag.faehigkeiten(x)}"
-            f"{'; PAUSIERT — nimmt gerade nichts an' if x['status'] == 'paused' else ''})"
+            f"{cfg.L('; PAUSIERT — nimmt gerade nichts an', '; PAUSED — takes nothing right now') if x['status'] == 'paused' else ''})"
             for x in ag.list_agents(WORKSPACE))}
 
     if werkzeug == "notiz":
         e = auf.anhaengen(tid, {"von": slug, "an": "", "art": "notiz",
                                "text": str(args.get("text"))[:4000]})
         engine.feed(tid).emit({"type": "msg", **e})
-        return {"text": "notiert (zaehlt nicht als Schritt)"}
+        return {"text": cfg.L("notiert (zählt nicht als Schritt)", "noted (does not count as a step)")}
 
     if werkzeug == "merken":
         d = ag.AGENTS_DIR / slug
         neu_txt = " ".join(str(args.get("text") or "").split())[:400]
         if not neu_txt:
-            return _bus_fehler("leerer Eintrag")
+            return _bus_fehler(cfg.L("leerer Eintrag", "empty entry"))
         eingedickt = False
         async with mem_lock(slug):
             # UNGEKAPPT lesen: die gekappte Fassung zurueckzuschreiben wuerde bei
@@ -139,7 +152,7 @@ async def _bus_aufruf(body: dict) -> dict:
             # Erkenntnisse) abschneiden — und trotzdem "gemerkt" melden.
             alt = ag._read_capped(d / "MEMORY.md", 10 ** 9)
             if neu_txt.lower() in alt.lower():
-                return {"text": "steht schon in deinem Gedaechtnis"}
+                return {"text": cfg.L("steht schon in deinem Gedächtnis", "already in your memory")}
             if len(alt) + len(neu_txt) + 4 > ag.MAX_MEMORY:
                 # Voll: JETZT eindicken und danach anhaengen. Vorher stand hier
                 # nur eine Fehlermeldung, die auf eine Verdichtung verwies, die
@@ -149,13 +162,17 @@ async def _bus_aufruf(body: dict) -> dict:
                 if eingedickt:
                     alt = ag._read_capped(d / "MEMORY.md", 10 ** 9)
             if len(alt) + len(neu_txt) + 4 > ag.MAX_MEMORY:
-                return _bus_fehler(
-                    f"Dein Gedaechtnis ist voll ({len(alt)} von {ag.MAX_MEMORY} "
-                    f"Zeichen) und liess sich nicht eindicken. Sag Kevin, dass er "
-                    f"in agents/{slug}/MEMORY.md aufraeumen muss.")
+                return _bus_fehler(cfg.L(
+                    f"Dein Gedächtnis ist voll ({len(alt)} von {ag.MAX_MEMORY} "
+                    f"Zeichen) und ließ sich nicht eindicken. Sag Kevin, dass "
+                    f"agents/{slug}/MEMORY.md aufgeräumt werden muss.",
+                    f"Your memory is full ({len(alt)} of {ag.MAX_MEMORY} characters) and "
+                    f"could not be condensed. Tell Kevin that agents/{slug}/MEMORY.md "
+                    f"needs tidying up."))
             ag._atomic(d / "MEMORY.md", (alt.rstrip("\n") + "\n- " + neu_txt).strip() + "\n")
-        return {"text": "gemerkt, dein Gedaechtnis wurde dabei eingedickt"
-                        if eingedickt else "gemerkt"}
+        return {"text": cfg.L("gemerkt, dein Gedächtnis wurde dabei eingedickt",
+                              "noted, your memory was condensed on the way")
+                        if eingedickt else cfg.L("gemerkt", "noted")}
 
     if werkzeug == "user_merken":
         async with USER_LOCK:
@@ -169,10 +186,11 @@ async def _bus_aufruf(body: dict) -> dict:
             # Die vorhandenen Namen mitgeben statt nur "gibt's nicht": das
             # Modell hat sich meist nur vertippt, und ohne die Liste raet es
             # ein zweites Mal.
-            da = ", ".join(y["name"] for y in anl.alle()) or "keine"
-            return _bus_fehler(f"Keine Anleitung namens '{name}'. Vorhanden: {da}")
+            da = ", ".join(y["name"] for y in anl.alle()) or cfg.L("keine", "none")
+            return _bus_fehler(cfg.L(f"Keine Anleitung namens '{name}'. Vorhanden: {da}",
+                                     f"No guide called '{name}'. Available: {da}"))
         anl.benutzt_vermerken(name)
-        return {"text": f"# Anleitung: {x['name']}\n\n{x['text']}"}
+        return {"text": cfg.L("# Anleitung: ", "# Guide: ") + f"{x['name']}\n\n{x['text']}"}
 
     if werkzeug == "anleitung_anlegen":
         async with ANLEITUNG_LOCK:
@@ -184,37 +202,51 @@ async def _bus_aufruf(body: dict) -> dict:
     # --- Nachrichten an Kollegen ---
     if werkzeug in ("beauftragen", "fragen"):
         if werkzeug == "beauftragen" and not a["can_delegate"]:
-            return _bus_fehler(f"{a['name']} darf keine Arbeit verteilen. "
-                               f"Liefere dein Ergebnis oder eskaliere.")
+            return _bus_fehler(cfg.L(f"{a['name']} darf keine Arbeit verteilen. "
+                                     f"Liefere dein Ergebnis oder eskaliere.",
+                                     f"{a['name']} may not hand out work. "
+                                     f"Deliver your result or escalate."))
         an = str(args.get("an") or "").strip()
         ziel = ag.load_agent(an, WORKSPACE)
         if not ziel or ziel["status"] == "fired":
             namen = ", ".join(x["slug"] for x in ag.list_agents(WORKSPACE))
-            return _bus_fehler(f"„{an}\u201c gibt es nicht. Moeglich: {namen}")
+            return _bus_fehler(cfg.L(f"„{an}\u201c gibt es nicht. Möglich: {namen}",
+                                     f"\u201c{an}\u201d does not exist. Possible: {namen}"))
         if ziel["status"] == "paused":
-            return _bus_fehler(f"{ziel['name']} ist pausiert und nimmt gerade nichts an. "
-                               f"Nimm jemand anderen oder eskaliere.")
+            return _bus_fehler(cfg.L(f"{ziel['name']} ist pausiert und nimmt gerade nichts an. "
+                                     f"Nimm jemand anderen oder eskaliere.",
+                                     f"{ziel['name']} is paused and takes nothing right now. "
+                                     f"Pick someone else or escalate."))
         if an == slug:
-            return _bus_fehler("Du kannst dich nicht selbst beauftragen.")
+            return _bus_fehler(cfg.L("Du kannst dich nicht selbst beauftragen.",
+                                     "You cannot brief yourself."))
         if run is not None and an in run.bus_ziele:
-            return _bus_fehler(f"{ziel['name']} hast du in diesem Zug schon beauftragt. "
-                               f"Pack alles in EIN Briefing — der zweite Auftrag kaeme "
-                               f"erst nach dem ersten Ergebnis an.")
+            return _bus_fehler(cfg.L(f"{ziel['name']} hast du in diesem Zug schon beauftragt. "
+                                     f"Pack alles in EIN Briefing — der zweite Auftrag käme "
+                                     f"erst nach dem ersten Ergebnis an.",
+                                     f"You already briefed {ziel['name']} in this turn. Put "
+                                     f"everything into ONE briefing — a second one would only "
+                                     f"arrive after the first result."))
         if werkzeug == "beauftragen" and a.get("delegates_to") and an not in a["delegates_to"]:
-            return _bus_fehler(f"{a['name']} darf laut Personalakte nur an "
-                               f"{', '.join(a['delegates_to'])} verteilen.")
+            return _bus_fehler(cfg.L(f"{a['name']} darf laut Personalakte nur an "
+                                     f"{', '.join(a['delegates_to'])} verteilen.",
+                                     f"According to the staff file, {a['name']} may only hand "
+                                     f"out work to {', '.join(a['delegates_to'])}."))
         letzte = next((e for e in reversed(auf.verlauf(tid)) if e.get("an") == slug), {})
         tiefe = int(letzte.get("tiefe") or 0) + 1
         if tiefe > guards.TIEFE_MAX:
-            return _bus_fehler(
-                f"Die Aufgabe waere damit {tiefe} Mal weitergereicht (erlaubt: "
-                f"{guards.TIEFE_MAX}). Mach es selbst oder eskaliere.")
+            return _bus_fehler(cfg.L(
+                f"Die Aufgabe wäre damit {tiefe} Mal weitergereicht (erlaubt: "
+                f"{guards.TIEFE_MAX}). Mach es selbst oder eskaliere.",
+                f"The task would then have been passed on {tiefe} times ({guards.TIEFE_MAX} "
+                f"allowed). Do it yourself or escalate."))
         text = str(args.get("auftrag") or args.get("frage") or "")
         groesse = ""
         if werkzeug == "beauftragen":
             groesse = str(args.get("groesse") or "normal").strip().lower()
             if groesse not in auf.GROESSEN:
-                return _bus_fehler(f"groesse muss eins von {', '.join(auf.GROESSEN)} sein.")
+                return _bus_fehler(cfg.L(f"groesse muss eins von {', '.join(auf.GROESSEN)} sein.",
+                                         f"groesse must be one of {', '.join(auf.GROESSEN)}."))
             # Klein heisst: eine Person, deren `liefern` direkt zu Kevin geht.
             # Nur die Geschaeftsfuehrung schliesst so ab; weiter unten in der
             # Kette bleibt es ein normales Teilstueck.
@@ -226,14 +258,20 @@ async def _bus_aufruf(body: dict) -> dict:
         if run is not None and werkzeug == "beauftragen":
             run.bus_ziele.append(an)
             if groesse == "klein":
-                return {"text": (f"zugestellt als Kleinauftrag: {ziel['name']}s Ergebnis "
-                                 "geht direkt an Kevin und schliesst den Auftrag ab. "
-                                 "Beende deinen Zug — du bist hier fertig.")}
-            return {"text": ("zugestellt. Hast du noch einen UNABHAENGIGEN Teil fuer "
-                             "jemand anderen, beauftrage ihn jetzt — sonst beende deinen "
-                             "Zug. Die Ergebnisse erreichen dich einzeln als neue "
-                             "Nachrichten.")}
-        return {"text": SOFORT}
+                return {"text": cfg.L(f"zugestellt als Kleinauftrag: Das Ergebnis von {ziel['name']} "
+                                      "geht direkt an Kevin und schließt den Auftrag ab. "
+                                      "Beende deinen Zug — du bist hier fertig.",
+                                      f"delivered as a small job: {ziel['name']}'s result goes "
+                                      "straight to Kevin and closes the job. End your turn — "
+                                      "you are done here.")}
+            return {"text": cfg.L("zugestellt. Hast du noch einen UNABHÄNGIGEN Teil für "
+                                  "jemand anderen, beauftrage ihn jetzt — sonst beende deinen "
+                                  "Zug. Die Ergebnisse erreichen dich einzeln als neue "
+                                  "Nachrichten.",
+                                  "delivered. If you have another INDEPENDENT part for someone "
+                                  "else, brief them now — otherwise end your turn. The results "
+                                  "reach you one by one as new messages.")}
+        return {"text": sofort()}
 
     if werkzeug in ("antworten", "liefern"):
         # WEM man liefert, haengt davon ab, wer einen BEAUFTRAGT hat — nicht
@@ -317,9 +355,11 @@ async def _bus_aufruf(body: dict) -> dict:
             except Exception as e:           # das Ticket ist Beigabe: der Auftrag bleibt fertig
                 print(f"[bus] Ticket nicht abgeschlossen: {type(e).__name__}: {e}", flush=True)
             titel = t["titel"]
-            engine.tg_send(f"\u2705 Auftrag \u201e{titel}\u201c ist fertig\n\n{text[:600]}")
+            engine.tg_send(cfg.L(f"\u2705 Auftrag \u201e{titel}\u201c ist fertig\n\n{text[:600]}",
+                                 f"\u2705 Job \u201c{titel}\u201d is done\n\n{text[:600]}"))
             zaehl()
-            return {"text": "Der Auftrag ist abgeschlossen. Beende deinen Zug."}
+            return {"text": cfg.L("Der Auftrag ist abgeschlossen. Beende deinen Zug.",
+                                  "The job is complete. End your turn.")}
         if empf == "kevin":
             # Antwort auf eine Frage von Kevin: er liest sie in der Oberflaeche,
             # zustellen laesst sie sich nicht — also wartet der Auftrag auf ihn.
@@ -327,18 +367,22 @@ async def _bus_aufruf(body: dict) -> dict:
                                    "text": text[:20000], "dateien": dateien})
             engine.feed(tid).emit({"type": "msg", **e})
             zaehl()
-            engine.auftrag_anhalten(t, "eskaliert", f"{ag.anzeige(a)['name']} hat dir geantwortet.",
-                            "Wie soll es weitergehen?", an=slug)
-            return {"text": "Antwort ist bei Kevin, der Auftrag wartet auf ihn. Beende deinen Zug."}
+            engine.auftrag_anhalten(t, "eskaliert",
+                                    cfg.L(f"{ag.anzeige(a)['name']} hat dir geantwortet.",
+                                          f"{ag.anzeige(a)['name']} answered you."),
+                                    cfg.L("Wie soll es weitergehen?", "How should it go on?"), an=slug)
+            return {"text": cfg.L("Antwort ist bei Kevin, der Auftrag wartet auf Kevin. Beende deinen Zug.",
+                                  "The answer is with Kevin, the job waits for Kevin. End your turn.")}
         engine.bus_einreihen(t, slug, empf, "ergebnis" if werkzeug == "liefern" else "antwort",
                       text, dateien=dateien)
         zaehl()
-        return {"text": SOFORT}
+        return {"text": sofort()}
 
     if werkzeug == "eskalieren":
         zaehl()
         engine.auftrag_anhalten(t, "eskaliert", str(args.get("grund") or ""),
                         str(args.get("frage") or ""), an=slug)
-        return {"text": "Kevin ist informiert, der Auftrag pausiert. Beende deinen Zug."}
+        return {"text": cfg.L("Kevin ist informiert, der Auftrag pausiert. Beende deinen Zug.",
+                              "Kevin has been told, the job is paused. End your turn.")}
 
-    return _bus_fehler(f"Unbekanntes Werkzeug: {werkzeug}")
+    return _bus_fehler(cfg.L("Unbekanntes Werkzeug: ", "Unknown tool: ") + werkzeug)

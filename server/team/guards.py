@@ -23,6 +23,8 @@ erzwingen.
 import difflib
 import time
 
+from server import config as cfg
+
 # --- Die harten Grenzen. Gelten fuer jeden Auftrag gleich. ---
 HIN_UND_HER_MAX = 10   # Nachrichten zwischen DENSELBEN zwei — Kevins Endlosschleifen-Bremse
 SCHRITTE_MAX = 40      # geroutete Nachrichten im ganzen Auftrag
@@ -77,17 +79,23 @@ def pruefe(t: dict, nachricht: dict, verlauf: list) -> tuple:
     a, b = _paar(nachricht)
     zwischen = sum(1 for e in liste if _paar(e) == (a, b))
     if zwischen >= HIN_UND_HER_MAX:
-        return "hin_und_her", (f"{a} und {b} haben {zwischen} Nachrichten ausgetauscht "
-                               f"(erlaubt sind {HIN_UND_HER_MAX}). Das dreht sich im Kreis.")
+        return "hin_und_her", cfg.L(f"{a} und {b} haben {zwischen} Nachrichten ausgetauscht "
+                                    f"(erlaubt sind {HIN_UND_HER_MAX}). Das dreht sich im Kreis.",
+                                    f"{a} and {b} have exchanged {zwischen} messages "
+                                    f"({HIN_UND_HER_MAX} allowed). This is going in circles.")
 
     if len(liste) >= SCHRITTE_MAX:
-        return "schritte", (f"Der Auftrag hat {len(liste)} Schritte gebraucht (erlaubt sind "
-                            f"{SCHRITTE_MAX}), ohne fertig zu werden.")
+        return "schritte", cfg.L(f"Der Auftrag hat {len(liste)} Schritte gebraucht (erlaubt sind "
+                                 f"{SCHRITTE_MAX}), ohne fertig zu werden.",
+                                 f"The job took {len(liste)} steps ({SCHRITTE_MAX} allowed) "
+                                 f"without getting done.")
 
     tiefe = int(nachricht.get("tiefe") or 0)
     if tiefe > TIEFE_MAX:
-        return "tiefe", (f"Die Aufgabe wurde {tiefe} Mal weitergereicht (erlaubt: "
-                         f"{TIEFE_MAX}). Sie wird herumgeschoben statt erledigt.")
+        return "tiefe", cfg.L(f"Die Aufgabe wurde {tiefe} Mal weitergereicht (erlaubt: "
+                              f"{TIEFE_MAX}). Sie wird herumgeschoben statt erledigt.",
+                              f"The task was passed on {tiefe} times ({TIEFE_MAX} allowed). "
+                              f"It is being pushed around instead of done.")
 
     return None, ""
 
@@ -115,8 +123,10 @@ def pruefe_nach_zug(t: dict, verlauf: list) -> tuple:
                           or e.get("dateien") for e in letzte)
         if wechselseitig and not fortschritt:
             a, b = list(paare)[0]
-            return "pingpong", (f"{a} und {b} schreiben seit {PINGPONG_ZYKLEN} Runden hin und "
-                                f"her, ohne dass ein Ergebnis entsteht.")
+            return "pingpong", cfg.L(f"{a} und {b} schreiben seit {PINGPONG_ZYKLEN} Runden hin und "
+                                     f"her, ohne dass ein Ergebnis entsteht.",
+                                     f"{a} and {b} have gone back and forth for {PINGPONG_ZYKLEN} "
+                                     f"rounds without producing a result.")
 
     # --- Stillstand: jemand wiederholt sich fast woertlich ---
     for e in liste[-1:]:
@@ -125,9 +135,11 @@ def pruefe_nach_zug(t: dict, verlauf: list) -> tuple:
         for f in frueher:
             q = difflib.SequenceMatcher(None, _norm(f.get("text")), _norm(e.get("text"))).ratio()
             if q > AEHNLICH:
-                return "wiederholung", (f"{e.get('von')} schreibt fast wortgleich dasselbe wie "
-                                        f"vorhin ({int(q * 100)} % Uebereinstimmung) — es geht "
-                                        f"nicht voran.")
+                return "wiederholung", cfg.L(f"{e.get('von')} schreibt fast wortgleich dasselbe wie "
+                                             f"vorhin ({int(q * 100)} % Übereinstimmung) — es geht "
+                                             f"nicht voran.",
+                                             f"{e.get('von')} is writing almost the same as before "
+                                             f"({int(q * 100)} % match) — no progress.")
 
     # --- Kein Artefakt seit N Lieferungen ---
     # Gezaehlt wird in app.py (_buchen): nur `liefern` von Leuten, die
@@ -135,8 +147,10 @@ def pruefe_nach_zug(t: dict, verlauf: list) -> tuple:
     # eines Pruefers ohne Write zaehlen nicht — sonst hielt ein reiner
     # Recherche- oder Pruefauftrag nach sechs Texten an.
     if t["wache"].get("ohne_artefakt", 0) >= OHNE_ARTEFAKT_MAX:
-        return "kein_fortschritt", (f"{OHNE_ARTEFAKT_MAX} Lieferungen hintereinander ohne "
-                                    f"eine geaenderte Datei. Es wird geredet statt gearbeitet.")
+        return "kein_fortschritt", cfg.L(f"{OHNE_ARTEFAKT_MAX} Lieferungen hintereinander ohne "
+                                         f"eine geänderte Datei. Es wird geredet statt gearbeitet.",
+                                         f"{OHNE_ARTEFAKT_MAX} deliveries in a row without a single "
+                                         f"changed file. There is talk instead of work.")
     return None, ""
 
 
@@ -146,7 +160,31 @@ def freigeben(t: dict):
     t["wache"]["ohne_artefakt"] = 0
 
 
-# Fuer die Oberflaeche: was der Nutzer beim Anhalten lesen soll.
+# Fuer die Oberflaeche: was der Nutzer beim Anhalten lesen soll (name() gibt
+# es in seiner Sprache; die Oberflaeche uebersetzt die Kuerzel selbst).
+NAMEN_EN = {
+    "hin_und_her": "endless loop between two",
+    "schritte": "too many steps",
+    "tiefe": "delegation depth",
+    "pingpong": "ping-pong detected",
+    "wiederholung": "repetition detected",
+    "kein_fortschritt": "no progress",
+    "stille": "turn hangs",
+    "fehler": "turn ended with an error",
+    "zug_timeout": "turn timed out",
+    "stiller_zug": "turn without a message",
+    "neustart": "server restart",
+    "gestoppt": "turn stopped",
+    "eskaliert": "question from the company",
+    "unbekannt": "unknown recipient",
+    "akte": "staff file blocks the work",
+}
+
+
+def name(bremse: str) -> str:
+    return cfg.L(NAMEN.get(bremse, bremse), NAMEN_EN.get(bremse, bremse))
+
+
 NAMEN = {
     "hin_und_her": "Endlosschleife zwischen zwei",
     "schritte": "zu viele Schritte",

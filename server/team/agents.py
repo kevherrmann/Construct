@@ -64,9 +64,20 @@ def anzeige(a: dict) -> dict:
 
 
 def vorlage(name: str) -> Path:
-    """Hausstil, Bus-Regeln & Co.: die Datei der Installation, sonst die mitgelieferte."""
+    """Hausstil, Bus-Regeln & Co.: die Datei der Installation, sonst die mitgelieferte
+    (in der Sprache der Installation; Deutsch ist die Vorgabe)."""
     eigene = FIRMA_DIR / name
-    return eigene if eigene.exists() else VORLAGEN_DIR / name
+    if eigene.exists():
+        return eigene
+    en = VORLAGEN_DIR / "en" / name
+    return en if cfg.lang() == "en" and en.exists() else VORLAGEN_DIR / name
+
+
+def vorlagen_akten() -> Path:
+    """Die mitgelieferte Belegschaft in der Sprache der Installation. Ausgerollt wird
+    sie einmal, danach gehören die Akten der Installation (Sprache inklusive)."""
+    en = VORLAGEN_DIR / "agents.default.en"
+    return en if cfg.lang() == "en" and en.exists() else DEFAULTS_DIR
 
 
 def anrede(text: str, roh=()) -> str:
@@ -250,7 +261,8 @@ def validate(raw: dict, workspace) -> tuple:
 
     slug = str(raw.get("slug") or "").strip()
     if not SLUG_RE.match(slug):
-        bad.append(f"slug '{slug}' ist unbrauchbar (a-z, 0-9, _-, 2-32 Zeichen)")
+        bad.append(cfg.L(f"slug '{slug}' ist unbrauchbar (a-z, 0-9, _-, 2-32 Zeichen)",
+                         f"slug '{slug}' is unusable (a-z, 0-9, _-, 2-32 characters)"))
         # Nie den rohen Wert behalten: er wird spaeter als Ordnername benutzt,
         # und "../x" waere ein Pfad ausserhalb von agents/.
         slug = re.sub(r"[^a-z0-9_-]", "", slug.lower())[:32] or "unbenannt"
@@ -269,14 +281,16 @@ def validate(raw: dict, workspace) -> tuple:
         if v in allowed:
             a[key] = v
         elif v:
-            bad.append(f"{key}='{v}' ist nicht erlaubt (moeglich: {', '.join(allowed)})")
+            bad.append(cfg.L(f"{key}='{v}' ist nicht erlaubt (möglich: {', '.join(allowed)})",
+                             f"{key}='{v}' is not allowed (possible: {', '.join(allowed)})"))
 
     a["model_grund"] = str(raw.get("model_grund") or "").strip()[:200]
 
     cwd = _clean_cwd(raw.get("cwd"), workspace)
     cwd_ok = bool(cwd)
     if not cwd_ok:
-        bad.append(f"cwd '{raw.get('cwd')}' liegt ausserhalb von {Path(workspace)}")
+        bad.append(cfg.L(f"cwd '{raw.get('cwd')}' liegt außerhalb von {Path(workspace)}",
+                         f"cwd '{raw.get('cwd')}' is outside {Path(workspace)}"))
         cwd = str(workspace)
     a["cwd"] = cwd
 
@@ -286,7 +300,7 @@ def validate(raw: dict, workspace) -> tuple:
     if tools is not None:
         unknown = [t for t in tools if t not in KNOWN_TOOLS]
         if unknown:
-            bad.append(f"unbekannte Werkzeuge: {', '.join(unknown)}")
+            bad.append(cfg.L("unbekannte Werkzeuge: ", "unknown tools: ") + ", ".join(unknown))
         a["allowed_tools"] = [t for t in tools if t in KNOWN_TOOLS]
     if "Bash" in a["allowed_tools"] and set(WEB_TOOLS) & set(a["allowed_tools"]):
         # Eine präparierte Webseite könnte einem Mitarbeiter mit Shell Befehle
@@ -308,7 +322,7 @@ def validate(raw: dict, workspace) -> tuple:
         a["color"] = col
     else:
         if col:
-            bad.append(f"color '{col}' ist kein r,g,b-Tripel")
+            bad.append(cfg.L(f"color '{col}' ist kein r,g,b-Tripel", f"color '{col}' is not an r,g,b triple"))
         a["color"] = _color_for(slug)
 
     av = str(raw.get("avatar") or "").strip()
@@ -335,7 +349,8 @@ def validate(raw: dict, workspace) -> tuple:
     # schreibt, soll aber NICHT stillschweigend mit vollen Rechten im Workspace
     # landen — er hat sich offensichtlich etwas anderes gedacht.
     if a["permission_mode"] == "bypassPermissions" and not cwd_ok:
-        bad.append("bypassPermissions abgelehnt: das cwd war ungueltig")
+        bad.append(cfg.L("bypassPermissions abgelehnt: das cwd war ungültig",
+                         "bypassPermissions refused: the cwd was invalid"))
         a["permission_mode"] = "acceptEdits"
     return a, bad
 
@@ -346,10 +361,11 @@ def _seed_from_defaults():
     in config.persona_read()."""
     if AGENTS_DIR.exists() and any(AGENTS_DIR.glob("*/AGENT.md")):
         return
-    if not DEFAULTS_DIR.exists():
+    quellen = vorlagen_akten()
+    if not quellen.exists():
         return
     AGENTS_DIR.mkdir(parents=True, exist_ok=True)
-    for quelle in sorted(DEFAULTS_DIR.glob("*/")):
+    for quelle in sorted(quellen.glob("*/")):
         dst = AGENTS_DIR / quelle.name
         dst.mkdir(exist_ok=True)
         for f in quelle.glob("*.md"):
@@ -373,7 +389,7 @@ def load_agent(slug: str, workspace) -> dict | None:
     try:
         fm, _body = _split_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
     except Exception as e:
-        return {**DEFAULT_AGENT, "slug": slug, "name": slug, "problems": [f"nicht lesbar: {e}"]}
+        return {**DEFAULT_AGENT, "slug": slug, "name": slug, "problems": [cfg.L("nicht lesbar: ", "unreadable: ") + str(e)]}
     raw = {k: _fm_get(fm, k) for k in DEFAULT_AGENT}
     raw["slug"] = raw.get("slug") or slug
     if slug in ALTE_WERKZEUGE and raw["allowed_tools"] == ALTE_WERKZEUGE[slug]:
@@ -451,9 +467,11 @@ def historie_text(slug: str) -> str:
     h = historie_lesen(slug)
     if not h:
         return ""
-    zeilen = [f"- {e['datum']}: {e['titel']}" + (f" ({e['rolle']})" if e.get("rolle") else "")
+    rollen = cfg.L({}, {"geleitet": "led", "mitgearbeitet": "contributed"})
+    zeilen = [f"- {e['datum']}: {e['titel']}"
+              + (f" ({rollen.get(e['rolle'], e['rolle'])})" if e.get("rolle") else "")
               for e in h]
-    return "## Woran du schon gearbeitet hast\n\n" + "\n".join(zeilen)
+    return cfg.L("## Woran du schon gearbeitet hast\n\n", "## What you have worked on\n\n") + "\n".join(zeilen)
 
 
 def _read_capped(p: Path, cap: int) -> str:
@@ -505,12 +523,13 @@ def faehigkeiten(a: dict) -> str:
     tools = set(a.get("allowed_tools") or ())
     kann = []
     if "Bash" in tools:
-        kann.append("Shell (bauen, testen, Browser-Screenshots)")
+        kann.append(cfg.L("Shell (bauen, testen, Browser-Screenshots)",
+                          "shell (build, test, browser screenshots)"))
     # acceptEdits schreibt auch ohne Write/Edit in der Liste (s. PERM_MODES).
     if {"Write", "Edit"} & tools or a.get("permission_mode") in ("acceptEdits", "bypassPermissions"):
-        kann.append("schreibt Dateien")
+        kann.append(cfg.L("schreibt Dateien", "writes files"))
     else:
-        kann.append("liest nur")
+        kann.append(cfg.L("liest nur", "read only"))
     if {"WebFetch", "WebSearch"} & tools:
         kann.append("Web")
     return ", ".join(kann)
@@ -584,8 +603,10 @@ def _alter_name_haengt_nach(alt: str, slug: str) -> list:
         treffer.append("USER.md")
     if not treffer:
         return []
-    return [f"„{alt}“ steht noch in: {', '.join(treffer)} — angesprochen wird zwar "
-            f"ueber das Kuerzel „{slug}“, aber die Texte stimmen nicht mehr"]
+    return [cfg.L(f"„{alt}“ steht noch in: {', '.join(treffer)} — angesprochen wird zwar "
+                  f"über das Kürzel „{slug}“, aber die Texte stimmen nicht mehr",
+                  f"“{alt}” still appears in: {', '.join(treffer)} — colleagues are addressed "
+                  f"by the slug “{slug}”, but the texts are no longer right")]
 
 
 def save_agent(data: dict, workspace) -> tuple:
@@ -600,7 +621,8 @@ def save_agent(data: dict, workspace) -> tuple:
     if not SLUG_RE.match(slug):
         # Nichts anlegen, was load_agent nie wieder lesen koennte (und erst
         # recht nichts ausserhalb von agents/).
-        return None, [f"slug '{slug}' ist unbrauchbar (a-z, 0-9, _-, 2-32 Zeichen)"]
+        return None, [cfg.L(f"slug '{slug}' ist unbrauchbar (a-z, 0-9, _-, 2-32 Zeichen)",
+                            f"slug '{slug}' is unusable (a-z, 0-9, _-, 2-32 characters)")]
     vorhanden = load_agent(slug, workspace)
     if vorhanden:
         merged = {k: vorhanden.get(k, v) for k, v in DEFAULT_AGENT.items()}
@@ -617,7 +639,8 @@ def save_agent(data: dict, workspace) -> tuple:
     if "soul" in data:
         _atomic(d / "SOUL.md", str(data["soul"] or "")[:MAX_SOUL])
     elif not (d / "SOUL.md").exists():
-        _atomic(d / "SOUL.md", f"Du bist {a['name']}, {a['title']}.\n")
+        _atomic(d / "SOUL.md", cfg.L(f"Du bist {a['name']}, {a['title']}.\n",
+                                     f"You are {a['name']}, {a['title']}.\n"))
     if "memory" in data:
         _atomic(d / "MEMORY.md", str(data["memory"] or "")[:MAX_MEMORY])
     return load_agent(a["slug"], workspace), bad
@@ -666,7 +689,9 @@ def user_read() -> str:
     haupt = _read_capped(USER_FILE, MAX_USER)
     zusatz = _read_capped(ERGAENZUNGEN_FILE, MAX_USER) if ERGAENZUNGEN_FILE.exists() else ""
     if zusatz.strip():
-        haupt = haupt.rstrip("\n") + "\n\n## Von Mitarbeitern ergänzt\n\n" + zusatz.strip() + "\n"
+        haupt = (haupt.rstrip("\n") + cfg.L("\n\n## Von Mitarbeitern ergänzt\n\n",
+                                             "\n\n## Added by employees\n\n")
+                 + zusatz.strip() + "\n")
     return haupt
 
 
@@ -684,17 +709,19 @@ def user_append(fact: str, by: str) -> tuple:
     """
     fact = " ".join(str(fact or "").split())[:400]
     if not fact:
-        return False, "leerer Eintrag"
+        return False, cfg.L("leerer Eintrag", "empty entry")
     cur = user_read()
     if fact.lower() in cur.lower():
-        return False, "steht schon drin"
+        return False, cfg.L("steht schon drin", "already in there")
     zusatz = ergaenzungen_read()
     if len(cur) + len(fact) + 60 > MAX_USER:
-        return False, ("Die Datei über den Nutzer ist voll (%d Zeichen). Der Nutzer muss aufräumen — "
-                       "ich kürze nicht selbst." % len(cur))
+        return False, cfg.L("Die Datei über den Nutzer ist voll (%d Zeichen). Der Nutzer muss "
+                            "aufräumen — ich kürze nicht selbst." % len(cur),
+                            "The file about the user is full (%d characters). The user has to "
+                            "tidy it up — I do not shorten it myself." % len(cur))
     line = f"- {fact}  <!-- {by}, {date.today().isoformat()} -->\n"
     _atomic(ERGAENZUNGEN_FILE, zusatz.rstrip("\n") + ("\n" if zusatz.strip() else "") + line)
-    return True, "gemerkt"
+    return True, cfg.L("gemerkt", "noted")
 
 
 def style_read() -> str:

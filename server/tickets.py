@@ -249,7 +249,8 @@ def briefing(t: dict, volltexte: dict | None = None) -> str:
     kopf = teile[0]
     if len(teile) == 1:
         return kopf
-    return kopf + "\n\nSpäter dazu gesagt:\n" + "\n".join(f"- {x}" for x in teile[1:])
+    return (kopf + cfg.L("\n\nSpäter dazu gesagt:\n", "\n\nAdded later:\n")
+            + "\n".join(f"- {x}" for x in teile[1:]))
 
 
 def _wo(d: dict, uuid: str):
@@ -490,7 +491,8 @@ def hinweis(sid: str | None, vorgabe: str = "") -> str:
 
     def kurz(t):
         z = firma(t.get("auftrag"))
-        return f"#{t['nr']} „{t['titel']}“" + (f" (Firma {t['auftrag']}: {z})" if z else "")
+        return f"#{t['nr']} „{t['titel']}“" + (cfg.L(f" (Firma {t['auftrag']}: {z})",
+                                                    f" (company {t['auftrag']}: {z})") if z else "")
 
     if ak:
         zusatz = []
@@ -521,8 +523,10 @@ def _firma_stand():
     if not cfg.load_settings()["team"]["aktiv"]:
         return lambda _id: ""
     from server.team import auftraege as auf
-    text = {"neu": "arbeitet", "laeuft": "arbeitet", "wartet_auf_kevin": "wartet auf den Nutzer",
-            "fertig": "fertig", "abgebrochen": "abgebrochen"}
+    text = cfg.L({"neu": "arbeitet", "laeuft": "arbeitet", "wartet_auf_kevin": "wartet auf den Nutzer",
+                  "fertig": "fertig", "abgebrochen": "abgebrochen"},
+                 {"neu": "working", "laeuft": "working", "wartet_auf_kevin": "waiting for the user",
+                  "fertig": "done", "abgebrochen": "cancelled"})
 
     def stand(aid):
         a = auf.laden(aid) if aid else None

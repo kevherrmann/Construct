@@ -19,6 +19,7 @@ Agent kann sich damit nicht als jemand anderes ausgeben:
     FIRMA_AUFTRAG  Auftrag, in dem er gerade arbeitet
     FIRMA_TOKEN    Einmal-Token dieses Laufs
     FIRMA_BASE     http://127.0.0.1:<port>
+    FIRMA_LANG     de oder en: Sprache der Werkzeugbeschreibungen
 """
 import json
 import os
@@ -31,6 +32,7 @@ TICKET = os.environ.get("FIRMA_AUFTRAG", "")
 TOKEN = os.environ.get("FIRMA_TOKEN", "")
 BASE = os.environ.get("FIRMA_BASE", "http://127.0.0.1:8765")
 NUTZER = os.environ.get("FIRMA_NUTZER", "Kevin")
+LANG = os.environ.get("FIRMA_LANG", "de")
 
 # Die Werkzeuge des Busses. Bewusst KEIN Rundruf: ein Broadcast ist der
 # schnellste Weg zu kombinatorisch wachsenden Schrittzahlen.
@@ -42,7 +44,7 @@ WERKZEUGE = [
                      "verschiedene Kollegen gehen und nicht dieselben Dateien anfassen "
                      "(hoechstens drei). Nur fuer Leute, die verteilen duerfen."),
      "inputSchema": {"type": "object", "properties": {
-         "an": {"type": "string", "description": "Slug des Kollegen, z.B. 'entwickler'"},
+         "an": {"type": "string", "description": "Slug des Kollegen, z.B. 'luna'"},
          "auftrag": {"type": "string", "description": "Was genau zu tun ist, mit allem noetigen Kontext"},
          "groesse": {"type": "string", "enum": ["klein", "normal", "gross"],
                      "description": ("Wie viel Ablauf der Auftrag braucht. klein = eine Person, "
@@ -136,6 +138,66 @@ WERKZEUGE = [
 ]
 
 
+# Englische Installationen: dieselben Werkzeuge (die Namen bleiben, der Server
+# kennt nur sie), Beschreibungen auf Englisch. (Beschreibung, {Feld: Beschreibung})
+ENGLISCH = {
+    "beauftragen": ("Brief a colleague with a sub-task. Then end your turn; the result reaches "
+                    "you as a new message. Several calls in ONE turn are only allowed if the "
+                    "parts are independent, go to different colleagues and do not touch the "
+                    "same files (at most three). Only for staff who may hand out work.",
+                    {"an": "Slug of the colleague, e.g. 'luna'",
+                     "auftrag": "What exactly to do, with all the context needed",
+                     "groesse": ("How much process the job needs. klein (small) = one person, one "
+                                 "self-contained piece, no reviewer — their result goes straight "
+                                 "to Kevin and closes the job (managing director only). normal = "
+                                 "implementer plus ONE reviewer. gross (large) = the full chain. "
+                                 "Default: normal.")}),
+    "fragen": ("Ask a colleague ONE question. Then end your turn. Would you ask the same "
+               "question a second time: escalate instead.", {}),
+    "antworten": ("Answer the question that reached you.", {}),
+    "liefern": ("Your part is done. Hands the result to whoever briefed you. Also for partial "
+                "results — then say what is missing.",
+                {"dateien": "Paths you touched"}),
+    "eskalieren": ("Bring in Kevin. The job pauses until Kevin answers. That is no defeat — "
+                   "it beats going in circles.", {}),
+    "rechnen": ("Calculate an expression exactly. ALWAYS USE THIS when a result has to be "
+                "right — mental arithmetic fails with money and long numbers. Supports "
+                "+ - * / // % **, brackets, sqrt, log, sin/cos/tan, abs, round, min/max, pi and "
+                "e. Uses decimals instead of floating point, 0.1+0.2 really is 0.3 here.",
+                {"ausdruck": "e.g. '(1500 - 249.90) * 0.19'"}),
+    "kontrast": ("Measure the WCAG contrast of two colours (text 4.5:1, large text and controls "
+                 "3:1). Colours as #rrggbb, #rgb or r,g,b. Use this instead of guessing — "
+                 "'#777 on white' looks like AA and is not.",
+                 {"vorne": "Text or element colour", "hinten": "Background colour"}),
+    "belegschaft": ("Who works here, in which role. Read only.", {}),
+    "notiz": ("A note for the log, addressed to nobody. Does not count as a step.", {}),
+    "merken": ("Write something into YOUR own memory (MEMORY.md).", {}),
+    "user_merken": ("Write something lasting about Kevin into the shared USER.md — whatever "
+                    "you add here, all colleagues know. Append only, never replace.", {}),
+    "anleitung": ("Fetch one of the company's guides listed by name in the index above. It "
+                  "holds the proven procedure including the pitfalls. Do this BEFORE you try "
+                  "something yourself that already has a guide — that is what they are for.",
+                  {"name": "Name from the index, e.g. 'playwright-confirm'"}),
+    "anleitung_anlegen": ("Record a procedure the company will need again — only AFTER you "
+                          "have carried it out successfully. Use this for HOW TO DO SOMETHING "
+                          "(steps, commands, pitfalls); for mere insights use `merken`. If the "
+                          "name exists, the guide is improved instead of duplicated. All "
+                          "colleagues see it.",
+                          {"name": "short, lowercase, with hyphens",
+                           "wann": ("One sentence: how does a colleague recognise that this "
+                                    "guide fits their situation? It is the only part that is "
+                                    "always in the system prompt — make it precise."),
+                           "text": ("The steps. Concrete, with commands and the traps you "
+                                    "fell into.")}),
+}
+
+if LANG == "en":
+    for w in WERKZEUGE:
+        beschreibung, felder = ENGLISCH[w["name"]]
+        w["description"] = beschreibung
+        for feld, text in felder.items():
+            w["inputSchema"]["properties"][feld]["description"] = text
+
 # Die Beschreibungen sind in Kevins Firma entstanden und nennen ihn beim Namen —
 # hier wird daraus der Name des Nutzers dieser Installation.
 if NUTZER != "Kevin":
@@ -182,6 +244,8 @@ def an_server(werkzeug: str, args: dict) -> tuple:
     except Exception as e:
         # Der Server ist die einzige Wahrheit. Faellt er aus, muss der Agent das
         # SEHEN — sonst arbeitet er weiter, als waere alles zugestellt worden.
+        if LANG == "en":
+            return f"Bus unreachable ({type(e).__name__}). End your turn.", True
         return f"Bus nicht erreichbar ({type(e).__name__}). Beende deinen Zug.", True
 
 

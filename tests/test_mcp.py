@@ -14,7 +14,7 @@ EXE = "/opt/claude/bin/claude"
 @pytest.fixture(autouse=True)
 def kachel_an(tmp_path, monkeypatch):
     from server import config as cfg
-    (tmp_path / "settings.json").write_text(json.dumps({"tiles": {"mcp": True}}))
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"mcp": True}}))
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
     return tmp_path / "settings.json"
 
@@ -240,3 +240,9 @@ def test_text_plain_abgewiesen(client, cli):
                     headers={"Content-Type": "text/plain"})
     assert r.status_code in (400, 415, 422)
     assert calls == []
+
+
+def test_meldungen_auf_englisch(client, cli, kachel_an):
+    kachel_an.write_text(json.dumps({"lang": "en", "tiles": {"mcp": True}}))
+    r = client.post("/api/mcp", json={"name": "x", "transport": "stdio"})
+    assert r.status_code == 400 and r.json()["detail"] == "stdio needs a command."

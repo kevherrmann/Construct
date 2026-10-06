@@ -196,7 +196,7 @@ def file_get(path: str, dl: int = 0):
 def _mcp_kachel_an():
     """Wie bei den Tickets: ist die Kachel aus, gibt es die Routen nicht."""
     if not cfg.load_settings()["tiles"].get("mcp"):
-        raise HTTPException(status_code=404, detail="MCP-Kachel ist abgeschaltet")
+        raise HTTPException(status_code=404, detail=cfg.L("MCP-Kachel ist abgeschaltet", "The MCP tile is switched off"))
 
 
 @router.get("/api/mcp", dependencies=[Depends(_mcp_kachel_an)])
@@ -248,26 +248,31 @@ def _str_map(val, key_re, what: str) -> dict:
     if val in (None, ""):
         return {}
     if not isinstance(val, dict) or len(val) > 50:
-        raise _bad(f"{what}: erwartet werden höchstens 50 Paare aus Name und Wert.")
+        raise _bad(cfg.L(f"{what}: erwartet werden höchstens 50 Paare aus Name und Wert.",
+                         f"{what}: at most 50 name/value pairs are expected."))
     for k, v in val.items():
         if not isinstance(k, str) or not key_re.fullmatch(k):
             # Nur der Schlüssel landet in der Meldung, der Wert kann geheim sein.
-            raise _bad(f"{what}: ungültiger Name „{str(k)[:64]}“.")
+            raise _bad(cfg.L(f"{what}: ungültiger Name „{str(k)[:64]}“.",
+                             f"{what}: invalid name “{str(k)[:64]}”."))
         if not isinstance(v, str) or len(v) > 8192 or any(c in v for c in "\r\n\0"):
-            raise _bad(f"{what}: der Wert zu „{k}“ ist ungültig (Text ohne Zeilenumbruch).")
+            raise _bad(cfg.L(f"{what}: der Wert zu „{k}“ ist ungültig (Text ohne Zeilenumbruch).",
+                             f"{what}: the value for “{k}” is invalid (text without line breaks)."))
     return dict(val)
 
 
 def _check_scope(scope) -> str:
     if scope not in MCP_SCOPES:
-        raise _bad("Bereich muss „user“ oder „local“ sein.")
+        raise _bad(cfg.L("Bereich muss „user“ oder „local“ sein.", "Scope must be “user” or “local”."))
     return scope
 
 
 def _check_name(name) -> str:
     if not isinstance(name, str) or not MCP_NAME_RE.fullmatch(name):
-        raise _bad("Name: nur Buchstaben, Ziffern, - und _, höchstens 64 Zeichen, "
-                   "am Anfang kein - oder _.")
+        raise _bad(cfg.L("Name: nur Buchstaben, Ziffern, - und _, höchstens 64 Zeichen, "
+                         "am Anfang kein - oder _.",
+                         "Name: only letters, digits, - and _, at most 64 characters, "
+                         "no - or _ at the start."))
     return name
 
 
@@ -277,29 +282,29 @@ def _mcp_config(p: dict) -> tuple[dict, list[str]]:
     Liefert dazu die Werte, die in keiner Meldung auftauchen dürfen."""
     transport = p.get("transport") or "stdio"
     if transport not in MCP_TRANSPORTS:
-        raise _bad("Art muss „stdio“, „http“ oder „sse“ sein.")
+        raise _bad(cfg.L("Art muss „stdio“, „http“ oder „sse“ sein.", "Type must be “stdio”, “http” or “sse”."))
     if transport == "stdio":
         command = p.get("command")
         if not isinstance(command, str) or not command.strip() \
                 or len(command) > 1024 or "\0" in command:
-            raise _bad("Für stdio fehlt der Befehl.")
+            raise _bad(cfg.L("Für stdio fehlt der Befehl.", "stdio needs a command."))
         args = p.get("args") or []
         if not isinstance(args, list) or len(args) > 100 or not all(
                 isinstance(a, str) and len(a) <= 4096 and "\0" not in a for a in args):
-            raise _bad("Argumente: erwartet wird eine Liste aus Texten.")
-        env = _str_map(p.get("env"), MCP_ENV_KEY_RE, "Umgebungsvariablen")
+            raise _bad(cfg.L("Argumente: erwartet wird eine Liste aus Texten.", "Arguments: a list of strings is expected."))
+        env = _str_map(p.get("env"), MCP_ENV_KEY_RE, cfg.L("Umgebungsvariablen", "Environment variables"))
         conf = {"type": "stdio", "command": command.strip(), "args": args}
         if env:
             conf["env"] = env
         return conf, list(env.values())
     url = p.get("url")
     if not isinstance(url, str) or len(url) > 2048:
-        raise _bad(f"Für {transport} fehlt die URL.")
+        raise _bad(cfg.L(f"Für {transport} fehlt die URL.", f"{transport} needs a URL."))
     url = url.strip()
     parts = urlparse(url)
     if parts.scheme not in ("http", "https") or not parts.netloc \
             or any(c.isspace() for c in url):
-        raise _bad("Die URL muss mit http:// oder https:// beginnen.")
+        raise _bad(cfg.L("Die URL muss mit http:// oder https:// beginnen.", "The URL must start with http:// or https://."))
     headers = _str_map(p.get("headers"), MCP_HEADER_RE, "Header")
     conf = {"type": transport, "url": url}
     if headers:
@@ -310,17 +315,19 @@ def _mcp_config(p: dict) -> tuple[dict, list[str]]:
 def _run_mcp(args: list[str]) -> subprocess.CompletedProcess:
     exe = claude_bin()
     if not exe:
-        raise HTTPException(status_code=502, detail="Claude Code ist nicht installiert.")
+        raise HTTPException(status_code=502, detail=cfg.L("Claude Code ist nicht installiert.", "Claude Code is not installed."))
     try:
         # cwd = WORKSPACE wie bei der Liste: darauf bezieht sich der Bereich "local".
         return subprocess.run([exe, "mcp", *args], capture_output=True, text=True,
                               timeout=MCP_TIMEOUT, cwd=WORKSPACE, env=claude_env())
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504,
-                            detail="Claude Code hat nicht rechtzeitig geantwortet.")
+                            detail=cfg.L("Claude Code hat nicht rechtzeitig geantwortet.",
+                                          "Claude Code did not answer in time."))
     except OSError as e:
         raise HTTPException(status_code=502,
-                            detail=f"Claude Code ließ sich nicht starten ({e.strerror}).")
+                            detail=cfg.L(f"Claude Code ließ sich nicht starten ({e.strerror}).",
+                                          f"Claude Code could not be started ({e.strerror})."))
 
 
 def _cli_error(res: subprocess.CompletedProcess, secrets: list[str]) -> str:
@@ -344,7 +351,7 @@ def mcp_add(payload: Any = Body(None)):
     KEY=Wert bzw. "Name: Wert" zerlegen, und Werte mit = oder : kommen
     unverändert an."""
     if not isinstance(payload, dict):
-        raise _bad("Erwartet wird ein JSON-Objekt.")
+        raise _bad(cfg.L("Erwartet wird ein JSON-Objekt.", "A JSON object is expected."))
     name = _check_name(payload.get("name"))
     scope = _check_scope(payload.get("scope") or "user")
     conf, secrets = _mcp_config(payload)
@@ -354,8 +361,9 @@ def mcp_add(payload: Any = Body(None)):
         # Auch die JSON-maskierte Form: so stünde ein Wert mit " oder \ im Echo.
         msg = _cli_error(res, secrets + [json.dumps(v)[1:-1] for v in secrets] + [raw])
         if "already exists" in msg:
-            raise _bad(f"Einen Server „{name}“ gibt es im Bereich {scope} schon.")
-        raise HTTPException(status_code=502, detail=f"Claude Code meldet: {msg}")
+            raise _bad(cfg.L(f"Einen Server „{name}“ gibt es im Bereich {scope} schon.",
+                             f"A server “{name}” already exists in scope {scope}."))
+        raise HTTPException(status_code=502, detail=cfg.L("Claude Code meldet: ", "Claude Code says: ") + msg)
     return {"ok": True}
 
 
@@ -370,10 +378,11 @@ def mcp_remove(name: str, scope: str | None = None):
     if res.returncode != 0:
         msg = _cli_error(res, [])
         if "No MCP server named" in msg:
-            where = f" im Bereich {scope}" if scope else ""
+            where = cfg.L(f" im Bereich {scope}", f" in scope {scope}") if scope else ""
             raise HTTPException(status_code=404,
-                                detail=f"Kein MCP-Server „{name}“{where} gefunden.")
-        raise HTTPException(status_code=502, detail=f"Claude Code meldet: {msg}")
+                                detail=cfg.L(f"Kein MCP-Server „{name}“{where} gefunden.",
+                                             f"No MCP server “{name}”{where} found."))
+        raise HTTPException(status_code=502, detail=cfg.L("Claude Code meldet: ", "Claude Code says: ") + msg)
     return {"ok": True}
 
 

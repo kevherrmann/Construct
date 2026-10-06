@@ -6,6 +6,8 @@ seine Grenze, wird es eingedickt: das Bleibende bleibt, Erledigtes fliegt raus.
 """
 import asyncio
 
+from server import config as cfg
+
 from server.team import agents as ag
 from server.team.lauf import build_claude_cmd, spawn
 
@@ -55,19 +57,27 @@ async def gedaechtnis_eindicken(a: dict) -> bool:
     if len(alt) < 200:
         return False
     ziel = int(ag.MAX_MEMORY * 0.55)
-    auftrag = (
-        f"{INTERN_MARKE}\n"
-        "Das unten ist dein Gedaechtnis. Es ist an die Grenze gestossen und "
-        f"muss eingedickt werden — auf hoechstens {ziel} Zeichen.\n\n"
-        "Behalte, was dir bei der Arbeit noch nuetzt: gemessene Werte, "
+    auftrag = f"{INTERN_MARKE}\n" + cfg.L(
+        "Das unten ist dein Gedächtnis. Es ist an die Grenze gestoßen und "
+        f"muss eingedickt werden — auf höchstens {ziel} Zeichen.\n\n"
+        "Behalte, was dir bei der Arbeit noch nützt: gemessene Werte, "
         "Entscheidungen, Fallen, auf die du schon einmal getreten bist. Wirf "
         "weg, was erledigt oder veraltet ist oder nur einmal gebraucht wurde. "
-        "Fasse zusammen, was sich ueberschneidet.\n\n"
+        "Fasse zusammen, was sich überschneidet.\n\n"
         "Erfinde nichts dazu, und mach aus keiner konkreten Zahl eine "
         "Faustregel — genau die Zahlen sind der Grund, warum du dir das "
         "aufgeschrieben hast.\n\n"
         "Antworte NUR mit dem neuen Inhalt, als Stichpunktliste. Keine "
-        f"Einleitung, keine Anrede.\n\nDein Gedaechtnis:\n{alt}")
+        f"Einleitung, keine Anrede.\n\nDein Gedächtnis:\n{alt}",
+        "Below is your memory. It has hit its limit and must be condensed — "
+        f"to at most {ziel} characters.\n\n"
+        "Keep what still helps you at work: measured values, decisions, traps you "
+        "have stepped into before. Drop what is done, outdated or was needed only "
+        "once. Merge what overlaps.\n\n"
+        "Do not invent anything, and do not turn any concrete number into a rule "
+        "of thumb — those numbers are exactly why you wrote it down.\n\n"
+        "Answer ONLY with the new content, as a bullet list. No introduction, no "
+        f"greeting.\n\nYour memory:\n{alt}")
     cmd = build_claude_cmd(mode="plan", model=a["model"], effort="low", intern=True)
     run = spawn(cmd, a["cwd"], a["model"], auftrag)
     try:
