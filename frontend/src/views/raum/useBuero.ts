@@ -76,7 +76,9 @@ export function useBuero(werkFrei: boolean): BueroStand | null {
   const [besuch, setBesuch] = useState<Besuch | null>(null)
   const [gesehen, setGesehen] = useState<string | null>(null)
   const schluessel = [...arbeiten].sort().join(',')
-  if (schluessel !== gesehen) {
+  // Erst zählen, wenn Belegschaft und Stand geladen sind: sonst gälte „noch niemand“
+  // als erster Stand, und wer beim Laden schon arbeitet, bekäme sofort Besuch.
+  if (stand && bel && schluessel !== gesehen) {
     const frueher = new Set((gesehen ?? '').split(',').filter(Boolean))
     setGesehen(schluessel)
     const neu = gesehen === null ? undefined : [...arbeiten].find((slug) => !frueher.has(slug))
