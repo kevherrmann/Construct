@@ -73,6 +73,15 @@ flickers. The same information gets a border when it's a **control** (filter,
 button) — and none when it just sits there. It costs nothing and calms a view
 more than any color correction.
 
+## Narrow means stacked, not smaller
+
+At 375 px every line counts. Two notice bars on top of each other take a quarter
+of the screen there: **one** strip shows the most important notice and counts
+the rest (+2). What gets truncated is the title, never the reason — on narrow
+screens the reason gets its own line. And whatever is wider than the screen
+(org chart, tree) is not swiped but stacked: a spine on the left with the
+entries hanging off it. Swiping hides half of it without saying so.
+
 ## Too little material is a finding
 
 Don't invent content — but don't deliver a desert of placeholders either. If

@@ -73,6 +73,15 @@ Liste flimmert. Dieselbe Angabe bekommt einen Rahmen, wenn sie **Bedienelement**
 ist (Filter, Knopf) — und keinen, wenn sie nur dasteht. Das kostet nichts und
 beruhigt eine Ansicht mehr als jede Farbkorrektur.
 
+## Schmal heißt untereinander, nicht kleiner
+
+Auf 375 px zählt jede Zeile. Zwei Meldungsbalken übereinander sind dort ein
+Viertel des Bildschirms: **ein** Streifen zeigt die wichtigste Meldung und zählt
+die übrigen (+2). Was abgeschnitten wird, ist der Titel, nie der Grund — der
+bekommt schmal seine eigene Zeile. Und was breiter ist als der Bildschirm
+(Organigramm, Baum), wird nicht gewischt, sondern untereinander gehängt: ein
+Strang links, die Einträge daran. Wischen versteckt die Hälfte, ohne es zu sagen.
+
 ## Zu wenig Material ist ein Befund
 
 Erfinde keine Inhalte — aber liefere auch keine Platzhalter-Wüste. Reicht das
