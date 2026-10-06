@@ -394,3 +394,60 @@ def test_leere_werkzeugliste_heisst_keine_eingebauten():
     cmd = build_claude_cmd(mode="auto", tools=[])
     assert cmd[cmd.index("--tools") + 1] == ""
     assert "--tools" not in build_claude_cmd(mode="auto")
+
+
+# ---------- A4: was jemand sagt, steht auf JEDEM Ausgang im Protokoll ----------
+def gesagt(base, tid, von="luna"):
+    return [e["text"] for e in api(base, f"/api/team/auftraege/{tid}")["verlauf"]
+            if e["art"] == "gesagt" and e["von"] == von]
+
+
+def warte_auf_lauf(base, tid, slug="luna"):
+    for _ in range(100):
+        t = api(base, f"/api/team/auftraege/{tid}")["ticket"]
+        st = api(base, "/api/team/state")["aktiv"]
+        z = next((x for x in st if x["agent"] == slug and x["ticket"] == tid), None)
+        if z:
+            return z["run"]
+        time.sleep(0.1)
+    raise AssertionError(f"{slug} kam nie dran ({t['status']})")
+
+
+def test_gestoppter_zug_hinterlaesst_sein_gesagtes(firma):
+    tid = neuer_auftrag(firma, "[langsam] Mach etwas")
+    run = warte_auf_lauf(firma, tid)
+    time.sleep(1.0)                                   # Text ist raus, er schläft noch
+    api(firma, f"/api/stop/{run}", {})
+    t = warte(firma, tid, ("wartet_auf_kevin",))
+    assert t["eskalation"]["bremse"] == "gestoppt"
+    assert gesagt(firma, tid) == ["luna liest (auftrag)"]
+
+
+def test_haengender_zug_hinterlaesst_sein_gesagtes(firma, monkeypatch):
+    import asyncio
+    from server.team import engine
+
+    async def haengt(run, stille_max):
+        await asyncio.sleep(1.0)
+        raise asyncio.TimeoutError
+    monkeypatch.setattr(engine, "warte_auf_zug", haengt)
+    tid = neuer_auftrag(firma, "[langsam] Mach etwas")
+    t = warte(firma, tid, ("wartet_auf_kevin",))
+    assert t["eskalation"]["bremse"] == "stille"
+    # die Chefin hing schon im ersten Zug: auch ihr Text steht da
+    assert gesagt(firma, tid, "chef") == ["chef liest (auftrag)"]
+
+
+def test_zug_mit_fehler_hinterlaesst_sein_gesagtes(firma):
+    tid = neuer_auftrag(firma, "[fehler] Mach etwas")
+    t = warte(firma, tid, ("wartet_auf_kevin",))
+    assert t["eskalation"]["bremse"] == "fehler"
+    assert gesagt(firma, tid) == ["luna liest (auftrag)"]
+
+
+def test_ueberlanges_gesagtes_behaelt_das_ende(firma):
+    tid = neuer_auftrag(firma, "[lang] Mach etwas")
+    warte(firma, tid, ("fertig",))
+    [text] = gesagt(firma, tid)
+    assert text.startswith("luna liest (auftrag)") and text.endswith("ENDE-DER-BLASE")
+    assert "[…]" in text and len(text) <= 20000

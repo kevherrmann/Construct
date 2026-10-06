@@ -436,6 +436,14 @@ async def _zustellen_innen(tid: str, mid: str):
                 auf.quittieren(tid, mid)
             BUS_TOKENS.pop(run.bus_token, None)
             bus_datei_weg(run)
+            # Was er gesagt hat (= seine Sprechblase), steht im Protokoll — auch
+            # wenn der Zug hing, gestoppt wurde oder mit Fehler endete. Gerade dann
+            # will man nachlesen, wie weit er kam. Fertige Laeufe raeumt gc_runs
+            # weg, der Auftrag muss aber auch spaeter noch lesbar sein.
+            if (run.last_text or "").strip() and auf.laden(tid):
+                e = auf.anhaengen(tid, {"von": a["slug"], "an": "", "art": "gesagt",
+                                       "text": auf.kuerzen(run.last_text.strip())})
+                feed(tid).emit({"type": "msg", **e})
             neu = await auftrag_aendern(tid, _ende) or t
             feed(tid).emit({"type": "zug_ende", "agent": a["slug"], "run_id": run.id})
             return neu
@@ -501,12 +509,6 @@ async def _zustellen_innen(tid: str, mid: str):
             cfg.L("Ursache beheben (Login, Netz), dann weiter — der Zug wird wiederholt.",
                   "Fix the cause (login, network), then continue — the turn is repeated."),
             an=a["slug"])
-
-    # Den Antworttext mitschreiben: fertige Laeufe raeumt gc_runs weg, der
-    # Auftrag muss aber auch spaeter noch lesbar sein.
-    if (run.last_text or "").strip():
-        auf.anhaengen(tid, {"von": a["slug"], "an": "", "art": "gesagt",
-                           "text": run.last_text.strip()[:20000]})
 
     if t["status"] != "laeuft":
         # Der Zug hat den Auftrag selbst beendet oder angehalten (liefern,

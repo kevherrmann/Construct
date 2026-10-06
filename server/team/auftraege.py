@@ -135,6 +135,17 @@ def alle() -> list:
     return out
 
 
+def kuerzen(text: str, n: int = 20000) -> str:
+    """Zu lang fuer den Verlauf: Anfang UND Ende behalten. Die Sprechblase im Raum
+    zeigt das Ende eines Zugs; mit [:n] fehlte im Protokoll genau der Teil, den
+    Kevin zuletzt gelesen hatte (Janus, Runde 2)."""
+    if len(text) <= n:
+        return text
+    mitte = "\n\n[…]\n\n"
+    vorn = n // 4
+    return text[:vorn] + mitte + text[-(n - vorn - len(mitte)):]
+
+
 # ---------- Der Verlauf ----------
 def anhaengen(tid: str, eintrag: dict) -> dict:
     eintrag.setdefault("id", "m" + uuid.uuid4().hex[:6])

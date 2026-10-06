@@ -7,6 +7,8 @@ Szenario-Stichwort im Auftragstext:
     [klein]      Chef gibt an den Entwickler ab (klein), der liefert direkt
     [kette]      Chef -> Entwickler -> Prüfer -> Chef liefert
     [rueckfrage] der Entwickler eskaliert; nach der Antwort liefert er
+    [fehler]     der Entwickler endet mit Fehler, ohne zu liefern
+    [lang]       der Entwickler sagt mehr als 20 000 Zeichen, dann liefert er
     [still]      der Entwickler sagt etwas, ruft aber den Bus nicht auf
     [langsam]    der Entwickler braucht ein paar Sekunden (Not-Aus, Abbrechen)
 """
@@ -64,6 +66,15 @@ else:
                                            "delta": {"type": "text_delta", "text": f"{AGENT} liest ({art})"}}})
     if "[langsam]" in text and AGENT == "luna":
         time.sleep(4)
+    if "[fehler]" in text and AGENT == "luna" and art == "auftrag":
+        # endet mit Fehler, ohne den Bus zu rufen (Login abgelaufen o. ä.)
+        out({"type": "result", "subtype": "error_during_execution", "is_error": True,
+             "result": "Login abgelaufen", "session_id": sid, "usage": {}})
+        sys.exit(0)
+    if "[lang]" in text and AGENT == "luna" and art == "auftrag":
+        # mehr, als der Verlauf am Stück aufnimmt; das Ende zeigt die Blase
+        out({"type": "stream_event", "event": {"type": "content_block_delta", "delta": {
+            "type": "text_delta", "text": "\n\n" + "x" * 25000 + " ENDE-DER-BLASE"}}})
     if AGENT == "chef" and art == "auftrag":
         if "[klein]" in text:
             bus("beauftragen", an="luna", auftrag="Baue das Ding. [klein]", groesse="klein")
@@ -75,6 +86,10 @@ else:
             bus("beauftragen", an="luna", auftrag="Baue das Ding. [still]", groesse="klein")
         elif "[langsam]" in text:
             bus("beauftragen", an="luna", auftrag="Baue das Ding. [langsam]", groesse="klein")
+        elif "[fehler]" in text:
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [fehler]", groesse="klein")
+        elif "[lang]" in text:
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [lang]", groesse="klein")
         else:
             bus("liefern", ergebnis="Nichts zu tun.")
     elif AGENT == "chef" and art == "ergebnis":
