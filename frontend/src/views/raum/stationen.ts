@@ -433,7 +433,7 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   mcp: { z: 1.8, f: [96.9, 56.8], p: [84, 52], seite: 'links', breite: 38, ziel: [96.9, 56.8] },
   mail: { z: 1.6, f: [90.2, 61.3], p: [82, 56], seite: 'links', breite: 62, ziel: [90.2, 61.3] },
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
-  tickets: { z: 1.8, f: [19.4, 26], p: [22, 46], seite: 'rechts', breite: 54, ziel: [19.4, 26] },
+  tickets: { z: 1.8, f: [19.4, 26], p: [22, 46], seite: 'rechts', breite: 62, ziel: [19.4, 26] },
   personal: { z: 1.6, f: [50, 24], p: [22, 50], seite: 'rechts', breite: 62, ziel: [50, 24] },
   auftraege: { z: 1.6, f: [50, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [50, 24] },
   einstellungen: {
