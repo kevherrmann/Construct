@@ -6,6 +6,7 @@ import json
 import os
 import re
 import signal
+import subprocess
 import threading
 import time
 import uuid
@@ -642,7 +643,8 @@ def merken(run, programm=None):
     if not run.proc:
         return
     d = _laeufe_lesen()
-    e = d.get(run.id) or {"pid": run.proc.pid, "programm": programm or "", "cwd": run.cwd,
+    e = d.get(run.id) or {"pid": run.proc.pid, "kennung": _kennung(run.proc.pid),
+                          "programm": programm or "", "cwd": run.cwd,
                           "start": run.started, "model": run.model}
     if run.auftrag_id:
         e["auftrag"] = run.auftrag_id
@@ -659,37 +661,52 @@ def vergessen(run_id):
         _laeufe_schreiben(d)
 
 
-def _lebt(pid, programm="") -> bool:
-    """Läuft der Prozess noch — und ist es noch unser claude? PIDs werden
-    wiederverwendet; wo es /proc gibt, wird darum das Programm mitgeprüft."""
+def _kennung(pid) -> str:
+    """Woran sich ein Prozess über seine PID hinaus wiedererkennen lässt: seine
+    Startzeit. PIDs werden wiederverwendet, und laeufe.json übersteht auch einen
+    Neustart des Rechners — ohne diesen Abgleich beendete die Rettung irgendein
+    Programm, das zufällig dieselbe PID bekam. "" = läuft nicht oder nicht
+    feststellbar; dann gilt der Prozess als fremd und wird nie angefasst."""
     if not isinstance(pid, int) or pid <= 0:
-        return False
-    if os.name == "nt":
-        # os.kill(pid, 0) wäre hier CTRL_C_EVENT, kein Nachsehen.
-        import ctypes
-        k = ctypes.windll.kernel32
-        h = k.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
-        if not h:
-            return False
-        code = ctypes.c_ulong()
-        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
-        k.CloseHandle(h)
-        return bool(ok) and code.value == 259        # STILL_ACTIVE
-    if Path("/proc/self/cmdline").exists():
-        try:
-            data = Path(f"/proc/{pid}/cmdline").read_bytes()
-        except OSError:
-            return False
-        # Zombie (beendet, noch nicht abgeholt): leere Kommandozeile. Verglichen
-        # wird nur der Programmname — argv[0] kann auch relativ dastehen.
-        return bool(data) and (not programm or os.fsencode(os.path.basename(programm)) in data)
+        return ""
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+        if os.name == "nt":
+            # os.kill(pid, 0) wäre hier CTRL_C_EVENT, kein Nachsehen.
+            import ctypes
+            k = ctypes.windll.kernel32
+            h = k.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return ""
+            try:
+                code = ctypes.c_ulong()
+                if not k.GetExitCodeProcess(h, ctypes.byref(code)) or code.value != 259:  # STILL_ACTIVE
+                    return ""
+                t = [ctypes.c_ulonglong() for _ in range(4)]   # Erzeugung, Ende, Kernel, User
+                if not k.GetProcessTimes(h, *(ctypes.byref(x) for x in t)):
+                    return ""
+                return str(t[0].value)
+            finally:
+                k.CloseHandle(h)
+        if Path("/proc/self/stat").exists():
+            # Der Programmname in Klammern darf Leerzeichen enthalten: erst hinter
+            # der letzten ")" zählen. Danach Feld 3 (Zustand) … Feld 22 (Startzeit).
+            felder = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+            if felder[0] in ("Z", "X"):                  # beendet, noch nicht abgeholt
+                return ""
+            boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+            return f"{boot}:{felder[19]}"
+        # macOS und andere ohne /proc
+        # LC_ALL=C: sonst hinge der Vergleich an der Sprache, mit der der Server startete
+        r = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True,
+                           timeout=5, env={**os.environ, "LC_ALL": "C"})
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except (OSError, IndexError, ValueError, subprocess.SubprocessError):
+        return ""
+
+
+def _lebt(pid, kennung) -> bool:
+    """Läuft der Prozess noch — und ist es noch derselbe, den wir gestartet haben?"""
+    return bool(kennung) and _kennung(pid) == kennung
 
 
 def _zeit(ts) -> float:
@@ -769,15 +786,15 @@ class _Leser:
             self.fertig = msg.get("stop_reason") in ("end_turn", "stop_sequence")
 
 
-async def _nachlesen(run, pid, programm):
+async def _nachlesen(run, pid, kennung):
     """Hintergrund-Task für einen aufgenommenen Lauf: Sitzungsdatei mitlesen,
     bis der claude-Prozess weg ist."""
-    lief = _lebt(pid, programm)
+    lief = _lebt(pid, kennung)
     leser = _Leser(run)
     datei = None
     try:
         while True:
-            lebt = _lebt(pid, programm)
+            lebt = _lebt(pid, kennung)
             if datei is None:
                 datei = next(iter(PROJECTS_DIR.glob(f"*/{run.session_id}.jsonl")), None)
             if datei is not None:
@@ -796,10 +813,11 @@ async def _nachlesen(run, pid, programm):
     except asyncio.CancelledError:
         # Stop-Knopf: wie bei einem eigenen Lauf den Prozess beenden
         run.stopped = True
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except (OSError, TypeError):
-            pass
+        if _lebt(pid, kennung):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
         run.emit({"type": "error", "message": "⏹ Gestoppt."})
         raise
     except Exception as e:
@@ -823,7 +841,7 @@ def aufnehmen():
             # kann er nicht mehr — und der Dispatcher stellt dieselbe Nachricht
             # gleich neu zu (engine.wieder_aufnehmen), mit --resume auf DIESELBE
             # Sitzung. Liefe der alte weiter, schrieben zwei Prozesse in eine.
-            if _lebt(e.get("pid"), e.get("programm") or ""):
+            if _lebt(e.get("pid"), e.get("kennung") or ""):
                 try:
                     os.kill(e["pid"], signal.SIGTERM)
                 except OSError:
@@ -840,5 +858,5 @@ def aufnehmen():
         run.stdin_closed = True       # stdin hing am alten Server; Nachgeschobenes wartet
         RUNS[rid] = run
         run.emit({"type": "session", "session_id": sid})
-        run.task = asyncio.create_task(_nachlesen(run, e.get("pid"), e.get("programm") or ""))
+        run.task = asyncio.create_task(_nachlesen(run, e.get("pid"), e.get("kennung") or ""))
         print(f"[run] Lauf {rid[:8]} nach Neustart wieder aufgenommen (Sitzung {sid[:8]})", flush=True)

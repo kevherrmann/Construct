@@ -2,6 +2,7 @@
 import asyncio
 import json
 import sys
+import time
 
 from server import runs
 
@@ -84,8 +85,8 @@ def _sitzung(tmp_path, monkeypatch, zeilen, sid="sid-neu"):
     return datei
 
 
-def _eintrag(pid, programm="", sid="sid-neu"):
-    return {"pid": pid, "programm": programm, "cwd": "/home/x", "start": START,
+def _eintrag(pid, sid="sid-neu"):
+    return {"pid": pid, "kennung": runs._kennung(pid), "cwd": "/home/x", "start": START,
             "model": "", "session_id": sid}
 
 
@@ -142,7 +143,7 @@ def test_aufgenommener_lauf_liest_mit_solange_claude_noch_schreibt(tmp_path, mon
         proc.wait()
 
     try:
-        run = _aufnehmen_und_warten(_eintrag(proc.pid, sys.executable), weiter)
+        run = _aufnehmen_und_warten(_eintrag(proc.pid), weiter)
     finally:
         proc.kill()
     assert [e["type"] for e in run.events][-2:] == ["text", "done"]
@@ -164,19 +165,37 @@ def test_lauf_ohne_sitzung_wird_nicht_aufgenommen(tmp_path, monkeypatch):
 
 
 def test_fremder_prozess_mit_derselben_pid_zaehlt_nicht():
-    import os
     import subprocess
-    proc = subprocess.Popen([sys.executable, "-c", "import time; print(1, flush=True); time.sleep(30)"],
-                            stdout=subprocess.PIPE)
-    proc.stdout.readline()          # erst dann ist die Kommandozeile die des Kindes
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
     try:
-        assert runs._lebt(proc.pid, sys.executable)
-        if os.path.exists("/proc/self/cmdline"):
-            assert not runs._lebt(proc.pid, "/usr/local/bin/claude")
+        kennung = runs._kennung(proc.pid)
+        assert kennung and runs._lebt(proc.pid, kennung)
+        # Dieselbe PID, aber ein anderer Prozess (anderer Start): nicht unserer
+        assert not runs._lebt(proc.pid, kennung + "x")
+        assert not runs._lebt(proc.pid, "")          # alter Eintrag ohne Kennung
     finally:
         proc.kill()
         proc.wait()
-    assert not runs._lebt(proc.pid, sys.executable)
+    assert not runs._lebt(proc.pid, kennung)
+
+
+def test_fremder_prozess_auf_der_pid_eines_firmen_zugs_wird_nicht_beendet(tmp_path, monkeypatch):
+    # laeufe.json übersteht einen Neustart des Rechners; die PID gehört dann
+    # womöglich einem ganz anderen Programm (Janus' Audit, 06.10.2026).
+    import subprocess
+    _sitzung(tmp_path, monkeypatch, ANTWORT)
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        runs.RUNS.pop("lauf-alt", None)
+        eintrag = {**_eintrag(proc.pid), "auftrag": "a-1", "kennung": "anderer-start"}
+        runs._laeufe_schreiben({"lauf-alt": eintrag})
+        runs.aufnehmen()
+        assert not runs.LAEUFE.exists()
+        time.sleep(0.3)
+        assert proc.poll() is None                  # lebt noch
+    finally:
+        proc.kill()
+        proc.wait()
 
 
 def test_laufender_lauf_steht_in_laeufe_json_und_verschwindet_am_ende(tmp_path, monkeypatch):
@@ -200,7 +219,7 @@ def test_zug_der_firma_wird_nach_neustart_beendet_statt_aufgenommen(tmp_path, mo
     proc.stdout.readline()
     try:
         runs.RUNS.pop("lauf-alt", None)
-        runs._laeufe_schreiben({"lauf-alt": {**_eintrag(proc.pid, sys.executable), "auftrag": "a-1"}})
+        runs._laeufe_schreiben({"lauf-alt": {**_eintrag(proc.pid), "auftrag": "a-1"}})
         runs.aufnehmen()
         assert "lauf-alt" not in runs.RUNS and not runs.LAEUFE.exists()
         assert proc.wait(timeout=5) is not None
