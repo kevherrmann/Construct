@@ -20,6 +20,24 @@ describe('lageAus', () => {
     expect(l).toMatchObject({ phase: 'ruht', station: null, text: 'Hallo Welt', live: false })
   })
 
+  it('zeigt die Ticket-Markerzeile nicht, auch nicht halb gestreamt', () => {
+    const fertig = lageAus(
+      [
+        user('hi'),
+        bot([{ t: 'text', text: 'Erledigt.\n\n[[ticket neu: Raum prüfen]]', streaming: false }]),
+      ],
+      false,
+      false,
+    )
+    expect(fertig).toMatchObject({ text: 'Erledigt.', md: 'Erledigt.' })
+    const halb = lageAus(
+      [user('hi'), bot([{ t: 'text', text: 'Erledigt.\n\n[[tick', streaming: true }])],
+      true,
+      false,
+    )
+    expect(halb.md).toBe('Erledigt.')
+  })
+
   it('denkt, solange noch nichts kam', () => {
     expect(lageAus([user('hi')], true, false).phase).toBe('denkt')
     expect(lageAus([user('hi'), bot([], true)], true, false).phase).toBe('denkt')

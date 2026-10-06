@@ -1,3 +1,4 @@
+import { ohneMarke } from '@/lib/chat/marken'
 import type { Block, ChatItem } from '@/lib/chat/types'
 import type { StationId } from './stationen'
 
@@ -206,7 +207,8 @@ export function lageAus(items: ChatItem[], busy: boolean, nachlauf: boolean): La
     }
     if (it.kind === 'user') break // neue Frage, noch keine Antwort darauf
   }
-  const roh = bot ? antwortMd(bot.blocks, bot.markdown) : ''
+  // Die Ticket-Markerzeile am Ende ist nicht zum Lesen da (wie im Chat).
+  const roh = bot ? ohneMarke(antwortMd(bot.blocks, bot.markdown)) : ''
   const text = klartext(roh)
   const md = blasenMd(roh)
   const ruhe: Lage = { phase: 'ruht', station: null, detail: '', text, md, live: false }

@@ -584,8 +584,11 @@ export function RaumView() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [kompakt, blickX])
+  // Steht die Chefin gerade am Tisch eines Mitarbeiters, ist das Podest leer: eine
+  // Blase dort zeigte ins Nichts. Sie wartet, bis wieder jemand an ihrem Platz steht.
+  const ohneSprecher = besucht && !(teamSpricht ? teamAmWerk : amWerk)
   const blase =
-    hatBlase && !blaseZu ? (
+    hatBlase && !blaseZu && !ohneSprecher ? (
       <Sprechblase
         key={antwortKey}
         name={teamSpricht && team.slug !== 'chef' ? team.name : assistant}
@@ -871,7 +874,7 @@ export function RaumView() {
                 aria-label={blaseZu ? t('Sprechblase zeigen') : t('Sprechblase ausblenden')}
                 title={blaseZu ? t('Sprechblase zeigen') : t('Sprechblase ausblenden')}
               />
-              {hatBlase && blaseZu && (
+              {hatBlase && blaseZu && !ohneSprecher && (
                 <button
                   type="button"
                   className={`${s.denkpunkte} ${(teamSpricht ? teamAmWerk : amWerk) ? s.denkpunkteWerk : ''} ${blasenLage.live ? s.denkpunkteLive : ''}`}

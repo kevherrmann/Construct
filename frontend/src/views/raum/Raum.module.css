@@ -566,6 +566,16 @@
   bottom: 50%;
   width: min(18.5%, 380px);
 }
+/* Dort ist der Kopf zu schmal für Name, Status und Knöpfe in einer Zeile: der
+   Status bekommt die zweite Zeile, sonst bliebe von „schreibt route.py“ nur „s…“. */
+.blaseTeam .blasenKopf {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.blaseTeam .status {
+  order: 1;
+  flex-basis: 100%;
+}
 /* Läuft eine Antwort, glimmt der Rand in der Akzentfarbe. */
 /* Kompakt: Untertitel über der Sprechzeile, unabhängig vom Panorama. */
 .blase.blaseUnten {
