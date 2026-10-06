@@ -1253,8 +1253,11 @@ function Sprechblase({
     const r = raum.getBoundingClientRect()
     const b = el.getBoundingClientRect()
     const ph = (px: number) => (px / r.height) * 100
-    // oben bleibt der Kopf des Raums frei (Titel, Knöpfe)
-    return { r, start: ph(b.height), min: ph(MIN_BLASE.h), max: ph(b.bottom - r.top - 64) }
+    // Ist die Antwort kürzer als das Minimum, gilt ihre Höhe als Untergrenze: sonst
+    // würde Ziehen nach unten das Blatt erst einmal größer machen. Oben bleibt der
+    // Kopf des Raums frei (Titel, Knöpfe).
+    const start = ph(b.height)
+    return { r, start, min: Math.min(start, ph(MIN_BLASE.h)), max: ph(b.bottom - r.top - 64) }
   }
   const hebeLos = (e: React.PointerEvent<HTMLElement>) => {
     const m = hoehenMasse()

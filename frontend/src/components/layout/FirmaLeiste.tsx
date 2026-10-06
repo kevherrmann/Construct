@@ -7,6 +7,15 @@ import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { wartetAufNutzer } from '@/views/auftraege/zustand'
 import s from './FirmaLeiste.module.css'
 
+/** Auf höchstens n Zeichen, an der Wortgrenze, mit „…“ (der ganze Titel steht im title). */
+const kurz = (text: string, n: number) =>
+  text.length <= n
+    ? text
+    : `${text
+        .slice(0, n)
+        .replace(/\s+\S*$/, '')
+        .replace(/[\s,.:;–-]+$/, '')}…`
+
 /** Ein schmaler Streifen über dem Hauptbereich, nur wenn etwas los ist. Er zeigt
  *  die wichtigste Meldung, die anderen zählt er nur (alle stehen in den Aufträgen):
  *
@@ -63,10 +72,9 @@ export function FirmaLeiste() {
   const meldung = ruf ?? fertigEins
   if (!meldung && !zeigenAktiv) return null
   const weitere = ruf ? rufe.length - 1 + fertig.length : fertig.length - 1
-  const titel = (x: { titel: string }) =>
-    x.titel.length > 60 ? `${x.titel.slice(0, 60)}…` : x.titel
+  const titel = (x: { titel: string }) => kurz(x.titel, 60)
   const arbeitetAn = (a: (typeof aktiv)[number]) =>
-    `${a.name} ${t('arbeitet')}${a.titel ? ` ${t('an „{t}“', { t: a.titel.slice(0, 34) })}` : ''}`
+    `${a.name} ${t('arbeitet')}${a.titel ? ` ${t('an „{t}“', { t: a.titel })}` : ''}`
 
   return (
     <div className={`${s.leiste} ${ruf ? s.ruf : fertigEins ? s.fertig : ''}`}>
@@ -92,17 +100,24 @@ export function FirmaLeiste() {
           <span className={s.rk}>{t('ANSEHEN')}</span>
         </button>
       ) : (
-        <span className={s.wer}>
+        <span className={`${s.wer} ${aktiv.length > 1 ? s.mehrere : ''}`}>
           {aktiv.map((a) => (
-            <span key={`${a.agent}:${a.ticket}`} style={{ ['--accent-rgb' as string]: a.color }}>
+            <span
+              key={`${a.agent}:${a.ticket}`}
+              className={s.person}
+              style={{ ['--accent-rgb' as string]: a.color }}
+              title={arbeitetAn(a)}
+            >
               <span className={s.punkt}>●</span>
-              {a.name} {t('arbeitet')}
+              {a.name}
+              <span className={s.verb}> {t('arbeitet')}</span>
               <span className={s.ziel}>
-                {a.titel ? ` ${t('an „{t}“', { t: a.titel.slice(0, 34) })}` : ''}{' '}
+                {a.titel ? ` ${t('an „{t}“', { t: kurz(a.titel, 32) })}` : ''}{' '}
                 <span className={s.leise}>{a.seit}s</span>
               </span>
             </span>
           ))}
+          {aktiv.length > 1 && <span className={s.zusammen}>{t('arbeiten')}</span>}
         </span>
       )}
       {zeigenAktiv && (

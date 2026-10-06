@@ -1462,16 +1462,18 @@
   height: 4px;
   margin-left: -18px;
   border-radius: 2px;
-  background: #c4ccc8;
+  /* 3,2:1 auf Weiß; aktiv der Akzent des Raums (je Farbwelt ≥ 4,7:1), nicht die
+     Farbe des Mitarbeiters: Lunas Blau etwa schafft auf Weiß keine 3:1. */
+  background: #8a928d;
   transition: background 0.2s;
 }
 .blasenHeber:hover::before,
 .blasenHeber:focus-visible::before,
 .blaseZieht .blasenHeber::before {
-  background: rgb(var(--accent-rgb));
+  background: var(--green);
 }
 .blasenHeber:focus-visible {
-  outline: 2px solid rgb(var(--accent-rgb));
+  outline: 2px solid var(--green);
   outline-offset: -2px;
 }
 

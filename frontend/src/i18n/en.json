@@ -1130,5 +1130,6 @@
   "klein": "small",
   "groß": "large",
   "{w} · {n} Zeilen": "{w} · {n} lines",
-  "an „{t}“": "on “{t}”"
+  "an „{t}“": "on “{t}”",
+  "arbeiten": "are working"
 }
