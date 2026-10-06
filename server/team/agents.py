@@ -596,13 +596,21 @@ Diese Datei gehört dem Assistenten und allen Mitarbeitern der Firma. Jeder darf
 ergänzen (Werkzeug `user_merken`), niemand darf löschen oder umschreiben — das
 macht der Nutzer selbst. Jede Zeile trägt, von wem sie stammt.
 """
+# Die Datei ist auch die USER.md des Assistenten im Chat: sie steht im ⚙-Editor und
+# in seinem Systemprompt, also in der Sprache der Installation.
+_USER_HEADER_EN = """# USER.md — about the user
+
+This file belongs to the assistant and every employee of the company. Anyone may
+add to it (tool `user_merken`), nobody may delete or rewrite — that is the user's
+job. Every line says who wrote it.
+"""
 
 
 def user_read() -> str:
     """Was die Firma über den Nutzer weiß: seine USER.md, dahinter die Ergänzungen der
     Mitarbeiter (mit Herkunft)."""
     if not USER_FILE.exists():
-        _atomic(USER_FILE, _USER_HEADER)
+        _atomic(USER_FILE, cfg.L(_USER_HEADER, _USER_HEADER_EN))
     haupt = _read_capped(USER_FILE, MAX_USER)
     zusatz = _read_capped(ERGAENZUNGEN_FILE, MAX_USER) if ERGAENZUNGEN_FILE.exists() else ""
     if zusatz.strip():

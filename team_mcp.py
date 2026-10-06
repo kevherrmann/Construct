@@ -139,7 +139,9 @@ WERKZEUGE = [
 # Die Beschreibungen sind in Kevins Firma entstanden und nennen ihn beim Namen —
 # hier wird daraus der Name des Nutzers dieser Installation.
 if NUTZER != "Kevin":
-    WERKZEUGE = json.loads(json.dumps(WERKZEUGE, ensure_ascii=False).replace("Kevin", NUTZER))
+    # json.dumps(NUTZER)[1:-1]: ein Name mit " oder \ machte das JSON sonst ungültig.
+    WERKZEUGE = json.loads(json.dumps(WERKZEUGE, ensure_ascii=False)
+                           .replace("Kevin", json.dumps(NUTZER, ensure_ascii=False)[1:-1]))
 
 
 def melde(obj):

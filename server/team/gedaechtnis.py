@@ -80,7 +80,7 @@ async def gedaechtnis_eindicken(a: dict) -> bool:
     # Nur uebernehmen, wenn wirklich etwas Kuerzeres und Substanzielles kam.
     # Ein leerer, abgebrochener oder schwatzhafter Lauf darf ein gefuelltes
     # Gedaechtnis nicht leeren — im Zweifel bleibt das alte stehen.
-    if len(neu) < 100 or len(neu) >= len(alt):
+    if run.fehler or len(neu) < 100 or len(neu) >= len(alt):
         print(f"[gedaechtnis] {slug}: Eindicken verworfen "
               f"({len(alt)} -> {len(neu)} Zeichen)", flush=True)
         return False
