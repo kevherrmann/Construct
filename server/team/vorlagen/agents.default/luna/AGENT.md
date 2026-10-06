@@ -1,6 +1,6 @@
 ---
-slug: cody
-name: Cody
+slug: luna
+name: Luna
 title: Backend und Technik
 reports_to: chef
 engine: claude
@@ -13,7 +13,7 @@ allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill
 can_delegate: nein
 delegates_to: 
 color: 77,184,255
-avatar: /static/team/cody.webp
+avatar: /static/team/luna.webp
 status: active
 hired: 2026-10-05
 hired_by: kevin

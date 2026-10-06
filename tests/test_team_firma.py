@@ -30,9 +30,9 @@ WS = "/home/z0mb1"
 # ---------- Belegschaft ----------
 def test_erststart_rollt_die_vorlagen_aus():
     xs = ag.list_agents(WS)
-    assert {a["slug"] for a in xs} == {"chef", "cody", "elara", "miranda", "janus"}
-    # Die Geschäftsführung führt die Liste und heißt in der Firma immer Luna
-    assert xs[0]["slug"] == "chef" and xs[0]["name"] == "Luna"
+    assert {a["slug"] for a in xs} == {"chef", "luna", "elara", "miranda", "janus"}
+    # Die Geschäftsführung führt die Liste und heißt wie der Assistent (Fixture: Momo)
+    assert xs[0]["slug"] == "chef" and xs[0]["name"] == "Momo"
     assert xs[0]["can_delegate"]
     # Jeder mitgelieferte Mitarbeiter hat einen Charakter und (außer der Chefin) ein Gesicht
     assert all(a["soul"].strip() for a in xs)
@@ -47,25 +47,22 @@ def test_mitgelieferte_gesichter_gibt_es_wirklich():
             assert (static / a["avatar"].removeprefix("/static/")).is_file(), a["avatar"]
 
 
-def test_geschaeftsfuehrung_heisst_luna_oder_wie_der_umbenannte_assistent(firma):
+def test_geschaeftsfuehrung_ist_der_assistent(firma):
     ag.list_agents(WS)
     chef = ag.load_agent(ag.OWNER_SLUG, WS)
-    assert chef["name"] == "Luna"                         # das sehen die Mitarbeiter
-    assert ag.anzeige(chef)["name"] == "Momo"             # umbenannter Assistent: sein Name
-    assert ag.anzeige(chef)["avatar"] == ag.LUNA_BILD     # ohne eigenes Bild Lunas
+    assert chef["name"] == "Momo"                         # so heißt sie auch für die Kollegen
+    assert ag.anzeige(chef)["name"] == "Momo"
+    assert ag.anzeige(chef)["avatar"] == "/static/cody.png"   # ohne eigenes Bild das des Assistenten
     (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Chanti"}}))
-    assert ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))["name"] == "Chanti"
-    # Wer nichts umbenannt hat (Assistent heißt Cody), sieht Luna, nicht zwei Codys
-    (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Cody"}}))
-    sicht = ag.anzeige(ag.load_agent(ag.OWNER_SLUG, WS))
-    assert sicht["name"] == "Luna" and sicht["avatar"] == ag.LUNA_BILD
-    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Luna"
+    assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Chanti"
+    # In der Akte selbst steht weiter der mitgelieferte Name, nie der eigene
+    assert "name: Cody" in (ag.AGENTS_DIR / "chef" / "AGENT.md").read_text()
 
 
 def test_speichern_aus_der_oberflaeche_schreibt_den_assistentennamen_nicht_in_die_akte(firma):
     ag.list_agents(WS)
     neu, _ = ag.save_agent({"slug": "chef", "name": "Momo", "effort": "low"}, WS)
-    assert neu["name"] == "Luna" and neu["effort"] == "low"
+    assert neu["name"] == "Momo" and neu["effort"] == "low"
 
 
 def test_kein_mitgelieferter_text_nennt_chanti():
@@ -93,8 +90,8 @@ def test_slug_wird_nie_zum_pfad():
 
 def test_teilupdate_behaelt_unbekannte_felder():
     ag.list_agents(WS)
-    vorher = ag.load_agent("cody", WS)
-    neu, _ = ag.save_agent({"slug": "cody", "effort": "low"}, WS)
+    vorher = ag.load_agent("luna", WS)
+    neu, _ = ag.save_agent({"slug": "luna", "effort": "low"}, WS)
     assert neu["effort"] == "low" and neu["color"] == vorher["color"]
     assert neu["allowed_tools"] == vorher["allowed_tools"]
 
@@ -108,35 +105,35 @@ def test_entlassen_loescht_nicht():
 
 def test_organigramm_kappt_zyklen():
     ag.list_agents(WS)
-    ag.save_agent({"slug": "chef", "reports_to": "cody"}, WS)
+    ag.save_agent({"slug": "chef", "reports_to": "luna"}, WS)
     baum = ag.org_tree(WS)
     assert baum["cycles"]                              # kein Absturz, kein Hängen
 
 
 def test_fahigkeiten_sagen_wer_eine_shell_hat():
     ag.list_agents(WS)
-    assert "Shell" in ag.faehigkeiten(ag.load_agent("cody", WS))
+    assert "Shell" in ag.faehigkeiten(ag.load_agent("luna", WS))
     assert "Shell" not in ag.faehigkeiten(ag.load_agent("chef", WS))
 
 
 def test_historie_nur_fuer_vorhandene_akten():
     ag.list_agents(WS)
-    ag.historie_eintragen("cody", "Login-Fix", "mitgearbeitet", ["/x/a.py"])
+    ag.historie_eintragen("luna", "Login-Fix", "mitgearbeitet", ["/x/a.py"])
     ag.historie_eintragen("gibtsnicht", "egal", "geleitet")
-    assert "Login-Fix" in ag.historie_text("cody")
+    assert "Login-Fix" in ag.historie_text("luna")
     assert not (ag.AGENTS_DIR / "gibtsnicht").exists()
 
 
 def test_user_merken_landet_in_den_ergaenzungen_nicht_in_user_md(firma):
     ag.user_read()
-    ok, _ = ag.user_append("mag Kaffee", "cody")
+    ok, _ = ag.user_append("mag Kaffee", "luna")
     assert ok and "mag Kaffee" in ag.user_read()                 # die Firma liest es
     assert "mag Kaffee" not in (firma / "USER.md").read_text()   # der Chat-Assistent nicht
     assert "mag Kaffee" in ag.ergaenzungen_read()
 
 
 def test_user_md_nur_anhaengen():
-    ok, _ = ag.user_append("mag Kaffee", "cody")
+    ok, _ = ag.user_append("mag Kaffee", "luna")
     assert ok and "mag Kaffee" in ag.user_read()
     assert ag.user_append("mag Kaffee", "miranda") == (False, "steht schon drin")
     assert ag.user_append("   ", "miranda")[0] is False
@@ -163,7 +160,7 @@ def test_anleitung_anlegen_lesen_verbessern():
     anl.benutzt_vermerken("playwright-bestaetigen")
     anl.benutzt_vermerken("playwright-bestaetigen")
     ok, msg = anl.anlegen("playwright-bestaetigen", "Wenn ein Klick eine Seite neu lädt",
-                          "1. expect_navigation benutzen\n2. danach warten und das Ergebnis lesen", "cody")
+                          "1. expect_navigation benutzen\n2. danach warten und das Ergebnis lesen", "luna")
     assert ok and "aktualisiert" in msg
     x = anl.lesen("playwright-bestaetigen")
     assert x["von"] == "miranda" and x["benutzt"].startswith("2")   # Zähler und Urheber bleiben

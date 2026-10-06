@@ -8,14 +8,15 @@ Was geschieht (und ist nach `--ausfuehren` in `firma/` zu finden):
 
   * Mitarbeiter: alle Akten aus agents/ — samt Gedächtnis, Historie und Zeiger auf ihr
     Direktgespräch (chat.json). Die Geschäftsführung (--chef-aus, Vorgabe lumina) wird
-    zu `chef` und heißt in der Firma Luna (in FACTORIA Lumina); dem Nutzer gegenüber trägt sie den
+    zu `chef`; sie heißt dann für alle wie der Assistent dieser Installation und trägt den
     Namen aus ⚙ Einstellungen. Ihr Foto kommt nicht mit: die Chefin ist die Figur des
     Assistenten.
   * Umbenannt werden (--umbenennen) die Kürzel, die CONSTRUCT mitliefert, damit Raum und
-    Vorlagen sie wiederfinden: css-spezialist -> elara, qa -> miranda, auditor -> janus.
+    Vorlagen sie wiederfinden: cody -> luna (Backend; Cody ist jetzt der Assistent und damit
+    die Geschäftsführung), css-spezialist -> elara, qa -> miranda, auditor -> janus.
     Wo es zu einem Kürzel einen mitgelieferten Charakter gibt (chef, cody,
     elara, miranda, janus), gelten dieser und der Name aus der Vorlage (Selma heißt jetzt Elara,
-    Tessa Miranda, Veritas Janus); Gedächtnis und Historie bleiben die Factoria-Fassung.
+    Tessa Miranda, Veritas Janus, die Backend-Stelle Luna); Gedächtnis und Historie bleiben die Factoria-Fassung.
   * Zusammengelegt (--zusammenlegen) wird, wer künftig nicht mehr einzeln arbeitet: chanti
     geht in die Chefin, design (Rauke) in Elara. Akte und Charakter kommen nicht mit, aber
     Gedächtnis und Historie wandern an das Ziel, damit nichts verloren geht.
@@ -65,7 +66,7 @@ def main():
     ap.add_argument("--aus", required=True, help="Ordner der FACTORIA-Installation")
     ap.add_argument("--nach", default=str(BASE / "firma"), help="Ziel (Vorgabe: firma/ hier)")
     ap.add_argument("--chef-aus", default="lumina", help="Wessen Akte zur Geschäftsführung wird")
-    ap.add_argument("--umbenennen", default="css-spezialist=elara,qa=miranda,auditor=janus",
+    ap.add_argument("--umbenennen", default="cody=luna,css-spezialist=elara,qa=miranda,auditor=janus",
                     help="alt=neu, kommagetrennt")
     ap.add_argument("--zusammenlegen", default="chanti=chef,design=elara",
                     help="alt=ziel: nur Gedächtnis und Historie wandern, kommagetrennt")
@@ -134,8 +135,9 @@ def main():
         akte = frontmatter_setzen(akte, "slug", ziel_slug)
         mit = VORLAGEN / ziel_slug
         if slug == chef_quelle:
-            # Wie die Vorlage: Name Luna, kein eigenes Foto (die Chefin ist die Figur des Assistenten).
-            akte = frontmatter_setzen(akte, "name", "Luna")
+            # Wie die Vorlage: kein eigenes Foto, der Name kommt beim Laden aus den
+            # Einstellungen (die Geschäftsführung ist der Assistent).
+            akte = frontmatter_setzen(akte, "name", "Cody")
             akte = frontmatter_setzen(akte, "avatar", "")
         elif (mit / "AGENT.md").is_file():
             # Name, Gesicht und Rolle der Vorlage (der Charakter passt dazu).

@@ -119,8 +119,8 @@ def test_kleinauftrag_geht_direkt_an_den_nutzer(firma):
     tid = neuer_auftrag(firma, "[klein] Bau das Ding")
     t = warte(firma, tid, ("fertig",))
     d = api(firma, f"/api/team/auftraege/{tid}")
-    assert pfad(d["verlauf"])[:3] == [("kevin", "chef", "auftrag"), ("chef", "cody", "auftrag"),
-                                     ("cody", "kevin", "ergebnis")]
+    assert pfad(d["verlauf"])[:3] == [("kevin", "chef", "auftrag"), ("chef", "luna", "auftrag"),
+                                     ("luna", "kevin", "ergebnis")]
     assert t["ergebnis"] == "gebaut"
     assert t["verbraucht"]["hops"] == 2                      # zwei Züge, kein Durchreicher
     assert t["verbraucht"]["cost"] == pytest.approx(0.02)
@@ -134,19 +134,19 @@ def test_normaler_auftrag_geht_ueber_den_pruefer_zurueck_zum_chef(firma):
     t = warte(firma, tid, ("fertig",))
     d = api(firma, f"/api/team/auftraege/{tid}")
     assert pfad(d["verlauf"]) == [
-        ("kevin", "chef", "auftrag"), ("chef", "cody", "auftrag"),
-        ("cody", "chef", "ergebnis"), ("chef", "miranda", "auftrag"),
+        ("kevin", "chef", "auftrag"), ("chef", "luna", "auftrag"),
+        ("luna", "chef", "ergebnis"), ("chef", "miranda", "auftrag"),
         ("miranda", "chef", "ergebnis"), ("chef", "kevin", "ergebnis")]
     assert t["verbraucht"]["hops"] == 5
     # die Beteiligten haben den Auftrag in ihrer Akte
     from server.team import agents as ag
-    assert "Test" in ag.historie_text("cody")
+    assert "Test" in ag.historie_text("luna")
 
 
 def test_rueckfrage_haelt_an_und_antwort_setzt_fort(firma):
     tid = neuer_auftrag(firma, "[rueckfrage] Mach etwas")
     t = warte(firma, tid, ("wartet_auf_kevin",))
-    assert t["eskalation"]["frage"] == "Rot oder blau?" and t["eskalation"]["an"] == "cody"
+    assert t["eskalation"]["frage"] == "Rot oder blau?" and t["eskalation"]["an"] == "luna"
     api(firma, f"/api/team/auftraege/{tid}/antwort", {"aktion": "weiter", "text": "Blau."})
     t = warte(firma, tid, ("fertig",))
     assert t["ergebnis"].startswith("gebaut")

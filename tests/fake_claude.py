@@ -58,19 +58,19 @@ else:
            "antwort" if "antwortet dir:" in text else "auftrag")
     out({"type": "stream_event", "event": {"type": "content_block_delta",
                                            "delta": {"type": "text_delta", "text": f"{AGENT} liest ({art})"}}})
-    if "[langsam]" in text and AGENT == "cody":
+    if "[langsam]" in text and AGENT == "luna":
         time.sleep(4)
     if AGENT == "chef" and art == "auftrag":
         if "[klein]" in text:
-            bus("beauftragen", an="cody", auftrag="Baue das Ding. [klein]", groesse="klein")
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [klein]", groesse="klein")
         elif "[kette]" in text:
-            bus("beauftragen", an="cody", auftrag="Baue das Ding. [kette]", groesse="normal")
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [kette]", groesse="normal")
         elif "[rueckfrage]" in text:
-            bus("beauftragen", an="cody", auftrag="Baue das Ding. [rueckfrage]", groesse="klein")
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [rueckfrage]", groesse="klein")
         elif "[still]" in text:
-            bus("beauftragen", an="cody", auftrag="Baue das Ding. [still]", groesse="klein")
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [still]", groesse="klein")
         elif "[langsam]" in text:
-            bus("beauftragen", an="cody", auftrag="Baue das Ding. [langsam]", groesse="klein")
+            bus("beauftragen", an="luna", auftrag="Baue das Ding. [langsam]", groesse="klein")
         else:
             bus("liefern", ergebnis="Nichts zu tun.")
     elif AGENT == "chef" and art == "ergebnis":
@@ -78,14 +78,14 @@ else:
             bus("beauftragen", an="miranda", auftrag="Prüfe das Ergebnis.", groesse="normal")
         else:
             bus("liefern", ergebnis="Alles fertig, so sieht es jetzt aus.")
-    elif AGENT == "cody" and art == "auftrag":
+    elif AGENT == "luna" and art == "auftrag":
         if "[rueckfrage]" in text:
             bus("eskalieren", grund="Welche Farbe?", frage="Rot oder blau?")
         elif "[still]" in text:
             pass                                  # sagt etwas, gibt aber nichts an den Bus
         else:
             bus("liefern", ergebnis="gebaut", dateien=[])
-    elif AGENT == "cody" and art == "antwort":
+    elif AGENT == "luna" and art == "antwort":
         bus("liefern", ergebnis="gebaut, in der gewünschten Farbe")
     elif AGENT == "miranda":
         bus("liefern", ergebnis="geprüft: in Ordnung")

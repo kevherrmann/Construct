@@ -1,6 +1,6 @@
 ---
 slug: chef
-name: Luna
+name: Cody
 title: Geschäftsführung
 reports_to: 
 engine: claude

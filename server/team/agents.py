@@ -46,28 +46,20 @@ DEFAULTS_DIR = VORLAGEN_DIR / "agents.default"
 # USER_FILE: dieselbe USER.md wie die des Assistenten im Chat (eine Person, eine
 # Datei) — siehe pfade.py.
 
-# Die Geschäftsführung nimmt Aufträge an, verteilt sie und fasst zusammen. In der
-# Firma heißt sie immer Luna. Dem Nutzer gegenüber auch, es sei denn, er hat seinem
-# Assistenten in ⚙ Einstellungen einen eigenen Namen gegeben: dann ist die
-# Geschäftsführung sein Assistent und trägt dessen Namen und Bild (siehe anzeige()).
-# So bleibt ein eigener Name bei dem, der ihn vergeben hat, und steht in keiner
-# mitgelieferten Datei. Das Kürzel bleibt fest.
+# Die Geschäftsführung ist der Assistent selbst: der, mit dem der Nutzer im Chat
+# redet (mitgeliefert Cody). Sie nimmt Aufträge an, verteilt sie und fasst zusammen.
+# Ihr Name kommt immer aus ⚙ Einstellungen, für den Nutzer wie in der Firma (siehe
+# load_agent()). So steht ein eigener Name (bei Kevin Chanti) in keiner
+# mitgelieferten Datei, und niemand sonst bekommt ihn zu sehen. Das Kürzel bleibt fest.
 OWNER_SLUG = "chef"
 
 
-LUNA_BILD = "/static/team/luna.webp"
-
-
 def anzeige(a: dict) -> dict:
-    """Die Akte, wie der NUTZER sie sieht. Die Geschäftsführung heißt Luna; hat der
-    Nutzer seinen Assistenten umbenannt, ist sie dieser Assistent (Name und Gesicht
-    wie im Chat). Was an ein Modell geht, nimmt dagegen die Akte selbst."""
+    """Die Akte, wie der NUTZER sie sieht: die Geschäftsführung mit Name und Gesicht
+    seines Assistenten (wie im Chat). Was an ein Modell geht, nimmt die Akte selbst."""
     if a.get("slug") == OWNER_SLUG:
-        name = cfg.assistant_name()
-        if name == cfg.DEFAULT_SETTINGS["names"]["assistant"]:
-            return {**a, "avatar": a.get("avatar") or LUNA_BILD}
-        bild = (cfg.load_settings().get("avatars") or {}).get("assistant") or LUNA_BILD
-        return {**a, "name": name, "avatar": a.get("avatar") or bild}
+        bild = (cfg.load_settings().get("avatars") or {}).get("assistant") or "/static/cody.png"
+        return {**a, "name": cfg.assistant_name(), "avatar": a.get("avatar") or bild}
     return a
 
 
@@ -357,6 +349,11 @@ def load_agent(slug: str, workspace) -> dict | None:
         raw["allowed_tools"] = None      # Zeile fehlt ganz -> Vorgabe, nicht "keine"
     a, bad = validate(raw, workspace)
     a["problems"] = bad
+    if slug == OWNER_SLUG:
+        # Die Geschäftsführung heißt wie der Assistent, auch für die Kollegen. Der
+        # Name in der Akte bleibt, wie er ist (beim Speichern wird er zurückgeschrieben).
+        a["name_akte"] = a["name"]
+        a["name"] = cfg.assistant_name()
     a["soul"] = _read_capped(d / "SOUL.md", MAX_SOUL)
     a["memory"] = _read_capped(d / "MEMORY.md", MAX_MEMORY)
     a["historie"] = historie_lesen(slug)
@@ -561,10 +558,11 @@ def save_agent(data: dict, workspace) -> tuple:
         merged.update({k: v for k, v in data.items() if v is not None})
         data = merged
         if slug == OWNER_SLUG:
-            data["name"] = vorhanden["name"]      # die Oberfläche zeigt hier den Namen des Assistenten
+            data["name"] = vorhanden["name_akte"]  # nie den Namen des Assistenten in die Akte
     a, bad = validate(data, workspace)
-    if vorhanden and vorhanden.get("name") and vorhanden["name"] != a["name"]:
-        bad += _alter_name_haengt_nach(vorhanden["name"], a["slug"])
+    alt = (vorhanden or {}).get("name_akte") or (vorhanden or {}).get("name")
+    if alt and alt != a["name"]:
+        bad += _alter_name_haengt_nach(alt, a["slug"])
     d = AGENTS_DIR / a["slug"]
     _atomic(d / "AGENT.md", to_frontmatter(a))
     if "soul" in data:

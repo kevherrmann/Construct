@@ -484,7 +484,7 @@ export const PAARE: Record<PaarId, Platz> = {
 /** Wer an welchem Doppelschreibtisch sitzt (nach Kürzel): für diese vier gibt es
  *  Bilder von Tisch und Werkbank. Alle anderen bekommen einen Platz am Rand. */
 export const SITZE: Record<string, { paar: PaarId; seite: Seite }> = {
-  cody: { paar: 'a', seite: 'links' },
+  luna: { paar: 'a', seite: 'links' },
   elara: { paar: 'a', seite: 'rechts' },
   miranda: { paar: 'b', seite: 'links' },
   janus: { paar: 'b', seite: 'rechts' },
