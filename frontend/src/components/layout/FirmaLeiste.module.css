@@ -7,7 +7,7 @@
   background: rgba(255, 210, 74, 0.08);
   border: 1px solid #5a3f1f;
   border-radius: var(--radius);
-  color: #ffd24a;
+  color: var(--warn, #ffd24a);
   font-family: inherit;
   font-size: 12.5px;
   text-align: left;
@@ -46,7 +46,7 @@
   color: var(--green);
 }
 .aktiv > span:not(.pz) {
-  color: rgb(var(--accent-rgb));
+  color: color-mix(in srgb, rgb(var(--accent-rgb)), #000 var(--akzent-dunkler, 0%));
 }
 .punkt {
   margin-right: 5px;
@@ -59,7 +59,7 @@
   align-items: center;
 }
 .angehalten {
-  color: #ffd24a;
+  color: var(--warn, #ffd24a);
   letter-spacing: 2px;
   font-size: 11px;
 }

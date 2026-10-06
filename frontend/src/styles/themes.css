@@ -166,4 +166,8 @@ html[data-theme='nebel'] {
 }
 html:is([data-theme='papier'], [data-theme='nebel']) {
   color-scheme: light;
+  /* Personenfarben (Aufträge, Personal) und Gelb für „wartet“ sind für dunklen
+     Grund gemacht; auf hellem würden sie unlesbar (Gelb 1,4:1). */
+  --akzent-dunkler: 50%;
+  --warn: #8a6100;
 }

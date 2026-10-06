@@ -60,7 +60,7 @@
 .en b {
   font-weight: normal;
   font-size: 13px;
-  color: rgb(var(--accent-rgb));
+  color: color-mix(in srgb, rgb(var(--accent-rgb)), #000 var(--akzent-dunkler, 0%));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -74,7 +74,7 @@
   text-overflow: ellipsis;
 }
 .warn {
-  color: #ffd24a;
+  color: var(--warn, #ffd24a);
 }
 .pause {
   opacity: 0.7;
@@ -119,7 +119,7 @@
 .fehler {
   border: 1px solid #5a3f1f;
   background: rgba(255, 210, 74, 0.06);
-  color: #ffd24a;
+  color: var(--warn, #ffd24a);
   border-radius: var(--radius);
   padding: 9px 12px;
   margin: 0 0 12px;
@@ -210,7 +210,7 @@
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.45);
 }
 .orgkarte b {
-  color: rgb(var(--accent-rgb));
+  color: color-mix(in srgb, rgb(var(--accent-rgb)), #000 var(--akzent-dunkler, 0%));
   font-weight: normal;
   font-size: 14px;
 }

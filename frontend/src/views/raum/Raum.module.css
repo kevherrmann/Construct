@@ -32,6 +32,8 @@
   --shade: rgba(40, 50, 45, 0.06);
   --mask: rgba(50, 55, 52, 0.3);
   --err: #b42318;
+  --akzent-dunkler: 50%;
+  --warn: #8a6100;
   color-scheme: light;
   position: fixed;
   inset: 0;

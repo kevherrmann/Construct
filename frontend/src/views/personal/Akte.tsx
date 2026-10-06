@@ -340,7 +340,7 @@ function Formular({ a }: { a: Agent }) {
           >
             {t('entlassen')}
           </button>
-          <span className={s.msg} style={msg.warn ? { color: '#ffd24a' } : undefined}>
+          <span className={s.msg} style={msg.warn ? { color: 'var(--warn, #ffd24a)' } : undefined}>
             {msg.text}
           </span>
         </div>
