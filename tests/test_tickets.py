@@ -442,3 +442,22 @@ def test_lauf_wendet_marker_am_zugende_an(tmp_path, monkeypatch):
     d = tk.laden("abcd1234-0000-0000-0000-0000000000aa")
     assert [t["titel"] for t in d["tickets"]] == ["Mach die Tafel", "Gelungen"] or d["tickets"][-1]["titel"] == "Gelungen"
     assert run.marke_ab == len(run.last_text)
+
+
+@pytest.mark.parametrize("an", [True, False])
+def test_kachel_aus_chat_schreibt_keine_tickets(client, monkeypatch, tmp_path, an):
+    from server import config as cfg
+    from server.routes import chat
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": an}}))
+    gesehen = {}
+
+    class Lauf:
+        id = "r1"
+
+    def fake(*a, **kw):
+        gesehen.update(kw)
+        return Lauf()
+    monkeypatch.setattr(chat, "start_run", fake)
+    r = client.post("/api/chat", json={"message": "hallo", "cwd": str(tmp_path)})
+    assert r.status_code == 200
+    assert gesehen["tickets"] is an

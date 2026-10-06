@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import type { Lang, Settings } from '@/lib/bootstrap'
 import { useSettings } from '@/stores/settings'
+import { useTicketsAn } from '@/api/tickets'
 import { Section } from './parts'
 import s from './Settings.module.css'
 
@@ -130,6 +131,7 @@ export function TeamSection() {
   const { t } = useTranslation()
   const team = useSettings((st) => st.settings.team)
   const tickets = useSettings((st) => st.settings.tickets)
+  const ticketsAn = useTicketsAn()
   const save = useSettings((st) => st.save)
   return (
     <Section id="team">
@@ -179,23 +181,26 @@ export function TeamSection() {
           </span>
         </div>
       )}
-      <div className={s.row}>
-        <label>
-          <input
-            type="checkbox"
-            checked={tickets.assistent}
-            onChange={(e) => void save({ tickets: { assistent: e.target.checked } })}
-          />
-          <span>
-            <span className={s.t}>🎫 {t('Assistent ordnet Tickets mit')}</span>
-            <span className={s.d}>
-              {t(
-                'Er legt neue Tickets an und ordnet Korrekturen zu — mit einer Zeile am Ende seiner Antwort, nur wenn nötig (etwa 0,5 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
-              )}
+      {/* Ohne Ticket-Kachel gibt es nichts, was der Assistent ordnen könnte. */}
+      {ticketsAn && (
+        <div className={s.row}>
+          <label>
+            <input
+              type="checkbox"
+              checked={tickets.assistent}
+              onChange={(e) => void save({ tickets: { assistent: e.target.checked } })}
+            />
+            <span>
+              <span className={s.t}>🎫 {t('Assistent ordnet Tickets mit')}</span>
+              <span className={s.d}>
+                {t(
+                  'Er legt neue Tickets an und ordnet Korrekturen zu — mit einer Zeile am Ende seiner Antwort, nur wenn nötig (etwa 0,5 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
+                )}
+              </span>
             </span>
-          </span>
-        </label>
-      </div>
+          </label>
+        </div>
+      )}
     </Section>
   )
 }

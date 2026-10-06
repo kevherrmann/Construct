@@ -90,8 +90,9 @@ async def chat(req: Request):
             prompt = f"{prompt}\n\n{tickmod.hinweis(session_id, titel)}"
         except Exception as e:
             print(f"[tickets] Hinweis fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+    # Kachel aus = es wird gar nichts mitgeschrieben, auch nicht die Vorgabe des Servers.
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort,
-                    tickets=True, ticket_vorgabe=vorgabe)
+                    tickets=conf["tiles"]["tickets"], ticket_vorgabe=vorgabe)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
         auto_modell.starte(run, text, model)
