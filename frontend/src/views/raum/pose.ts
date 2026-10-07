@@ -2,7 +2,8 @@ import type { Lage, Phase } from './lage'
 
 /** 'arbeiten' ist keine Pose am Podest: dafür geht die Figur an die Werkbank
  *  und tippt dort an der Tastatur (statt in die Luft). 'sitzen' = gelangweilt im
- *  Bürostuhl eines Mitarbeiters, der gerade an der Werkbank steht. */
+ *  Bürostuhl: dem eines Mitarbeiters, der gerade an der Werkbank steht, oder (beim
+ *  Warten auf einen Hintergrundjob ohne so einen) einem, der einfach dasteht. */
 export type Pose = 'idle' | 'denken' | 'lesen' | 'arbeiten' | 'erklaeren' | 'sitzen'
 
 export const POSE_VON: Record<Phase, Pose> = {
@@ -28,9 +29,10 @@ export const POSE_VON: Record<Phase, Pose> = {
  * Aufrufe, also Reden), und ein fertiger Zug, der noch als aktiv gilt, ist Reden.
  * `chef` = Lage ihres Zugs, null = sie hat gerade keinen.
  * Hat sie gar nichts zu tun, während ein Mitarbeiter arbeitet (`langeweile`), setzt
- * sie sich auf dessen Stuhl.
+ * sie sich auf dessen Stuhl. Ebenso, wenn sie nur auf einen Hintergrundjob wartet.
  */
 export function zielPose(eigene: Lage, chef: Lage | null, langeweile = false): Pose {
+  if (langeweile && !eigene.live && eigene.phase === 'wartet') return 'sitzen'
   if (!eigene.live && eigene.phase === 'ruht' && !chef) return langeweile ? 'sitzen' : 'idle'
   if (eigene.live || eigene.phase !== 'ruht' || !chef) return POSE_VON[eigene.phase]
   const p = POSE_VON[chef.phase]

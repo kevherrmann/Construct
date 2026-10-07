@@ -47,4 +47,11 @@ describe('zielPose', () => {
     expect(zielPose(lage('ruht'), lage('ruht'), true)).toBe('erklaeren')
     expect(zielPose(lage('ruht', true), null, true)).toBe('idle')
   })
+
+  it('setzt sich auch, wenn sie auf einen Hintergrundjob wartet', () => {
+    expect(zielPose(lage('wartet', false), null)).toBe('denken')
+    expect(zielPose(lage('wartet', false), null, true)).toBe('sitzen')
+    // Der Zug der Chefin ändert daran nichts: dein Gespräch geht vor
+    expect(zielPose(lage('wartet', false), lage('denkt'), true)).toBe('sitzen')
+  })
 })

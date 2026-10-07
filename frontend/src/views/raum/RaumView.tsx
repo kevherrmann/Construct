@@ -279,17 +279,23 @@ function useRuhigePose(ziel: Pose): Pose {
   return pose
 }
 
+/** Stuhl, der niemandem fehlt: Wartet sie auf einen Hintergrundjob und steht
+ *  keiner an der Werkbank (oder es gibt gar kein Büro), steht er einfach da. */
+const EIGENER_STUHL = '#eigener'
+
 /** Auf wessen Stuhl die Chefin sitzt: `frei` = der Mitarbeiter, der gerade an der
- *  Werkbank steht, solange sie nichts zu tun hat (sonst null). Sie setzt sich erst
- *  nach LANGEWEILE_MS und steht sofort auf, wenn sich das ändert. */
+ *  Werkbank steht, solange sie nichts zu tun hat, oder EIGENER_STUHL (sonst null).
+ *  Sie setzt sich erst nach LANGEWEILE_MS und steht sofort auf, wenn sich das ändert. */
 function useLangeweile(frei: string | null): string | null {
   const [stuhl, setStuhl] = useState<string | null>(null)
-  if (stuhl && stuhl !== frei) setStuhl(null)
+  // Auf dem eigenen bleibt sie sitzen, auch wenn inzwischen einer an der Werkbank steht.
+  const bleibt = stuhl === EIGENER_STUHL && !!frei
+  if (stuhl && stuhl !== frei && !bleibt) setStuhl(null)
   useEffect(() => {
-    if (!frei) return
+    if (!frei || bleibt) return
     const id = setTimeout(() => setStuhl(frei), LANGEWEILE_MS)
     return () => clearTimeout(id)
-  }, [frei])
+  }, [frei, bleibt])
   return stuhl
 }
 
@@ -454,6 +460,8 @@ export function RaumView() {
   const chefZug = useChefZug()
   // Hat sie nichts zu tun, während ein Mitarbeiter an der Werkbank arbeitet, holt sie
   // sich seinen Stuhl ans Podest und dreht sich darin (Figuren ohne Sitzpose stehen).
+  // Wartet sie auf einen Hintergrundjob, setzt sie sich auch: auf seinen Stuhl, wenn
+  // einer an der Werkbank steht, sonst auf einen, der nirgends fehlt.
   const [langeweileStuhl, setLangeweileStuhl] = useState<string | null>(null)
   const stuhl = useLangeweile(langeweileStuhl)
   const pose = useRuhigePose(zielPose(lage, chefZug?.lage ?? null, !!stuhl))
@@ -463,12 +471,16 @@ export function RaumView() {
   // (Wer an der Werkbank steht, weiß erst das Büro, das wiederum die Pose braucht:
   // darum über einen Zustand, angepasst beim Zeichnen.)
   const langweilig =
-    figur.posen.sitzen && !buero?.besuch && zielPose(lage, chefZug?.lage ?? null) === 'idle'
-      ? (buero?.werk ?? null)
-      : null
+    !figur.posen.sitzen || buero?.besuch
+      ? null
+      : !lage.live && lage.phase === 'wartet'
+        ? (buero?.werk ?? EIGENER_STUHL)
+        : zielPose(lage, chefZug?.lage ?? null) === 'idle'
+          ? (buero?.werk ?? null)
+          : null
   if (langweilig !== langeweileStuhl) setLangeweileStuhl(langweilig)
   // Am Tisch fehlt der Stuhl, solange sie darauf sitzt.
-  const stuhlWeg = pose === 'sitzen' ? stuhl : null
+  const stuhlWeg = pose === 'sitzen' && stuhl !== EIGENER_STUHL ? stuhl : null
   // Ist die Chefin am Tisch, ist das Podest leer. Beim Abschied blendet sie dort
   // schon wieder ein, während sie am Tisch verschwindet.
   const besucht = !!buero?.besuch && buero.besuch.phase !== 'zurueck'
