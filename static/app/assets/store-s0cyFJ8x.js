@@ -1,1 +1,0 @@
-import{t as e}from"./react-DrKniF1j.js";var t=e(e=>({auswahl:null,sicht:`uebersicht`,protokoll:null,oeffne:t=>e({auswahl:t,sicht:`uebersicht`,protokoll:t}),vormerken:t=>e({auswahl:t,sicht:`uebersicht`}),zurSession:()=>e({protokoll:null}),neu:()=>e({auswahl:`neu`}),sichtWechseln:t=>e({sicht:t}),schliessen:()=>e({auswahl:null,sicht:`uebersicht`})}));export{t};
