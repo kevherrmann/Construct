@@ -55,16 +55,33 @@ def marke(text: str) -> str | None:
     return None
 
 
+def _belegschaft() -> str:
+    """„Elara: Frontend und Gestaltung; Luna: …“ — die Namen verankern den Begriff.
+    Ohne sie fand der Assistent in einer anderen Session „die Firma“ nicht und hielt
+    ein altes Projekt namens FACTORIA dafür (07.10.2026)."""
+    from server.core import WORKSPACE
+    from server.team import agents as ag
+    try:
+        leute = [a for a in ag.list_agents(WORKSPACE) if a["slug"] != ag.OWNER_SLUG and a["status"] == "active"]
+    except Exception:
+        return ""
+    return "; ".join(f"{a['name']}: {a['title']}" if a.get("title") else a["name"] for a in leute)
+
+
 def regeln() -> str:
-    """Fester Teil im Systemprompt, nur mit Team-Modus."""
+    """Fester Teil im Systemprompt, nur mit Team-Modus. Ändert sich nur, wenn sich
+    die Belegschaft ändert — so bleibt er im Zwischenspeicher."""
     wer = cfg.user_name()
+    leute = _belegschaft()
     return cfg.L(
         f"""## Firma
-Du hast eine Firma aus KI-Mitarbeitern, die im Hintergrund arbeiten; ihre Nachrichten erscheinen in diesem Chat. Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer} vor und fragst, ob du sie an die Firma geben darfst; Kleines machst du selbst. Verlangt {wer} es ausdrücklich, fragst du nicht nach.
-Nach dem Ja schreibst du den Auftrag als Antwort (was, wo, worauf achten, wann fertig) und als allerletzte Zeile `[[firma: Kurztitel]]` (Ticket gemeint: `[[firma: T-12 Kurztitel]]`). Danach arbeitest du nicht selbst daran. Die Zeile wird vor der Anzeige entfernt, erwähne sie nicht. Was die Firma liefert, bekommst du mit der nächsten Nachricht.""",
+„Die Firma“ ist der Team-Modus dieser CONSTRUCT-Installation: KI-Mitarbeiter, die du als Geschäftsführung leitest{f': {leute}' if leute else ''}. Spricht {wer} von der Firma, ist immer sie gemeint, kein anderes Programm oder Projekt, und das in jeder Session und jedem Projektordner. Ihre Nachrichten erscheinen in diesem Chat.
+Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer} vor und fragst, ob du sie an die Firma geben darfst; Kleines machst du selbst. Verlangt {wer} es ausdrücklich (auch „lass die Firma mal drüberschauen“, Review, Test), fragst du nicht nach.
+Übergeben wird nur so: Du schreibst den Auftrag als Antwort (was, wo, worauf achten, wann fertig) und als allerletzte Zeile `[[firma: Kurztitel]]` (Ticket gemeint: `[[firma: T-12 Kurztitel]]`). Keine API, kein Skript: nur über diese Zeile schreibt die Firma in diesen Chat. Danach arbeitest du nicht selbst daran. Die Zeile wird vor der Anzeige entfernt, erwähne sie nicht. Was die Firma liefert, bekommst du mit der nächsten Nachricht.""",
         f"""## Company
-You have a company of AI employees working in the background; their messages appear in this chat. Big tasks (several files or steps, interface, tests) you suggest to {wer} and ask whether you may give them to the company; small things you do yourself. If {wer} explicitly asks for it, don't ask back.
-After a yes, write the job as your answer (what, where, what to watch, when it is done) and as the very last line `[[company: short title]]` (for a ticket: `[[company: T-12 short title]]`). Then do not work on it yourself. The line is removed before display, do not mention it. You receive what the company delivers with the next message.""")
+"The company" is the team mode of this CONSTRUCT installation: AI employees you lead as managing director{f': {leute}' if leute else ''}. When {wer} talks about the company, it always means them, no other program or project, in every session and project folder. Their messages appear in this chat.
+Big tasks (several files or steps, interface, tests) you suggest to {wer} and ask whether you may give them to the company; small things you do yourself. If {wer} explicitly asks for it (also "let the company have a look", review, test), don't ask back.
+Handing over works only like this: write the job as your answer (what, where, what to watch, when it is done) and as the very last line `[[company: short title]]` (for a ticket: `[[company: T-12 short title]]`). No API, no script: only through this line does the company write in this chat. Then do not work on it yourself. The line is removed before display, do not mention it. You receive what the company delivers with the next message.""")
 
 
 def uebergeben(text: str, session: str, cwd: str) -> dict | None:

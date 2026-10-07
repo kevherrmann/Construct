@@ -2,6 +2,16 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.0.1 — 2026-10-07
+
+### Fixed
+- **The assistant knows the company in every session.** The rules said how to hand
+  over a job, but not what "the company" is: in another project folder the
+  assistant took an old project of the same name for it and created the job
+  through the API, past the chat. The rules now name the staff, say that the
+  company is always meant, in any session, and that the marker line is the only
+  way to hand over.
+
 ## 8.0.0 — 2026-10-07
 
 ### Changed

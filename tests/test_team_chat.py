@@ -45,6 +45,8 @@ def test_regeln_fragen_vor_der_uebergabe():
     text = teamchat.regeln()
     assert "fragst, ob du sie an die Firma geben darfst" in text and "Anna" in text
     assert "[[firma: Kurztitel]]" in text
+    # Der Begriff ist verankert: wer zur Firma gehört, steht dabei
+    assert "„Die Firma“ ist der Team-Modus" in text and "Janus: Code-Auditor" in text
 
 
 def test_uebergabe_mit_ticketverweis(monkeypatch, tmp_path):
