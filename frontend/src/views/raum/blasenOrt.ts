@@ -73,18 +73,46 @@ export function verschoben(
   }
 }
 
-/** Neue Größe beim Ziehen am Griff oben rechts: nach rechts breiter, nach oben höher
- *  (die Blase hängt unten fest, der Zipfel bleibt bei der Figur). Begrenzt auf
- *  min/max — max ist zugleich der Platz bis zum Rand des Raums. */
-export function vergroessert(
-  start: BlasenGroesse,
+/** Lage und Größe zusammen, alles in Prozent des Raums. */
+export type BlasenRahmen = BlasenOrt & BlasenGroesse
+
+/** Woran gezogen wird: x −1 = linke Kante, 1 = rechte; y −1 = obere, 1 = untere;
+ *  0 = diese Richtung bleibt. Eine Ecke hat beides. */
+export interface Kante {
+  x: -1 | 0 | 1
+  y: -1 | 0 | 1
+}
+
+/** Bis dahin reicht die Blase beim Aufziehen: rechts und oben ein wenig Luft. */
+const RECHTS = 99
+const OBEN = 98
+
+/** Neuer Rahmen beim Ziehen an einer Kante oder Ecke: die gegenüberliegende Kante
+ *  bleibt stehen, wie bei einem Fenster. Begrenzt auf min/max und den Raum. */
+export function aufgezogen(
+  start: BlasenRahmen,
+  kante: Kante,
   dx: number,
   dy: number,
   min: BlasenGroesse,
   max: BlasenGroesse,
-): BlasenGroesse {
-  return {
-    w: zwischen(start.w + dx, min.w, max.w),
-    h: zwischen(start.h - dy, min.h, max.h),
+): BlasenRahmen {
+  let { l, b, w, h } = start
+  if (kante.x === 1) w = zwischen(w + dx, min.w, Math.min(max.w, RECHTS - l))
+  if (kante.x === -1) {
+    const r = l + w
+    w = zwischen(w - dx, min.w, Math.min(max.w, r))
+    l = r - w
   }
+  if (kante.y === -1) h = zwischen(h - dy, min.h, Math.min(max.h, OBEN - b))
+  if (kante.y === 1) {
+    const o = b + h
+    h = zwischen(h + dy, min.h, Math.min(max.h, o))
+    b = o - h
+  }
+  return { l, b, w, h }
 }
+
+/** Höchstens so hoch, dass der Kopf im Raum bleibt (sonst kommst du nicht mehr
+ *  an ihn heran, um sie zurückzuschieben). */
+export const hoechstens = (h: number, b: number) => Math.min(h, OBEN - b)

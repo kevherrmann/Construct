@@ -1116,7 +1116,7 @@
   "Effort bestimmt, wie gründlich das Modell nachdenkt. Recherche und mechanisches Prüfen kommen mit „low“ aus, sonst gilt „xhigh“.": "Effort sets how thoroughly the model thinks. Research and mechanical checks get by with “low”, otherwise “xhigh” applies.",
   "ÜBERSICHT": "OVERVIEW",
   "Ziehen ändert die Größe, Doppelklick stellt sie zurück": "Drag to resize, double-click to reset",
-  "Ziehen verschiebt die Blase, Doppelklick stellt sie zurück": "Drag to move the bubble, double-click to reset",
+  "Ziehen verschiebt die Blase (oder irgendwo gedrückt halten), Doppelklick stellt sie zurück": "Drag to move the bubble (or press and hold anywhere), double-click to reset",
   "Auftrag": "Job",
   "✨ EFFEKTE": "✨ EFFECTS",
   "Effekte": "Effects",

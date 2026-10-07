@@ -53,10 +53,13 @@ import {
   useBlasenHoehe,
   zwischen,
   useBlasenOrt,
-  vergroessert,
+  aufgezogen,
+  hoechstens,
   verschoben,
   type BlasenGroesse,
   type BlasenOrt,
+  type BlasenRahmen,
+  type Kante,
 } from './blasenOrt'
 import { ungelesen, useAuftrag, useAuftraege } from '@/api/team'
 import { useAuftraegeAnsicht } from '../auftraege/store'
@@ -1086,6 +1089,22 @@ const MIN_BLASE = { w: 260, h: 160 }
 const VORGABE_FLAECHE = 34 * 30
 /** Höhe des Bodenblatts ohne eigene Höhe (Prozent des Raums, wie .blaseUnten). */
 const VORGABE_HOEHE_KOMPAKT = 30
+/** Höhe der Blase ohne eigene Größe (Prozent des Raums, wie max-height in .blase). */
+const VORGABE_HOEHE = 43
+/** So lange gedrückt halten, bis die Blase am Text hängt und mitgeht. Wer vorher
+ *  zieht, markiert Text (oder scrollt), wie überall. */
+const PACKEN_MS = 250
+/** Griffe an Kanten und Ecken; der oben rechts ist der sichtbare (mit Tastatur). */
+const KANTEN: { k: Kante; cls: string }[] = [
+  { k: { x: 0, y: -1 }, cls: 'griffO' },
+  { k: { x: 0, y: 1 }, cls: 'griffU' },
+  { k: { x: -1, y: 0 }, cls: 'griffL' },
+  { k: { x: 1, y: 0 }, cls: 'griffR' },
+  { k: { x: -1, y: -1 }, cls: 'griffOL' },
+  { k: { x: -1, y: 1 }, cls: 'griffUL' },
+  { k: { x: 1, y: 1 }, cls: 'griffUR' },
+]
+const OBEN_RECHTS: Kante = { x: 1, y: -1 }
 /** Pfeiltasten am Größengriff: Richtung, in die er sich bewegt. */
 const PFEILE: Record<string, [number, number]> = {
   ArrowRight: [1, 0],
@@ -1168,46 +1187,8 @@ function Sprechblase({
   const gehe = (n: number) => setWahl(n >= letzter ? null : Math.max(0, n))
   const blase = useRef<HTMLElement>(null)
   const [ziehen, setZiehen] = useState<BlasenOrt | null>(null)
-  // Ziehen am Kopf: Start in Prozent des Raums (der Elternfläche), jede Bewegung in
-  // Prozent umrechnen. So stimmt es bei jedem Kamera-Zoom.
-  const zieheLos = (e: React.PointerEvent<HTMLElement>) => {
-    const el = blase.current
-    const raum = el?.offsetParent as HTMLElement | null
-    if (!onOrt || !el || !raum || e.button !== 0) return
-    if ((e.target as HTMLElement).closest('button')) return
-    const r = raum.getBoundingClientRect()
-    const b = el.getBoundingClientRect()
-    const start: BlasenOrt = {
-      l: ((b.left - r.left) / r.width) * 100,
-      b: ((r.bottom - b.bottom) / r.height) * 100,
-    }
-    const groesse = { w: (b.width / r.width) * 100, h: (b.height / r.height) * 100 }
-    const x0 = e.clientX
-    const y0 = e.clientY
-    let jetzt = start
-    const bewegt = (m: PointerEvent) => {
-      jetzt = verschoben(
-        start,
-        ((m.clientX - x0) / r.width) * 100,
-        ((m.clientY - y0) / r.height) * 100,
-        groesse,
-      )
-      setZiehen(jetzt)
-    }
-    const fertig = () => {
-      window.removeEventListener('pointermove', bewegt)
-      window.removeEventListener('pointerup', fertig)
-      setZiehen(null)
-      if (jetzt !== start) onOrt(jetzt)
-    }
-    window.addEventListener('pointermove', bewegt)
-    window.addEventListener('pointerup', fertig)
-    e.preventDefault()
-  }
-  const lage = ziehen ?? ort
-  // Größe: Griff oben rechts, die Blase hängt unten fest. Grenzen in Pixeln (lesbar
-  // bleiben), umgerechnet in Prozent des Raums wie beim Verschieben.
-  const [spannen, setSpannen] = useState<BlasenGroesse | null>(null)
+  // Wo sie gerade steht und wie groß sie ist, in Prozent des Raums (der
+  // Elternfläche); jede Bewegung ebenso umrechnen. So stimmt es bei jedem Kamera-Zoom.
   const masse = () => {
     const el = blase.current
     const raum = el?.offsetParent as HTMLElement | null
@@ -1216,39 +1197,97 @@ function Sprechblase({
     const b = el.getBoundingClientRect()
     const pw = (px: number) => (px / r.width) * 100
     const ph = (px: number) => (px / r.height) * 100
-    return {
-      r,
-      start: { w: pw(b.width), h: ph(b.height) },
-      min: { w: pw(MIN_BLASE.w), h: ph(MIN_BLASE.h) },
-      // bis an den Rand des Raums, rechts und oben ein wenig Luft
-      max: {
-        w: Math.min(70, pw(r.right - b.left) - 1),
-        h: Math.min(90, ph(b.bottom - r.top) - 2),
-      },
+    const start: BlasenRahmen = {
+      l: pw(b.left - r.left),
+      b: ph(r.bottom - b.bottom),
+      w: pw(b.width),
+      h: ph(b.height),
+    }
+    return { r, start, min: { w: pw(MIN_BLASE.w), h: ph(MIN_BLASE.h) }, max: { w: 70, h: 90 } }
+  }
+  // Verschieben: am Kopf sofort, sonst irgendwo in der Blase nach kurzem Halten.
+  // Bewegt sich der Zeiger vorher, markierst du Text oder scrollst, wie gewohnt.
+  const zieheLos = (e: React.PointerEvent<HTMLElement>, sofort: boolean) => {
+    const ziel = e.target as HTMLElement
+    if (!onOrt || e.button !== 0) return
+    if (ziel.closest('button, a, input, textarea, select')) return
+    // Griff am Rollbalken: der scrollt
+    if (ziel.hasAttribute('data-scroll') && e.nativeEvent.offsetX >= ziel.clientWidth) return
+    const x0 = e.clientX
+    const y0 = e.clientY
+    let m: ReturnType<typeof masse> = null
+    let jetzt: BlasenOrt | null = null
+    const packen = () => {
+      m = masse()
+      if (!m) return
+      jetzt = { l: m.start.l, b: m.start.b }
+      setZiehen(jetzt)
+      window.getSelection()?.removeAllRanges()
+    }
+    const uhr = sofort ? undefined : setTimeout(packen, PACKEN_MS)
+    const bewegt = (p: PointerEvent) => {
+      if (!m) {
+        if (Math.hypot(p.clientX - x0, p.clientY - y0) > 5) fertig()
+        return
+      }
+      if (!sofort) window.getSelection()?.removeAllRanges()
+      jetzt = verschoben(
+        m.start,
+        ((p.clientX - x0) / m.r.width) * 100,
+        ((p.clientY - y0) / m.r.height) * 100,
+        m.start,
+      )
+      setZiehen(jetzt)
+    }
+    const fertig = () => {
+      clearTimeout(uhr)
+      window.removeEventListener('pointermove', bewegt)
+      window.removeEventListener('pointerup', fertig)
+      window.removeEventListener('pointercancel', fertig)
+      if (!m) return
+      setZiehen(null)
+      if (jetzt && (jetzt.l !== m.start.l || jetzt.b !== m.start.b)) onOrt(jetzt)
+    }
+    window.addEventListener('pointermove', bewegt)
+    window.addEventListener('pointerup', fertig)
+    window.addEventListener('pointercancel', fertig)
+    if (sofort) {
+      packen()
+      e.preventDefault()
     }
   }
-  const spanneLos = (e: React.PointerEvent<HTMLElement>) => {
+  // Größe: an jeder Kante und Ecke, die gegenüberliegende bleibt stehen. Links und
+  // unten verschiebt das die Blase mit; sonst behält sie ihren Platz bei der Figur.
+  // Grenzen in Pixeln (lesbar bleiben), umgerechnet in Prozent des Raums.
+  const [spannen, setSpannen] = useState<{ r: BlasenRahmen; ort: boolean } | null>(null)
+  const mitOrt = (k: Kante) => !!onOrt && (!!ort || k.x === -1 || k.y === 1)
+  const fertigGespannt = (r: BlasenRahmen, k: Kante) => {
+    onGroesse?.({ w: r.w, h: r.h })
+    if (mitOrt(k)) onOrt?.({ l: r.l, b: r.b })
+  }
+  const spanneLos = (e: React.PointerEvent<HTMLElement>, k: Kante) => {
     const m = masse()
     if (!onGroesse || !m || e.button !== 0) return
     const x0 = e.clientX
     const y0 = e.clientY
     let jetzt = m.start
     const bewegt = (p: PointerEvent) => {
-      jetzt = vergroessert(
+      jetzt = aufgezogen(
         m.start,
+        k,
         ((p.clientX - x0) / m.r.width) * 100,
         ((p.clientY - y0) / m.r.height) * 100,
         m.min,
         m.max,
       )
-      setSpannen(jetzt)
+      setSpannen({ r: jetzt, ort: mitOrt(k) })
     }
     const fertig = () => {
       window.removeEventListener('pointermove', bewegt)
       window.removeEventListener('pointerup', fertig)
       window.removeEventListener('pointercancel', fertig)
       setSpannen(null)
-      if (jetzt !== m.start) onGroesse(jetzt)
+      if (jetzt !== m.start) fertigGespannt(jetzt, k)
     }
     window.addEventListener('pointermove', bewegt)
     window.addEventListener('pointerup', fertig)
@@ -1256,15 +1295,19 @@ function Sprechblase({
     e.preventDefault()
     e.stopPropagation()
   }
-  // Tastatur: Pfeile ändern die Größe in kleinen Schritten.
+  // Tastatur: Pfeile ändern die Größe in kleinen Schritten (Griff oben rechts).
   const spanneTaste = (e: React.KeyboardEvent<HTMLElement>) => {
     const schritt = PFEILE[e.key]
     const m = masse()
     if (!onGroesse || !schritt || !m) return
     e.preventDefault()
-    onGroesse(vergroessert(m.start, schritt[0] * 2, schritt[1] * 2, m.min, m.max))
+    const { w, h } = aufgezogen(m.start, OBEN_RECHTS, schritt[0] * 2, schritt[1] * 2, m.min, m.max)
+    onGroesse({ w, h })
   }
-  const gross = spannen ?? groesse
+  const lage = ziehen ?? (spannen?.ort ? spannen.r : ort)
+  const gross = spannen?.r ?? groesse
+  // Steht sie frei, wächst sie höchstens bis knapp unter die Decke des Raums.
+  const hoechsteHoehe = lage && !spannen ? hoechstens(gross?.h ?? VORGABE_HOEHE, lage.b) : null
   // Kompakt: Griff oben in der Mitte wie bei einem Bodenblatt, nur die Höhe.
   const [hoch, setHoch] = useState<number | null>(null)
   const hoehenMasse = () => {
@@ -1312,7 +1355,7 @@ function Sprechblase({
   return (
     <section
       ref={blase}
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen || hoch !== null ? s.blaseZieht : ''} ${onHoehe ? s.blaseHebbar : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen || hoch !== null ? s.blaseZieht : ''} ${ziehen ? s.blaseGepackt : ''} ${onHoehe ? s.blaseHebbar : ''}`}
       style={{
         ...(farbe ? { ['--accent-rgb' as string]: farbe } : {}),
         ...(lage ? { left: `${lage.l}%`, bottom: `${lage.b}%` } : {}),
@@ -1323,20 +1366,31 @@ function Sprechblase({
             ? { width: `${gross.w}%`, height: `${gross.h}%`, maxHeight: 'none' }
             : { width: `${gross.w}%`, maxHeight: `${gross.h}%` }
           : {}),
+        ...(hoechsteHoehe !== null ? { maxHeight: `${hoechsteHoehe}%` } : {}),
         // Bodenblatt: bleibt, wo du es hingezogen hast, auch bei kurzer Antwort.
         ...(hoeheJetzt !== null ? { height: `${hoeheJetzt}%`, maxHeight: 'none' } : {}),
       }}
       onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => zieheLos(e, false)}
     >
       <header
         className={`${s.blasenKopf} ${onOrt ? s.blasenGriff : ''}`}
-        onPointerDown={zieheLos}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          zieheLos(e, true)
+        }}
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).closest('button')) return
           onOrt?.(null)
           onGroesse?.(null)
         }}
-        title={onOrt ? t('Ziehen verschiebt die Blase, Doppelklick stellt sie zurück') : undefined}
+        title={
+          onOrt
+            ? t(
+                'Ziehen verschiebt die Blase (oder irgendwo gedrückt halten), Doppelklick stellt sie zurück',
+              )
+            : undefined
+        }
       >
         <b>{name}</b>
         {status && <span className={s.status}>{status}</span>}
@@ -1368,13 +1422,23 @@ function Sprechblase({
         <button
           type="button"
           className={s.blasenGroesse}
-          onPointerDown={spanneLos}
+          onPointerDown={(e) => spanneLos(e, OBEN_RECHTS)}
           onKeyDown={spanneTaste}
           onDoubleClick={() => onGroesse(null)}
           aria-label={t('Größe der Sprechblase ändern')}
           title={t('Ziehen ändert die Größe, Doppelklick stellt sie zurück')}
         />
       )}
+      {onGroesse &&
+        KANTEN.map(({ k, cls }) => (
+          <span
+            key={cls}
+            className={`${s.blasenKante} ${s[cls]}`}
+            onPointerDown={(e) => spanneLos(e, k)}
+            onDoubleClick={() => onGroesse(null)}
+            aria-hidden
+          />
+        ))}
       {teile.length > 0 && (
         <div ref={ref} className={s.blasenText} data-scroll>
           <Markdown

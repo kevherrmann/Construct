@@ -1433,6 +1433,66 @@
   border-color: var(--green);
 }
 
+/* Die übrigen Kanten und Ecken ziehen ebenso, wie bei einem Fenster: unsichtbare
+   Streifen, die etwas über den Rand hinausreichen. */
+.blasenKante {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+.griffO,
+.griffU {
+  left: 14px;
+  right: 14px;
+  height: 10px;
+  cursor: ns-resize;
+}
+.griffO {
+  top: -6px;
+}
+.griffU {
+  bottom: -6px;
+}
+.griffL,
+.griffR {
+  top: 14px;
+  bottom: 14px;
+  width: 10px;
+  cursor: ew-resize;
+}
+.griffL {
+  left: -6px;
+}
+.griffR {
+  right: -6px;
+}
+.griffOL,
+.griffUL,
+.griffUR {
+  width: 18px;
+  height: 18px;
+}
+.griffOL {
+  top: -8px;
+  left: -8px;
+  cursor: nwse-resize;
+}
+.griffUL {
+  bottom: -8px;
+  left: -8px;
+  cursor: nesw-resize;
+}
+.griffUR {
+  bottom: -8px;
+  right: -8px;
+  cursor: nwse-resize;
+}
+/* Nach kurzem Halten hängt sie am Zeiger, egal wo du sie gepackt hast. */
+.blaseGepackt,
+.blaseGepackt * {
+  cursor: grabbing;
+}
+
 /* Kompakt (Bodenblatt): Griff oben in der Mitte wie bei jedem Bodenblatt, er
    zieht nur die Höhe. Sichtbar ist ein Strich, getroffen wird ein breiter Streifen. */
 .blaseHebbar .blasenKopf {
