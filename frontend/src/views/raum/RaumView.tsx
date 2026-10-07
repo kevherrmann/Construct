@@ -1094,24 +1094,17 @@ const VORGABE_HOEHE = 43
 /** So lange gedrückt halten, bis die Blase am Text hängt und mitgeht. Wer vorher
  *  zieht, markiert Text (oder scrollt), wie überall. */
 const PACKEN_MS = 250
-/** Griffe an Kanten und Ecken; der oben rechts ist der sichtbare (mit Tastatur). */
+/** Griffe an Kanten und Ecken, unsichtbar wie bei einem Fenster. */
 const KANTEN: { k: Kante; cls: string }[] = [
   { k: { x: 0, y: -1 }, cls: 'griffO' },
   { k: { x: 0, y: 1 }, cls: 'griffU' },
   { k: { x: -1, y: 0 }, cls: 'griffL' },
   { k: { x: 1, y: 0 }, cls: 'griffR' },
   { k: { x: -1, y: -1 }, cls: 'griffOL' },
+  { k: { x: 1, y: -1 }, cls: 'griffOR' },
   { k: { x: -1, y: 1 }, cls: 'griffUL' },
   { k: { x: 1, y: 1 }, cls: 'griffUR' },
 ]
-const OBEN_RECHTS: Kante = { x: 1, y: -1 }
-/** Pfeiltasten am Größengriff: Richtung, in die er sich bewegt. */
-const PFEILE: Record<string, [number, number]> = {
-  ArrowRight: [1, 0],
-  ArrowLeft: [-1, 0],
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-}
 
 /** Sprechblase neben der Figur. Wie Untertitel steht darin immer nur ein
  *  Abschnitt der Antwort — beim Sprechen der jüngste, danach lässt sich mit
@@ -1155,7 +1148,7 @@ function Sprechblase({
   onOrt?: (o: BlasenOrt | null) => void
   /** Selbst aufgezogen (Prozent des Raums); null = Vorgabe. */
   groesse?: BlasenGroesse | null
-  /** Ziehen am Griff oben rechts ändert die Größe, Doppelklick dort stellt sie zurück. */
+  /** Ziehen an Kanten und Ecken ändert die Größe, Doppelklick dort stellt sie zurück. */
   onGroesse?: (g: BlasenGroesse | null) => void
   /** Kompakt: Höhe (Prozent des Raums), bis zu der sie wächst; null = Vorgabe. */
   hoehe?: number | null
@@ -1295,15 +1288,6 @@ function Sprechblase({
     e.preventDefault()
     e.stopPropagation()
   }
-  // Tastatur: Pfeile ändern die Größe in kleinen Schritten (Griff oben rechts).
-  const spanneTaste = (e: React.KeyboardEvent<HTMLElement>) => {
-    const schritt = PFEILE[e.key]
-    const m = masse()
-    if (!onGroesse || !schritt || !m) return
-    e.preventDefault()
-    const { w, h } = aufgezogen(m.start, OBEN_RECHTS, schritt[0] * 2, schritt[1] * 2, m.min, m.max)
-    onGroesse({ w, h })
-  }
   const lage = ziehen ?? (spannen?.ort ? spannen.r : ort)
   const gross = spannen?.r ?? groesse
   // Steht sie frei, wächst sie höchstens bis knapp unter die Decke des Raums.
@@ -1416,17 +1400,6 @@ function Sprechblase({
           onDoubleClick={() => onHoehe(null)}
           aria-label={t('Höhe der Sprechblase ändern')}
           title={t('Ziehen ändert die Höhe, Doppelklick stellt sie zurück')}
-        />
-      )}
-      {onGroesse && (
-        <button
-          type="button"
-          className={s.blasenGroesse}
-          onPointerDown={(e) => spanneLos(e, OBEN_RECHTS)}
-          onKeyDown={spanneTaste}
-          onDoubleClick={() => onGroesse(null)}
-          aria-label={t('Größe der Sprechblase ändern')}
-          title={t('Ziehen ändert die Größe, Doppelklick stellt sie zurück')}
         />
       )}
       {onGroesse &&

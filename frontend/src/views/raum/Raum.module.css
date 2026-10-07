@@ -1393,48 +1393,9 @@
   color: var(--green);
   border-color: rgba(var(--accent-rgb), 0.6);
 }
-/* Griff oben rechts: die Blase hängt unten am Zipfel fest und wächst nach oben
-   und rechts. Eine Ecke als Zeichen, die Trefferfläche ist größer als sie. */
-.blasenGroesse {
-  position: absolute;
-  top: -11px;
-  right: -11px;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid #dfe4e1;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(30, 40, 35, 0.12);
-  cursor: nesw-resize;
-  touch-action: none;
-  opacity: 0.75;
-  transition: opacity 0.2s;
-}
-.blasenGroesse::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
-  border-top: 2px solid var(--ink-soft);
-  border-right: 2px solid var(--ink-soft);
-}
-.blase:hover .blasenGroesse,
-.blasenGroesse:focus-visible,
-.blaseZieht .blasenGroesse {
-  opacity: 1;
-}
-.blasenGroesse:hover {
-  border-color: rgba(var(--accent-rgb), 0.6);
-}
-.blasenGroesse:hover::before {
-  border-color: var(--green);
-}
 
-/* Die übrigen Kanten und Ecken ziehen ebenso, wie bei einem Fenster: unsichtbare
-   Streifen, die etwas über den Rand hinausreichen. */
+/* Größe: an allen Kanten und Ecken, wie bei einem Fenster. Unsichtbare Streifen,
+   die etwas über den Rand hinausreichen. */
 .blasenKante {
   position: absolute;
   z-index: 2;
@@ -1467,6 +1428,7 @@
   right: -6px;
 }
 .griffOL,
+.griffOR,
 .griffUL,
 .griffUR {
   width: 18px;
@@ -1476,6 +1438,11 @@
   top: -8px;
   left: -8px;
   cursor: nwse-resize;
+}
+.griffOR {
+  top: -8px;
+  right: -8px;
+  cursor: nesw-resize;
 }
 .griffUL {
   bottom: -8px;
