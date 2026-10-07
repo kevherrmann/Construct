@@ -7,8 +7,10 @@ export type StreamEvent =
   | { type: 'session'; session_id: string }
   | { type: 'text'; text: string }
   | { type: 'user_inject'; text?: string; urls?: string[] }
-  /** Die Nachricht ist angenommen und einem Ticket zugeordnet (uuid im Transkript). */
-  | { type: 'ticket'; uuid: string; nr: number; titel: string }
+  /** Ein Commit des Laufs ist als Karte aufs Ticket-Board gekommen. */
+  | { type: 'tickets'; nr: number }
+  /** Die Aufgabe ist an die Firma gegangen ([[firma: …]] am Ende der Antwort). */
+  | { type: 'firma'; auftrag: string }
   | { type: 'thinking_marker' }
   | { type: 'tool'; id?: string; name: string; input?: unknown }
   | { type: 'tool_result'; id?: string; content?: string; is_error?: boolean }
@@ -52,8 +54,7 @@ export interface UserItem {
   editable: boolean
   /** Sendezeit (ms seit 1970); fehlt, wenn der Verlauf keine kennt. */
   ts?: number
-  /** uuid der Nachricht im Transkript — der Anker der Tickets. Live gesendete
-   *  bekommen sie erst, wenn der Lauf sie angenommen hat. */
+  /** uuid der Nachricht im Transkript — dorthin springt eine Karte des Ticket-Boards. */
   uuid?: string
 }
 

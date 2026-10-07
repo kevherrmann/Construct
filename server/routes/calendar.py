@@ -10,7 +10,7 @@ from server import hermes as hermesmod
 from server import llm as llmmod
 
 from server.core import PROJECTS_DIR, extract_text
-from server.sessions import _fremde_firma, _verborgen, load_meta, ohne_ticketzeile
+from server.sessions import _fremde_firma, _verborgen, load_meta, ohne_meldung
 
 router = APIRouter()
 
@@ -83,7 +83,7 @@ def _file_activity(f: Path) -> dict:
                 continue
             if isinstance(ev.get("cwd"), str):
                 cwd = ev["cwd"]
-            txt = ohne_ticketzeile(extract_text(ev.get("message", {}).get("content")).strip())
+            txt = ohne_meldung(extract_text(ev.get("message", {}).get("content")).strip())
             if not txt or txt.startswith("<") or txt.startswith("Caveat"):
                 continue
             if title is None:

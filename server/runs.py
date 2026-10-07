@@ -19,7 +19,8 @@ from server import tickets as tickmod
 
 from server.core import (BASE_DIR, LIMIT_HIT, PROJECTS_DIR, claude_bin, claude_env, extract_text,
                          friendly_claude_error, load_persona)
-from server.sessions import model_short, nutzer_uuids_bis, ohne_ticketmarker
+from server.sessions import model_short
+from server.team.chat import ohne_marke
 
 
 # ---------- Entkoppelte Läufe (überleben Verbindungsabbruch/Reload) ----------
@@ -42,8 +43,7 @@ SSE_HEADERS = {
 
 
 class Run:
-    def __init__(self, run_id, cwd, session_id=None, model="", initial_prompt="",
-                 tickets=False, fork=None):
+    def __init__(self, run_id, cwd, session_id=None, model="", initial_prompt=""):
         self.id = run_id
         self.cwd = cwd
         self.model = model               # gewähltes Modell ("" = Konto-Standard)
@@ -66,14 +66,13 @@ class Run:
         self.last_text = ""              # Text des letzten Turns (für Telegram-Notify)
         self.notify_always = False       # geplante Aufgaben melden sich immer per Telegram
         self.task_title = ""             # Titel der geplanten Aufgabe (für die Meldung)
-        # Tickets (server/tickets.py): nur Läufe aus dem Chat ordnen zu. `fork` =
-        # (alte Session, Stelle) bei einer bearbeiteten Nachricht; `ticket_vorgabe`
-        # Kevins Wahl (/ticket) für eine Session, die es noch nicht gab.
-        self.tickets = tickets
-        self.marke_ab = 0                # bis wohin last_text schon auf Ticket-Marker gelesen ist
-        self.fork = fork
-        self.ticket_vorgabe = None
-        self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin
+        # Ticket-Board (server/tickets.py): Commits dieses Laufs werden zu einer
+        # Karte. git_befehle merkt sich Bash-Aufrufe mit `git commit`, bis ihr
+        # Ergebnis kommt; board_ticket ist die Karte, an die weitere Commits gehen.
+        self.git_befehle = {}            # tool_use_id -> (Befehl, Startzeit)
+        self.board_ticket = None
+        self.letzte_uuid = ""            # zuletzt angenommene Nachricht von Kevin (Sprung vom Board)
+        self.marke_ab = 0                # bis wohin last_text schon auf [[firma: …]] gelesen ist
         # Team-Modus (server/team/): Läufe, die einem Mitarbeiter gehören, also
         # Züge in einem Auftrag. Im Chat bleibt alles leer.
         self.agent_slug = ""             # gehört der Lauf einem Mitarbeiter?
@@ -112,10 +111,18 @@ class Run:
             self.fehler = str(ev.get("message") or "")
             if LIMIT_HIT["resets_at"] > time.time() and "Nutzungs-Limit" in self.fehler:
                 self.limit_bis = LIMIT_HIT["resets_at"]
-        elif ev.get("type") == "tool" and self.last_text and not self.last_text.endswith("\n"):
-            # Zwischen zwei Textblöcken lag ein Werkzeugaufruf. Ohne Trenner klebte
-            # im Verlauf "Ich schau erst nach.Passt, ich baue." zusammen.
-            self.last_text += "\n\n"
+        elif ev.get("type") == "tool":
+            if self.last_text and not self.last_text.endswith("\n"):
+                # Zwischen zwei Textblöcken lag ein Werkzeugaufruf. Ohne Trenner klebte
+                # im Verlauf "Ich schau erst nach.Passt, ich baue." zusammen.
+                self.last_text += "\n\n"
+            befehl = str((ev.get("input") or {}).get("command") or "")
+            if ev.get("name") == "Bash" and tickmod.ist_commit_befehl(befehl):
+                self.git_befehle[ev.get("id")] = (befehl, time.time())
+        elif ev.get("type") == "tool_result" and ev.get("id") in self.git_befehle:
+            befehl, seit = self.git_befehle.pop(ev.get("id"))
+            if not ev.get("is_error"):
+                _commit_buchen(self, befehl, ev.get("content") or "", seit)
         # aufeinanderfolgende Text-Events zusammenfassen -> Puffer/Replay schlank
         if ev.get("type") == "text" and self.events and self.events[-1].get("type") == "text":
             # NEUES Objekt statt += am alten: ein Client, der gerade den Rückstand
@@ -160,8 +167,8 @@ def maybe_notify(run):
     if not run.notify_always and (dur < NOTIFY_MIN_SECS or run.subs):
         return
     mins, secs = divmod(int(dur), 60)
-    # Die Markerzeile ([[ticket neu: …]]) ist für den Server, nicht fürs Telefon.
-    tail = ohne_ticketmarker(run.last_text.strip())[-600:]
+    # Die Markerzeile ([[firma: …]]) ist für den Server, nicht fürs Telefon.
+    tail = ohne_marke(run.last_text.strip())[-600:]
     head = (cfg.L("🤖 Geplante Aufgabe erledigt", "🤖 Scheduled task done") if run.notify_always
             else cfg.L(f"✅ {cfg.assistant_name()} ist fertig", f"✅ {cfg.assistant_name()} is done"))
     msg = f"{head} ({mins} m {secs} s, {os.path.basename(run.cwd or '?')})"
@@ -308,7 +315,6 @@ async def run_claude(run, cmd):
             if t == "system" and ev.get("subtype") == "init":
                 run.session_id = ev.get("session_id", run.session_id)
                 run.emit({"type": "session", "session_id": run.session_id})
-                _tickets_abzweigen(run)
                 merken(run)
             elif t == "system" and ev.get("subtype") == "background_tasks_changed":
                 # Die eine verlaessliche Liste: claude schickt sie bei jedem
@@ -332,8 +338,7 @@ async def run_claude(run, cmd):
                         run.emit(_werkzeug_ereignis(block))
             elif t == "user":
                 content = ev.get("message", {}).get("content")
-                if run.tickets:
-                    _tickets_zuordnen(run, ev, content)
+                _nutzer_merken(run, ev, content)
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_result":
@@ -358,8 +363,8 @@ async def run_claude(run, cmd):
                 # total_cost_usd ist die einzige echte Geldzahl im System — die
                 # Firma zeigt sie je Auftrag an, also mitnehmen statt wegwerfen.
                 run.cost_usd = ev.get("total_cost_usd") or 0.0
-                if run.tickets:
-                    _tickets_marken(run)
+                if not run.agent_slug:
+                    _firma_marke(run)
                 # `run.model` ist nur die AUSWAHL — bei "Standard" ist sie leer,
                 # und ein Alias wie "fable" sagt nicht, welches Fable lief.
                 # `modelUsage` im Ergebnis nennt die tatsaechlich benutzte ID
@@ -460,70 +465,55 @@ async def run_claude(run, cmd):
             maybe_notify(run)
 
 
-def _tickets_zuordnen(run, ev, content):
+def _nutzer_merken(run, ev, content):
     """Kevins Nachricht ist angenommen (claude meldet sie dank
-    --replay-user-messages samt uuid zurück): sie bekommt ein Ticket.
-
-    Fehler hier dürfen den Lauf nie stören — Tickets sind Buchhaltung.
-    """
-    try:
-        uuid = ev.get("uuid")
-        if not uuid or not run.session_id or ev.get("parent_tool_use_id") or ev.get("isSynthetic"):
-            return
-        text = extract_text(content).strip()
-        # Tool-Ergebnisse (kein Text) und Meldungen des Systems (Hintergrundaufgabe
-        # fertig, <task-notification> …) sind keine Nachricht von Kevin.
-        if not text or text.startswith("<") or text.startswith("Caveat"):
-            return
+    --replay-user-messages samt uuid zurück): gemerkt für den Sprung vom Board
+    an die Stelle im Chat."""
+    uuid = ev.get("uuid")
+    if not uuid or ev.get("parent_tool_use_id") or ev.get("isSynthetic"):
+        return
+    text = extract_text(content).strip()
+    # Tool-Ergebnisse (kein Text) und Meldungen des Systems (Hintergrundaufgabe
+    # fertig, <task-notification> …) sind keine Nachricht von Kevin.
+    if text and not text.startswith("<") and not text.startswith("Caveat"):
         run.letzte_uuid = uuid
-        vorgabe, run.ticket_vorgabe = run.ticket_vorgabe, None
-        r = tickmod.nachricht(run.session_id, uuid, text, run.cwd, vorgabe)
-        # Die Oberfläche kennt die uuid ihrer eben gesendeten Nachricht sonst
-        # nicht (sie baut sie selbst auf) — ohne sie gäbe es kein ✂ und keinen
-        # Ticket-Trenner, bevor die Session neu geladen wird.
-        run.emit({"type": "ticket", "uuid": uuid, "nr": r["nr"], "titel": r["titel"]})
+
+
+def _commit_buchen(run, befehl, ausgabe, seit=None):
+    """Der Lauf hat committet: der Commit kommt aufs Board. Fehler hier stören
+    den Lauf nie — das Board ist Buchhaltung."""
+    try:
+        if not cfg.load_settings()["tiles"]["tickets"]:
+            return
+        nr = tickmod.commit_buchen(ausgabe, befehl, run.cwd, session=run.session_id or "",
+                                   uuid=run.letzte_uuid, von=run.agent_slug, auftrag=run.auftrag_id,
+                                   ticket=run.board_ticket, seit=seit)
+        if nr:
+            run.board_ticket = nr
+            run.emit({"type": "tickets", "nr": nr})
     except Exception as e:
-        print(f"[tickets] Zuordnung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+        print(f"[tickets] Commit nicht gebucht: {type(e).__name__}: {e}", flush=True)
 
 
-def _tickets_marken(run):
-    """Der Zug ist fertig: steht am Ende der Antwort eine Markerzeile
-    (`[[ticket neu: …]]`, `[[ticket zu: 2]]`, `[[ticket firma]]`), wird sie auf die
-    Nachricht angewendet, auf die geantwortet wurde. Fehler hier stören den Lauf nie."""
+def _firma_marke(run):
+    """Der Zug ist fertig: endet die Antwort mit `[[firma: …]]`, geht die Aufgabe
+    an die Firma (server/team/chat.py). Fehler hier stören den Lauf nie."""
     try:
         neu = run.last_text[run.marke_ab:]
         run.marke_ab = len(run.last_text)
-        if not run.session_id or not run.letzte_uuid or "[[ticket" not in neu:
+        if not run.session_id or "[[" not in neu or not cfg.load_settings()["team"]["aktiv"]:
             return
-        _text, marken = tickmod.marken_am_ende(neu)
-        if not marken:
+        from server.team import chat as teamchat
+        from server.team.engine import AuftragFehler
+        try:
+            t = teamchat.uebergeben(neu, run.session_id, run.cwd)
+        except AuftragFehler as e:
+            print(f"[firma] Übergabe: {e}", flush=True)
             return
-        rest = tickmod.marken_anwenden(run.session_id, run.letzte_uuid, marken)
-        if "firma" in rest and cfg.load_settings()["team"]["aktiv"]:
-            from server.team import engine
-            engine.starten()               # zuerst: der Dispatcher nimmt Altes wieder auf, dann kommt Neues
-            d = tickmod.laden(run.session_id)
-            if d.get("aktuell"):
-                try:
-                    engine.auftrag_aus_ticket(run.session_id, d["aktuell"])
-                except engine.AuftragFehler as e:
-                    print(f"[tickets] Firma: {e}", flush=True)
-        run.emit({"type": "tickets"})      # die Oberfläche lädt Chip, Trenner und Aufträge neu
+        if t:
+            run.emit({"type": "firma", "auftrag": t["id"]})
     except Exception as e:
-        print(f"[tickets] Marker fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
-
-
-def _tickets_abzweigen(run):
-    """Bearbeitete Nachricht: die neue Session übernimmt die Tickets der alten
-    bis zu der Stelle, an der abgezweigt wurde."""
-    if not (run.tickets and run.fork and run.session_id):
-        return
-    try:
-        alt, stelle = run.fork
-        if alt != run.session_id:
-            tickmod.abzweigen(alt, run.session_id, nutzer_uuids_bis(alt, stelle))
-    except Exception as e:
-        print(f"[tickets] Abzweigen fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+        print(f"[firma] Übergabe fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
 
 
 # So lange darf ein Prozess nach seinem Zug hoechstens auf Hintergrundaufgaben
@@ -551,20 +541,15 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
 def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
-              effort="", tickets=False, ticket_vorgabe=None):
+              effort="", chat=False):
     """Gemeinsamer Unterbau für Chat-Läufe und geplante Aufgaben.
 
-    tickets: ob die Nachrichten dieses Laufs Tickets bekommen — nur im Chat,
-    nicht bei geplanten Aufgaben, und nur wenn die Kachel an ist."""
+    chat: ein Lauf aus dem Chat — nur er kennt das Ticket-Board und die Firma,
+    geplante Aufgaben nicht."""
     gc_runs()
     run_id = uuid.uuid4().hex
     conf = cfg.load_settings()
-    tickets = tickets and conf["tiles"]["tickets"]
-    fork = (session_id, resume_at) if (resume_at and session_id) else None
-    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt,
-              tickets=tickets, fork=fork)
-    run.ticket_vorgabe = ticket_vorgabe
-    mit_assistent = tickets and conf["tickets"]["assistent"]
+    run = Run(run_id, work_dir, session_id, model, initial_prompt=prompt)
 
     cmd = [
         claude_bin() or "claude", "-p",
@@ -572,8 +557,8 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
         "--input-format", "stream-json",   # Nachricht via stdin -> Inject möglich
         "--verbose",
         "--include-partial-messages",
-        # Meldet jede angenommene Nachricht samt uuid zurück: so findet
-        # server/tickets.py sie im Transkript wieder.
+        # Meldet jede angenommene Nachricht samt uuid zurück: so springt eine
+        # Karte des Ticket-Boards an die Stelle im Chat.
         "--replay-user-messages",
         "--permission-mode", mode,
         "--chrome",   # Claude in Chrome: im -p-Modus nicht automatisch aktiv
@@ -584,10 +569,13 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     if effort in EFFORTS:
         cmd += ["--effort", effort]
     persona = load_persona()
-    if mit_assistent:
-        # Fester Text: ändert sich nie während einer Session und bleibt so im
-        # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
+    # Feste Texte: ändern sich nie während einer Session und bleiben so im
+    # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
+    if chat and conf["tiles"]["tickets"]:
         persona = (persona + "\n\n" + tickmod.regeln()).strip()
+    if chat and conf["team"]["aktiv"]:
+        from server.team import chat as teamchat
+        persona = (persona + "\n\n" + teamchat.regeln()).strip()
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:
@@ -649,8 +637,6 @@ def merken(run, programm=None):
                           "start": run.started, "model": run.model}
     if run.auftrag_id:
         e["auftrag"] = run.auftrag_id
-    if run.tickets:
-        e["tickets"] = True
     e["session_id"] = run.session_id
     d[run.id] = e
     _laeufe_schreiben(d)
@@ -811,8 +797,8 @@ async def _nachlesen(run, pid, kennung):
                 break
             await asyncio.sleep(NACHLESEN_TAKT)
         if leser.fertig:
-            if run.tickets:
-                _tickets_marken(run)
+            if not run.agent_slug:
+                _firma_marke(run)
             run.emit({"type": "done", "session_id": run.session_id})
         else:
             run.emit({"type": "error", "message": cfg.L(
@@ -861,7 +847,7 @@ def aufnehmen():
             # Vor dem ersten Lebenszeichen abgerissen: keine Sitzung, nichts nachzulesen
             vergessen(rid)
             continue
-        run = Run(rid, e.get("cwd") or "", sid, e.get("model") or "", tickets=bool(e.get("tickets")))
+        run = Run(rid, e.get("cwd") or "", sid, e.get("model") or "")
         run.started = float(e.get("start") or time.time())
         run.stdin_closed = True       # stdin hing am alten Server; Nachgeschobenes wartet
         RUNS[rid] = run

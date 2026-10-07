@@ -1,11 +1,20 @@
 /* Seitenleiste */
-.hint {
-  font-size: 11px;
-  color: var(--text-dim);
-  opacity: 0.8;
-  padding: 8px;
+.add {
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 10px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--green);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 2px;
 }
-.tag,
+.add:hover {
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.4);
+}
 .projekt {
   display: flex;
   justify-content: space-between;
@@ -16,7 +25,7 @@
   background: none;
   border: none;
   border-left: 2px solid var(--green-faint);
-  color: var(--green);
+  color: var(--text-dim);
   font-family: inherit;
   font-size: 12px;
   padding: 8px 10px;
@@ -24,23 +33,13 @@
   cursor: pointer;
   transition: 0.12s;
 }
-.tag:hover,
 .projekt:hover {
   border-left-color: var(--green);
   background: rgba(var(--accent-rgb), 0.06);
 }
-.tag.sel,
 .projekt.sel {
   border-left-color: var(--green);
   background: rgba(var(--accent-rgb), 0.08);
-}
-.projekt {
-  margin-left: 12px;
-  width: calc(100% - 12px);
-  font-size: 11px;
-  color: var(--text-dim);
-}
-.projekt.sel {
   color: var(--green);
 }
 .name {
@@ -49,228 +48,282 @@
   white-space: nowrap;
 }
 .zahl {
-  display: flex;
-  gap: 8px;
   flex: none;
   font-size: 10.5px;
   color: var(--text-dim);
 }
-.offen {
-  color: var(--green);
-}
 
-/* Hauptbereich */
+/* Board */
 .wrap {
-  padding: 14px 6px 60px;
+  padding: 14px 6px 40px;
   animation: global(fade) 0.25s ease;
-  max-width: 920px;
-  margin: 0 auto;
 }
 .h2 {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   text-align: center;
   font-size: 21px;
   letter-spacing: 4px;
   color: var(--green);
 }
-.leer {
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 13px;
-  padding: 40px 10px;
-}
-.projektblock {
-  margin-bottom: 26px;
-}
-.h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: normal;
-  letter-spacing: 2px;
-  color: var(--green);
-  border-bottom: 1px solid var(--green-faint);
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: start;
+  overflow-x: auto;
   padding-bottom: 6px;
 }
-.summe {
+.spalte {
   display: flex;
-  gap: 10px;
-  font-size: 11px;
-  letter-spacing: 0;
-  color: var(--text-dim);
-}
-
-.karte {
+  flex-direction: column;
+  min-height: 160px;
   border: 1px solid var(--green-faint);
-  border-radius: var(--radius);
-  margin: 6px 0;
-  background: rgba(var(--accent-rgb), 0.03);
+  border-radius: 14px;
+  background: rgba(var(--accent-rgb), 0.025);
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
-.karte:hover {
-  border-color: var(--green-dim);
+.spalte.ueber {
+  border-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.08);
 }
-.kopf {
+.skopf {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 9px 12px 7px;
+  font-size: 11.5px;
+  letter-spacing: 2px;
+  color: var(--green);
+  border-bottom: 1px solid var(--green-faint);
 }
-.haken {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+.skopf .zahl {
+  margin-left: auto;
+  letter-spacing: 0;
+}
+.splus {
   background: none;
-  border: 1px solid var(--green-dim);
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
   color: var(--green);
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
-  padding: 0;
+  padding: 2px 7px;
 }
-.haken:hover {
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+.splus:hover {
+  border-color: var(--green);
 }
-.fertig .haken {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-.fertig .titel {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-.titel {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  background: none;
-  border: none;
-  color: var(--green);
-  font-family: inherit;
-  font-size: 13.5px;
-  cursor: pointer;
-  padding: 2px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nr {
-  opacity: 0.55;
-  margin-right: 4px;
-}
-.aktuell {
-  margin-left: 10px;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  letter-spacing: 1px;
-  text-decoration: none;
-}
-.feld {
-  flex: 1;
-  min-width: 0;
-  background: var(--deep);
-  color: var(--user);
-  border: 1px solid var(--green-dim);
-  border-radius: var(--radius);
-  padding: 4px 8px;
-  font: inherit;
-  font-size: 13.5px;
-}
-.feld:focus {
-  outline: none;
-}
-.meta {
-  flex: none;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-.mini {
-  flex: none;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px 6px;
-}
-.mini:hover {
-  color: var(--green);
-  border-color: var(--green-faint);
-}
-.msgs {
-  border-top: 1px solid var(--green-faint);
-  padding: 4px 10px 6px 44px;
-}
-.msg {
+.karten {
   display: flex;
-  gap: 10px;
-  align-items: baseline;
-  padding: 3px 0;
-  font-size: 12px;
-}
-.zeit {
-  flex: none;
-  color: var(--text-dim);
-  font-size: 10.5px;
-  width: 38px;
-}
-.text {
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
   flex: 1;
-  min-width: 0;
-  text-align: left;
+}
+.leer {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  opacity: 0.6;
+  padding: 14px 4px;
+}
+.mehr {
   background: none;
   border: none;
-  color: var(--soft);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.text:hover {
-  color: var(--green);
-  text-decoration: underline;
-}
-.wahl {
-  flex: none;
-  max-width: 150px;
-  background: var(--deep);
   color: var(--text-dim);
-  border: 1px solid var(--green-faint);
-  border-radius: var(--radius);
   font-family: inherit;
   font-size: 11px;
-  padding: 2px 4px;
+  cursor: pointer;
+  padding: 4px;
 }
-.wahl.klein {
-  width: 46px;
+.mehr:hover {
+  color: var(--green);
 }
-.rest {
+
+/* Karte */
+.karte {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--green-faint);
+  border-radius: 10px;
+  background: var(--deep);
+  color: var(--green);
+  font-family: inherit;
+  padding: 8px 10px;
+  cursor: grab;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s,
+    opacity 0.12s;
+}
+.karte:hover {
+  border-color: var(--green-dim);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.18);
+}
+.karte.zieht {
+  opacity: 0.4;
+}
+.kzeile {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 10.5px;
   color: var(--text-dim);
-  padding: 3px 48px;
+}
+.nr {
+  color: var(--green-dim);
+  letter-spacing: 0.5px;
+}
+.pname {
+  margin-left: auto;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ktitel {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--green);
+  overflow-wrap: anywhere;
+}
+.kfuss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+/* Dialog */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lbl {
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.feld,
+.text {
+  width: 100%;
+  background: var(--deep);
+  color: var(--user);
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+.text {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.feld:focus,
+.text:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+.pillen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pille {
+  background: none;
+  border: 1px solid var(--green-faint);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+.pille:hover {
+  border-color: var(--green-dim);
+  color: var(--green);
+}
+.pille.an {
+  border-color: var(--green);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--green);
+}
+.commits {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.commit {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--soft);
+}
+.sha {
+  flex: none;
+  font-family: var(--mono, monospace);
+  color: var(--green-dim);
+  font-size: 11px;
+}
+.betreff {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .aktionen {
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
   align-items: center;
-  padding: 2px 10px 8px;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.knopf {
+  background: none;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+}
+.knopf:hover:not(:disabled) {
+  background: var(--green-faint);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35);
+}
+.knopf:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gefahr {
+  margin-left: auto;
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 45%, transparent);
+}
+.leise {
+  font-size: 11.5px;
+  color: var(--text-dim);
 }
 
-@media (max-width: 600px) {
-  .kopf {
-    flex-wrap: wrap;
+/* Schmal heißt untereinander, nicht kleiner. */
+@media (max-width: 760px) {
+  .board {
+    grid-template-columns: 1fr;
   }
-  .meta {
-    display: none;
-  }
-  .msgs {
-    padding-left: 12px;
+  .spalte {
+    min-height: 0;
   }
 }

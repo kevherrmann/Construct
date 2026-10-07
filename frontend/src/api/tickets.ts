@@ -2,118 +2,87 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, apiPost } from '@/lib/api'
 import { useSettings } from '@/stores/settings'
 
-// Tickets: Abschnitte einer Session (server/tickets.py). Ein Ticket sammelt die
-// Nachrichten einer Aufgabe, auch mit Lücken dazwischen.
+// Das Ticket-Board (server/tickets.py): Karten von Hand, aus Commits und aus
+// Aufträgen der Firma, in fünf Spalten. Gepusht = Done, das prüft der Server.
 
-export type TicketStatus = 'offen' | 'erledigt'
-export type TicketVon = 'kevin' | 'assistent' | 'auto'
+export const SPALTEN = ['neu', 'arbeit', 'review', 'qa', 'done'] as const
+export type Spalte = (typeof SPALTEN)[number]
 
-export interface TicketMsg {
-  /** uuid der Nachricht im Transkript. */
-  id: string
+/** Deutsche Quelltexte der Spaltennamen (übersetzt über i18n). */
+export const SPALTEN_NAME: Record<Spalte, string> = {
+  neu: 'Neu',
+  arbeit: 'In Arbeit',
+  review: 'In Review',
+  qa: 'QA',
+  done: 'Done',
+}
+
+export interface Commit {
+  sha: string
+  repo: string
+  branch: string
+  betreff: string
   ts: string
-  text: string
-  von: TicketVon
+  /** Mitarbeiter der Firma, der committet hat; leer = der Assistent. */
+  von: string
+  gepusht: boolean
 }
 
 export interface Ticket {
   nr: number
   titel: string
-  status: TicketStatus
-  von: TicketVon
+  text: string
+  spalte: Spalte
+  /** Repo oder Arbeitsordner, zu dem die Karte gehört. */
+  projekt: string
+  von: string
   erstellt: string
-  erledigt_am: string | null
-  /** Team-Modus: der Auftrag der Firma, der aus diesem Ticket entstand. */
+  geaendert: string
+  /** Chat-Session und Nachricht, aus der die Karte stammt: Sprung in den Verlauf. */
+  session: string
+  uuid: string
+  /** Auftrag der Firma, der an dieser Karte arbeitet. */
   auftrag: string | null
-  nachrichten: TicketMsg[]
+  commits: Commit[]
 }
 
-export interface SessionTickets {
-  session: string
-  cwd: string
-  project: string
-  /** Wohin die nächste Nachricht geht, wenn niemand etwas anderes sagt. */
-  aktuell: number | null
-  /** Der Nutzer hat gewählt: der Assistent ordnet die nächste Nachricht nicht um. */
-  gesperrt: boolean
+export interface Board {
+  spalten: Spalte[]
   tickets: Ticket[]
+  projekte: { pfad: string; name: string }[]
 }
 
-/** Ein Ticket in der Übersicht: dazu, in welcher Session und welcher Teil seiner Nachrichten
- *  an diesem Tag lag. */
-export interface UebersichtTicket extends Omit<Ticket, 'nachrichten'> {
-  session: string
-  project: string
-  session_titel: string
-  aktuell: boolean
-  nachrichten: TicketMsg[]
-  gesamt: number
-}
-
-export interface UebersichtProjekt {
-  cwd: string
-  name: string
-  offen: number
-  erledigt: number
-  tickets: UebersichtTicket[]
-}
-
-export interface Uebersicht {
-  tage: { tag: string; projekte: UebersichtProjekt[] }[]
-}
-
-/** Läuft die Ticket-Zuordnung? Ein Schalter für alles: Kachel, Chip, ✂. */
 export const useTicketsAn = () => useSettings((st) => st.settings.tiles.tickets !== false)
 
-export const useSessionTickets = (sid: string | null | undefined) => {
-  const an = useTicketsAn()
-  return useQuery({
-    queryKey: ['tickets', 'session', sid],
-    queryFn: () => apiGet<SessionTickets>(`/api/tickets/${encodeURIComponent(sid!)}`),
-    enabled: an && !!sid,
-    refetchOnMount: 'always',
-  })
-}
-
-export const useTicketUebersicht = (aktiv = true) =>
+export const useBoard = (aktiv = true) =>
   useQuery({
-    queryKey: ['tickets', 'uebersicht'],
-    queryFn: () => apiGet<Uebersicht>('/api/tickets'),
+    queryKey: ['tickets', 'board'],
+    queryFn: () => apiGet<Board>('/api/tickets'),
     enabled: aktiv,
     refetchOnMount: 'always',
-    // Der Assistent und die Nachrichten ändern laufend etwas.
+    // Commits und die Firma schieben Karten, ohne dass das Board es mitbekommt.
     refetchInterval: 10_000,
   })
 
-const url = (sid: string, rest = '') => `/api/tickets/${encodeURIComponent(sid)}${rest}`
-
-/** Alle schreibenden Aufrufe liefern die ganze Session zurück und laden die Ansichten neu. */
-export function useTicketActions(sid: string) {
+export function useTicketActions() {
   const qc = useQueryClient()
-  const fertig = (d: SessionTickets) => {
-    qc.setQueryData(['tickets', 'session', sid], d)
-    void qc.invalidateQueries({ queryKey: ['tickets'] })
-  }
+  const fertig = () => void qc.invalidateQueries({ queryKey: ['tickets'] })
   // Ein Fehlschlag soll nicht stumm bleiben: dann sähe es aus, als hätte der Klick nichts getan.
-  const useAktion = <V>(fn: (v: V) => Promise<SessionTickets>) =>
+  const useAktion = <V, R>(fn: (v: V) => Promise<R>) =>
     useMutation({ mutationFn: fn, onSuccess: fertig, onError: (e) => alert(e.message) })
   return {
-    schnitt: useAktion((v: { titel: string; cwd?: string }) =>
-      apiPost<SessionTickets>(url(sid, '/schnitt'), v),
+    anlegen: useAktion((v: { titel: string; text?: string; projekt?: string; spalte?: Spalte }) =>
+      apiPost<Ticket>('/api/tickets', v),
     ),
-    waehlen: useAktion((nr: number) => apiPost<SessionTickets>(url(sid, '/waehlen'), { nr })),
-    aendern: useAktion((v: { nr: number; titel?: string; status?: TicketStatus }) =>
-      apiPost<SessionTickets>(url(sid, `/${v.nr}`), { titel: v.titel, status: v.status }),
+    aendern: useAktion(
+      (v: { nr: number; titel?: string; text?: string; spalte?: Spalte; projekt?: string }) => {
+        const { nr, ...rest } = v
+        return apiPost<Ticket>(`/api/tickets/${nr}`, rest)
+      },
     ),
-    loeschen: useAktion((nr: number) => apiDelete<SessionTickets>(url(sid, `/${nr}`))),
-    zusammenfuehren: useAktion((v: { nr: number; in: number }) =>
-      apiPost<SessionTickets>(url(sid, `/${v.nr}/zusammenfuehren`), { in: v.in }),
-    ),
-    umhaengen: useAktion((v: { uuids: string[]; nr: number }) =>
-      apiPost<SessionTickets>(url(sid, '/umhaengen'), v),
-    ),
-    abHier: useAktion((v: { uuid: string; titel: string }) =>
-      apiPost<SessionTickets>(url(sid, '/ab-hier'), v),
-    ),
+    loeschen: useAktion((nr: number) => apiDelete<{ ok: boolean }>(`/api/tickets/${nr}`)),
   }
 }
+
+/** Name des Projekts aus dem Pfad. */
+export const projektName = (pfad: string) => pfad.split(/[\\/]/).filter(Boolean).pop() ?? ''

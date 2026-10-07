@@ -11,6 +11,7 @@ permission_mode: acceptEdits
 cwd: 
 allowed_tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet
 prueft: ja
+spalte: qa
 can_delegate: nein
 delegates_to: 
 color: 104,222,214

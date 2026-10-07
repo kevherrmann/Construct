@@ -9,7 +9,6 @@ from server import auto_modell
 from server import config as cfg
 from server import hermes as hermesmod
 from server import llm as llmmod
-from server import tickets as tickmod
 
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
@@ -79,20 +78,16 @@ async def chat(req: Request):
             if not resume_at:
                 session_id = None
 
-    vorgabe = body.get("ticket") if isinstance(body.get("ticket"), dict) else None
-    # Hinweis auf die Tickets hinten an der Nachricht (nicht im Systemprompt, siehe
-    # tickets.hinweis). Er ist Beigabe: scheitert er (kaputte Ticket-Datei), geht die
-    # Nachricht trotzdem ab.
-    conf = cfg.load_settings()
-    if conf["tiles"]["tickets"] and conf["tickets"]["assistent"] and resume_at is None:
+    # Was die Firma in dieser Session getan hat, hinten an der Nachricht (nicht im
+    # Systemprompt, der soll im Zwischenspeicher bleiben). Beigabe: scheitert es,
+    # geht die Nachricht trotzdem ab.
+    if session_id and resume_at is None and cfg.load_settings()["team"]["aktiv"]:
         try:
-            titel = str((vorgabe or {}).get("titel") or "")[:80]
-            prompt = f"{prompt}\n\n{tickmod.hinweis(session_id, titel)}"
+            from server.team import chat as teamchat
+            prompt += await teamchat.meldungen(session_id)
         except Exception as e:
-            print(f"[tickets] Hinweis fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
-    # Kachel aus = es wird gar nichts mitgeschrieben, auch nicht die Vorgabe des Servers.
-    run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort,
-                    tickets=conf["tiles"]["tickets"], ticket_vorgabe=vorgabe)
+            print(f"[firma] Meldung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+    run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort, chat=True)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
         auto_modell.starte(run, text, model)

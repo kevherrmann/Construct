@@ -184,7 +184,7 @@ def test_akte_einer_frueheren_fassung_folgt_der_vorlage(firma):
     akte = firma / "firma" / "agents" / "janus" / "AGENT.md"
     alt = _vorlage("de", "janus", "AGENT.md").replace(
         "allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
-        "allowed_tools: Read, Bash, Grep, Glob").replace("prueft: ja\n", "")
+        "allowed_tools: Read, Bash, Grep, Glob").replace("prueft: ja\n", "").replace("spalte: review\n", "")
     assert hashlib.sha256(alt.encode()).hexdigest() in ag._fruehere()["janus/AGENT.md"]
     akte.write_text(alt)
     (ag.AGENTS_DIR / ".vorlagen.json").unlink()

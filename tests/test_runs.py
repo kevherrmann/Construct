@@ -228,38 +228,35 @@ def test_zug_der_firma_wird_nach_neustart_beendet_statt_aufgenommen(tmp_path, mo
         proc.wait()
 
 
-def test_telegram_meldung_ohne_ticket_markerzeile(monkeypatch):
+def test_telegram_meldung_ohne_markerzeile(monkeypatch):
     gesendet = []
     monkeypatch.setattr(runs.tgmod, "load_conf",
                         lambda: {"enabled": True, "token": "x", "chat_id": "1", "notify": True})
     monkeypatch.setattr(runs.tgmod, "send_owner", gesendet.append)
     run = runs.Run("test-notify", "/tmp", None, "")
     run.started -= 3600
-    run.last_text = "Fertig gebaut.\n\n[[ticket neu: Kachel bauen]]"
+    run.last_text = "Fertig gebaut.\n\n[[firma: Kachel bauen]]"
     runs.maybe_notify(run)
     import time
     for _ in range(50):
         if gesendet:
             break
         time.sleep(0.02)
-    assert gesendet and "Fertig gebaut." in gesendet[0] and "[[ticket" not in gesendet[0]
+    assert gesendet and "Fertig gebaut." in gesendet[0] and "[[firma" not in gesendet[0]
 
 
 def test_markerzeile_eines_aufgenommenen_laufs_wirkt(tmp_path, monkeypatch):
-    # Nach dem Neustart kam die Antwort zwar an, ihr [[ticket neu: …]] verpuffte aber.
-    from server import tickets as tk
-    monkeypatch.setattr(tk, "TICKETS_DIR", tmp_path / "tickets")
-    tk._CACHE.clear()
+    # Nach dem Neustart kam die Antwort zwar an, ihr Marker verpuffte aber.
     sid = "abcd1234-0000-0000-0000-00000000rest"
-    tk.nachricht(sid, "u-1", "Mach die Uhr", "/home/x")
+    gesehen = []
+    monkeypatch.setattr(runs, "_firma_marke", lambda run: gesehen.append(run.last_text))
     _sitzung(tmp_path, monkeypatch, [
         _zeile("user", "Mach die Uhr", _ts(1), uuid="u-1"),
-        _zeile("assistant", [{"type": "text", "text": "Gemacht.\n\n[[ticket neu: Uhr bauen]]"}], _ts(2),
+        _zeile("assistant", [{"type": "text", "text": "Mach ich.\n\n[[firma: Uhr]]"}], _ts(2),
                msg={"stop_reason": "end_turn"}),
     ], sid=sid)
-    run = _aufnehmen_und_warten({**_eintrag(None, sid=sid), "tickets": True})
-    assert [t["titel"] for t in tk.laden(sid)["tickets"]] == ["Uhr bauen"]
-    assert [e["type"] for e in run.events][-2:] == ["tickets", "done"]
+    _aufnehmen_und_warten(_eintrag(None, sid=sid))
+    assert gesehen == ["Mach ich.\n\n[[firma: Uhr]]"]
 
 
 def test_geretteter_lauf_trennt_aufeinanderfolgende_textbloecke():

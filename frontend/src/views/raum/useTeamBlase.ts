@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useAuftrag, useTeamAn, useTeamStand } from '@/api/team'
-import { useLiveZug } from '../auftraege/useLiveZug'
+import { useLiveZug } from '@/components/firma/useLiveZug'
 import { lageAus, type Lage } from './lage'
 
 /** Wer aus der Firma gerade spricht: seine Lage (wie die des Assistenten) samt
@@ -10,8 +10,10 @@ export interface TeamBlase {
   name: string
   /** Akzentfarbe "r, g, b". */
   farbe: string
-  /** Auftrags-ID (für „Verlauf"). */
+  /** Auftrags-ID. */
   auftrag: string
+  /** Chat-Session des Auftrags: dort schreibt die Firma („Verlauf“ springt hin). */
+  session: string
   /** Zug, aus dem gelesen wird: wechselt er, ist es eine neue Blase. */
   run: string
   lage: Lage
@@ -39,7 +41,7 @@ export function useChefZug(): ChefZug | null {
 
 // Arbeitet die Firma, spricht im Raum der, der gerade dran ist: zuerst wer an der
 // Werkbank steht, sonst die Chefin (sie verteilt und prüft), sonst irgendwer. Der
-// Zug wird live mitgelesen wie in der Aufträge-Ansicht — dieselben Ereignisse, aus
+// Zug wird live mitgelesen wie im Chat — dieselben Ereignisse, aus
 // denen auch die Blase des Assistenten entsteht. Den der Chefin liest useChefZug
 // schon mit: dann nicht ein zweites Mal.
 export function useTeamBlase(werk: string | null, chef: ChefZug | null): TeamBlase | null {
@@ -59,6 +61,7 @@ export function useTeamBlase(werk: string | null, chef: ChefZug | null): TeamBla
     name: zug.name,
     farbe: zug.color,
     auftrag: zug.ticket,
+    session: zug.session ?? '',
     run,
     lage: vomChef ? chef.lage : eigene,
   }

@@ -358,7 +358,7 @@ async def _bus_aufruf(body: dict) -> dict:
             engine.feed(tid).emit({"type": "msg", **e})
             engine.feed(tid).emit({"type": "fertig"})
             try:
-                engine.bruecke_abschluss(t)
+                engine.board_spalte(t, fertig=True)
             except Exception as e:           # das Ticket ist Beigabe: der Auftrag bleibt fertig
                 print(f"[bus] Ticket nicht abgeschlossen: {type(e).__name__}: {e}", flush=True)
             titel = t["titel"]

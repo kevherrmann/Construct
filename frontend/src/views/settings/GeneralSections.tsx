@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import type { Lang, Settings } from '@/lib/bootstrap'
 import { useSettings } from '@/stores/settings'
-import { useTicketsAn } from '@/api/tickets'
 import { Section } from './parts'
 import s from './Settings.module.css'
 
@@ -124,14 +123,12 @@ export function TilesSection() {
 }
 
 // Der Team-Modus: eine Firma aus KI-Mitarbeitern neben dem einzelnen Assistenten.
-// Aus = CONSTRUCT ist, was es war: ein Assistent. An = es gibt Belegschaft und
-// Aufträge, und je Aufgabe lässt sich entscheiden, ob nur der Assistent arbeitet
-// oder die ganze Firma.
+// Aus = CONSTRUCT ist, was es war: ein Assistent. An = bei großen Aufgaben fragt der
+// Assistent, ob er sie an die Firma geben darf; die Mitarbeiter schreiben dann im
+// selben Chat.
 export function TeamSection() {
   const { t } = useTranslation()
   const team = useSettings((st) => st.settings.team)
-  const tickets = useSettings((st) => st.settings.tickets)
-  const ticketsAn = useTicketsAn()
   const save = useSettings((st) => st.save)
   return (
     <Section id="team">
@@ -146,61 +143,12 @@ export function TeamSection() {
             <span className={s.t}>🏢 {t('Team-Modus')}</span>
             <span className={s.d}>
               {t(
-                'Eine Firma aus KI-Mitarbeitern: Personal und Aufträge. Große Aufgaben gibst du an die Firma, kleine erledigt der Assistent allein. Aus = alles wie bisher.',
+                'Eine Firma aus KI-Mitarbeitern. Bei großen Aufgaben fragt der Assistent, ob er sie an die Firma geben darf; die Mitarbeiter schreiben dann mit im Chat. Kleines erledigt er allein. Aus = alles wie bisher.',
               )}
             </span>
           </span>
         </label>
       </div>
-      {team.aktiv && (
-        <div className={s.row}>
-          <span className={s.grow}>
-            <span className={s.t}>{t('Wer entscheidet, was an die Firma geht?')}</span>
-            <span className={s.actions}>
-              {(['zuruf', 'auto'] as const).map((m) => (
-                <label key={m}>
-                  <input
-                    type="radio"
-                    name="team-modus"
-                    checked={team.modus === m}
-                    onChange={() => void save({ team: { modus: m } })}
-                  />
-                  <span>
-                    <span className={s.t}>
-                      {m === 'zuruf' ? t('Nur auf Zuruf') : t('Der Assistent darf vorschlagen')}
-                    </span>
-                    <span className={s.d}>
-                      {m === 'zuruf'
-                        ? t('/firma, der Knopf am Ticket oder deine ausdrückliche Bitte.')
-                        : t('Bei großen Aufgaben schlägt er die Firma vor und fragt dich vorher.')}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </span>
-          </span>
-        </div>
-      )}
-      {/* Ohne Ticket-Kachel gibt es nichts, was der Assistent ordnen könnte. */}
-      {ticketsAn && (
-        <div className={s.row}>
-          <label>
-            <input
-              type="checkbox"
-              checked={tickets.assistent}
-              onChange={(e) => void save({ tickets: { assistent: e.target.checked } })}
-            />
-            <span>
-              <span className={s.t}>🎫 {t('Assistent ordnet Tickets mit')}</span>
-              <span className={s.d}>
-                {t(
-                  'Er legt neue Tickets an und ordnet Korrekturen zu — mit einer Zeile am Ende seiner Antwort, nur wenn nötig (etwa 0,5 % Mehrverbrauch). Aus = nur die automatische Zuordnung und deine eigenen Eingriffe.',
-                )}
-              </span>
-            </span>
-          </label>
-        </div>
-      )}
     </Section>
   )
 }

@@ -51,9 +51,8 @@ export type PanelId =
   | 'mail'
   | 'ausruestung'
   | 'tickets'
-  /** Team-Modus: die Mitarbeiter und die Aufträge der Firma. */
+  /** Team-Modus: die Mitarbeiter der Firma. */
   | 'personal'
-  | 'auftraege'
   /** Ohne eigene Station: ⚙ oben rechts, die Kamera geht zum Pult. */
   | 'einstellungen'
 
@@ -152,8 +151,8 @@ export const STATIONEN: Station[] = [
     w: 40,
     h: 26,
     label: 'Firma',
-    hint: 'Aufträge der Firma',
-    panel: 'auftraege',
+    hint: 'Belegschaft der Firma',
+    panel: 'personal',
   },
   {
     id: 'regal',
@@ -435,7 +434,6 @@ export const AUFTRITT: Record<Ansicht, Auftritt> = {
   ausruestung: { z: 1.35, f: [48, 52], p: [26, 55], seite: 'rechts', breite: 46, ziel: [50.2, 58] },
   tickets: { z: 1.8, f: [19.4, 26], p: [22, 46], seite: 'rechts', breite: 62, ziel: [19.4, 26] },
   personal: { z: 1.6, f: [50, 24], p: [22, 50], seite: 'rechts', breite: 62, ziel: [50, 24] },
-  auftraege: { z: 1.6, f: [50, 24], p: [24, 50], seite: 'rechts', breite: 56, ziel: [50, 24] },
   einstellungen: {
     z: 1.2,
     f: [50.2, 58],

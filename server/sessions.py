@@ -5,6 +5,9 @@ import json
 import re
 
 from server.core import BASE_DIR, PROJECTS_DIR, extract_text
+# Was an Kevins Nachricht hängt ([Firma: …]) und am Ende einer Antwort steht
+# ([[firma: …]]): für den Assistenten und den Server, nicht für die Anzeige.
+from server.team.chat import ohne_marke, ohne_meldung
 
 
 SESS_META = BASE_DIR / "sessions_meta.json"
@@ -83,11 +86,18 @@ def _fremde_firma(ev: dict) -> str:
     """Von welcher Agenten-Anwendung stammt dieser Lauf? "" = von Kevin."""
     if ev.get("type") == "attachment":
         att = ev.get("attachment") or {}
+        namen = []
         if att.get("type") == "deferred_tools_delta":
-            for n in (att.get("addedNames") or []):
-                m = MCP_RE.match(str(n))
-                if m and m.group(1) in FREMDE_MCP:
-                    return m.group(1)
+            namen = att.get("addedNames") or []
+        elif att.get("type") == "prompt_snapshot":
+            # Seit Claude Code 2.1.29x steht die Werkzeugliste hier: bei wenigen
+            # Werkzeugen gibt es kein deferred_tools_delta mehr, und die Züge der
+            # Firma tauchten in der Session-Liste auf (07.10.2026).
+            namen = [t.get("name") if isinstance(t, dict) else t for t in (att.get("tools") or [])]
+        for n in namen:
+            m = MCP_RE.match(str(n))
+            if m and m.group(1) in FREMDE_MCP:
+                return m.group(1)
         return ""
     if ev.get("type") == "user":
         txt = extract_text(ev.get("message", {}).get("content")).lstrip()
@@ -95,23 +105,6 @@ def _fremde_firma(ev: dict) -> str:
             if txt.startswith(marke):
                 return firma
     return ""
-
-
-# Die Ticket-Zeile, die an Kevins Nachricht hängt (tickets.hinweis): für den
-# Assistenten, nicht für die Anzeige.
-TICKETZEILE_RE = re.compile(r"\n\n\[Tickets: [\s\S]*?\]\s*$")
-
-
-def ohne_ticketmarker(txt: str) -> str:
-    """Antwort des Assistenten ohne die Markerzeilen am Ende (`[[ticket neu: …]]`)."""
-    from server.tickets import marken_am_ende
-    return marken_am_ende(txt)[0].strip() if "[[ticket" in txt else txt
-
-
-def ohne_ticketzeile(txt: str) -> str:
-    """Nutzertext aus einem Transkript ohne die Ticket-Zeile am Ende — für
-    Titel, Anzeige und alles, was Kevins Worte lesen soll."""
-    return TICKETZEILE_RE.sub("", txt)
 
 
 def _parse_transcript_lines(data: bytes):
@@ -132,14 +125,14 @@ def _parse_transcript_lines(data: bytes):
         if not txt or (t == "user" and (txt.startswith("<") or txt.startswith("Caveat"))):
             continue
         if t == "user":
-            txt = ohne_ticketzeile(txt)
+            txt = ohne_meldung(txt)
         else:
-            txt = ohne_ticketmarker(txt)
+            txt = ohne_marke(txt)
             if not txt:
                 continue
         m = {"role": t, "text": txt}
         if isinstance(ev.get("uuid"), str):
-            m["uuid"] = ev["uuid"]            # Anker für Tickets: dorthin springt die Übersicht
+            m["uuid"] = ev["uuid"]            # Anker: dorthin springt eine Karte des Ticket-Boards
         if isinstance(ev.get("timestamp"), str):
             m["ts"] = ev["timestamp"]     # ISO-Zeit, die UI zeigt sie neben der Nachricht
         msgs.append(m)
@@ -279,41 +272,17 @@ def find_prompt(session_id: str, text: str, occurrence: int = 0):
     return None
 
 
-
-def nutzer_uuids_bis(session_id: str, bis_uuid: str) -> set:
-    """Uuids aller Nutzer-Nachrichten, die in der Session VOR der Zeile mit
-    bis_uuid stehen — das, was eine abgezweigte Session (--resume-session-at)
-    von ihrer Vorgängerin behält."""
-    f = next(iter(PROJECTS_DIR.glob(f"*/{session_id}.jsonl")), None) if SID_RE.match(session_id or "") else None
-    out: set = set()
-    if f is None:
-        return out
-    for line in f.read_bytes().split(b"\n"):
-        try:
-            ev = json.loads(line.decode("utf-8", "replace"))
-        except Exception:
-            continue
-        if ev.get("type") == "user" and ev.get("uuid"):
-            out.add(ev["uuid"])
-        if ev.get("uuid") == bis_uuid:
-            break          # die Zeile selbst bleibt (ist sie eine Nutzer-Nachricht, steht sie schon drin)
-    return out
-
-
-def nachrichtentexte(session_id: str, uuids: set) -> dict:
-    """uuid → voller Text von Nutzer-Nachrichten einer Session (ohne Ticket-Zeile
-    und Datei-Hinweise). Die Ticket-Datei kennt nur Auszüge; für ein Briefing an die
-    Firma braucht es den Wortlaut."""
-    out: dict = {}
-    f = next(iter(PROJECTS_DIR.glob(f"*/{session_id}.jsonl")), None) if SID_RE.match(session_id or "") else None
-    if f is None:
-        return out
-    for line in f.read_bytes().split(b"\n"):
-        try:
-            ev = json.loads(line.decode("utf-8", "replace"))
-        except Exception:
-            continue
-        if ev.get("type") == "user" and ev.get("uuid") in uuids:
-            txt = ohne_ticketzeile(extract_text(ev.get("message", {}).get("content")).strip())
-            out[ev["uuid"]] = re.sub(r"\n\n\[(?:Vom Nutzer hochgeladene|Image uploaded|PDF uploaded)[\s\S]*$", "", txt).strip()
-    return out
+def firma_sessions() -> set:
+    """Sitzungen, von denen der Server selbst weiß, dass sie Züge der Firma sind:
+    laufende Züge und die, die ein Auftrag gebucht hat. Sicherer als jedes Merkmal
+    im Transkript, das Claude Code von Version zu Version anders schreibt — und
+    schon da, bevor der erste Zug das Transkript weit genug geschrieben hat."""
+    from server.runs import RUNS
+    ids = {r.session_id for r in list(RUNS.values()) if r.agent_slug and r.session_id}
+    try:
+        from server.team import auftraege as auf
+        for t in auf.alle():
+            ids.update(v for v in (t.get("sessions") or {}).values() if isinstance(v, str))
+    except Exception:
+        pass
+    return ids

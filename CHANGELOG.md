@@ -2,6 +2,41 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.0.0 — 2026-10-07
+
+### Changed
+- **Tickets are a kanban board now.** Five columns: New, In progress, In review,
+  QA, Done. Tickets no longer have to be guessed from chat messages: every commit
+  the assistant makes becomes a card (CONSTRUCT reads the `git commit` output of
+  the run; all commits of one answer are one card, the subject is the title,
+  `T-12` in the message files it under card 12). A new card goes to QA and moves
+  to Done once all its commits are on the remote. Your own cards go into New; the
+  assistant only touches them when you say so, through the new `tickets.py` CLI.
+  Drag cards between columns by hand; one you moved back after the last commit
+  stays where you put it. Stored in `tickets/board.json`.
+- **The company writes in the chat.** The separate Jobs view is gone: chat and job
+  were the same thing twice, and the room's log got confused between them. With
+  team mode on, the assistant asks before handing a big task to the company;
+  after your yes it writes the job as its answer, and the employees' messages,
+  their running turn and any question for you appear in the same chat, like a
+  group chat. The assistant gets the result with your next message. The job's
+  card on the board follows the work: Janus pulls it to In review, Miranda to
+  QA (new `spalte` field in the staff file), a finished job lands in QA. The
+  room's log always shows the chat; the speech bubble's "Reply" opens it.
+- Team mode is just on or off; the choice "only on request / assistant may
+  suggest" is gone (on = the assistant suggests and asks).
+- **Talking to the company while it works.** As long as the company works on a
+  job of the open chat, a switch above the input sends a message to it instead
+  of the assistant. It goes straight into the running turn (no extra step).
+- Jobs from before 8.0 have no chat; they no longer count as unread, so the room
+  stops presenting an old result as new after a restart.
+
+### Removed
+- The ticket chip above the input, ✂ on messages, `/ticket`, `/firma`, the
+  assistant's ticket marker lines and the ticket line on every message
+  (setting "Assistant files tickets").
+- The Jobs tile and view (form, job list, org chart per job).
+
 ## 7.3.0 — 2026-10-06
 
 ### Added

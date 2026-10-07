@@ -8,11 +8,10 @@ from fastapi.responses import JSONResponse
 
 from server import hermes as hermesmod
 from server import llm as llmmod
-from server import tickets as tickmod
 from server import uploads_gc
 
 from server.core import PROJECTS_DIR, extract_text
-from server.sessions import SID_RE, _fremde_firma, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, ohne_ticketzeile, save_archived, save_meta, werkstatt_aus_transcript
+from server.sessions import SID_RE, _fremde_firma, firma_sessions, _last_model, _parse_transcript_lines, _verborgen, load_archived, load_meta, ohne_meldung, save_archived, save_meta, werkstatt_aus_transcript
 
 router = APIRouter()
 
@@ -38,6 +37,7 @@ def sessions():
         out.append(s)
     if not PROJECTS_DIR.exists():
         return out
+    firma_ids = firma_sessions()
     for f in PROJECTS_DIR.glob("*/*.jsonl"):
         try:
             stat = f.stat()
@@ -58,7 +58,7 @@ def sessions():
                     if cwd is None and isinstance(ev.get("cwd"), str):
                         cwd = ev["cwd"]
                     if title is None and ev.get("type") == "user":
-                        txt = ohne_ticketzeile(extract_text(ev.get("message", {}).get("content")).strip())
+                        txt = ohne_meldung(extract_text(ev.get("message", {}).get("content")).strip())
                         # System-/Befehls-Wrapper überspringen
                         if txt and not txt.startswith("<") and not txt.startswith("Caveat"):
                             title = txt.replace("\n", " ")[:80]
@@ -73,7 +73,7 @@ def sessions():
                 "mtime": stat.st_mtime,
                 "size": stat.st_size,
                 "archived": f.stem in archived,
-                "agent": firma,
+                "agent": firma or ("firma" if f.stem in firma_ids else ""),
             })
         except Exception:
             continue
@@ -233,7 +233,6 @@ def session_delete(project: str, sid: str):
         attached = uploads_gc.names_in(rp.read_bytes())
         rp.unlink()
     uploads_gc.drop_later(attached)
-    tickmod.entfernen(sid)
     meta = load_meta()
     changed = False
     if sid in meta.get("archived", []):

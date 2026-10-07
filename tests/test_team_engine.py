@@ -44,7 +44,7 @@ def firma(tmp_path, monkeypatch):
     auf._UEBERSICHT.clear()
     from server import tickets as tickmod
     monkeypatch.setattr(tickmod, "TICKETS_DIR", tmp_path / "tickets")
-    tickmod._CACHE.clear()
+    monkeypatch.setattr(tickmod, "BOARD", tmp_path / "tickets" / "board.json")
     (tmp_path / "settings.json").write_text(json.dumps(
         {"lang": "de", "names": {"user": "Anna", "assistant": "Momo"}, "team": {"aktiv": True}}))
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
@@ -200,38 +200,42 @@ def test_bus_mit_unbekanntem_token_wird_abgewiesen(firma):
     assert r["error"] is True and "beendet" in r["text"]
 
 
-def test_ticket_geht_an_die_firma_und_wird_mit_dem_auftrag_erledigt(firma, tmp_path):
+def test_auftrag_aus_dem_chat_hat_karte_und_meldet_sein_ergebnis_einmal(firma, tmp_path):
+    import asyncio
+
     from server import tickets as tickmod
+    from server.team import chat as teamchat
+    (tmp_path / "settings.json").write_text(json.dumps(
+        {"lang": "de", "names": {"user": "Anna", "assistant": "Momo"}, "team": {"aktiv": True},
+         "tiles": {"tickets": True}}))
     sid = "abcd1234-0000-0000-0000-0000000000f1"
-    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
-    tickmod.nachricht(sid, "u2", "und bitte in Blau")                 # Korrektur im selben Ticket
-    r = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})
+    r = api(firma, "/api/team/auftraege", {"brief": "[klein] Bau das Ding", "titel": "Das Ding",
+                                           "bruecke": {"session": sid}})
     tid = r["ticket"]["id"]
-    assert r["ticket"]["bruecke"] == {"session": sid, "nr": 1}
-    assert "Später dazu gesagt" in r["ticket"]["brief"] and "in Blau" in r["ticket"]["brief"]
-    assert tickmod.laden(sid)["tickets"][0]["auftrag"] == tid
-    # ein zweites Mal geht nicht
-    with pytest.raises(urllib.error.HTTPError) as e:
-        api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})
-    assert e.value.code == 409
+    assert r["ticket"]["bruecke"] == {"session": sid}
+    karte = tickmod.holen(r["ticket"]["board"])
+    assert (karte["spalte"], karte["auftrag"], karte["session"]) == ("arbeit", tid, sid)
     warte(firma, tid, ("fertig",))
-    t = tickmod.laden(sid)["tickets"][0]
-    assert t["status"] == "erledigt"
-    # die Ticket-Zeile zeigt dem Assistenten den Stand
-    zeile = tickmod.hinweis(sid)
-    assert f"(Firma {tid}: fertig)" in zeile
+    assert tickmod.holen(karte["nr"])["spalte"] == "qa"
+    # der Chat sieht den Auftrag samt Verlauf, ohne Quittungen
+    chat = api(firma, f"/api/team/chat/{sid}")
+    assert [a["id"] for a in chat["auftraege"]] == [tid] and "luna" in chat["agents"]
+    assert not [e for e in chat["auftraege"][0]["verlauf"] if e["art"] == "zugestellt"]
+    assert api(firma, "/api/team/chat/andere-session")["auftraege"] == []
+    # der Assistent bekommt das Ergebnis genau einmal
+    meldung = asyncio.run(teamchat.meldungen(sid))
+    assert "„Das Ding“" in meldung and "Ergebnis: gebaut" in meldung
+    assert asyncio.run(teamchat.meldungen(sid)) == ""
 
 
-def test_marker_firma_am_zugende_gibt_das_ticket_an_die_firma(firma, tmp_path, monkeypatch):
+def test_marker_firma_am_zugende_uebergibt(firma, tmp_path, monkeypatch):
     from server import runs
-    from server import tickets as tickmod
     from server.team import engine
     sid = "abcd1234-0000-0000-0000-0000000000f2"
-    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
 
     class Lauf:
-        session_id, letzte_uuid, marke_ab = sid, "u1", 0
-        last_text = "Ich gebe das weiter.\n\n[[ticket firma]]"
+        session_id, letzte_uuid, marke_ab, cwd = sid, "u1", 0, str(tmp_path)
+        last_text = "Luna, bau bitte das Ding.\n\n[[firma: Das Ding]]"
         events = []
 
         def emit(self, ev):
@@ -239,25 +243,15 @@ def test_marker_firma_am_zugende_gibt_das_ticket_an_die_firma(firma, tmp_path, m
 
     angelegt = []
     monkeypatch.setattr(engine, "starten", lambda: None)
-    monkeypatch.setattr(engine, "auftrag_aus_ticket", lambda s_, nr: angelegt.append((s_, nr)) or {})
+    monkeypatch.setattr(engine, "auftrag_anlegen",
+                        lambda titel, brief, cwd, **kw: angelegt.append((titel, brief, cwd, kw)) or {"id": "a1"})
     lauf = Lauf()
-    runs._tickets_marken(lauf)
-    assert angelegt == [(sid, 1)] and lauf.marke_ab == len(lauf.last_text)
-    assert lauf.events == [{"type": "tickets"}]
-    runs._tickets_marken(lauf)                    # zweites Zugende ohne neuen Text: nichts doppelt
-    assert angelegt == [(sid, 1)]
-
-
-def test_ticket_darf_nach_abbruch_erneut_an_die_firma(firma, tmp_path):
-    from server import tickets as tickmod
-    sid = "abcd1234-0000-0000-0000-0000000000f3"
-    tickmod.nachricht(sid, "u1", "[klein] Bau das Ding", str(tmp_path))
-    erst = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})["ticket"]["id"]
-    warte(firma, erst, ("fertig",))
-    tickmod.aendern(sid, 1, status="offen")
-    zweit = api(firma, "/api/team/auftraege/aus-ticket", {"session": sid, "nr": 1})["ticket"]["id"]
-    assert zweit != erst                           # ein fertiger Auftrag blockiert nicht
-    warte(firma, zweit, ("fertig",))
+    runs._firma_marke(lauf)
+    assert angelegt == [("Das Ding", "Luna, bau bitte das Ding.", str(tmp_path),
+                         {"bruecke": {"session": sid}, "ticket": None})]
+    assert lauf.marke_ab == len(lauf.last_text) and lauf.events == [{"type": "firma", "auftrag": "a1"}]
+    runs._firma_marke(lauf)                       # zweites Zugende ohne neuen Text: nichts doppelt
+    assert len(angelegt) == 1
 
 
 def test_abbrechen_eines_abgeschlossenen_auftrags_wird_abgewiesen(firma):
@@ -318,8 +312,7 @@ def test_wartender_zug_startet_nicht_mehr_nach_dem_ausschalten(firma, tmp_path):
     assert t["sessions"] == {}                    # kein Zug ist gelaufen
 
 
-@pytest.mark.parametrize("pfad,body", [("/api/team/auftraege", b"kaputt"), ("/api/team/auftraege", b"[]"),
-                                       ("/api/team/auftraege/aus-ticket", b'{"session": "abcd1234", "nr": [1]}')])
+@pytest.mark.parametrize("pfad,body", [("/api/team/auftraege", b"kaputt"), ("/api/team/auftraege", b"[]")])
 def test_kaputter_body_ist_kein_serverfehler(firma, pfad, body):
     req = urllib.request.Request(firma + pfad, data=body, headers={"Content-Type": "application/json"})
     with pytest.raises(urllib.error.HTTPError) as e:

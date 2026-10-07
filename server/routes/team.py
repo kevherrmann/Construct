@@ -13,11 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from server import config as cfg
-from server.core import WORKSPACE, claude_env, sse
+from server.core import WORKSPACE, sse
 from server.runs import RUNS, SSE_HEADERS, stdin_message
 from server.team import agents as ag
 from server.team import auftraege as auf
 from server.team import bus, engine
+from server.team import chat as teamchat
 
 
 async def team_an():
@@ -88,7 +89,8 @@ def auftraege_liste():
     for t in auf.alle():
         out.append({k: t[k] for k in ("id", "titel", "status", "owner",
                                       "erstellt", "verbraucht")}
-                   | {"eskalation": t.get("eskalation")}
+                   | {"eskalation": t.get("eskalation"),
+                      "session": (t.get("bruecke") or {}).get("session", "")}
                    | auf.uebersicht(t["id"]))
     return {"tickets": out}
 
@@ -105,19 +107,22 @@ async def auftrag_neu(req: Request):
     return {"ok": True, "ticket": t}
 
 
-@router.post("/api/team/auftraege/aus-ticket")
-async def auftrag_aus_ticket(req: Request):
-    """Der Knopf am Ticket: aus den Nachrichten eines Tickets wird ein Auftrag."""
-    body = await _body(req)
-    try:
-        t = engine.auftrag_aus_ticket(str(body.get("session") or ""), int(body.get("nr") or 0))
-    except engine.AuftragVorhanden as e:
-        return JSONResponse({"error": str(e), "auftrag": e.auftrag_id}, status_code=409)
-    except engine.AuftragFehler as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-    except (TypeError, ValueError):
-        return JSONResponse({"error": cfg.L("ungültige Angabe", "invalid input")}, status_code=400)
-    return {"ok": True, "ticket": t}
+def _agents_anzeige() -> dict:
+    return {x["slug"]: {k: ag.anzeige(x)[k] for k in ("name", "title", "color", "avatar")}
+            for x in ag.list_agents(WORKSPACE, include_fired=True)}
+
+
+@router.get("/api/team/chat/{sid}")
+def team_chat(sid: str):
+    """Die Aufträge einer Chat-Session samt Verlauf: der Chat zeigt sie als
+    Gruppenchat zwischen den eigenen Nachrichten."""
+    out = []
+    for t in teamchat.auftraege_der_session(sid):
+        out.append({"id": t["id"], "titel": t["titel"], "status": t["status"],
+                    "eskalation": t.get("eskalation"), "erstellt": t["erstellt"], "owner": t["owner"],
+                    "board": t.get("board"),
+                    "verlauf": [e for e in auf.verlauf(t["id"]) if e.get("art") != "zugestellt"]})
+    return {"auftraege": out, "agents": _agents_anzeige()}
 
 
 @router.get("/api/team/auftraege/{tid}")
@@ -125,9 +130,7 @@ def auftrag_detail(tid: str):
     t = auf.laden(tid)
     if not t:
         return JSONResponse({"error": cfg.L("unbekannt", "unknown")}, status_code=404)
-    return {"ticket": t, "verlauf": auf.verlauf(tid),
-            "agents": {x["slug"]: {k: ag.anzeige(x)[k] for k in ("name", "title", "color", "avatar")}
-                       for x in ag.list_agents(WORKSPACE, include_fired=True)}}
+    return {"ticket": t, "verlauf": auf.verlauf(tid), "agents": _agents_anzeige()}
 
 
 @router.get("/api/team/auftraege/{tid}/stream")
@@ -270,9 +273,11 @@ def team_state():
         aktiv.append({"agent": r.agent_slug, "name": ag.anzeige(a).get("name", r.agent_slug),
                       "color": a.get("color", "126,231,135"),
                       "ticket": r.auftrag_id, "titel": t.get("titel", ""), "run": r.id,
+                      "session": (t.get("bruecke") or {}).get("session", ""),
                       "seit": int(time.time() - r.started)})
     wartend = [{"id": t["id"], "titel": t["titel"],
-                "grund": (t.get("eskalation") or {}).get("bremse") or ""}
+                "grund": (t.get("eskalation") or {}).get("bremse") or "",
+                "session": (t.get("bruecke") or {}).get("session", "")}
                for t in auf.alle()
                if t["status"] == "wartet_auf_kevin"]
     return {"aktiv": aktiv, "wartend": wartend, "pausiert": engine.PAUSIERT}

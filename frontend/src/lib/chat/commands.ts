@@ -1,14 +1,11 @@
 import type { AuthStatus } from '@/api/system'
 import { queryClient } from '@/lib/queryClient'
 import { tk } from '@/lib/i18n'
-import type { SessionTickets } from '@/api/tickets'
 import type { Provider } from '@/api/providers'
-import { apiGet, apiPost } from '@/lib/api'
 import { baseName } from '@/lib/format'
 import { useChat } from '@/stores/chat'
 import { useDialogs } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
-import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { CLAUDE_MODELS, EFFORTS, MODES, extModels } from './models'
 
 // App-eigene Slash-Befehle. Claudes eingebaute funktionieren im Headless-Modus
@@ -22,107 +19,6 @@ export interface CommandContext {
   openPicker: (p: 'model' | 'mode' | 'folder' | 'effort') => void
 }
 
-/** `/ticket` zeigt die Tickets der Session, `/ticket Titel` setzt einen Schnitt:
- *  ab der nächsten Nachricht gilt ein neues Ticket. Steht hinter der ersten Zeile
- *  noch Text, geht der gleich als Nachricht ab. Kostet keine Tokens. */
-function ticketBefehl(raw: string) {
-  const chat = useChat.getState()
-  const say = (key: string, params?: Record<string, string>, code?: string[]) =>
-    chat.addSys({ type: 'text', note: { key, params }, code })
-  if (useSettings.getState().settings.tiles.tickets === false)
-    return say(tk('Tickets sind abgeschaltet (⚙ Einstellungen → Kacheln).'))
-  const c = chat.active()
-  if (!c) return
-  const [kopf = '', ...rest] = raw.replace(/^\/ticket\b[ \t]*/i, '').split('\n')
-  const titel = kopf.trim()
-  const text = rest.join('\n').trim()
-  const sid = c.sessionId
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['tickets'] })
-
-  if (!titel) {
-    if (!sid) return say(tk('Noch keine Tickets in dieser Session.'))
-    void apiGet<SessionTickets>(`/api/tickets/${encodeURIComponent(sid)}`).then((d) => {
-      const zeilen = [...d.tickets]
-        .reverse()
-        .map(
-          (t) =>
-            `${t.nr === d.aktuell ? '▸' : t.status === 'erledigt' ? '✓' : '○'} #${t.nr} ${t.titel}`,
-        )
-      say(
-        zeilen.length ? tk('Tickets dieser Session:') : tk('Noch keine Tickets in dieser Session.'),
-        undefined,
-        zeilen,
-      )
-    })
-    return
-  }
-  const weiter = () => {
-    if (text) void useChat.getState().send(text)
-  }
-  if (!sid) {
-    chat.setTicketVorgabe(titel)
-    say(tk('Neues Ticket: {t} — gilt ab der nächsten Nachricht.'), { t: titel })
-    return weiter()
-  }
-  void apiPost(`/api/tickets/${encodeURIComponent(sid)}/schnitt`, { titel, cwd: c.cwd ?? '' })
-    .then(() => {
-      refresh()
-      say(tk('Neues Ticket: {t} — gilt ab der nächsten Nachricht.'), { t: titel })
-      weiter()
-    })
-    .catch(() => say(tk('Ticket konnte nicht angelegt werden.')))
-}
-
-/** `/firma Aufgabe` gibt die Aufgabe an die Firma (Team-Modus) — ohne dass der Assistent
- *  darüber entscheidet. Gehört die Session schon zu einem Ticket, wird es mit dem
- *  Auftrag verbunden: wird der fertig, gilt das Ticket als erledigt. `/firma` allein
- *  zeigt, was gerade bei der Firma liegt. */
-function firmaBefehl(raw: string) {
-  const chat = useChat.getState()
-  const say = (key: string, params?: Record<string, string>, code?: string[]) =>
-    chat.addSys({ type: 'text', note: { key, params }, code })
-  if (!useSettings.getState().settings.team.aktiv)
-    return say(tk('Der Team-Modus ist aus (⚙ Einstellungen → Team).'))
-  const brief = raw.replace(/^\/firma\b[ \t]*/i, '').trim()
-  if (!brief) {
-    void apiGet<{ tickets: { titel: string; status: string }[] }>('/api/team/auftraege').then((d) =>
-      say(
-        d.tickets.length ? tk('Aufträge bei der Firma:') : tk('Noch keine Aufträge.'),
-        undefined,
-        d.tickets.map(
-          (x) =>
-            `${x.status === 'fertig' ? '✓' : x.status.startsWith('wartet') ? '⏸' : '⚙'} ${x.titel}`,
-        ),
-      ),
-    )
-    return
-  }
-  const c = chat.active()
-  const sid = c?.sessionId
-  void (async () => {
-    let bruecke: { session: string; nr: number } | undefined
-    if (sid) {
-      const d = await apiGet<SessionTickets>(`/api/tickets/${encodeURIComponent(sid)}`).catch(
-        () => null,
-      )
-      if (d?.aktuell) bruecke = { session: sid, nr: d.aktuell }
-    }
-    try {
-      const j = await apiPost<{ ticket: { id: string; titel: string } }>('/api/team/auftraege', {
-        brief,
-        cwd: c?.cwd ?? '',
-        bruecke,
-      })
-      void queryClient.invalidateQueries({ queryKey: ['team'] })
-      void queryClient.invalidateQueries({ queryKey: ['tickets'] })
-      say(tk('An die Firma gegeben: {t} — der Stand steht unter Aufträge.'), { t: j.ticket.titel })
-      useAuftraegeAnsicht.getState().vormerken(j.ticket.id)
-    } catch (e) {
-      say(tk('Die Firma hat den Auftrag nicht angenommen: {e}'), { e: (e as Error).message })
-    }
-  })()
-}
-
 export function runCommand(raw: string, ctx: CommandContext) {
   const chat = useChat.getState()
   const parts = raw.slice(1).trim().split(/\s+/)
@@ -132,8 +28,6 @@ export function runCommand(raw: string, ctx: CommandContext) {
     chat.addSys({ type: 'text', note: { key, params }, code })
 
   if (cmd === '' || cmd === 'help') return chat.addSys({ type: 'help' })
-  if (cmd === 'ticket') return ticketBefehl(raw)
-  if (cmd === 'firma') return firmaBefehl(raw)
   if (cmd === 'new') return chat.newSession()
   if (cmd === 'clear') return chat.clear()
   if (cmd === 'skills') {

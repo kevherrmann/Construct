@@ -91,26 +91,24 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **Rendered replies.** Markdown and code are highlighted, and file paths in
   replies are clickable. Clicking one opens a preview or download of that file
   from the workspace.
-- **Tickets.** A ticket is a section *inside* a session, not the session: you
-  work all day in one session per project and give it many tasks, and a ticket
-  collects every message that belongs to one task — even with gaps (task,
-  correction, new task, another correction to the first = two tickets). Messages
-  go to the current ticket on their own; the chip above the input, `/ticket
-  Title` and ✂ on a message cut or reassign them without costing tokens, and the
-  assistant can file messages itself with one marker line at the end of its
-  answer, only when needed (about 0.5 % extra usage, no MCP server; switch it off
-  in ⚙ Settings → Team). A new ticket closes the previous one, a correction
-  reopens a closed one. The **Tickets** tile shows, per day and
-  project, what is done and what is open; a click jumps to the message in the
-  history. In the room a card-index box on a pedestal opens them.
+- **Ticket board.** A kanban board with five columns: New, In progress, In
+  review, QA, Done. Every commit the assistant makes becomes a card on its own
+  (CONSTRUCT reads `git commit` in the run; all commits of one answer are one
+  card, the subject is the title). A commit that mentions `T-12` goes to card 12.
+  Cards land in QA and move to Done once their commits are pushed. Your own
+  cards go into New; the assistant only touches them when you say so, through
+  the `tickets.py` CLI. Drag cards between columns by hand at any time; a click
+  opens the card and jumps to the message in the chat. In the room a card-index
+  box on a pedestal opens the board. Off by default (⚙ Settings → Tiles).
 - **Team mode (optional).** A company of AI employees next to the single
   assistant: staff files (character, model, effort, tools, permissions, memory),
   jobs that the staff pass between each other over an internal bus, safety
   brakes against endless loops, a fixed crew of five, shared know-how
   ("instructions") and a fixed test bench. The assistant is the managing
-  director. You decide per task: small things the assistant does alone, big ones
-  you give to the company (`/firma …`, the 🏢 button on a ticket, or — if you
-  allow it — the assistant suggests it). Off by default; switch on under
+  director. Small things the assistant does alone; for big ones it asks whether
+  it may give them to the company. After your yes the employees write in the
+  same chat, like a group chat, and their card on the ticket board follows them
+  (Janus pulls it to In review, Miranda to QA). Off by default; switch on under
   ⚙ Settings → Team. In the room the crew sits at two double desks behind the assistant; whoever works gets
   up, walks to the workbench and types there, and the director looks in on
   them. Employees can also be talked to directly (👥 Staff → Talk to
@@ -294,7 +292,7 @@ The following files belong to your installation. They are listed in
 - **Personal data:** `settings.json`, `SOUL.md` (created from
   `SOUL.default.md`), `USER.md`, `events.json`, `mail_meta.json`,
   `mail_attach/`, `uploads/`, `llm_sessions/`, `sessions_meta.json`,
-  `telegram_state.json`, `tasks_state.json`, `tickets/` (ticket assignment per session)
+  `telegram_state.json`, `tasks_state.json`, `tickets/` (the ticket board)
 - **The company (team mode):** `firma/` — `agents/`, `auftraege/`, `anleitungen/`, and optional
   overrides of the rules (`HAUSSTIL.md`, `PROTOCOL.md`, `GESTALTUNG.md`, `MODELS.md`)
 - **Caches:** `.models-dev-cache.json`, `.update-stamp`, `.venv-*/`, `.fenster/` (browser profile of the window)
@@ -344,7 +342,7 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/routes/` | HTTP API, one module per area: `auth`, `files`, `providers`, `system`, `calendar`, `mail`, `sessions`, `chat`, `ui` |
 | `server/runs.py`, `server/hermes_runs.py` | Detached chat runs (claude CLI / Hermes): start, stream, inject, background tasks |
 | `server/sessions.py` | Claude Code sessions on disk: metadata, transcripts, filters |
-| `server/tickets.py` | Tickets inside a session: storage, assignment, the assistant's marker lines |
+| `server/tickets.py`, `tickets.py` | Ticket board: cards, commits, columns, push check; CLI for the assistant |
 | `server/team/`, `team_mcp.py` | Team mode: staff files, jobs, brakes, dispatcher, the company bus (MCP server) |
 | `scripts/pruefstand.py` | Test bench for the company: fixed jobs, measured results, comparison with the last run |
 | `server/scheduler.py` | Scheduled tasks from calendar events |

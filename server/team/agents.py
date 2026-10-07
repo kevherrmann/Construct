@@ -149,6 +149,8 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 # UND eine Liste ohne Write/Edit. Die Liste allein reicht nicht.
 PERM_MODES = ("acceptEdits", "auto", "bypassPermissions")
 STATES = ("active", "paused", "fired")
+# Spalten des Ticket-Boards, in die ein Mitarbeiter ziehen kann (server/tickets.py).
+BOARD_SPALTEN = ("arbeit", "review", "qa")
 
 # Werkzeuge, die eine Akte vergeben darf. Bewusst eine Erlaubnisliste: wer hier
 # nicht steht, bekommt es nicht. Bash fehlt mit Absicht NICHT — aber es soll
@@ -195,6 +197,10 @@ DEFAULT_AGENT = {
     # prueft = baut nicht, sondern prüft, was andere gebaut haben. Steht in der
     # Belegschaft, damit die Geschäftsführung den Prüfer findet (PROTOCOL.md).
     "can_delegate": False, "delegates_to": [], "prueft": False,
+    # spalte = wohin auf dem Ticket-Board die Karte eines Auftrags wandert, sobald
+    # dieser Mitarbeiter drankommt (Janus: review, Miranda: qa). Leer: wer baut,
+    # zieht nach "arbeit", wer prüft, bewegt nichts.
+    "spalte": "",
     "color": "", "avatar": "", "status": "active",
     "hired": "", "hired_by": "kevin",
     # KEINE Obergrenze fuer Dauer oder Geld eines Zuges: ein Auftrag wie "bau
@@ -302,7 +308,7 @@ def validate(raw: dict, workspace) -> tuple:
 
     for key, allowed in (("engine", ENGINES), ("model", MODELS),
                          ("effort", EFFORTS), ("permission_mode", PERM_MODES),
-                         ("status", STATES)):
+                         ("status", STATES), ("spalte", BOARD_SPALTEN)):
         v = str(raw.get(key) or "").strip()
         if v in allowed:
             a[key] = v
@@ -546,10 +552,11 @@ def load_agent(slug: str, workspace) -> dict | None:
             raw["allowed_tools"] = neu
     if not re.search(r"^allowed_tools:", fm, re.M):
         raw["allowed_tools"] = None      # Zeile fehlt ganz -> Vorgabe, nicht "keine"
-    if not re.search(r"^prueft:", fm, re.M):
-        # Akten von vor dem Feld: angepasste ziehen nicht nach, Miranda und Janus
-        # sollen trotzdem als Prüfer in der Belegschaft stehen.
-        raw["prueft"] = _feld_der_vorlage(slug, "prueft")
+    for feld in ("prueft", "spalte"):
+        if not re.search(rf"^{feld}:", fm, re.M):
+            # Akten von vor dem Feld: angepasste ziehen nicht nach, Miranda und Janus
+            # sollen trotzdem als Prüfer in der Belegschaft stehen und ihre Spalte haben.
+            raw[feld] = _feld_der_vorlage(slug, feld)
     a, bad = validate(raw, workspace)
     a["problems"] = bad
     if slug == OWNER_SLUG:

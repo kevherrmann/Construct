@@ -92,6 +92,8 @@ export interface AuftragKurz {
   erstellt: string
   verbraucht: Verbrauch
   eskalation: Eskalation | null
+  /** Chat-Session, in der der Auftrag entstand und in die die Firma schreibt. */
+  session: string
   msgs: number
   letzte_von: string
   letzte_art: string
@@ -144,8 +146,9 @@ export interface TeamStand {
     /** Laufender Zug: live mitlesen über /api/stream/{run} (ältere Server: fehlt). */
     run?: string
     seit: number
+    session: string
   }[]
-  wartend: { id: string; titel: string; grund: string }[]
+  wartend: { id: string; titel: string; grund: string; session: string }[]
   pausiert: boolean
 }
 
@@ -209,6 +212,38 @@ export function useUserMdSpeichern() {
 }
 
 // ---------- Aufträge ----------
+/** Ein Auftrag, wie ihn der Chat zeigt: samt Verlauf (ohne Quittungen). */
+export interface ChatAuftrag {
+  id: string
+  titel: string
+  status: AuftragStatus
+  owner: string
+  erstellt: string
+  eskalation: Eskalation | null
+  /** Karte auf dem Ticket-Board. */
+  board: number | null
+  verlauf: Nachricht[]
+}
+
+/** Die Aufträge einer Chat-Session: ihre Nachrichten stehen im Chat wie in einem Gruppenchat. */
+export const useTeamChat = (sid: string | null | undefined) => {
+  const an = useTeamAn()
+  return useQuery({
+    queryKey: ['team', 'chat', sid],
+    queryFn: () =>
+      apiGet<{ auftraege: ChatAuftrag[]; agents: Record<string, Person> }>(
+        `${P}/chat/${encodeURIComponent(sid!)}`,
+      ),
+    enabled: an && !!sid,
+    refetchOnMount: 'always',
+    // Arbeitet die Firma, kommen laufend Nachrichten dazu; sonst nur selten nachsehen.
+    refetchInterval: (q) =>
+      q.state.data?.auftraege.some((a) => a.status === 'laeuft' || a.status === 'neu')
+        ? 2500
+        : 15000,
+  })
+}
+
 export const useAuftraege = () => {
   const an = useTeamAn()
   return useQuery({
@@ -266,15 +301,6 @@ export function useAuftragActions(id: string) {
   }
 }
 
-export function useAuftragNeu() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (v: { brief: string; titel?: string; cwd?: string }) =>
-      apiPost<{ ticket: Auftrag }>(`${P}/auftraege`, v),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['team'] }),
-  })
-}
-
 export function useNotAus() {
   const qc = useQueryClient()
   return useMutation({
@@ -295,19 +321,8 @@ export const merkeGesehen = (id: string, n: number) => {
     /* privater Modus o. Ä.: dann eben nicht */
   }
 }
-/** Was Kevin selbst zuletzt geschrieben hat, ist nie ungelesen. */
+/** Was Kevin selbst zuletzt geschrieben hat, ist nie ungelesen. Aufträge ohne Chat
+ *  (vor 8.0 angelegt) zählen gar nicht: gelesen wird im Chat, und den haben sie nicht —
+ *  sie stünden sonst für immer als neu im Raum. */
 export const ungelesen = (t: AuftragKurz) =>
-  Math.max(0, t.msgs - gesehen(t.id) - (t.letzte_von === 'kevin' ? 1 : 0))
-
-/** Aus einem Ticket einen Auftrag machen: die Nachrichten des Tickets werden das Briefing. */
-export function useFirmaGeben() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (v: { session: string; nr: number }) =>
-      apiPost<{ ticket: Auftrag }>(`${P}/auftraege/aus-ticket`, v),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['team'] })
-      void qc.invalidateQueries({ queryKey: ['tickets'] })
-    },
-  })
-}
+  t.session ? Math.max(0, t.msgs - gesehen(t.id) - (t.letzte_von === 'kevin' ? 1 : 0)) : 0

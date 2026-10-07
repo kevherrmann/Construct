@@ -413,6 +413,7 @@ async def _zustellen_innen(tid: str, mid: str):
                                                          "Team mode was switched off."),
                                     an=a["slug"])
         run = start_agent_turn(a, t, nachricht)
+        board_spalte(t, a)
         await auftrag_aendern(tid, lambda x: x["in_arbeit"].update({"run_id": run.id})
                              if x.get("in_arbeit") else None)
         feed(tid).emit({"type": "zug_start", "agent": a["slug"],
@@ -719,13 +720,13 @@ class AuftragFehler(Exception):
 
 
 def auftrag_anlegen(titel: str, brief: str, cwd: str = "", owner: str = "",
-                    bruecke: dict | None = None) -> dict:
+                    bruecke: dict | None = None, ticket: int | None = None) -> dict:
     """Die Firma bekommt eine Aufgabe: sie geht an die Geschäftsführung.
 
-    Eine Stelle für alle Wege hinein — das Formular, `/firma` im Chat, der Knopf am
-    Ticket und das Werkzeug des Assistenten. `bruecke` ({session, nr}) verbindet den
-    Auftrag mit dem Ticket, aus dem er stammt: wird er fertig, gilt das Ticket als
-    erledigt, und der Assistent sieht den Stand in der Ticket-Zeile.
+    Eine Stelle für alle Wege hinein — die Übergabe im Chat (server/team/chat.py)
+    und die API (Prüfstand). `bruecke` ({session}) verbindet den Auftrag mit dem
+    Chat, aus dem er stammt: dort schreiben die Mitarbeiter mit. `ticket` ist die
+    Karte auf dem Board, an der gearbeitet wird; ohne entsteht eine.
     """
     brief = str(brief or "").strip()
     if not brief:
@@ -741,66 +742,42 @@ def auftrag_anlegen(titel: str, brief: str, cwd: str = "", owner: str = "",
     if not ordner:
         raise AuftragFehler(cfg.L(f"Der Arbeitsordner muss in {WORKSPACE} liegen.",
                                   f"The working folder must be inside {WORKSPACE}."))
-    ziel = None
-    if isinstance(bruecke, dict) and bruecke.get("session") and bruecke.get("nr"):
-        try:
-            ziel = {"session": str(bruecke["session"]), "nr": int(bruecke["nr"])}
-        except (TypeError, ValueError):
-            raise AuftragFehler(cfg.L("ungültige Angabe zum Ticket", "invalid ticket reference"))
     t = auf.neu(str(titel or "").strip() or brief[:80], brief, owner=chef["slug"], cwd=ordner)
     t["status"] = "laeuft"
-    if ziel:
-        t["bruecke"] = ziel
-    auf.speichern(t)
-    bus_einreihen(t, "kevin", chef["slug"], "auftrag", brief)
-    if t.get("bruecke"):
+    if isinstance(bruecke, dict) and bruecke.get("session"):
+        t["bruecke"] = {"session": str(bruecke["session"])}
+    if cfg.load_settings()["tiles"]["tickets"]:
         from server import tickets as tickmod
         try:
-            tickmod.verknuepfen(t["bruecke"]["session"], t["bruecke"]["nr"], t["id"])
-        except (KeyError, ValueError, OSError):
-            pass          # das Ticket gibt es nicht (mehr): der Auftrag läuft trotzdem
+            t["board"] = tickmod.auftrag_angelegt(t["id"], t["titel"], brief, ordner,
+                                                  (t.get("bruecke") or {}).get("session", ""), ticket)
+        except OSError as e:          # das Board ist Beigabe: der Auftrag läuft trotzdem
+            print(f"[team] Ticket nicht angelegt: {e}", flush=True)
+    auf.speichern(t)
+    bus_einreihen(t, "kevin", chef["slug"], "auftrag", brief)
     return t
 
 
-class AuftragVorhanden(AuftragFehler):
-    """Dieses Ticket ist schon bei der Firma."""
-
-    def __init__(self, auftrag_id: str):
-        super().__init__(cfg.L("Dieses Ticket ist schon bei der Firma.",
-                               "This ticket is already with the company."))
-        self.auftrag_id = auftrag_id
-
-
-def auftrag_aus_ticket(sid: str, nr: int) -> dict:
-    """Aus den Nachrichten eines Tickets einen Auftrag machen (Knopf am Ticket,
-    Markerzeile `[[ticket firma]]` des Assistenten). Das Briefing ist der Wortlaut
-    des Nutzers, nicht der Auszug aus der Ticket-Datei."""
-    from server import tickets as tickmod
-    from server.sessions import nachrichtentexte
-    d = tickmod.laden(sid)
-    tk = next((x for x in d["tickets"] if x["nr"] == int(nr)), None)
-    if tk is None:
-        raise AuftragFehler(cfg.L("Dieses Ticket gibt es nicht.", "This ticket does not exist."))
-    alt = auf.laden(tk["auftrag"]) if tk.get("auftrag") else None
-    if alt and alt["status"] not in ("fertig", "abgebrochen"):
-        # Ein laufender oder wartender Auftrag blockiert; ein fertiger oder
-        # abgebrochener nicht — nach einer Korrektur oder einem Abbruch darf das
-        # Ticket neu an die Firma.
-        raise AuftragVorhanden(tk["auftrag"])
-    brief = tickmod.briefing(tk, nachrichtentexte(sid, {m["id"] for m in tk["nachrichten"]}))
-    return auftrag_anlegen(tk["titel"], brief, d["cwd"], bruecke={"session": sid, "nr": tk["nr"]})
-
-
-def bruecke_abschluss(t: dict):
-    """Der Auftrag ist fertig: das Ticket, aus dem er kam, auch."""
-    b = t.get("bruecke")
-    if not b:
+def board_spalte(t: dict, a: dict | None = None, fertig: bool = False):
+    """Die Karte des Auftrags folgt der Arbeit: wer eine Spalte in der Akte trägt
+    (Janus: review, Miranda: qa), zieht sie dorthin; wer baut, nach In Arbeit;
+    ein fertiger Auftrag kommt nach QA. Die Geschäftsführung verteilt nur und
+    bewegt nichts."""
+    if not t.get("board") or not cfg.load_settings()["tiles"]["tickets"]:
+        return
+    if fertig:
+        spalte = "qa"
+    elif not a or a["slug"] == t.get("owner"):
+        return
+    else:
+        spalte = a.get("spalte") or ("" if a.get("prueft") else "arbeit")
+    if not spalte:
         return
     from server import tickets as tickmod
     try:
-        tickmod.aendern(b["session"], int(b["nr"]), status="erledigt")
-    except (KeyError, ValueError):
-        pass
+        tickmod.auftrag_spalte(t["id"], spalte)
+    except OSError as e:
+        print(f"[team] Ticket nicht verschoben: {e}", flush=True)
 
 
 # ---------- Start und Stopp ----------

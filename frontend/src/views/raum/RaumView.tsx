@@ -62,8 +62,7 @@ import {
   type Kante,
 } from './blasenOrt'
 import { ungelesen, useAuftrag, useAuftraege } from '@/api/team'
-import { useAuftraegeAnsicht } from '../auftraege/store'
-import { AuftragProtokoll } from '../auftraege/AuftragProtokoll'
+import { useSessionOeffnen } from '@/hooks/useSessionOeffnen'
 import { aufBuehne, GANZ, weltTransform, type Kamera, type Punkt } from './kamera'
 import {
   BUERO_FORM,
@@ -315,7 +314,6 @@ const TITEL: Record<Ansicht, string> = {
   ausruestung: 'Modell & Modus',
   tickets: 'Tickets',
   personal: 'Personal',
-  auftraege: 'Aufträge',
   einstellungen: 'Einstellungen',
 }
 
@@ -498,10 +496,9 @@ export function RaumView() {
   // anderes spricht: eine Rückfrage („Antworten“ öffnet den Auftrag) oder das
   // Ergebnis eines fertigen Auftrags, den du noch nicht angesehen hast. Jede nur, bis
   // du dem Assistenten die nächste Nachricht schreibst: dann gehört die Blase wieder
-  // eurem Gespräch (das Schild am Büro und die Aufträge zeigen es weiter).
+  // eurem Gespräch (das Schild am Büro und der Chat zeigen es weiter).
   const auftraege = useAuftraege()
-  // Das Protokoll zeigt, was du zuletzt gewählt hast: einen Auftrag oder die Session.
-  const protokollAuftrag = useAuftraegeAnsicht((st) => st.protokoll)
+  const sessionOeffnen = useSessionOeffnen()
   const wartet = buero ? auftraege.data?.find((a) => a.status === 'wartet_auf_kevin') : undefined
   const fertigNeu = buero
     ? auftraege.data?.find((a) => a.status === 'fertig' && ungelesen(a) > 0)
@@ -522,6 +519,7 @@ export function RaumView() {
     abschlussId && abschlussDetail?.ticket.ergebnis
       ? {
           id: abschlussId,
+          session: fertigNeu?.session ?? '',
           titel: abschlussDetail.ticket.titel,
           text: abschlussDetail.ticket.ergebnis,
         }
@@ -652,7 +650,9 @@ export function RaumView() {
         rechts={teamSpricht ? teamAmWerk : amWerk}
         team={teamAmWerk}
         unten={kompakt}
-        knopf={rueckfrage ? `↩ ${t('Antworten')}` : abschluss ? `☰ ${t('Auftrag')}` : undefined}
+        knopf={
+          rueckfrage ? `↩ ${t('Antworten')}` : abschluss ? `☰ ${t('Im Chat zeigen')}` : undefined
+        }
         ort={kompakt ? null : blasenOrt}
         onOrt={kompakt ? undefined : setBlasenOrt}
         groesse={kompakt ? null : blasenGroesse}
@@ -660,14 +660,11 @@ export function RaumView() {
         hoehe={kompakt ? (blasenHoehe?.h ?? null) : null}
         onHoehe={kompakt ? (h) => setBlasenHoehe(h === null ? null : { h }) : undefined}
         onVerlauf={() => {
-          if (rueckfrage || abschluss) {
-            useAuftraegeAnsicht.getState().oeffne((rueckfrage?.id ?? abschluss?.id)!)
-            setAnsicht('auftraege')
-          } else {
-            // Spricht ein Mitarbeiter, zeigt das Protokoll seinen Auftrag, sonst euren Chat.
-            if (teamSpricht) useAuftraegeAnsicht.getState().oeffne(team.auftrag)
-            setAnsicht('protokoll')
-          }
+          // Die Firma schreibt im Chat, aus dem ihr Auftrag stammt: dorthin. Die
+          // Rückfrage beantwortest du dort, im Feld unter ihrer Nachricht.
+          const sid = rueckfrage?.session || abschluss?.session || (teamSpricht ? team.session : '')
+          if (sid && sid !== conv?.sessionId) sessionOeffnen(sid)
+          setAnsicht('protokoll')
         }}
         onZu={blaseUmschalten}
       />
@@ -681,11 +678,7 @@ export function RaumView() {
         titel={t(TITEL[ansicht])}
         hinweis={
           ansicht === 'protokoll'
-            ? protokollAuftrag
-              ? t('Auftrag: {t}', {
-                  t: auftraege.data?.find((a) => a.id === protokollAuftrag)?.titel ?? '',
-                })
-              : t('Chat: {t}', { t: sessionTitel || t('neue Session') })
+            ? t('Chat: {t}', { t: sessionTitel || t('neue Session') })
             : ansicht === 'einstellungen'
               ? t('Was du siehst und womit du redest')
               : t(STATIONEN.find((st) => st.panel === ansicht)?.hint ?? '')
@@ -694,11 +687,7 @@ export function RaumView() {
       >
         {ansicht === 'protokoll' ? (
           <div className={s.protokollInhalt} data-scroll>
-            {protokollAuftrag ? (
-              <AuftragProtokoll key={protokollAuftrag} id={protokollAuftrag} />
-            ) : (
-              <ChatView />
-            )}
+            <ChatView />
           </div>
         ) : (
           <KartenInhalt panel={ansicht as PanelId} onDone={schliessen} />

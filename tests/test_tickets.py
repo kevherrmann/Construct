@@ -1,489 +1,292 @@
-"""Tickets: Zuordnung innerhalb einer Session (server/tickets.py)."""
+"""Ticket-Board: Karten von Hand, aus Commits, Spalten und Push (server/tickets.py)."""
 import json
+import subprocess
 
 import pytest
 
 from server import tickets as tk
-
-SID = "abcd1234-0000-0000-0000-000000000001"
 
 
 @pytest.fixture(autouse=True)
 def ordner(tmp_path, monkeypatch):
     from server import config as cfg
     monkeypatch.setattr(tk, "TICKETS_DIR", tmp_path / "tickets")
-    # Texte hängen an der Sprache der Installation: die Tests sollen nicht davon abhängen.
-    # Tickets sind ab Werk aus, hier geht es um das eingeschaltete System.
+    monkeypatch.setattr(tk, "BOARD", tmp_path / "tickets" / "board.json")
+    tk._PUSH["zuletzt"] = 0.0
+    # Tickets sind ab Werk aus, hier geht es um das eingeschaltete Board.
     (tmp_path / "settings.json").write_text(
         '{"lang": "de", "names": {"user": "Kevin"}, "tiles": {"tickets": true}}')
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
-    tk._CACHE.clear()
 
 
-def ids(d, nr):
-    return [m["id"] for t in d["tickets"] if t["nr"] == nr for m in t["nachrichten"]]
+def git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
 
 
-def test_erste_nachricht_legt_ein_ticket_an():
-    r = tk.nachricht(SID, "u1", "Bau die Kachel für die Tickets\n\n[Vom Nutzer hochgeladenes Bild: /x.png]")
-    assert r == {"nr": 1, "titel": "Bau die Kachel für die Tickets", "neu": True}
-    d = tk.laden(SID)
-    assert d["aktuell"] == 1 and ids(d, 1) == ["u1"]
-    # Dateihinweise gehören nicht in den Auszug
-    assert d["tickets"][0]["nachrichten"][0]["text"] == "Bau die Kachel für die Tickets"
+@pytest.fixture()
+def repo(tmp_path):
+    r = tmp_path / "projekt"
+    r.mkdir()
+    git(r, "init", "-q", "-b", "main")
+    git(r, "config", "user.email", "t@example.com")
+    git(r, "config", "user.name", "T")
+    return r
 
 
-def test_ohne_zutun_gehoert_alles_zum_aktuellen_ticket():
-    tk.nachricht(SID, "u1", "Aufgabe")
-    tk.nachricht(SID, "u2", "Korrektur dazu")
-    assert ids(tk.laden(SID), 1) == ["u1", "u2"]
+def committen(repo, betreff, rumpf=""):
+    """Wie der Assistent committet: die Ausgabe von git commit ist das, was der
+    Lauf als Werkzeugergebnis sieht."""
+    (repo / "datei.txt").write_text(betreff)
+    git(repo, "add", "-A")
+    args = ["commit", "-m", betreff] + (["-m", rumpf] if rumpf else [])
+    return git(repo, *args)
 
 
-def test_nachricht_ist_idempotent():
-    tk.nachricht(SID, "u1", "Aufgabe")
-    tk.nachricht(SID, "u1", "Aufgabe")
-    assert ids(tk.laden(SID), 1) == ["u1"]
-
-
-def test_kevins_beispiel_vier_nachrichten_zwei_tickets():
-    """Aufgabe, Korrektur, neue Aufgabe, Korrektur zur ersten = 2 Tickets."""
-    tk.nachricht(SID, "n1", "Aufgabe A")
-    tk.nachricht(SID, "n2", "Korrektur zu A")
-    tk.nachricht(SID, "n3", "Aufgabe B")
-    tk.werkzeug_neu(SID, "n3", "Aufgabe B")
-    tk.nachricht(SID, "n4", "Noch eine Korrektur zu A")
-    assert tk.werkzeug_zuordnen(SID, "n4", 1) == "#1"
-    d = tk.laden(SID)
-    assert len(d["tickets"]) == 2
-    assert ids(d, 1) == ["n1", "n2", "n4"]
-    assert ids(d, 2) == ["n3"]
-    assert d["aktuell"] == 1
-    # Die Korrektur hat das erledigte Ticket wieder geöffnet
-    assert d["tickets"][0]["status"] == "offen"
-
-
-def test_nachricht_auf_erledigtes_ticket_oeffnet_es_wieder():
-    tk.nachricht(SID, "u1", "A")
-    tk.aendern(SID, 1, status="erledigt")
-    assert tk.laden(SID)["tickets"][0]["status"] == "erledigt"
-    tk.nachricht(SID, "u2", "doch noch was")
-    t = tk.laden(SID)["tickets"][0]
-    assert t["status"] == "offen" and t["erledigt_am"] is None
-
-
-def test_ticket_neu_benennt_das_vom_server_angelegte_um():
-    tk.nachricht(SID, "u1", "irgendwas langes und unhandliches")
-    assert tk.werkzeug_neu(SID, "u1", "Kurzer Titel") == "#1"
-    d = tk.laden(SID)
-    assert len(d["tickets"]) == 1 and d["tickets"][0]["titel"] == "Kurzer Titel"
-
-
-def test_ticket_neu_holt_die_nachricht_aus_dem_alten():
-    tk.nachricht(SID, "u1", "A")
-    tk.nachricht(SID, "u2", "B, etwas ganz anderes")
-    assert tk.werkzeug_neu(SID, "u2", "B") == "#2"
-    d = tk.laden(SID)
-    assert ids(d, 1) == ["u1"] and ids(d, 2) == ["u2"] and d["aktuell"] == 2
-
-
-def test_kevins_wahl_geht_vor_dem_assistenten():
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "Mein Schnitt")
-    tk.nachricht(SID, "u2", "Neue Sache")
-    with pytest.raises(tk.Abgelehnt):
-        tk.werkzeug_neu(SID, "u2", "Etwas anderes")
-    with pytest.raises(tk.Abgelehnt):
-        tk.werkzeug_zuordnen(SID, "u2", 1)
-    d = tk.laden(SID)
-    assert ids(d, 2) == ["u2"] and d["tickets"][1]["titel"] == "Mein Schnitt"
-    # Die Sperre gilt nur für diese eine Nachricht
-    assert tk.nachricht(SID, "u3", "weiter")["nr"] == 2
-    assert tk.werkzeug_neu(SID, "u3", "Drittes") == "#3"
-
-
-def test_zuordnen_unbekanntes_ticket_aendert_nichts():
-    tk.nachricht(SID, "u1", "A")
-    with pytest.raises(tk.Abgelehnt):
-        tk.werkzeug_zuordnen(SID, "u1", 9)
-    assert ids(tk.laden(SID), 1) == ["u1"]
-
-
-def test_leeres_assistenten_ticket_verschwindet_wenn_die_nachricht_umzieht():
-    tk.nachricht(SID, "u1", "A")
-    tk.werkzeug_neu(SID, "u1", "Eigenes A")
-    tk.nachricht(SID, "u2", "B")
-    tk.werkzeug_neu(SID, "u2", "B")
-    tk.werkzeug_zuordnen(SID, "u2", 1)
-    d = tk.laden(SID)
-    assert ids(d, 1) == ["u1", "u2"]
-    assert [t["nr"] for t in d["tickets"]] == [1]      # das leere #2 hat niemand gewollt
-
-
-def test_schnitt_mit_vorgabe_fuer_neue_session():
-    r = tk.nachricht(SID, "u1", "Text", "/home/k/p", vorgabe={"titel": "Gleich benannt"})
-    assert r["titel"] == "Gleich benannt"
-    d = tk.laden(SID)
-    assert d["cwd"] == "/home/k/p" and d["project"] == "-home-k-p"
-
-
-def test_ab_hier_teilt_ein_ticket():
-    for u in ("u1", "u2", "u3"):
-        tk.nachricht(SID, u, f"Nachricht {u}")
-    d = tk.ab_hier(SID, "u2", "Zweiter Teil")
-    assert ids(d, 1) == ["u1"] and ids(d, 2) == ["u2", "u3"]
-    # die nächste Nachricht geht dahin, wo sie vorher hingegangen wäre: ins aktuelle
-    assert d["aktuell"] == 2
-
-
-def test_umhaengen_und_zusammenfuehren():
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "B")
-    tk.nachricht(SID, "u2", "B1")
-    d = tk.umhaengen(SID, ["u2"], 1)
-    assert ids(d, 1) == ["u1", "u2"]
-    d = tk.zusammenfuehren(SID, 2, 1)
-    assert [t["nr"] for t in d["tickets"]] == [1] and d["aktuell"] == 1
-
-
-def test_aendern_titel_und_status():
-    tk.nachricht(SID, "u1", "A")
-    d = tk.aendern(SID, 1, titel="  Neuer   Name ", status="erledigt")
-    t = d["tickets"][0]
-    assert t["titel"] == "Neuer Name" and t["status"] == "erledigt" and t["erledigt_am"]
-    assert tk.aendern(SID, 1, status="offen")["tickets"][0]["erledigt_am"] is None
-
-
-def test_abzweigen_nimmt_nur_die_behaltenen_nachrichten_mit():
-    NEU = "abcd1234-0000-0000-0000-000000000002"
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "B")
-    tk.nachricht(SID, "u2", "B1")
-    tk.abzweigen(SID, NEU, {"u1"})
-    d = tk.laden(NEU)
-    assert ids(d, 1) == ["u1"] and [t["nr"] for t in d["tickets"]] == [1]
-    assert d["session"] == NEU
-    # Das Original bleibt wie es war
-    assert ids(tk.laden(SID), 2) == ["u2"]
-
-
-def test_kaputte_datei_zerlegt_nichts(tmp_path):
-    (tk.TICKETS_DIR).mkdir(parents=True)
-    (tk.TICKETS_DIR / f"{SID}.json").write_text("{kaputt")
-    assert tk.laden(SID)["tickets"] == []
-    (tk.TICKETS_DIR / f"{SID}.json").write_text(json.dumps(
-        {"tickets": [{"nr": "x"}, {"nr": 2, "titel": "ok", "status": "komisch",
-                                   "nachrichten": ["u1", {"id": "u1"}, 5]}], "aktuell": 7}))
-    d = tk.laden(SID)
-    assert [t["nr"] for t in d["tickets"]] == [2]
-    assert d["tickets"][0]["status"] == "offen" and ids(d, 2) == ["u1"] and d["aktuell"] is None
-
-
-def test_ungueltige_session_id():
+# ---------- von Hand ----------
+def test_anlegen_aendern_loeschen():
+    t = tk.anlegen("Login reparieren", "Passwort vergessen geht nicht", "/p")
+    assert (t["nr"], t["spalte"], t["von"]) == (1, "neu", "kevin")
+    t = tk.aendern(1, spalte="arbeit", titel="Login")
+    assert t["spalte"] == "arbeit" and t["titel"] == "Login" and t["hand"]
     with pytest.raises(ValueError):
-        tk.laden("../etc/passwd")
+        tk.aendern(1, spalte="irgendwo")
+    tk.loeschen(1)
+    assert tk.laden()["tickets"] == []
+    with pytest.raises(KeyError):
+        tk.aendern(1, titel="x")
 
 
-def test_uebersicht_gruppiert_nach_tag_und_projekt():
-    tk.nachricht(SID, "u1", "A", "/home/k/construct")
-    d = tk.laden(SID)
-    d["tickets"][0]["nachrichten"][0]["ts"] = "2026-10-05T09:00:00"
-    d["tickets"][0]["erstellt"] = "2026-10-05T09:00:00"
-    tk.speichern(d)
-    u = tk.uebersicht({SID: "Mein Chat"})
-    assert [t["tag"] for t in u["tage"]] == ["2026-10-05"]
-    p = u["tage"][0]["projekte"][0]
-    assert p["name"] == "construct" and p["offen"] == 1 and p["erledigt"] == 0
-    assert p["tickets"][0]["session_titel"] == "Mein Chat"
+def test_nummern_werden_nie_wiederverwendet():
+    tk.anlegen("A")
+    tk.anlegen("B")
+    tk.loeschen(2)
+    assert tk.anlegen("C")["nr"] == 3
 
 
-def test_titel_kuerzt_am_wortende():
-    s = tk.titel_aus("Dies ist eine sehr lange Aufgabe, die weit über sechzig Zeichen hinausgeht und weiter")
-    assert s.endswith(" …") and len(s) <= 64
+def test_ohne_titel_geht_nicht():
+    with pytest.raises(ValueError):
+        tk.anlegen("  ")
 
 
-# ---------- im Lauf und über die API ----------
+def test_kaputte_datei_wird_gesichert_statt_ueberschrieben():
+    tk.TICKETS_DIR.mkdir(parents=True)
+    tk.BOARD.write_text('{"tickets": [ kaputt')
+    assert tk.laden()["tickets"] == []
+    assert tk.BOARD.with_name("board.json.kaputt").exists()
+
+
+def test_von_hand_verkorkste_karte_wird_bereinigt():
+    tk.TICKETS_DIR.mkdir(parents=True)
+    tk.BOARD.write_text(json.dumps({"tickets": [
+        {"nr": 3, "titel": "x", "spalte": "fliegend", "commits": [{"sha": "nope"}]},
+        {"nr": 3, "titel": "doppelt"}, "unsinn", {"nr": "a"}]}))
+    d = tk.laden()
+    assert [(t["nr"], t["spalte"], t["commits"]) for t in d["tickets"]] == [(3, "neu", [])]
+    assert d["zaehler"] == 3
+
+
+# ---------- aus Commits ----------
+def test_titel_aus_langem_betreff_wird_gekuerzt():
+    s = tk.kurz("Raum: Hat die Chefin nichts zu tun, während jemand an der Werkbank arbeitet, holt sie sich")
+    assert s.endswith(" …") and len(s) <= tk.TITEL_KURZ + 2
+    assert tk.kurz("Kurz und gut") == "Kurz und gut"
+
+
+def test_commit_ausgabe_wird_erkannt():
+    out = "[main 1a2b3c4] Login repariert\n 1 file changed\n[detached HEAD abcdef0] Zweiter"
+    assert [(c["branch"], c["sha"], c["betreff"]) for c in tk.commits_aus(out)] == [
+        ("main", "1a2b3c4", "Login repariert"), ("detached HEAD", "abcdef0", "Zweiter")]
+    assert tk.commits_aus("[main (root-commit) 1a2b3c4] Erster")[0]["sha"] == "1a2b3c4"
+    # deutsches git übersetzt die Klammer
+    assert tk.commits_aus("[main (Root-Commit) 1a2b3c4] Erster")[0]["branch"] == "main"
+    assert tk.commits_aus("nothing to commit, working tree clean") == []
+
+
+def test_commit_wird_zur_karte_in_qa(repo):
+    out = committen(repo, "Login repariert", "Passwort-Link ging ins Leere.")
+    nr = tk.commit_buchen(out, "git commit -m ...", str(repo), session="s1", uuid="u1")
+    t = tk.holen(nr)
+    assert (t["titel"], t["spalte"], t["projekt"]) == ("Login repariert", "qa", str(repo))
+    assert t["text"] == "Passwort-Link ging ins Leere."
+    assert (t["session"], t["uuid"]) == ("s1", "u1")
+    assert t["commits"][0]["sha"] == git(repo, "rev-parse", "HEAD").strip()
+
+
+def test_mehrere_commits_eines_laufs_sind_eine_karte(repo):
+    nr = tk.commit_buchen(committen(repo, "Login repariert"), "git commit", str(repo))
+    nr2 = tk.commit_buchen(committen(repo, "Frontend neu gebaut"), "git commit", str(repo), ticket=nr)
+    assert nr2 == nr and len(tk.laden()["tickets"]) == 1
+    assert len(tk.holen(nr)["commits"]) == 2
+
+
+def test_derselbe_commit_wird_nicht_doppelt_gebucht(repo):
+    out = committen(repo, "Login repariert")
+    nr = tk.commit_buchen(out, "git commit", str(repo))
+    assert tk.commit_buchen(out, "git commit", str(repo)) == nr
+    assert len(tk.laden()["tickets"]) == 1 and len(tk.holen(nr)["commits"]) == 1
+
+
+def test_verweis_haengt_an_die_genannte_karte(repo):
+    t = tk.anlegen("Dunkles Theme", projekt="")
+    nr = tk.commit_buchen(committen(repo, "Theme dunkel", f"T-{t['nr']}"), "git commit", str(repo))
+    assert nr == t["nr"] and len(tk.laden()["tickets"]) == 1
+    t = tk.holen(nr)
+    assert t["spalte"] == "qa" and t["projekt"] == str(repo) and t["titel"] == "Dunkles Theme"
+
+
+def test_repo_aus_dem_befehl(repo, tmp_path):
+    out = committen(repo, "Woanders committet")
+    anderswo = tmp_path / "leer"
+    anderswo.mkdir()
+    nr = tk.commit_buchen(out, f"cd {repo} && git add -A && git commit -m x", str(anderswo))
+    assert tk.holen(nr)["projekt"] == str(repo)
+
+
+def test_stiller_commit_wird_ueber_die_zeit_gefunden(repo):
+    import time
+    seit = time.time()
+    (repo / "datei.txt").write_text("still")
+    git(repo, "add", "-A")
+    out = git(repo, "commit", "-q", "-m", "Still committet")
+    assert out == ""
+    nr = tk.commit_buchen(out, "git commit -q -m x", str(repo), seit=seit)
+    t = tk.holen(nr)
+    assert t["titel"] == "Still committet" and t["commits"][0]["branch"] == "main"
+    # ohne Startzeit bleibt es dabei: keine Zeile, kein Commit
+    assert tk.commit_buchen("", "git commit -q", str(repo)) is None
+
+
+def test_unbekannter_hash_bucht_nichts(repo):
+    assert tk.commit_buchen("[main 1234567] Gibt es nicht", "git commit", str(repo)) is None
+    assert tk.laden()["tickets"] == []
+
+
+def test_amend_ersetzt_den_vorigen_commit(repo):
+    nr = tk.commit_buchen(committen(repo, "Erster Wurf"), "git commit", str(repo))
+    (repo / "datei.txt").write_text("anders")
+    git(repo, "add", "-A")
+    out = git(repo, "commit", "--amend", "-m", "Besserer Wurf")
+    tk.commit_buchen(out, "git commit --amend -m x", str(repo), ticket=nr)
+    assert [c["betreff"] for c in tk.holen(nr)["commits"]] == ["Besserer Wurf"]
+
+
+# ---------- Push ----------
+def test_gepusht_heisst_done(repo, tmp_path):
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    nr = tk.commit_buchen(committen(repo, "Login repariert"), "git commit", str(repo))
+    assert tk.push_pruefen(erzwingen=True) is False and tk.holen(nr)["spalte"] == "qa"
+    git(repo, "push", "-q", "origin", "main")
+    assert tk.push_pruefen(erzwingen=True) is True
+    t = tk.holen(nr)
+    assert t["spalte"] == "done" and t["commits"][0]["gepusht"]
+
+
+def test_von_hand_zurueckgezogen_bleibt_trotz_push(repo, tmp_path):
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    nr = tk.commit_buchen(committen(repo, "Login repariert"), "git commit", str(repo))
+    git(repo, "push", "-q", "origin", "main")
+    tk.push_pruefen(erzwingen=True)
+    tk.aendern(nr, spalte="qa")                    # Fehler gefunden: zurück in die QA
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "qa"
+
+
+def test_ohne_remote_nie_done(repo):
+    nr = tk.commit_buchen(committen(repo, "Lokal"), "git commit", str(repo))
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "qa"
+
+
+# ---------- Firma ----------
+def test_auftrag_bekommt_eine_karte_in_arbeit_und_folgt_ihm(repo, monkeypatch):
+    nr = tk.auftrag_angelegt("a1b2c3d4", "Dunkles Theme", "Bitte dunkel", str(repo), "s1")
+    t = tk.holen(nr)
+    assert (t["spalte"], t["auftrag"], t["projekt"], t["session"]) == ("arbeit", "a1b2c3d4", str(repo), "s1")
+    tk.auftrag_spalte("a1b2c3d4", "review")
+    assert tk.holen(nr)["spalte"] == "review"
+    # Commit im Auftrag: die Karte bleibt, wo die Firma sie hat
+    monkeypatch.setattr(tk, "_auftrag_laeuft", lambda aid: True)
+    assert tk.commit_buchen(committen(repo, "Theme"), "git commit", str(repo), auftrag="a1b2c3d4") == nr
+    assert tk.holen(nr)["spalte"] == "review"
+
+
+def test_auftrag_zu_einer_karte_aus_neu(repo):
+    t = tk.anlegen("Dunkles Theme")
+    assert tk.auftrag_angelegt("a1b2c3d4", "x", "y", str(repo), ticket=t["nr"]) == t["nr"]
+    assert tk.holen(t["nr"])["spalte"] == "arbeit"
+
+
+# ---------- im Lauf ----------
 STUB = r'''
 import json, sys
 sys.stdin.readline()
 def out(ev):
     sys.stdout.write(json.dumps(ev) + "\n"); sys.stdout.flush()
 out({"type": "system", "subtype": "init", "session_id": "abcd1234-0000-0000-0000-0000000000aa"})
-out({"type": "user", "uuid": "u-erste", "session_id": "x", "isReplay": True,
-     "message": {"role": "user", "content": [{"type": "text", "text": "Mach die Tafel\n\n[Tickets: noch keins]"}]}})
-out({"type": "user", "uuid": "u-tool", "message": {"role": "user", "content": [
-     {"type": "tool_result", "tool_use_id": "t", "content": "ok"}]}})
+out({"type": "user", "uuid": "u-erste", "message": {"role": "user", "content": [{"type": "text", "text": "Mach"}]}})
 out({"type": "user", "uuid": "u-bg", "message": {"role": "user", "content": [
      {"type": "text", "text": "<task-notification>fertig</task-notification>"}]}})
-out({"type": "stream_event", "event": {"type": "content_block_delta",
-     "delta": {"type": "text_delta", "text": "Fertig.\n\n[[ticket neu: Gelungen]]"}}})
+out({"type": "assistant", "message": {"content": [
+     {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "git commit -m 'Login repariert'"}}]}})
+out({"type": "user", "message": {"role": "user", "content": [
+     {"type": "tool_result", "tool_use_id": "t1", "content": AUSGABE}]}})
 out({"type": "result", "subtype": "success", "session_id": "abcd1234-0000-0000-0000-0000000000aa", "usage": {}})
 '''
 
 
-def _lauf(tmp_path, monkeypatch, marker=False, **kw):
+def _lauf(tmp_path, monkeypatch, ausgabe, cwd):
     import asyncio
     import sys
 
     from server import runs
     stub = tmp_path / "claude_stub.py"
-    stub.write_text(STUB)
+    stub.write_text(STUB.replace("AUSGABE", json.dumps(ausgabe)))
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
-    monkeypatch.setattr(runs, "load_persona", lambda: "")
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
 
     async def los():
-        run = runs.Run("t-tickets", str(tmp_path), None, "", initial_prompt="hallo", **kw)
+        run = runs.Run("t-tickets", str(cwd), None, "", initial_prompt="hallo")
         await runs.run_claude(run, [sys.executable, str(stub)])
         return run
     return asyncio.run(los())
 
 
-def test_lauf_ordnet_nur_echte_nachrichten_zu(tmp_path, monkeypatch):
-    run = _lauf(tmp_path, monkeypatch, tickets=True)
-    d = tk.laden("abcd1234-0000-0000-0000-0000000000aa")
-    assert ids(d, 1) == ["u-erste"]                 # kein Tool-Ergebnis, keine Systemmeldung
-    assert d["tickets"][0]["nachrichten"][0]["text"] == "Mach die Tafel"
-    assert d["cwd"] == str(tmp_path)
-    assert run.letzte_uuid == "u-erste"
+def test_lauf_bucht_seinen_commit(tmp_path, monkeypatch, repo):
+    run = _lauf(tmp_path, monkeypatch, committen(repo, "Login repariert"), repo)
+    t = tk.laden()["tickets"][0]
+    assert (t["titel"], t["session"], t["uuid"]) == ("Login repariert", "abcd1234-0000-0000-0000-0000000000aa",
+                                                   "u-erste")
+    assert run.board_ticket == t["nr"] and {"type": "tickets", "nr": t["nr"]} in run.events
 
 
-def test_lauf_ohne_tickets_schreibt_nichts(tmp_path, monkeypatch):
-    _lauf(tmp_path, monkeypatch, tickets=False)
-    assert not tk.TICKETS_DIR.exists()
+def test_lauf_ohne_kachel_bucht_nichts(tmp_path, monkeypatch, repo):
+    (tmp_path / "settings.json").write_text('{"lang": "de", "tiles": {"tickets": false}}')
+    _lauf(tmp_path, monkeypatch, committen(repo, "Login repariert"), repo)
+    assert not tk.BOARD.exists()
 
 
+# ---------- API, CLI, Regeln ----------
 def test_api_roundtrip(client):
-    sid = "abcd1234-0000-0000-0000-0000000000bb"
-    tk.nachricht(sid, "u1", "A", "/home/k/p")
-    r = client.get(f"/api/tickets/{sid}").json()
-    assert r["tickets"][0]["titel"] == "A"
-    r = client.post(f"/api/tickets/{sid}/schnitt", json={"titel": "B"}).json()
-    assert r["aktuell"] == 2 and r["gesperrt"] is True
-    r = client.post(f"/api/tickets/{sid}/waehlen", json={"nr": 1}).json()
-    assert r["aktuell"] == 1
-    assert client.post(f"/api/tickets/{sid}/waehlen", json={"nr": 9}).status_code == 404
-    r = client.post(f"/api/tickets/{sid}/1", json={"status": "erledigt"}).json()
-    assert r["tickets"][0]["status"] == "erledigt"
-    r = client.post(f"/api/tickets/{sid}/ab-hier", json={"uuid": "u1", "titel": "Neu"}).json()
-    assert [t["titel"] for t in r["tickets"]] == ["B", "Neu"]
-    assert client.post(f"/api/tickets/{sid}/umhaengen", json={"uuids": ["u1"], "nr": 2}).status_code == 200
-    assert client.get("/api/tickets").json()["tage"]
-    assert client.get("/api/tickets/..%2Fx").status_code in (400, 404)
-    assert client.delete(f"/api/tickets/{sid}/2").status_code == 200
-    assert client.post("/api/ticketbus", json={}).status_code in (404, 405)
-
-
-def test_neues_ticket_schliesst_das_vorige():
-    tk.nachricht(SID, "u1", "A")
-    tk.werkzeug_neu(SID, "u1", "A")
-    tk.nachricht(SID, "u2", "B")
-    tk.werkzeug_neu(SID, "u2", "B")
-    d = tk.laden(SID)
-    assert [t["status"] for t in d["tickets"]] == ["erledigt", "offen"]
-    assert d["tickets"][0]["erledigt_am"]
-    # eine Korrektur zu A macht A wieder auf; B bleibt, wie es ist
-    tk.nachricht(SID, "u3", "Korrektur zu A")
-    tk.werkzeug_zuordnen(SID, "u3", 1)
-    assert [t["status"] for t in tk.laden(SID)["tickets"]] == ["offen", "offen"]
-
-
-def test_schnitt_schliesst_das_vorige_aber_nicht_ein_leeres():
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "B")
-    assert [t["status"] for t in tk.laden(SID)["tickets"]] == ["erledigt", "offen"]
-    tk.schnitt(SID, "C")          # B wartet noch auf seine erste Nachricht: wird ersetzt
-    d = tk.laden(SID)
-    assert [t["titel"] for t in d["tickets"]] == ["A", "C"]
-    assert d["tickets"][0]["status"] == "erledigt"
-
-
-def test_hinweiszeile():
-    tk.nachricht(SID, "u1", "A")
-    tk.werkzeug_neu(SID, "u1", "Erste")
-    tk.nachricht(SID, "u2", "B")
-    tk.werkzeug_neu(SID, "u2", "Zweite")
-    z = tk.hinweis(SID)
-    assert z.startswith("[Tickets: ") and z.endswith("]")
-    assert "#2 „Zweite“" in z and "#1 „Erste“" in z
-    assert "\n" not in z
-    assert tk.hinweis("abcd1234-0000-0000-0000-00000000ffff") == "[Tickets: noch keins]"
-    assert "#1 „Vorab“" in tk.hinweis("abcd1234-0000-0000-0000-00000000ffff", "Vorab")
-
-
-def test_ticketzeile_bleibt_aus_titel_und_anzeige(tmp_path, monkeypatch):
-    from server import sessions
-    from server.routes import sessions as rs
-    sid = "abcd1234-0000-0000-0000-0000000000cc"
-    proj = tmp_path / "-tmp-x"
-    proj.mkdir()
-    (proj / f"{sid}.jsonl").write_text(json.dumps({
-        "type": "user", "uuid": "u1", "cwd": "/home/k/p",
-        "message": {"content": "Mach das Ding\n\n[Tickets: aktuell #1 „Ding“]"}}) + "\n")
-    monkeypatch.setattr(rs, "PROJECTS_DIR", tmp_path)
-    monkeypatch.setattr(sessions, "PROJECTS_DIR", tmp_path)
-    liste = [x for x in rs.sessions() if x["id"] == sid]
-    assert liste[0]["title"] == "Mach das Ding"
-    anzeige = sessions._parse_transcript_lines((proj / f"{sid}.jsonl").read_bytes())
-    assert anzeige == [{"role": "user", "text": "Mach das Ding", "uuid": "u1"}]
-
-
-# ---------- Marker statt Werkzeuge ----------
-def test_marker_nur_ganz_unten():
-    text, m = tk.marken_am_ende("Erledigt.\n\n[[ticket neu: Kachel bauen]]\n[[ticket zu: 2]]\n")
-    assert text == "Erledigt." and m == [("neu", "Kachel bauen"), ("zu", "2")]
-    # mitten im Text, als Beispiel oder Zitat: wirkungslos
-    text, m = tk.marken_am_ende("Schreib `[[ticket neu: X]]`, wenn …\n[[ticket neu: Y]] steht mitten drin.\nEnde.")
-    assert m == [] and text.endswith("Ende.")
-    # englisch und Firma
-    assert tk.marken_am_ende("ok\n[[ticket new: Title]]")[1] == [("neu", "Title")]
-    assert tk.marken_am_ende("ok\n[[ticket to: 3]]")[1] == [("zu", "3")]
-    assert tk.marken_am_ende("ok\n[[ticket company]]")[1] == [("firma", "")]
-    assert tk.marken_am_ende("ok\n[[ticket firma]]")[1] == [("firma", "")]
-
-
-def test_marker_anwenden():
-    tk.nachricht(SID, "u1", "A")
-    tk.nachricht(SID, "u2", "ganz was anderes")
-    rest = tk.marken_anwenden(SID, "u2", [("neu", "Anderes"), ("firma", "")])
-    d = tk.laden(SID)
-    assert rest == ["firma"] and ids(d, 1) == ["u1"] and ids(d, 2) == ["u2"]
-    # Kevins Wahl und unbekannte Tickets: nichts passiert, kein Absturz
-    tk.schnitt(SID, "Mein Schnitt")
-    tk.nachricht(SID, "u3", "x")
-    assert tk.marken_anwenden(SID, "u3", [("neu", "Nein"), ("zu", "9")]) == []
-    assert ids(tk.laden(SID), 3) == ["u3"]
-
-
-def test_zweimal_neu_laesst_kein_leeres_ticket_zurueck():
-    tk.nachricht(SID, "u1", "A")
-    tk.nachricht(SID, "u2", "B")
-    tk.werkzeug_neu(SID, "u2", "Zwei")
-    tk.werkzeug_neu(SID, "u2", "Zweitens")            # Wiederholung zur selben Nachricht
-    d = tk.laden(SID)
-    assert [(t["nr"], t["titel"], len(t["nachrichten"])) for t in d["tickets"]] == [(1, "A", 1), (3, "Zweitens", 1)]
-    # und nach neu + zuordnen
-    tk.nachricht(SID, "u3", "C")
-    tk.werkzeug_neu(SID, "u3", "Drei")
-    tk.werkzeug_zuordnen(SID, "u3", 1)
-    assert all(t["nachrichten"] for t in tk.laden(SID)["tickets"])
-
-
-def test_nummern_werden_nie_wiederverwendet():
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "B")
-    tk.nachricht(SID, "u2", "b")
-    tk.loeschen(SID, 2)
-    tk.schnitt(SID, "C")
-    assert [t["nr"] for t in tk.laden(SID)["tickets"]] == [1, 3]      # nicht wieder die 2
-
-
-def test_wiederoeffnen_wird_zurueckgenommen_wenn_die_nachricht_umzieht():
-    tk.nachricht(SID, "u1", "A")
-    tk.aendern(SID, 1, status="erledigt")
-    tk.nachricht(SID, "u2", "etwas ganz Neues")           # landet im erledigten #1: öffnet es
-    assert tk.laden(SID)["tickets"][0]["status"] == "offen"
-    tk.werkzeug_neu(SID, "u2", "Neues")                   # war keine Korrektur
-    d = tk.laden(SID)
-    assert d["tickets"][0]["status"] == "erledigt" and ids(d, 1) == ["u1"] and ids(d, 2) == ["u2"]
-
-
-def test_bearbeiten_setzt_dort_fort_wo_die_letzte_behaltene_nachricht_stand():
-    NEU = "abcd1234-0000-0000-0000-000000000009"
-    tk.nachricht(SID, "e1", "A")
-    tk.nachricht(SID, "e2", "Korrektur zu A")
-    tk.schnitt(SID, "B")
-    tk.nachricht(SID, "e3", "B1")
-    tk.abzweigen(SID, NEU, {"e1"})                                    # e2 wird bearbeitet
-    d = tk.laden(NEU)
-    assert d["aktuell"] == 1 and d["tickets"][0]["status"] == "offen" and len(d["tickets"]) == 1
-
-
-def test_kaputte_ticketdatei_wird_gesichert_statt_ueberschrieben():
-    tk.TICKETS_DIR.mkdir(parents=True, exist_ok=True)
-    p = tk.TICKETS_DIR / f"{SID}.json"
-    p.write_text('{"tickets": [{"nr": 1,}')                           # Komma zu viel
-    assert tk.laden(SID)["tickets"] == []
-    assert (tk.TICKETS_DIR / f"{SID}.json.kaputt").read_text().startswith('{"tickets"')
-    # eine Fremddatei im Ordner zerlegt die Übersicht nicht
-    (tk.TICKETS_DIR / "kopie von x.json").write_text("{}")
-    assert tk.uebersicht() == {"tage": []}
-
-
-def test_nachricht_ohne_text_vor_dem_anhang_und_kontextblock():
-    assert tk.kevins_text("[Vom Nutzer hochgeladenes Bild: /a/b.png]\n(Bitte sieh …)") == ""
-    block = "[Kontext: Dieses Gespräch lief bisher mit X.]\n\nNutzer: a\n\n[Ende des Verlaufs — antworte jetzt auf die folgende neue Nachricht.]\n\nMein Text"
-    assert tk.kevins_text(block) == "Mein Text"
-    assert tk.titel_aus("[Vom Nutzer hochgeladenes Bild: /x.png]") == "Ohne Titel"
-
-
-def test_zusammenfuehren_nimmt_den_auftrag_mit():
-    tk.nachricht(SID, "u1", "A")
-    tk.schnitt(SID, "B")
-    tk.nachricht(SID, "u2", "b")
-    tk.verknuepfen(SID, 2, "abc12345")
-    d = tk.zusammenfuehren(SID, 2, 1)
-    assert d["tickets"][0]["auftrag"] == "abc12345"
-
-
-def test_entfernen_raeumt_die_ticketdatei_der_session_weg():
-    tk.nachricht(SID, "u1", "A")
-    assert tk.vorhanden(SID)
-    tk.entfernen(SID)
-    assert not tk.vorhanden(SID)
-
-
-def test_antwort_des_assistenten_wird_ohne_marker_angezeigt():
-    from server import sessions
-    data = json.dumps({"type": "assistant", "uuid": "a1",
-                       "message": {"content": [{"type": "text", "text": "Erledigt.\n\n[[ticket neu: Etwas]]"}]}}).encode()
-    assert sessions._parse_transcript_lines(data) == [{"role": "assistant", "text": "Erledigt.", "uuid": "a1"}]
-
-
-def test_lauf_wendet_marker_am_zugende_an(tmp_path, monkeypatch):
-    run = _lauf(tmp_path, monkeypatch, tickets=True, marker=True)
-    d = tk.laden("abcd1234-0000-0000-0000-0000000000aa")
-    assert [t["titel"] for t in d["tickets"]] == ["Mach die Tafel", "Gelungen"] or d["tickets"][-1]["titel"] == "Gelungen"
-    assert run.marke_ab == len(run.last_text)
-
-
-@pytest.mark.parametrize("an", [True, False])
-def test_kachel_aus_chat_schreibt_keine_tickets(client, monkeypatch, tmp_path, an):
-    from server import config as cfg
-    from server.routes import chat
-    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": an}}))
-    gesehen = {}
-
-    class Lauf:
-        id = "r1"
-
-    def fake(*a, **kw):
-        gesehen.update(kw)
-        return Lauf()
-    monkeypatch.setattr(chat, "start_run", fake)
-    r = client.post("/api/chat", json={"message": "hallo", "cwd": str(tmp_path)})
-    assert r.status_code == 200
-    assert gesehen["tickets"] is an
-
-
-@pytest.mark.parametrize("name,muss,darf_nicht", [
-    ("", ["von dem Nutzer", "des Nutzers Wahl"], ["von der Nutzer", "der Nutzers", "seiner Nachricht"]),
-    ("Klaus", ["Klaus’ Wahl", "von Klaus"], ["Klauss"]),
-    ("Anna", ["Annas Wahl"], []),
-])
-def test_regeltext_ohne_und_mit_namen_ist_deutsch(tmp_path, name, muss, darf_nicht):
-    (tmp_path / "settings.json").write_text(json.dumps(
-        {"lang": "de", "names": {"user": name}, "team": {"aktiv": True}}))
-    text = tk.regeln()
-    for m in muss:
-        assert m in text
-    for d in darf_nicht:
-        assert d not in text
+    t = client.post("/api/tickets", json={"titel": "Neu am Board", "projekt": "/p"}).json()
+    assert t["spalte"] == "neu"
+    r = client.post(f"/api/tickets/{t['nr']}", json={"spalte": "arbeit"}).json()
+    assert r["spalte"] == "arbeit"
+    b = client.get("/api/tickets").json()
+    assert b["spalten"] == list(tk.SPALTEN) and b["projekte"] == [{"pfad": "/p", "name": "p"}]
+    assert client.get("/api/tickets?projekt=/anders").json()["tickets"] == []
+    assert client.post(f"/api/tickets/{t['nr']}", json={"spalte": "x"}).status_code == 400
+    assert client.delete(f"/api/tickets/{t['nr']}").json() == {"ok": True}
+    assert client.delete(f"/api/tickets/{t['nr']}").status_code == 404
 
 
 def test_ticket_routen_ohne_kachel_404(client, tmp_path):
     (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": False}}))
     assert client.get("/api/tickets").status_code == 404
-    assert client.post(f"/api/tickets/{SID}/schnitt", json={"titel": "x"}).status_code == 404
+    assert client.post("/api/tickets", json={"titel": "x"}).status_code == 404
     (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": True}}))
     assert client.get("/api/tickets").status_code == 200
 
@@ -491,5 +294,43 @@ def test_ticket_routen_ohne_kachel_404(client, tmp_path):
 def test_tickets_ab_werk_aus(tmp_path):
     from server import config as cfg
     (tmp_path / "settings.json").write_text('{"lang": "de"}')
-    s = cfg.load_settings()
-    assert s["tiles"]["tickets"] is False and s["tickets"]["assistent"] is False
+    assert cfg.load_settings()["tiles"]["tickets"] is False
+
+
+def test_cli(capsys):
+    import tickets as cli
+    assert cli.main(["new", "Dunkles Theme", "Bitte dunkel"]) == 0
+    assert cli.main(["move", "T-1", "work"]) == 0
+    assert tk.holen(1)["spalte"] == "arbeit"
+    cli.main(["list"])
+    assert "T-1" in capsys.readouterr().out
+    cli.main(["show", "1"])
+    assert "Bitte dunkel" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        cli.main(["move", "1", "nirgendwo"])
+
+
+def test_regeln_nennen_cli_und_verweis():
+    text = tk.regeln()
+    assert "tickets.py" in text and "T-<Nummer>" in text and "Kevin" in text
+
+
+@pytest.mark.parametrize("an", [True, False])
+def test_chat_lauf_bekommt_regeln_nur_mit_kachel(tmp_path, monkeypatch, an):
+    import asyncio
+
+    from server import runs
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de", "tiles": {"tickets": an}}))
+    gesehen = []
+
+    async def nichts(run, cmd):
+        gesehen.append(cmd)
+    monkeypatch.setattr(runs, "run_claude", nichts)
+    monkeypatch.setattr(runs, "load_persona", lambda: "Persona")
+
+    async def los():
+        runs.start_run("hallo", str(tmp_path), "default", chat=True)
+        await asyncio.sleep(0)
+    asyncio.run(los())
+    persona = gesehen[0][gesehen[0].index("--append-system-prompt") + 1]
+    assert ("## Tickets" in persona) is an

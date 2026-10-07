@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import type { Nachricht, Person } from '@/api/team'
 import { Markdown } from '@/components/chat/Markdown'
 import { useSettings } from '@/stores/settings'
-import { Avatar } from '../personal/Person'
-import s from './Auftraege.module.css'
+import { Avatar } from '@/views/personal/Person'
+import s from './Firma.module.css'
 
 const ART: Record<string, string> = {
   auftrag: 'beauftragt',
@@ -42,10 +42,7 @@ export function NachrichtKarte({ e, leute }: { e: Nachricht; leute: Record<strin
   const art = ART[e.art] ?? ''
   const lang = e.text.length > 900
   return (
-    <div
-      className={`${s.zeile} ${kevin ? s.user : ''}`}
-      style={{ ['--accent-rgb' as string]: p.color }}
-    >
+    <div className={s.zeile} style={{ ['--accent-rgb' as string]: p.color }}>
       <Avatar p={p} groesse={32} />
       <div className={s.col}>
         <div className={s.who}>

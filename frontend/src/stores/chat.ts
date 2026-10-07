@@ -20,7 +20,6 @@ import type { BotItem, ChatItem, NoteText, SysBody, TranscriptMessage } from '@/
 import { queryClient } from '@/lib/queryClient'
 import { getItem, setItem } from '@/lib/storage'
 import { useSettings } from './settings'
-import { useAuftraegeAnsicht } from '@/views/auftraege/store'
 import { say } from '@/lib/audio'
 import { speakableText } from '@/lib/chat/speak'
 
@@ -62,10 +61,6 @@ export interface Conv {
   /** Beim Bearbeiten abgezweigt: diese alte Sitzung kommt ins Archiv, sobald
    *  die neue ihre ID hat. */
   forkedFrom: string | null
-  /** `/ticket Titel` in einer Session, die es noch nicht gibt: Titel für das
-   *  Ticket der ersten Nachricht. Bei bestehenden Sessions geht der Schnitt
-   *  gleich an den Server. */
-  ticketVorgabe: string | null
 }
 
 interface ChatStore {
@@ -95,7 +90,6 @@ interface ChatStore {
   setMode: (v: string) => void
   setEffort: (v: string) => void
   setFolder: (path: string) => void
-  setTicketVorgabe: (titel: string | null) => void
   addPending: (a: Attachment) => void
   removePending: (i: number) => void
   pollTail: () => Promise<void>
@@ -131,7 +125,6 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
     history: [],
     run: null,
     forkedFrom: null,
-    ticketVorgabe: null,
     ...opts,
   }
 }
@@ -281,20 +274,14 @@ export const useChat = create<ChatStore>((set, get) => {
                 else refreshLists()
                 break
               }
-              case 'ticket': {
-                // Die uuid der eben gesendeten Nachricht (liegt im Verlauf, nicht im Lauf).
-                patch(key, (cc) => {
-                  let i = cc.history.length - 1
-                  while (i >= 0 && cc.history[i]!.kind !== 'user') i--
-                  const u = cc.history[i]
-                  if (u?.kind !== 'user' || u.uuid) return {}
-                  const history = [...cc.history]
-                  history[i] = { ...u, uuid: ev.uuid }
-                  return { history }
-                })
+              case 'tickets':
+                // Ein Commit ist als Karte aufs Board gekommen.
                 void queryClient.invalidateQueries({ queryKey: ['tickets'] })
                 break
-              }
+              case 'firma':
+                // Die Aufgabe ist an die Firma gegangen: ihre Nachrichten erscheinen im Chat.
+                void queryClient.invalidateQueries({ queryKey: ['team'] })
+                break
               case 'stats':
                 if (ev.model) patch(key, { lastModel: ev.model })
                 break
@@ -311,8 +298,6 @@ export const useChat = create<ChatStore>((set, get) => {
                 break
               case 'done': {
                 if (ev.session_id) patch(key, { sessionId: ev.session_id })
-                // Der Assistent kann während des Zuges Tickets angelegt oder erledigt haben.
-                void queryClient.invalidateQueries({ queryKey: ['tickets'] })
                 if (!conv(key)?.nachlauf) finished = true
                 const st = useSettings.getState()
                 const turn = [...rs.items].reverse().find((i): i is BotItem => i.kind === 'bot')
@@ -397,10 +382,8 @@ export const useChat = create<ChatStore>((set, get) => {
         effort: get().effort,
         model: c0.model || '',
         edit,
-        ticket: c0.ticketVorgabe ? { titel: c0.ticketVorgabe } : undefined,
       })
       if (!j.run_id) throw new Error(j.error ?? 'keine run_id')
-      if (c0.ticketVorgabe) patch(key, { ticketVorgabe: null })
       patch(key, (c) =>
         j.forked_from
           ? // Abgezweigt: die neue Sitzungs-ID kommt gleich mit dem Stream.
@@ -469,8 +452,6 @@ export const useChat = create<ChatStore>((set, get) => {
     },
 
     newSession() {
-      // Eine Session wählen heißt: das Protokoll zeigt wieder den Chat, keinen Auftrag.
-      useAuftraegeAnsicht.getState().zurSession()
       const c = makeConv({
         history: [note(tk('⌁ Neue Session — Ordner unten wählbar, dann schreib los ⌁'), true)],
       })
@@ -492,7 +473,6 @@ export const useChat = create<ChatStore>((set, get) => {
     },
 
     async openSession(s, runningRunId) {
-      useAuftraegeAnsicht.getState().zurSession()
       // Läuft diese Session schon hier (offen / gerade am Antworten)? Dann nur
       // wieder einblenden — Stream und Verlauf bleiben unangetastet.
       const existing = Object.values(get().convs).find((c) => c.sessionId === s.id)
@@ -639,11 +619,6 @@ export const useChat = create<ChatStore>((set, get) => {
 
     setFolder(path) {
       set({ folder: path })
-    },
-
-    setTicketVorgabe(titel) {
-      const c = get().active()
-      if (c) patch(c.key, { ticketVorgabe: titel })
     },
 
     addPending(a) {

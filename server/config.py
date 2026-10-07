@@ -23,8 +23,8 @@ SETTINGS_FILE = BASE_DIR / "settings.json"
 
 # Kacheln, die sich abschalten lassen. "sessions" (der Chat) fehlt mit Absicht:
 # eine Oberfläche ohne ihren Hauptzweck wäre eine Sackgasse, aus der man sich
-# nicht mehr herausklicken kann. "tickets" ist zugleich der Hauptschalter der
-# Ticket-Zuordnung (server/tickets.py): aus = nichts wird mitgeschrieben.
+# nicht mehr herausklicken kann. "tickets" ist zugleich der Hauptschalter des
+# Boards (server/tickets.py): aus = kein Commit wird zur Karte.
 OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp", "tickets")
 BG_MODES = ("matrix", "image", "plain")
 # Schriften, die das Frontend mitbringt (frontend/src/lib/fonts.ts).
@@ -75,26 +75,16 @@ DEFAULT_SETTINGS = {
     # Modell schlägt bei jeder neuen Session eins vor, protokolliert wird nur
     # (auto_modell.py). Ohne Schalter in der Oberfläche, Vorgabe aus.
     "auto": {"schatten": False},
-    # Tickets (server/tickets.py): `assistent` = der Assistent ordnet mit — drei
-    # kleine Werkzeuge, ein fester Absatz im Systemprompt und eine Zeile an
-    # jeder Nachricht. Aus = nur die Vorgabe des Servers und deine eigenen
-    # Eingriffe (kostet keine Tokens). Ein/Aus der Kachel selbst: tiles.tickets.
-    # Aus als Vorgabe: Regeltext und Ticketzeile kosten Tokens und ändern, wie
-    # der Assistent arbeitet. Das schaltet man sich bewusst dazu.
-    "tickets": {"assistent": False},
     # Team-Modus (server/team/): eine Firma aus KI-Mitarbeitern neben dem
-    # einzelnen Assistenten. aktiv = es gibt Belegschaft und Aufträge; modus =
-    # wer entscheidet, ob eine Aufgabe an die Firma geht: "zuruf" nur auf
-    # Wunsch (/firma, Knopf am Ticket), "auto" darf der Assistent selbst
-    # vorschlagen, wenn eine Aufgabe groß ist.
-    "team": {"aktiv": False, "modus": "zuruf"},
+    # einzelnen Assistenten. An = der Assistent fragt bei großen Aufgaben, ob sie
+    # an die Firma gehen darf; die Mitarbeiter schreiben dann im selben Chat.
+    "team": {"aktiv": False},
     # Klänge im Construct-Raum (frontend/src/lib/klang.ts), alles im Browser
     # erzeugt: Effekte = Tippen, Öffnen/Schließen, Uhr; Musik = leise Coding-
     # Musik im Hintergrund. lautstaerke in Prozent, gilt für beides.
     "sound": {"effekte": True, "musik": True, "lautstaerke": 40},
 }
 
-TEAM_MODI = ("zuruf", "auto")
 IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano-banana-pro")
 
 # Ist das gewählte Claude-Modell überlastet oder nicht erreichbar, springt die
@@ -230,7 +220,7 @@ def _abschnitt(src: dict, key: str) -> dict:
 
 
 def _clean_extras(src: dict, cur: dict):
-    """Bildmodell, Schattenbetrieb, Tickets, Team und Klang (für Laden und Patch)."""
+    """Bildmodell, Schattenbetrieb, Team und Klang (für Laden und Patch)."""
     im = _abschnitt(src, "images")
     if im.get("model") in IMAGE_MODELS:
         cur["images"]["model"] = im["model"]
@@ -240,11 +230,6 @@ def _clean_extras(src: dict, cur: dict):
     te = _abschnitt(src, "team")
     if "aktiv" in te:
         cur["team"]["aktiv"] = bool(te["aktiv"])
-    if te.get("modus") in TEAM_MODI:
-        cur["team"]["modus"] = te["modus"]
-    ti = _abschnitt(src, "tickets")
-    if "assistent" in ti:
-        cur["tickets"]["assistent"] = bool(ti["assistent"])
     so = _abschnitt(src, "sound")
     for k in ("effekte", "musik"):
         if k in so:

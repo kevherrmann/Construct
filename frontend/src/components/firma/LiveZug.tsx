@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import type { Person } from '@/api/team'
 import { BlockView } from '@/components/chat/Message'
-import { Avatar } from '../personal/Person'
+import { Avatar } from '@/views/personal/Person'
 import { useLiveZug } from './useLiveZug'
-import s from './Auftraege.module.css'
+import s from './Firma.module.css'
 
 /** Der laufende Zug einer Person — dieselbe Darstellung wie im Chat (Text,
  *  Werkzeugkarten, Ergebnisse), ohne dessen Sitzungsverwaltung. Der Server

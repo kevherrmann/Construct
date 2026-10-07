@@ -85,13 +85,6 @@ export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
         s.items.push(botTurn())
         break
       }
-      case 'ticket': {
-        // Eingeworfene Nachrichten leben im Lauf; die erste liegt schon im Verlauf
-        // (der Store setzt dort die uuid).
-        const u = [...s.items].reverse().find((i) => i.kind === 'user')
-        if (u?.kind === 'user' && !u.uuid) u.uuid = ev.uuid
-        break
-      }
       case 'thinking_marker': {
         const turn = currentTurn(s)
         turn.thinking = false

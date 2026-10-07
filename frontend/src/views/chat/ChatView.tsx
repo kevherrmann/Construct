@@ -1,9 +1,8 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSessions, type SessionInfo } from '@/api/chat'
-import { useSessionTickets } from '@/api/tickets'
 import { ChatItemView } from '@/components/chat/Message'
-import { TicketTrenner } from '@/components/chat/TicketCut'
+import { useFirmaImChat } from '@/components/firma/FirmaImChat'
 import { useChat } from '@/stores/chat'
 
 // Hauptbereich: Verlauf der aktiven Unterhaltung plus der laufende Lauf.
@@ -16,20 +15,12 @@ export function ChatView() {
   const end = useRef<HTMLDivElement>(null)
   const items = conv ? [...conv.history, ...(conv.run?.items ?? [])] : []
 
-  // Wo ein Ticket beginnt, zieht der Verlauf eine Linie. Erst ab zwei Tickets:
-  // eine Session mit einer einzigen Aufgabe braucht keine Gliederung.
-  const tickets = useSessionTickets(conv?.sessionId).data
-  const tickOf = useMemo(() => {
-    const m = new Map<string, { nr: number; titel: string; erledigt: boolean }>()
-    if (!tickets || tickets.tickets.length < 2) return m
-    for (const t of tickets.tickets)
-      for (const n of t.nachrichten)
-        m.set(n.id, { nr: t.nr, titel: t.titel, erledigt: t.status === 'erledigt' })
-    return m
-  }, [tickets])
-  let letztes = -1
+  // Team-Modus: was die Firma in dieser Session schreibt, steht zwischen den eigenen
+  // Nachrichten, nach Zeit einsortiert — ein Gruppenchat statt einer eigenen Ansicht.
+  const firma = useFirmaImChat(conv?.sessionId)
+  let fi = 0
 
-  // /chat?…&msg=<uuid> (aus der Ticket-Übersicht): zu dieser Nachricht springen.
+  // /chat?…&msg=<uuid> (von einer Karte des Ticket-Boards): zu dieser Nachricht springen.
   const anker = useRef<string | null>(null)
 
   // Neues ins Bild holen — aber nur, wenn wirklich etwas dazukam (neue
@@ -41,7 +32,7 @@ export function ChatView() {
     last?.kind === 'bot'
       ? `${last.blocks.length}:${lastBlock?.t === 'text' ? lastBlock.text.length : 0}:${last.thinking}`
       : ''
-  const signature = `${conv?.key}:${items.length}:${growth}`
+  const signature = `${conv?.key}:${items.length}:${growth}:${firma.zeilen.length}`
   useLayoutEffect(() => {
     const scroller = end.current?.closest('[data-scroll]')
     if (scroller) scroller.scrollTop = scroller.scrollHeight
@@ -68,7 +59,7 @@ export function ChatView() {
     const onKey = (e: KeyboardEvent) => {
       if (['PageUp', 'ArrowUp', 'Home'].includes(e.key)) hoch()
     }
-    // Auch ein Sprung zu einer Nachricht (Ticket-Übersicht) heißt: nicht wieder nach unten ziehen.
+    // Auch ein Sprung zu einer Nachricht (Ticket-Board) heißt: nicht wieder nach unten ziehen.
     scroller.addEventListener('construct:hoch', hoch)
     const onLoad = (e: Event) => {
       if (unten && (e.target as HTMLElement).tagName === 'IMG' && rest() > 0)
@@ -149,16 +140,25 @@ export function ChatView() {
   return (
     <div>
       {items.map((it) => {
-        const tk = it.kind === 'user' && it.uuid ? tickOf.get(it.uuid) : undefined
-        const trenner = tk && tk.nr !== letztes
-        if (tk) letztes = tk.nr
+        // Was die Firma vor dieser Nachricht geschrieben hat, kommt davor.
+        const ts = 'ts' in it ? it.ts : undefined
+        const vorher = []
+        if (ts)
+          while (fi < firma.zeilen.length && firma.zeilen[fi]!.ts < ts)
+            vorher.push(firma.zeilen[fi++]!)
         return (
           <Fragment key={it.id}>
-            {trenner && <TicketTrenner nr={tk.nr} titel={tk.titel} erledigt={tk.erledigt} />}
+            {vorher.map((z) => (
+              <Fragment key={z.key}>{z.node}</Fragment>
+            ))}
             <ChatItemView item={it} busy={!!conv?.busy} />
           </Fragment>
         )
       })}
+      {firma.zeilen.slice(fi).map((z) => (
+        <Fragment key={z.key}>{z.node}</Fragment>
+      ))}
+      {firma.schluss}
       <div ref={end} />
     </div>
   )

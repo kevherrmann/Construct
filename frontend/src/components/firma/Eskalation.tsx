@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useAuftragActions, type Auftrag, type Person } from '@/api/team'
 import { Markdown } from '@/components/chat/Markdown'
 import { BREMSEN } from '@/lib/team'
-import { Avatar } from '../personal/Person'
-import s from './Auftraege.module.css'
+import { Avatar } from '@/views/personal/Person'
+import s from './Firma.module.css'
 
 /** Der Auftrag wartet auf den Nutzer. Die Frage steht da wie jede andere Nachricht
  *  im Verlauf (Bild, Name, Blase), nur mit einem Antwortfeld darunter: wer fragt,
@@ -13,7 +13,7 @@ export function Eskalation({
   auftrag,
   leute,
 }: {
-  auftrag: Auftrag
+  auftrag: Pick<Auftrag, 'id' | 'status' | 'owner' | 'eskalation'>
   leute: Record<string, Person>
 }) {
   const { t } = useTranslation()

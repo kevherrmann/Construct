@@ -11,6 +11,8 @@ import { isPdf } from '@/lib/format'
 import { useChat, type Attachment } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
 import { useMedien } from '@/hooks/useMedien'
+import { EinwurfWahl } from '@/components/firma/FirmaEinwurf'
+import { useArbeitenderAuftrag, useEinwurf } from '@/components/firma/einwurf'
 import { Pickers, type PickerName } from './Pickers'
 import s from './Composer.module.css'
 
@@ -59,6 +61,11 @@ export function Composer({
   const folders = useFolders()
   const { pending, addPending, removePending, send, stop, removeQueued, focusTick } = useChat()
   const conv = useChat((st) => st.active())
+  // Arbeitet die Firma in diesem Chat, kann eine Nachricht auch an sie gehen (Einwurf).
+  const arbeitet = useArbeitenderAuftrag(conv?.sessionId)
+  const [anFirmaWahl, setAnFirma] = useState(false)
+  const anFirma = anFirmaWahl && !!arbeitet
+  const einwurf = useEinwurf()
   const busy = !!conv?.busy
   const assistant = useSettings((st) => st.boot.assistant)
   // Im Raum: „Sprich mit Chanti …“, ist dafür kein Platz (320 px, langer Name), die
@@ -235,6 +242,16 @@ export function Composer({
     const msg = text.trim()
     if (!msg && !pending.length) return
     if (location.pathname !== '/chat') navigate('/chat')
+    if (anFirma && arbeitet && msg && !msg.startsWith('/')) {
+      setText('')
+      requestAnimationFrame(autosize)
+      // Klappt es nicht (Auftrag gerade fertig geworden), bleibt der Text stehen.
+      einwurf(arbeitet.id, msg).catch((e: Error) => {
+        setText(msg)
+        setMicError(e.message)
+      })
+      return
+    }
     setText('')
     requestAnimationFrame(autosize)
     if (msg.startsWith('/') && !pending.length) {
@@ -266,6 +283,7 @@ export function Composer({
         </div>
       )}
       {!raum && <Pickers open={picker} setOpen={setPicker} />}
+      {arbeitet && <EinwurfWahl auftrag={arbeitet} anFirma={anFirma} setAnFirma={setAnFirma} />}
       {!!pending.length && (
         <div className={s.thumbs}>
           {pending.map((p, i) => (

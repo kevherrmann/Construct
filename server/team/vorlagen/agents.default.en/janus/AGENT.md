@@ -11,6 +11,7 @@ permission_mode: auto
 cwd: 
 allowed_tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, Skill
 prueft: ja
+spalte: review
 can_delegate: nein
 delegates_to: 
 color: 180,196,120

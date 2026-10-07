@@ -1,61 +1,44 @@
 import { useTranslation } from 'react-i18next'
-import { useTicketUebersicht } from '@/api/tickets'
-import { useSettings } from '@/stores/settings'
+import { useBoard } from '@/api/tickets'
 import { useUi } from '@/stores/ui'
-import { tagName } from './format'
 import { useTicketsAnsicht } from './store'
 import s from './Tickets.module.css'
 
-// Seitenleiste: die Tage, an denen es Tickets gab, darunter die Projekte des gewählten Tages.
+// Seitenleiste: neue Karte, darunter die Projekte, auf die sich das Board beschränken lässt.
 export function TicketsSide() {
   const { t } = useTranslation()
-  const lang = useSettings((st) => st.boot.lang)
-  const { data } = useTicketUebersicht()
-  const { tag, cwd, wahl: waehle } = useTicketsAnsicht()
+  const { data } = useBoard()
+  const { projekt, setProjekt, oeffne } = useTicketsAnsicht()
   const zu = useUi((st) => st.setSideOpen)
-  const wahl = (t: string | null, c: string | null = null) => (waehle(t, c), zu(false))
-  const tage = data?.tage ?? []
-  const aktiv = tag && tage.some((d) => d.tag === tag) ? tag : (tage[0]?.tag ?? null)
+  const offen = (p: string | null) =>
+    (data?.tickets ?? []).filter((x) => x.spalte !== 'done' && (!p || x.projekt === p)).length
+  const wahl = (p: string | null) => (setProjekt(p), zu(false))
 
   return (
     <div>
-      {/* Leer: das sagt der Hauptbereich schon, hier stünde derselbe Satz ein zweites Mal. */}
-      {tage.map((d) => {
-        const offen = d.projekte.reduce((n, p) => n + p.offen, 0)
-        const fertig = d.projekte.reduce((n, p) => n + p.erledigt, 0)
-        const sel = d.tag === aktiv
-        return (
-          <div key={d.tag}>
-            <button
-              type="button"
-              className={`${s.tag} ${sel && !cwd ? s.sel : ''}`}
-              onClick={() => wahl(d.tag)}
-            >
-              <span>{tagName(d.tag, lang, (k) => t(k === 'heute' ? 'heute' : 'gestern'))}</span>
-              <span className={s.zahl}>
-                {fertig > 0 && <span>✓ {fertig}</span>}
-                {offen > 0 && <span className={s.offen}>○ {offen}</span>}
-              </span>
-            </button>
-            {sel &&
-              d.projekte.length > 1 &&
-              d.projekte.map((p) => (
-                <button
-                  key={p.cwd}
-                  type="button"
-                  className={`${s.projekt} ${cwd === p.cwd ? s.sel : ''}`}
-                  onClick={() => wahl(d.tag, cwd === p.cwd ? null : p.cwd)}
-                >
-                  <span className={s.name}>▣ {p.name}</span>
-                  <span className={s.zahl}>
-                    {p.erledigt > 0 && <span>✓ {p.erledigt}</span>}
-                    {p.offen > 0 && <span className={s.offen}>○ {p.offen}</span>}
-                  </span>
-                </button>
-              ))}
-          </div>
-        )
-      })}
+      <button type="button" className={s.add} onClick={() => (oeffne('neu'), zu(false))}>
+        ＋ {t('NEUES TICKET')}
+      </button>
+      <button
+        type="button"
+        className={`${s.projekt} ${!projekt ? s.sel : ''}`}
+        onClick={() => wahl(null)}
+      >
+        <span className={s.name}>{t('Alle Projekte')}</span>
+        <span className={s.zahl}>{offen(null)}</span>
+      </button>
+      {(data?.projekte ?? []).map((p) => (
+        <button
+          key={p.pfad}
+          type="button"
+          title={p.pfad}
+          className={`${s.projekt} ${projekt === p.pfad ? s.sel : ''}`}
+          onClick={() => wahl(projekt === p.pfad ? null : p.pfad)}
+        >
+          <span className={s.name}>▣ {p.name}</span>
+          <span className={s.zahl}>{offen(p.pfad)}</span>
+        </button>
+      ))}
     </div>
   )
 }

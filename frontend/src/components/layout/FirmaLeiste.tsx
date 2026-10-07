@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { useLocation } from 'react-router'
 import { ungelesen, useAuftraege, useNotAus, useTeamAn, useTeamStand } from '@/api/team'
+import { useSessionOeffnen } from '@/hooks/useSessionOeffnen'
 import { BREMSEN } from '@/lib/team'
-import { useAuftraegeAnsicht } from '@/views/auftraege/store'
-import { wartetAufNutzer } from '@/views/auftraege/zustand'
+import { useChat } from '@/stores/chat'
 import s from './FirmaLeiste.module.css'
 
 /** Auf höchstens n Zeichen, an der Wortgrenze, mit „…“ (der ganze Titel steht im title). */
@@ -17,7 +17,7 @@ const kurz = (text: string, n: number) =>
         .replace(/[\s,.:;–-]+$/, '')}…`
 
 /** Ein schmaler Streifen über dem Hauptbereich, nur wenn etwas los ist. Er zeigt
- *  die wichtigste Meldung, die anderen zählt er nur (alle stehen in den Aufträgen):
+ *  die wichtigste Meldung, die anderen zählt er nur (alle stehen in ihrem Chat):
  *
  *   Ruf         ein Auftrag wartet auf eine Entscheidung — die einzige Meldung, die
  *               nicht verpasst werden darf, deshalb bleibt sie, bis man reagiert hat;
@@ -30,14 +30,14 @@ const kurz = (text: string, n: number) =>
 export function FirmaLeiste() {
   const { t } = useTranslation()
   const an = useTeamAn()
-  const navigate = useNavigate()
-  const imAuftragBereich = useLocation().pathname.startsWith('/auftraege')
+  const imChat = useLocation().pathname.startsWith('/chat')
+  const offeneSession = useChat((st) => st.active()?.sessionId)
+  const oeffnen = useSessionOeffnen()
   const { data: liste } = useAuftraege()
   const { data: stand } = useTeamStand()
   const notAus = useNotAus()
-  const { auswahl, oeffne } = useAuftraegeAnsicht()
 
-  const wartend = (liste ?? []).filter((x) => wartetAufNutzer(x.status))
+  const wartend = (liste ?? []).filter((x) => x.status === 'wartet_auf_kevin')
   // Titel und Reiter zeigen es auch dann, wenn das Fenster nicht im Vordergrund ist.
   useEffect(() => {
     if (!an) return
@@ -49,9 +49,10 @@ export function FirmaLeiste() {
   }, [an, wartend.length])
 
   if (!an) return null
-  // Den gerade geöffneten Auftrag nicht anmahnen — man sieht ihn ja.
+  // Den Auftrag des gerade offenen Chats nicht anmahnen — man sieht ihn ja dort.
   // (nur dort sieht man ihn ja; in anderen Ansichten bleibt die Meldung stehen)
-  const rufe = wartend.filter((x) => !(imAuftragBereich && x.id === auswahl))
+  const sichtbar = (x: { session: string }) => imChat && !!x.session && x.session === offeneSession
+  const rufe = wartend.filter((x) => !sichtbar(x))
   const ruf = rufe[0]
   const was = ruf
     ? ruf.eskalation
@@ -63,7 +64,7 @@ export function FirmaLeiste() {
   // Fertige Aufträge, die man noch nicht gesehen hat — sonst fällt eine Lieferung
   // durch, während man woanders ist.
   const fertig = (liste ?? []).filter(
-    (x) => x.status === 'fertig' && !(imAuftragBereich && x.id === auswahl) && ungelesen(x) > 0,
+    (x) => x.status === 'fertig' && !sichtbar(x) && ungelesen(x) > 0,
   )
   const aktiv = stand?.aktiv ?? []
   const zeigenAktiv = aktiv.length > 0 || !!stand?.pausiert
@@ -82,10 +83,8 @@ export function FirmaLeiste() {
         <button
           type="button"
           className={s.meldung}
-          onClick={() => {
-            oeffne(meldung.id)
-            navigate('/auftraege')
-          }}
+          disabled={!meldung.session}
+          onClick={() => oeffnen(meldung.session)}
         >
           <span className={s.zeichen}>{ruf ? '!' : '✓'}</span>
           <span className={s.rt}>
