@@ -1,6 +1,7 @@
 import { tk } from '@/lib/i18n'
 import { produce } from 'immer'
-import type { Block, BotItem, ChatItem, StreamEvent } from './types'
+import { helferNach } from './helfer'
+import type { Block, BotItem, ChatItem, Helfer, StreamEvent } from './types'
 
 // Baut aus den Stream-Events eines Laufs die Anzeige. Rein funktional: bei
 // einem Reconnect spielt der Server den ganzen Lauf noch einmal ab, und die
@@ -11,6 +12,10 @@ export interface RunState {
   items: ChatItem[]
   /** Write/Edit-Aufrufe dieses Zuges: tool-id → Pfad, ok = erfolgreich. */
   written: Record<string, { path: string; ok: boolean }>
+  /** Helfer (Agent/Task) dieses Laufs, je mit der Sprechblase, in der er startete. */
+  helfer: Helfer[]
+  /** Zug fertig, claude wartet noch auf Hintergrundaufgaben. */
+  nachlauf: boolean
 }
 
 let seq = 0
@@ -24,7 +29,12 @@ const botTurn = (): BotItem => ({
   ts: Date.now(),
 })
 
-export const initialRun = (): RunState => ({ items: [botTurn()], written: {} })
+export const initialRun = (): RunState => ({
+  items: [botTurn()],
+  written: {},
+  helfer: [],
+  nachlauf: false,
+})
 
 function currentTurn(s: RunState): BotItem {
   const last = s.items[s.items.length - 1]
@@ -59,7 +69,14 @@ export function skillFileName(p: string): string {
   return m ? m[1]! : (p.split('/').filter(Boolean).pop() ?? '')
 }
 
-export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
+export function applyEvent(state: RunState, ev: StreamEvent): RunState {
+  const s = applyBlocks(state, ev)
+  const antwort = [...s.items].reverse().find((i) => i.kind === 'bot')?.id ?? ''
+  const helfer = helferNach(s.helfer, ev, { antwort, nachlauf: s.nachlauf })
+  return helfer === s.helfer ? s : { ...s, helfer }
+}
+
+const applyBlocks = (state: RunState, ev: StreamEvent): RunState =>
   produce(state, (s) => {
     switch (ev.type) {
       case 'text': {
@@ -102,7 +119,13 @@ export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
         } else {
           if (/SKILL\.md$/i.test(fp))
             turn.blocks.push({ t: 'skill', kind: 'saved', label: skillFileName(fp) })
-          turn.blocks.push({ t: 'tool', id: ev.id, name: ev.name, input })
+          turn.blocks.push({
+            t: 'tool',
+            id: ev.id,
+            name: ev.name,
+            input,
+            ...(ev.parent ? { parent: ev.parent } : {}),
+          })
         }
         // Ergebnisdateien: am Zugende als Zeile mit Links — man muss nicht im
         // Verlauf nach dem Pfad suchen. SKILL.md hat schon ihr Banner.
@@ -147,6 +170,7 @@ export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
         // Zug fertig, aber claude wartet noch auf eigene Hintergrundaufgaben.
         // Der Prozess bleibt offen; was der Hintergrund liefert, kommt als
         // neue Sprechblase (neuer_zug).
+        s.nachlauf = true
         const turn = currentTurn(s)
         turn.thinking = false
         endText(turn)
@@ -162,12 +186,16 @@ export const applyEvent = (state: RunState, ev: StreamEvent): RunState =>
         break
       }
       case 'neuer_zug': {
+        s.nachlauf = false
         const turn = currentTurn(s)
         endText(turn)
         turn.thinking = false
         s.items.push(botTurn())
         break
       }
+      case 'nachlauf_ende':
+        s.nachlauf = false
+        break
       case 'done': {
         const turn = currentTurn(s)
         turn.thinking = false

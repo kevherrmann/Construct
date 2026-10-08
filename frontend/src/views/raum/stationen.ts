@@ -544,3 +544,10 @@ export const RANDPLAETZE: readonly Platz[] = [
 /** Wo an der Werkbank die Füße stehen (Pixel auf dem Raumbild): dort steht ein
  *  Mitarbeiter, wenn er arbeitet. */
 export const WERKBANK_FUSS = { x: 1470, y: 892 }
+
+/** Perspektive: wie groß eine Person bei Fußhöhe `y` ist, im Verhältnis zu einer bei
+ *  Fußhöhe `bezug` (Pixel im Raumbild). Die Kamera schaut steil von oben, der Horizont
+ *  liegt weit über dem Bild. Gemessen an den Tischbildern: wer dort sitzt, ist samt
+ *  Stuhl knapp 290 px hoch, stehend also etwa 400 px, an der Werkbank 580 px. */
+const HORIZONT = -700
+export const massstab = (y: number, bezug: number) => (y - HORIZONT) / (bezug - HORIZONT)

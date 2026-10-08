@@ -16,7 +16,8 @@ export const POSE_VON: Record<Phase, Pose> = {
   schreibt: 'arbeiten',
   terminal: 'arbeiten',
   werkzeug: 'arbeiten',
-  delegiert: 'arbeiten',
+  // Ein Helfer arbeitet als Hologramm, sie wartet am Podest und denkt.
+  delegiert: 'denken',
   antwortet: 'erklaeren',
 }
 

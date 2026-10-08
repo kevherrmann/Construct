@@ -583,11 +583,28 @@
 }
 /* Dort ist der Kopf zu schmal für Name, Status und Knöpfe in einer Zeile: der
    Status bekommt die zweite Zeile, sonst bliebe von „schreibt route.py“ nur „s…“. */
-.blaseTeam .blasenKopf {
+/* Ein Hologramm tippt an der Werkbank: die Blase der Figur am Podest endet vor ihm.
+   Der Kopf rückt enger zusammen, damit Name und Knöpfe in eine Zeile passen. */
+.blase.blaseEng {
+  left: 49.6%;
+  width: max(min(17%, 340px), 214px);
+}
+.blaseEng .blasenKopf {
+  gap: 6px;
+  padding-inline: 12px;
+  letter-spacing: 1px;
+}
+.blaseEng .blasenKnopf {
+  padding-inline: 8px;
+  letter-spacing: 1px;
+}
+.blaseTeam .blasenKopf,
+.blaseEng .blasenKopf {
   flex-wrap: wrap;
   row-gap: 4px;
 }
-.blaseTeam .status {
+.blaseTeam .status,
+.blaseEng .status {
   order: 1;
   flex-basis: 100%;
 }
@@ -2338,4 +2355,406 @@
   border: 9px solid #f1f1ee;
   box-sizing: border-box;
   box-shadow: inset 0 1px 3px rgba(30, 40, 35, 0.25);
+}
+
+/* ---------- Helfer als Hologramme (Hologramme.tsx) ----------
+   Eine Kopie der Figur im Akzent des Raums (dem Grün des Lichtsaums): Bild in
+   Graustufen, darüber der Farbton und feine Scanlinien, alles auf die Form der
+   Figur maskiert. Halb durchsichtig, flimmert leicht. */
+.holo {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  container-type: size;
+  filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), 0.55))
+    drop-shadow(0 0 16px rgba(var(--accent-rgb), 0.25));
+}
+.holoPose {
+  aspect-ratio: 760 / 1000;
+  transform: translateX(-50%);
+  --regen-t: 0%;
+  --regen-h: 100%;
+  --regen-l: 31%;
+  --regen-w: 38%;
+  --regen-schrift: 3.6cqw;
+}
+.holoWerk {
+  --regen-t: 7%;
+  --regen-h: 70%;
+  --regen-l: 33%;
+  --regen-w: 26%;
+  --regen-schrift: 2.4cqw;
+}
+.holoKoerper {
+  position: absolute;
+  inset: 0;
+  mask-size:
+    100% 100%,
+    100% 4px;
+  -webkit-mask-size:
+    100% 100%,
+    100% 4px;
+  mask-repeat: no-repeat, repeat;
+  -webkit-mask-repeat: no-repeat, repeat;
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+  opacity: 0.6;
+  animation: holoFlimmern 4.2s steps(1, end) infinite;
+}
+.holoKoerper img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: grayscale(1) brightness(2.1) contrast(0.7);
+}
+.holoKoerper i {
+  position: absolute;
+  inset: 0;
+}
+/* Farbton über dem Graubild, dunkle Stellen leuchten mit */
+.holoTon {
+  background: rgb(var(--accent-rgb));
+  mix-blend-mode: color;
+}
+.holoLinien {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(var(--accent-rgb), 0.42) 0 1px,
+    rgba(255, 255, 255, 0.12) 1px 2px,
+    transparent 2px 4px
+  );
+  background-size: 100% 4px;
+  animation: holoLaufen 1.4s linear infinite;
+}
+/* Helles Band, das beim Aufbau von den Füßen zum Kopf läuft */
+.holoScan {
+  inset: auto 0 -6% 0 !important;
+  height: 6%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.95) 45%,
+    rgba(var(--accent-rgb), 0.9) 60%,
+    transparent
+  );
+  opacity: 0;
+}
+@keyframes holoFlimmern {
+  0% {
+    opacity: 0.6;
+  }
+  37% {
+    opacity: 0.46;
+  }
+  39% {
+    opacity: 0.64;
+  }
+  71% {
+    opacity: 0.55;
+  }
+  72% {
+    opacity: 0.38;
+  }
+  74% {
+    opacity: 0.62;
+  }
+}
+@keyframes holoLaufen {
+  to {
+    background-position: 0 4px;
+  }
+}
+
+/* Erscheinen: von den Füßen nach oben aufgebaut */
+.holoAuf .holoKoerper {
+  animation:
+    holoAufbau 0.8s cubic-bezier(0.3, 0.1, 0.4, 1) both,
+    holoFlimmern 4.2s steps(1, end) 0.8s infinite;
+}
+.holoAuf .holoScan {
+  animation: holoScanAuf 0.8s cubic-bezier(0.3, 0.1, 0.4, 1) both;
+}
+@keyframes holoAufbau {
+  from {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0.9;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 0.6;
+  }
+}
+@keyframes holoScanAuf {
+  0% {
+    bottom: -6%;
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    bottom: 100%;
+    opacity: 0;
+  }
+}
+/* Wechsel an eine Station: hier aus, dort ein */
+.holoKommt {
+  animation: holoEin 0.45s ease both;
+}
+.holoGeht {
+  animation: holoAus 0.45s ease both;
+}
+@keyframes holoEin {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes holoAus {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Fertig: zerfällt von oben nach unten in Code-Regen */
+.holoZerfall .holoKoerper {
+  animation: holoZerfallen 0.9s ease-in both;
+}
+@keyframes holoZerfallen {
+  from {
+    clip-path: inset(0 0 0 0);
+    opacity: 0.7;
+  }
+  to {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0.3;
+  }
+}
+.holoRegen {
+  position: absolute;
+  left: var(--regen-l);
+  width: var(--regen-w);
+  top: var(--regen-t);
+  height: var(--regen-h);
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  font:
+    600 var(--regen-schrift) / 1 ui-monospace,
+    'JetBrains Mono',
+    monospace;
+  color: rgb(var(--accent-rgb));
+  text-shadow: 0 0 4px rgba(var(--accent-rgb), 0.8);
+}
+.holoRegen span {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: -0.15em;
+  opacity: 0;
+  animation: holoRegnen 0.95s cubic-bezier(0.5, 0, 0.9, 0.6) both;
+  animation-delay: calc(var(--i) * 47ms % 0.2s);
+}
+.holoRegen span:nth-child(odd) {
+  animation-duration: 0.8s;
+}
+@keyframes holoRegnen {
+  0% {
+    transform: translateY(-10%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(105%);
+    opacity: 0;
+  }
+}
+
+/* Das Ergebnis: ein Blatt schwebt zum Besitzer */
+.holoBlatt {
+  position: absolute;
+  z-index: 6;
+  width: 1.5%;
+  aspect-ratio: 3 / 4;
+  border-radius: 1px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 22%, rgba(var(--accent-rgb), 0.55) 22% 28%)
+      50% 60% / 64% 62% no-repeat,
+    #fff;
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.45),
+    0 0 10px rgba(var(--accent-rgb), 0.6);
+  pointer-events: none;
+  animation: holoBlattFlug 1.15s 0.35s ease-in-out both;
+}
+@keyframes holoBlattFlug {
+  0% {
+    left: var(--x0);
+    top: var(--y0);
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-14deg) scale(0.6);
+  }
+  14% {
+    opacity: 1;
+  }
+  50% {
+    left: var(--xm);
+    top: var(--ym);
+    transform: translate(-50%, -50%) rotate(9deg) scale(1);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--x1);
+    top: var(--y1);
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-4deg) scale(0.55);
+  }
+}
+
+/* Fehler: flackert aus */
+.holoFlackert {
+  animation: holoAusflackern 0.7s steps(1, end) both;
+}
+@keyframes holoAusflackern {
+  0% {
+    opacity: 1;
+  }
+  12% {
+    opacity: 0.15;
+  }
+  22% {
+    opacity: 0.9;
+  }
+  34% {
+    opacity: 0;
+  }
+  46% {
+    opacity: 0.6;
+  }
+  58% {
+    opacity: 0;
+  }
+  72% {
+    opacity: 0.3;
+  }
+  84%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Schild über dem Kopf: Text im Raum, kein Kasten. Eine feine Linie führt zum Kopf. */
+.holoSchild {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: 230px;
+  transform: translate(-50%, calc(-100% - 12px));
+  translate: var(--schieben, 0px) 0;
+  pointer-events: none;
+  text-align: center;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 8px #fff,
+    0 0 12px #fff;
+  transition: opacity 0.35s ease;
+  animation: holoEin 0.4s 0.6s ease both;
+}
+.holoSchild::after {
+  content: '';
+  position: absolute;
+  /* bleibt über dem Kopf, auch wenn das Schild an den Bildrand rückt */
+  left: calc(50% - var(--schieben, 0px));
+  bottom: -11px;
+  width: 1px;
+  height: 9px;
+  background: linear-gradient(rgba(var(--accent-rgb), 0.7), transparent);
+}
+.holoSchild b,
+.holoSchild span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.holoSchild b {
+  font:
+    600 11px / 1.3 ui-monospace,
+    'JetBrains Mono',
+    monospace;
+  letter-spacing: 0.2px;
+  color: var(--green);
+}
+.holoSchild span {
+  font-size: 10.5px;
+  line-height: 1.3;
+  /* ink-soft läge knapp unter 4,5 : 1 */
+  color: var(--text-dim);
+}
+.holoSchildHoch {
+  transform: translate(-50%, calc(-100% - 62px));
+}
+.holoSchildHoch::after {
+  bottom: -61px;
+  height: 59px;
+}
+.holoSchildUnten {
+  transform: translate(-50%, 10px);
+}
+.holoSchildUnten::after {
+  top: -9px;
+  bottom: auto;
+  background: linear-gradient(transparent, rgba(var(--accent-rgb), 0.7));
+}
+.holoSchildWeg {
+  opacity: 0;
+}
+/* „+N“: wer keinen Platz mehr hat */
+.holoPlus {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  font:
+    600 15px / 1 ui-monospace,
+    'JetBrains Mono',
+    monospace;
+  color: var(--green);
+  text-shadow:
+    0 0 6px rgba(var(--accent-rgb), 0.45),
+    0 0 2px #fff;
+  pointer-events: none;
+}
+
+/* Sparmodus, Effekte aus, „Bewegung reduzieren“: nur weich ein und aus */
+.holoRuhig .holoKoerper,
+.holoRuhig.holoAuf .holoKoerper,
+.holoRuhig .holoLinien {
+  animation: none;
+}
+.holoRuhig.holoAuf {
+  animation: holoEin 0.5s ease both;
+}
+.holoRuhig.holoAuf .holoScan {
+  animation: none;
+}
+.holoRuhig.holoZerfall,
+.holoRuhig.holoFlackert {
+  animation: holoAus 0.6s ease both;
+}
+.holoRuhig.holoZerfall .holoKoerper {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .holoSchild {
+    animation: none;
+  }
 }

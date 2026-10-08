@@ -2,6 +2,29 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.2.0 — 2026-10-08
+
+### Added
+- **Helpers show up as holograms in the room.** When the assistant starts a helper
+  (Agent/Task), a green, see-through copy of its figure builds up next to it
+  from scan lines, with a small sign saying what the helper does. It walks over
+  to the station of its current tool (shelf for reading and searching,
+  workbench for writing and commands), and when it is done it dissolves into
+  code rain and a sheet of paper floats back to the assistant. A failed helper
+  flickers out. Several helpers stand side by side; from the fifth on a "+N"
+  counts the rest. Employees of the company get theirs too, next to their desk
+  or at the workbench. With effects reduced or "reduce motion" on, they just fade
+  in and out.
+
+### Changed
+- **The assistant stays put while a helper works.** It used to walk off to the
+  archive when it handed something over; now it waits at its place and thinks.
+
+### Fixed
+- **Background helpers no longer start a false new turn.** A step of a helper
+  running in the background looked like the start of a new answer and opened
+  an empty speech bubble.
+
 ## 8.1.0 — 2026-10-08
 
 ### Changed

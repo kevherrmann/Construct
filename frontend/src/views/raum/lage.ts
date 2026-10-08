@@ -36,7 +36,8 @@ export interface Lage {
 
 interface Werkzeug {
   phase: Phase
-  station: StationId
+  /** null = die Figur bleibt am Platz (beim Abgeben arbeitet der Helfer, nicht sie). */
+  station: StationId | null
 }
 
 // Claude-Code-Werkzeuge und die von Hermes, auf Stationen verteilt.
@@ -62,12 +63,16 @@ const WERKZEUGE: Record<string, Werkzeug> = {
   WebSearch: { phase: 'recherchiert', station: 'monitore' },
   web_search: { phase: 'recherchiert', station: 'monitore' },
   web_extract: { phase: 'recherchiert', station: 'monitore' },
-  Task: { phase: 'delegiert', station: 'archiv' },
-  Agent: { phase: 'delegiert', station: 'archiv' },
-  delegate_task: { phase: 'delegiert', station: 'archiv' },
+  // Abgeben: der Helfer erscheint als Hologramm und geht selbst an die Station.
+  Task: { phase: 'delegiert', station: null },
+  Agent: { phase: 'delegiert', station: null },
+  delegate_task: { phase: 'delegiert', station: null },
   Skill: { phase: 'werkzeug', station: 'werkzeug' },
   skill_view: { phase: 'werkzeug', station: 'werkzeug' },
 }
+
+/** Station, an der ein Werkzeug benutzt wird (null = keine eigene). */
+export const werkzeugStation = (name: string): StationId | null => werkzeug(name).station
 
 function werkzeug(name: string): Werkzeug {
   // Anzeigenamen wie "Write: index.html" (Hermes) → "Write"
@@ -220,7 +225,9 @@ export function lageAus(items: ChatItem[], busy: boolean, nachlauf: boolean): La
   if (nachlauf) return { ...ruhe, phase: 'wartet' }
   if (!busy) return ruhe
   if (!bot || bot.thinking) return { ...ruhe, phase: 'denkt', live: true }
-  const letzter = bot.blocks[bot.blocks.length - 1]
+  // Schritte eines Helfers gehören seinem Hologramm, nicht der Figur.
+  const eigene = bot.blocks.filter((b) => b.t !== 'tool' || !b.parent)
+  const letzter = eigene[eigene.length - 1]
   if (letzter?.t === 'tool' && !letzter.result) {
     const w = werkzeug(letzter.name)
     return {

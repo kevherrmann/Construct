@@ -91,6 +91,21 @@ describe('lageAus', () => {
     expect(h).toMatchObject({ phase: 'schreibt', station: 'werkbank', detail: 'rechner.html' })
   })
 
+  it('Schritte eines Helfers bewegen die Figur nicht, sie wartet am Platz', () => {
+    const l = lageAus(
+      [
+        user('x'),
+        bot([
+          { t: 'tool', id: 'a1', name: 'Agent', input: { description: 'Dateien lesen' } },
+          { t: 'tool', id: 'r1', name: 'Read', input: { file_path: '/a/eins.txt' }, parent: 'a1' },
+        ]),
+      ],
+      true,
+      false,
+    )
+    expect(l).toMatchObject({ phase: 'delegiert', station: null, detail: 'Dateien lesen' })
+  })
+
   it('Nachlauf heißt warten', () => {
     expect(lageAus([user('x')], false, true).phase).toBe('wartet')
   })

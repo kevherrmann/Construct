@@ -269,3 +269,115 @@ def test_geretteter_lauf_trennt_aufeinanderfolgende_textbloecke():
         leser.eintrag({"type": "assistant", "timestamp": ts,
                        "message": {"content": [{"type": "text", "text": text}]}})
     assert run.last_text == "Ich schau nach.\n\nPasst."
+
+
+# ---------- Helfer (Agent/Task) für die Hologramme im Raum ----------
+# Ereignisse wie aus einem echten Lauf (claude 2.1.294, 08.10.2026), gekürzt.
+
+AGENT = "toolu_0132jWkGJw8rVyPgopMoXXKu"
+
+
+def _sys(subtype, **mehr):
+    return {"type": "system", "subtype": subtype, "task_id": "aee2cbfad9a6acc9c", **mehr}
+
+
+def _msg(typ, content, parent=None):
+    return {"type": typ, "parent_tool_use_id": parent, "message": {"role": typ, "content": content}}
+
+
+HELFER_LAUF = [
+    {"type": "system", "subtype": "init", "session_id": "sid-h"},
+    _msg("assistant", [{"type": "tool_use", "id": AGENT, "name": "Agent", "input": {
+        "description": "Datei eins.txt lesen", "subagent_type": "Explore", "prompt": "Lies …"}}]),
+    _sys("task_started", tool_use_id=AGENT, description="Datei eins.txt lesen",
+         subagent_type="Explore", is_backgrounded=False, task_type="local_agent"),
+    _msg("user", [{"type": "text", "text": "Lies …"}], AGENT),
+    _sys("task_progress", tool_use_id=AGENT, description="Reading eins.txt",
+         subagent_type="Explore", last_tool_name="Read"),
+    _msg("assistant", [{"type": "tool_use", "id": "toolu_read", "name": "Read",
+                        "input": {"file_path": "/tmp/helfertest/eins.txt"}}], AGENT),
+    _msg("user", [{"type": "tool_result", "tool_use_id": "toolu_read", "content": "1\ta"}], AGENT),
+    _sys("task_updated", patch={"status": "completed"}),
+    _sys("task_notification", tool_use_id=AGENT, status="completed", summary="a"),
+    _msg("user", [{"type": "tool_result", "tool_use_id": AGENT, "content": "a"}]),
+    _msg("assistant", [{"type": "text", "text": "a"}]),
+    {"type": "result", "subtype": "success", "session_id": "sid-h", "usage": {}},
+]
+
+
+def _lauf_mit(tmp_path, monkeypatch, zeilen):
+    """run_claude gegen ein falsches claude, das genau diese Zeilen ausgibt."""
+    stub = tmp_path / "claude_stub.py"
+    stub.write_text("import sys\nsys.stdin.readline()\nsys.stdout.write(sys.argv[1])\n")
+    monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
+    monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
+    text = "".join(json.dumps(z, ensure_ascii=False) + "\n" for z in zeilen)
+
+    async def los():
+        run = runs.Run("test-helfer", str(tmp_path), None, "", initial_prompt="hallo")
+        runs.RUNS[run.id] = run
+        await runs.run_claude(run, [sys.executable, str(stub), text])
+        return run
+
+    return asyncio.run(los())
+
+
+def test_helfer_meldet_start_fortschritt_und_ende(tmp_path, monkeypatch):
+    run = _lauf_mit(tmp_path, monkeypatch, HELFER_LAUF)
+    assert [e for e in run.events if e["type"] == "helfer"] == [
+        {"type": "helfer", "id": AGENT, "stand": "start", "beschreibung": "Datei eins.txt lesen",
+         "typ": "Explore", "hintergrund": False},
+        {"type": "helfer", "id": AGENT, "stand": "laeuft", "detail": "Reading eins.txt",
+         "werkzeug": "Read"},
+        {"type": "helfer", "id": AGENT, "stand": "fertig"},
+    ]
+    assert not run.helfer
+
+
+def test_schritte_des_helfers_tragen_ihren_helfer(tmp_path, monkeypatch):
+    run = _lauf_mit(tmp_path, monkeypatch, HELFER_LAUF)
+    werkzeuge = [(e["type"], e["id"], e.get("parent")) for e in run.events
+                 if e["type"] in ("tool", "tool_result")]
+    # Sonst stand im Raum der Assistent selbst am Regal, obwohl der Helfer las.
+    assert werkzeuge == [
+        ("tool", AGENT, None),
+        ("tool", "toolu_read", AGENT),
+        ("tool_result", "toolu_read", AGENT),
+        ("tool_result", AGENT, None),
+    ]
+    assert "parent" not in run.events[1]
+
+
+def test_helfer_mit_fehler_und_bash_im_hintergrund_ist_keiner(tmp_path, monkeypatch):
+    zeilen = [
+        {"type": "system", "subtype": "init", "session_id": "sid-h"},
+        # Bash mit run_in_background meldet sich über dieselben task_*-Ereignisse
+        _sys("task_started", tool_use_id="toolu_bash", description="sleep 30",
+             is_backgrounded=True, task_type="local_bash"),
+        _sys("task_notification", tool_use_id="toolu_bash", status="completed"),
+        _sys("task_started", tool_use_id=AGENT, description="X", subagent_type="Explore",
+             is_backgrounded=True, task_type="local_agent"),
+        _sys("task_notification", tool_use_id=AGENT, status="killed"),
+        {"type": "result", "subtype": "success", "session_id": "sid-h", "usage": {}},
+    ]
+    run = _lauf_mit(tmp_path, monkeypatch, zeilen)
+    helfer = [(e["id"], e["stand"]) for e in run.events if e["type"] == "helfer"]
+    assert helfer == [(AGENT, "start"), (AGENT, "fehler")]
+
+
+def test_schritt_eines_helfers_im_nachlauf_ist_kein_neuer_zug(tmp_path, monkeypatch):
+    monkeypatch.setattr(runs, "NACHLAUF_MAX", 3600)
+    zeilen = [
+        {"type": "system", "subtype": "init", "session_id": "sid-h"},
+        {"type": "system", "subtype": "background_tasks_changed",
+         "tasks": [{"task_id": "aee2cbfad9a6acc9c", "description": "Datei lesen"}]},
+        _sys("task_started", tool_use_id=AGENT, description="Datei lesen",
+             subagent_type="general-purpose", is_backgrounded=True, task_type="local_agent"),
+        {"type": "result", "subtype": "success", "session_id": "sid-h", "usage": {}},
+        # Nachlauf: der Helfer arbeitet weiter, der Assistent hat noch nichts gesagt
+        _msg("assistant", [{"type": "tool_use", "id": "toolu_read", "name": "Read",
+                            "input": {"file_path": "/tmp/x"}}], AGENT),
+    ]
+    run = _lauf_mit(tmp_path, monkeypatch, zeilen)
+    typen = [e["type"] for e in run.events]
+    assert "nachlauf" in typen and "neuer_zug" not in typen

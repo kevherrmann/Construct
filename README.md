@@ -112,7 +112,9 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   (Janus pulls it to In review, Miranda to QA). Off by default; switch on under
   ⚙ Settings → Team. In the room the crew sits at two double desks behind the assistant; whoever works gets
   up, walks to the workbench and types there, and the director looks in on
-  them. Employees can also be talked to directly (👥 Staff → Talk to
+  them. When the assistant or an employee starts a helper (Agent/Task), a green
+  hologram of them appears next to them, works at the matching station and
+  dissolves into code rain when it is done. Employees can also be talked to directly (👥 Staff → Talk to
   …). Data lives in `firma/` (not versioned). See
   [`scripts/pruefstand/README.md`](scripts/pruefstand/README.md) for the test bench.
 - **Skills browser.** Shows global skills (`~/.claude/skills`) and per-project

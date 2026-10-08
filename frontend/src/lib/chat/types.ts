@@ -12,8 +12,20 @@ export type StreamEvent =
   /** Die Aufgabe ist an die Firma gegangen ([[firma: …]] am Ende der Antwort). */
   | { type: 'firma'; auftrag: string }
   | { type: 'thinking_marker' }
-  | { type: 'tool'; id?: string; name: string; input?: unknown }
-  | { type: 'tool_result'; id?: string; content?: string; is_error?: boolean }
+  /** `parent`: der Schritt gehört dem Helfer mit dieser id, nicht dem Assistenten. */
+  | { type: 'tool'; id?: string; name: string; input?: unknown; parent?: string }
+  | { type: 'tool_result'; id?: string; content?: string; is_error?: boolean; parent?: string }
+  /** Ein Helfer (Agent/Task): Start, Fortschritt, Ende. Felder nur, wo der Stand sie kennt. */
+  | {
+      type: 'helfer'
+      id: string
+      stand: HelferStand
+      beschreibung?: string
+      typ?: string
+      hintergrund?: boolean
+      detail?: string
+      werkzeug?: string
+    }
   | { type: 'stats'; duration_ms?: number; out?: number; ctx?: number; model?: string }
   | { type: 'nachlauf'; tasks?: string[] }
   | { type: 'neuer_zug' }
@@ -22,6 +34,27 @@ export type StreamEvent =
   | { type: 'error'; message: string }
   /** Der Lauf ist zu Ende (letztes Ereignis jedes Streams). */
   | { type: 'closed' }
+
+export type HelferStand = 'start' | 'laeuft' | 'fertig' | 'fehler'
+
+/** Ein Helfer, den der Assistent gestartet hat (Werkzeug Agent/Task). */
+export interface Helfer {
+  /** tool_use_id des Agent-Aufrufs. */
+  id: string
+  /** Sprechblase (BotItem.id), in der er gestartet wurde. */
+  antwort: string
+  /** Was er tun soll („Datei eins.txt lesen“). */
+  beschreibung: string
+  /** subagent_type, etwa „Explore“ oder „general-purpose“. */
+  typ: string
+  stand: HelferStand
+  /** Letztes Werkzeug des Helfers ('' = noch keins). */
+  werkzeug: string
+  /** Was er gerade tut, von claude formuliert („Reading eins.txt“). */
+  detail: string
+  /** Läuft im Hintergrund weiter, auch wenn der Zug fertig ist. */
+  hintergrund: boolean
+}
 
 /** Hinweiszeile mit deutschem Quelltext, übersetzt beim Zeichnen. */
 export interface NoteText {
@@ -38,6 +71,8 @@ export type Block =
       name: string
       input: unknown
       result?: { content: string; isError: boolean }
+      /** Schritt eines Helfers (id seines Agent-Aufrufs); fehlt beim Assistenten selbst. */
+      parent?: string
     }
   | { t: 'skill'; kind: 'used' | 'saved'; label: string }
   | { t: 'stats'; durationMs?: number; out?: number; ctx?: number; model?: string }

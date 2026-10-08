@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useAuftrag, useTeamAn, useTeamStand } from '@/api/team'
 import { useLiveZug } from '@/components/firma/useLiveZug'
+import type { Helfer } from '@/lib/chat/types'
 import { lageAus, type Lage } from './lage'
 
 /** Wer aus der Firma gerade spricht: seine Lage (wie die des Assistenten) samt
@@ -24,19 +25,24 @@ export interface TeamBlase {
 export interface ChefZug {
   run: string
   lage: Lage
+  /** Ihre Helfer: stehen als Hologramme neben der Figur am Podest. */
+  helfer: Helfer[]
 }
 
-function useZugLage(run: string | null) {
+const useZugLage = (run: string | null) => useZug(run).lage
+
+function useZug(run: string | null) {
   const { lauf, fertig } = useLiveZug(run)
-  return useMemo(() => lageAus(lauf.items, !fertig, false), [lauf, fertig])
+  const lage = useMemo(() => lageAus(lauf.items, !fertig, false), [lauf, fertig])
+  return { lage, helfer: lauf.helfer }
 }
 
 export function useChefZug(): ChefZug | null {
   const an = useTeamAn()
   const { data: stand } = useTeamStand()
   const run = (an && stand?.aktiv.find((x) => x.agent === 'chef')?.run) || null
-  const lage = useZugLage(run)
-  return run ? { run, lage } : null
+  const { lage, helfer } = useZug(run)
+  return run ? { run, lage, helfer } : null
 }
 
 // Arbeitet die Firma, spricht im Raum der, der gerade dran ist: zuerst wer an der

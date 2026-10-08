@@ -40,7 +40,10 @@ import postkorbBild from './assets/postkorb.webp'
 import lochwandBild from './assets/lochwand.webp'
 import wandkalenderBild from './assets/wandkalender.webp'
 import steckfeldBild from './assets/steckfeld.webp'
-import { abschnitte, lageAus, type Phase } from './lage'
+import { abschnitte, lageAus, werkzeugStation, type Phase } from './lage'
+import { BueroHologramme, HoloSchicht } from './Hologramme'
+import { useHologramme } from './useHologramme'
+import { BRUST_PODEST, BRUST_WERKBANK, aufstellung } from './hologramme'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
@@ -488,6 +491,30 @@ export function RaumView() {
   // Arbeitet die Firma und redest du gerade nicht mit dem Assistenten, gehört die
   // Sprechblase dem, der dort spricht (sonst wie immer deine letzte Antwort).
   const team = useTeamBlase(buero?.werk ?? null, chefZug)
+  // Helfer des Assistenten (und der Chefin, wenn sie für die Firma arbeitet) stehen
+  // als Hologramme neben der Figur und gehen an die Station ihres Werkzeugs.
+  const convHelfer = conv?.run?.helfer
+  const chefHelfer = chefZug?.helfer
+  const helfer = useMemo(
+    () => [...(convHelfer ?? []), ...(chefHelfer ?? [])],
+    [convHelfer, chefHelfer],
+  )
+  const holos = useHologramme(helfer, conv?.key ?? '')
+  const holoStellung = useMemo(
+    () => aufstellung(holos, !amWerk && !buero?.werk),
+    [holos, amWerk, buero?.werk],
+  )
+  // Tippt ein Hologramm am Platz der Figur an der Werkbank, rückt die Blase schmal
+  // zwischen Podest und Werkbank, statt über ihm zu liegen.
+  const holoAmWerk = [...holoStellung.values()].some(
+    (st) => st.art === 'werkbank' && st.r === WERKBANK,
+  )
+  // Station, an der ein Helfer arbeitet: sie leuchtet und zeigt, was er tut.
+  const helferAn = new Map<StationId, string>()
+  for (const h of holos) {
+    const st = h.phase === 'arbeitet' && h.platz >= 0 ? werkzeugStation(h.werkzeug) : null
+    if (st && !helferAn.has(st)) helferAn.set(st, h.detail || h.beschreibung)
+  }
   const teamSpricht = !!team && !lage.live
   const teamAmWerk = teamSpricht && team.slug === buero?.werk
   // Deine wievielte Frage in dieser Session (Schlüssel der Sprechblase, siehe unten).
@@ -649,6 +676,7 @@ export function RaumView() {
         live={blasenLage.live}
         rechts={teamSpricht ? teamAmWerk : amWerk}
         team={teamAmWerk}
+        eng={holoAmWerk && !(teamSpricht ? teamAmWerk : amWerk)}
         unten={kompakt}
         knopf={
           rueckfrage ? `↩ ${t('Antworten')}` : abschluss ? `☰ ${t('Im Chat zeigen')}` : undefined
@@ -873,6 +901,17 @@ export function RaumView() {
                   onLaeuft={videoMeldung('arbeiten')}
                 />
               )}
+              <HoloSchicht
+                holos={holos}
+                stellungen={holoStellung}
+                bilder={{
+                  idle: figur.posen.idle,
+                  lesen: figur.posen.lesen,
+                  werkbank: figur.werkbank,
+                }}
+                ziel={amWerk ? BRUST_WERKBANK : BRUST_PODEST}
+              />
+              {buero && <BueroHologramme stand={buero} />}
               {schein ? (
                 <Schein id={form} an={!!fokus && !ansicht} />
               ) : (
@@ -882,7 +921,8 @@ export function RaumView() {
                 />
               )}
               {STATIONEN.filter((st) => (st.id !== 'firma' || buero) && da(st.id)).map((st) => {
-                const an = lage.station === st.id
+                const helferTut = helferAn.get(st.id)
+                const an = lage.station === st.id || helferTut !== undefined
                 const zeigen = () => {
                   setFokus(st.id)
                   setForm(st.id)
@@ -917,7 +957,13 @@ export function RaumView() {
                     )}
                     <span className={s.schild}>
                       <b>{t(st.label)}</b>
-                      <span>{an && status ? status : hinweis(st)}</span>
+                      <span>
+                        {lage.station === st.id && status
+                          ? status
+                          : helferTut !== undefined
+                            ? t('Helfer: {d}', { d: helferTut })
+                            : hinweis(st)}
+                      </span>
                     </span>
                   </button>
                 )
@@ -1107,6 +1153,7 @@ function Sprechblase({
   live,
   rechts,
   team = false,
+  eng = false,
   unten = false,
   knopf,
   ort = null,
@@ -1127,6 +1174,8 @@ function Sprechblase({
   rechts: boolean
   /** Ein Mitarbeiter an der Werkbank spricht (eigener, schmaler Platz). */
   team?: boolean
+  /** Ein Hologramm tippt an der Werkbank: schmal zwischen Podest und Werkbank. */
+  eng?: boolean
   /** Kompakt: als Untertitel über der Sprechzeile statt neben der Figur. */
   unten?: boolean
   /** Beschriftung des Knopfs oben (sonst „☰ Verlauf“). */
@@ -1328,7 +1377,7 @@ function Sprechblase({
   return (
     <section
       ref={blase}
-      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen || hoch !== null ? s.blaseZieht : ''} ${ziehen ? s.blaseGepackt : ''} ${onHoehe ? s.blaseHebbar : ''}`}
+      className={`${s.blase} ${unten ? s.blaseUnten : rechts ? s.blaseLinks : ''} ${team ? s.blaseTeam : ''} ${eng && !unten && !rechts ? s.blaseEng : ''} ${live ? s.blaseLive : ''} ${lage ? s.blaseFrei : ''} ${ziehen || spannen || hoch !== null ? s.blaseZieht : ''} ${ziehen ? s.blaseGepackt : ''} ${onHoehe ? s.blaseHebbar : ''}`}
       style={{
         ...(farbe ? { ['--accent-rgb' as string]: farbe } : {}),
         ...(lage ? { left: `${lage.l}%`, bottom: `${lage.b}%` } : {}),

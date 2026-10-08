@@ -61,6 +61,7 @@ class Run:
         # run_in_background, Agenten). Solange hier etwas steht, bleibt der
         # Prozess nach dem Ergebnis am Leben — siehe Nachlauf in run_claude.
         self.hintergrund = {}            # task_id -> Beschreibung
+        self.helfer = set()              # tool_use_ids gestarteter Helfer (Agent/Task)
         self.nachlauf = False            # Zug fertig, Prozess wartet auf den Hintergrund
         self.zug_offen = False           # laeuft gerade ein Zug (fuer "neuer_zug")
         self.last_text = ""              # Text des letzten Turns (für Telegram-Notify)
@@ -232,17 +233,56 @@ def build_prompt(text: str, images) -> str:
     return prompt
 
 
-def _werkzeug_ereignis(block) -> dict:
-    return {"type": "tool", "id": block.get("id"), "name": block.get("name", "?"),
-            "input": block.get("input", {})}
+def _werkzeug_ereignis(block, parent=None) -> dict:
+    ev = {"type": "tool", "id": block.get("id"), "name": block.get("name", "?"),
+          "input": block.get("input", {})}
+    if parent:
+        # Ein Schritt des Helfers mit dieser tool_use_id, nicht des Assistenten.
+        ev["parent"] = parent
+    return ev
 
 
-def _ergebnis_ereignis(block) -> dict:
+def _ergebnis_ereignis(block, parent=None) -> dict:
     c = block.get("content")
     if isinstance(c, list):
         c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict))
-    return {"type": "tool_result", "id": block.get("tool_use_id"), "content": str(c)[:6000],
-            "is_error": bool(block.get("is_error"))}
+    ev = {"type": "tool_result", "id": block.get("tool_use_id"), "content": str(c)[:6000],
+          "is_error": bool(block.get("is_error"))}
+    if parent:
+        ev["parent"] = parent
+    return ev
+
+
+# task_notification nennt, wie ein Helfer endete; nur "completed" ist ein Erfolg
+# (sonst failed, killed, stopped, cancelled — gesehen in claude 2.1.294).
+def _helfer_ereignis(run, ev):
+    """system/task_* -> Ereignis `helfer` für die Hologramme im Raum, oder None.
+
+    Dieselben task_*-Meldungen schickt claude auch für Bash im Hintergrund; ein
+    Helfer ist nur, was als Agent (local_agent) startet. Fortschritt und Ende
+    gibt es deshalb nur für Helfer, deren Start hier durchkam."""
+    sub, hid = ev.get("subtype"), ev.get("tool_use_id")
+    if not hid:
+        return None
+    if sub == "task_started":
+        if ev.get("task_type") != "local_agent" and not ev.get("subagent_type"):
+            return None
+        run.helfer.add(hid)
+        return {"type": "helfer", "id": hid, "stand": "start",
+                "beschreibung": str(ev.get("description") or ""),
+                "typ": str(ev.get("subagent_type") or ""),
+                "hintergrund": bool(ev.get("is_backgrounded"))}
+    if hid not in run.helfer:
+        return None
+    if sub == "task_progress":
+        return {"type": "helfer", "id": hid, "stand": "laeuft",
+                "detail": str(ev.get("description") or ""),
+                "werkzeug": str(ev.get("last_tool_name") or "")}
+    if sub == "task_notification":
+        run.helfer.discard(hid)
+        return {"type": "helfer", "id": hid,
+                "stand": "fertig" if ev.get("status") == "completed" else "fehler"}
+    return None
 
 
 async def run_claude(run, cmd):
@@ -303,11 +343,13 @@ async def run_claude(run, cmd):
             except Exception:
                 continue
             t = ev.get("type")
-            if t in ("assistant", "stream_event") and not run.zug_offen:
+            if (t in ("assistant", "stream_event") and not run.zug_offen
+                    and not ev.get("parent_tool_use_id")):
                 # Der erste Inhalt eines Zuges. Kommt er im Nachlauf — also
                 # ohne dass Kevin etwas geschickt hat — hat eine
                 # Hintergrundaufgabe den Zug ausgeloest, und die Oberflaeche
-                # braucht eine neue Sprechblase dafuer.
+                # braucht eine neue Sprechblase dafuer. Schritte eines Helfers
+                # im Hintergrund (parent_tool_use_id) sind kein neuer Zug.
                 run.zug_offen = True
                 if run.nachlauf:
                     run.nachlauf = False
@@ -321,6 +363,10 @@ async def run_claude(run, cmd):
                 # Start und Ende einer Hintergrundaufgabe komplett.
                 run.hintergrund = {x.get("task_id"): x.get("description") or x.get("task_type") or "?"
                                    for x in (ev.get("tasks") or []) if x.get("task_id")}
+            elif t == "system" and str(ev.get("subtype") or "").startswith("task_"):
+                helfer = _helfer_ereignis(run, ev)
+                if helfer:
+                    run.emit(helfer)
             elif t == "stream_event":
                 e = ev.get("event", {})
                 if e.get("type") == "content_block_delta":
@@ -335,14 +381,14 @@ async def run_claude(run, cmd):
                         thinking_sent = True
                         run.emit({"type": "thinking_marker"})
                     elif block.get("type") == "tool_use":
-                        run.emit(_werkzeug_ereignis(block))
+                        run.emit(_werkzeug_ereignis(block, ev.get("parent_tool_use_id")))
             elif t == "user":
                 content = ev.get("message", {}).get("content")
                 _nutzer_merken(run, ev, content)
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_result":
-                            run.emit(_ergebnis_ereignis(block))
+                            run.emit(_ergebnis_ereignis(block, ev.get("parent_tool_use_id")))
             elif t == "result":
                 run.session_id = ev.get("session_id", run.session_id)
                 # Fehler-Resultate (Limit erreicht, Login abgelaufen, …) wurden

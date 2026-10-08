@@ -5,6 +5,7 @@ import {
   BUERO_SPRITES,
   PAARE,
   WERKBANK,
+  massstab,
   type PaarId,
   tischFlaeche,
   type Platz,
@@ -34,13 +35,6 @@ const TIPPT: Belegung[] = ['beide', 'links', 'rechts']
 const GANZ = { l: 0, t: 0, w: 100, h: 100 }
 
 const prozent = (px: number, von: number) => `${(px / von) * 100}%`
-
-/** Perspektive: wie groß eine Person bei Fußhöhe `y` ist, im Verhältnis zu einer bei
- *  Fußhöhe `bezug`. Die Kamera schaut steil von oben, der Horizont liegt weit über dem Bild.
- *  Gemessen an den Tischbildern: wer dort sitzt, ist samt Stuhl knapp 290 px hoch,
- *  stehend also etwa 400 px, an der Werkbank 580 px. */
-const HORIZONT = -700
-const massstab = (y: number, bezug: number) => (y - HORIZONT) / (bezug - HORIZONT)
 
 /** Position und Größe eines Tischbildes auf der Bühne (Prozent). */
 function rahmen(p: Platz) {
