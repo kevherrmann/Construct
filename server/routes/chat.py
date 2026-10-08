@@ -87,6 +87,14 @@ async def chat(req: Request):
             prompt += await teamchat.meldungen(session_id)
         except Exception as e:
             print(f"[firma] Meldung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+    # Übergaben, die bei ausgeschaltetem Team-Modus liegen blieben: unabhängig vom
+    # Schalter, der steht dann meist noch auf aus.
+    if session_id and resume_at is None:
+        try:
+            from server.team import chat as teamchat
+            prompt += teamchat.nicht_angekommen(session_id)
+        except Exception as e:
+            print(f"[firma] Meldung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort, chat=True)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.
@@ -175,3 +183,28 @@ def stop_run(run_id: str):
     if run.task and not run.done:
         run.task.cancel()
     return {"stopped": True}
+
+
+# Übergaben, die bei ausgeschaltetem Team-Modus liegen blieben (server/team/chat.py).
+# Bewusst nicht unter /api/team: dort hängt alles am Team-Modus und wäre aus = 404.
+@router.get("/api/firma/uebergaben/{sid}")
+def uebergaben(sid: str):
+    from server.team import chat as teamchat
+    return {"uebergaben": teamchat.nicht_zugestellt(sid)}
+
+
+@router.post("/api/firma/uebergaben/{sid}/{eid}")
+async def uebergabe_nachholen(sid: str, eid: str):
+    """Knopf „Firma einschalten und übergeben“. async: `uebergeben` wirft den
+    Dispatcher in der laufenden Schleife an, im Threadpool gäbe es keine."""
+    from server.team import chat as teamchat
+    from server.team.engine import AuftragFehler
+    settings = cfg.apply_patch({"team": {"aktiv": True}})
+    try:
+        u, t = teamchat.nachholen(sid, eid)
+    except teamchat.NichtOffen:
+        return JSONResponse({"error": cfg.L("Nichts offen.", "Nothing pending."),
+                             "uebergaben": teamchat.nicht_zugestellt(sid)}, status_code=409)
+    except AuftragFehler as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"ok": True, "uebergabe": u, "auftrag": t["id"], "settings": settings}

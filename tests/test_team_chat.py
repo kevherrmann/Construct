@@ -118,3 +118,91 @@ def test_gebuchte_sitzungen_der_firma(monkeypatch, tmp_path):
     t["sessions"] = {"luna": "sess-luna"}
     auf.speichern(t)
     assert "sess-luna" in sessions.firma_sessions()
+
+
+# ---------- Übergabe bei ausgeschaltetem Team-Modus ----------
+SID = "abcd1234-0000-0000-0000-000000firma"
+
+
+def _team(an: bool, tmp_path):
+    s = json.loads((tmp_path / "settings.json").read_text())
+    s["team"]["aktiv"] = an
+    (tmp_path / "settings.json").write_text(json.dumps(s))
+
+
+def _zug(text: str):
+    from server import runs
+    run = runs.Run("r-firma", "/tmp/projekt", SID, "")
+    run.emit = lambda ev: run.ereignisse.append(ev)
+    run.ereignisse = []
+    run.last_text = text
+    runs._firma_marke(run)
+    return run
+
+
+def test_team_aus_kein_auftrag_aber_ereignis_und_einmal_meldung(monkeypatch, tmp_path):
+    from server.team import engine
+    _team(False, tmp_path)
+    monkeypatch.setattr(engine, "auftrag_anlegen", lambda *a, **kw: pytest.fail("Auftrag trotz Team aus"))
+    run = _zug("Baut die Uhr.\n\n[[firma: Uhr bauen]]")
+    [ev] = run.ereignisse
+    assert ev["type"] == "firma_aus" and ev["session_id"] == SID
+    assert ev["uebergabe"]["titel"] == "Uhr bauen" and ev["uebergabe"]["status"] == "offen"
+    # übersteht einen Neustart: liegt in der Datei, nicht im Speicher
+    gespeichert = json.loads((tmp_path / "firma" / "nicht_zugestellt.json").read_text())[SID][0]
+    assert gespeichert["cwd"] == "/tmp/projekt" and "Baut die Uhr." in gespeichert["text"]
+    assert teamchat.nicht_zugestellt(SID) == [ev["uebergabe"]]
+    # Einschalten allein startet nichts
+    _team(True, tmp_path)
+    assert teamchat.nicht_zugestellt(SID)[0]["status"] == "offen"
+    assert teamchat.nicht_angekommen(SID) == \
+        "\n\n[Firma: Übergabe „Uhr bauen“ nicht angekommen, der Team-Modus war aus.]"
+    assert teamchat.nicht_angekommen(SID) == ""
+    assert teamchat.ohne_meldung("Und?" + "\n\n[Firma: Übergabe „Uhr bauen“ nicht angekommen, der Team-Modus war aus.]") == "Und?"
+
+
+def test_meldung_haengt_an_der_naechsten_nachricht(monkeypatch, client, tmp_path):
+    from server.routes import chat as chatroute
+    _team(False, tmp_path)
+    _zug("Baut die Uhr.\n\n[[firma: Uhr bauen]]")
+    prompts = []
+
+    class Lauf:
+        id = "r-x"
+    monkeypatch.setattr(chatroute, "start_run", lambda prompt, *a, **kw: prompts.append(prompt) or Lauf())
+    for _ in range(2):
+        assert client.post("/api/chat", json={"message": "Und?", "session_id": SID}).status_code == 200
+    assert prompts[0].endswith("[Firma: Übergabe „Uhr bauen“ nicht angekommen, der Team-Modus war aus.]")
+    assert "nicht angekommen" not in prompts[1]
+
+
+def test_team_an_geht_wie_bisher_an_die_firma(monkeypatch, tmp_path):
+    from server.team import engine
+    monkeypatch.setattr(engine, "starten", lambda: None)
+    monkeypatch.setattr(engine, "auftrag_anlegen", lambda titel, brief, cwd, **kw: {"id": "a1"})
+    run = _zug("Baut die Uhr.\n\n[[firma: Uhr bauen]]")
+    assert run.ereignisse == [{"type": "firma", "auftrag": "a1"}]
+    assert teamchat.nicht_zugestellt(SID) == []
+
+
+def test_knopf_schaltet_ein_und_uebergibt_an_die_session(monkeypatch, client, tmp_path):
+    from server.team import engine
+    _team(False, tmp_path)
+    run = _zug("Baut die Uhr.\n\n[[firma: Uhr bauen]]")
+    eid = run.ereignisse[0]["uebergabe"]["id"]
+    angelegt = []
+    monkeypatch.setattr(engine, "starten", lambda: None)
+    monkeypatch.setattr(engine, "auftrag_anlegen",
+                        lambda titel, brief, cwd, **kw: angelegt.append((titel, brief, cwd, kw)) or {"id": "a7"})
+    r = client.post(f"/api/firma/uebergaben/{SID}/{eid}")
+    assert r.status_code == 200, r.text
+    assert r.json()["auftrag"] == "a7" and r.json()["settings"]["team"]["aktiv"]
+    assert r.json()["uebergabe"] == {**run.ereignisse[0]["uebergabe"], "status": "uebergeben", "auftrag": "a7"}
+    assert angelegt == [("Uhr bauen", "Baut die Uhr.", "/tmp/projekt", {"bruecke": {"session": SID}, "ticket": None})]
+    assert cfg.load_settings()["team"]["aktiv"]
+    # nach dem Neuladen: übergeben, und der Assistent bekommt keine Meldung mehr
+    assert client.get(f"/api/firma/uebergaben/{SID}").json()["uebergaben"][0]["status"] == "uebergeben"
+    assert teamchat.nicht_angekommen(SID) == ""
+    # Doppelklick legt keinen zweiten Auftrag an
+    assert client.post(f"/api/firma/uebergaben/{SID}/{eid}").status_code == 409
+    assert len(angelegt) == 1

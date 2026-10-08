@@ -390,7 +390,7 @@ export function Composer({
               : undefined
           }
           onClick={submit}
-          aria-label={raum ? (busy ? t('Einwerfen') : t('Senden')) : undefined}
+          aria-label={raum || schmal ? (busy ? t('Einwerfen') : t('Senden')) : undefined}
         >
           {raum || schmal ? '➤' : busy ? t('➤ EINWERFEN') : t('SENDEN')}
         </button>

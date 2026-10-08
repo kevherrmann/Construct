@@ -2,6 +2,20 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.2.1 — 2026-10-08
+
+### Fixed
+- **A handover no longer gets lost when the company is switched off.** If an
+  answer ended with a handover line while team mode was off, the job was dropped
+  silently and nobody worked on it. Now it is kept, and under the answer a note
+  says "The company is off, the job did not arrive" with a button "Switch on the
+  company and hand over". The note survives a reload and a restart. Without the
+  button, the assistant hears once, with your next message, that the handover
+  did not arrive. Switching team mode on by itself starts nothing.
+- **Helpers stay at least four seconds at one place in the room.** Switching
+  quickly between tools made a hologram skip the shelf in a blink; now a short
+  visit is visible, and after several quick changes only the newest place counts.
+
 ## 8.2.0 — 2026-10-08
 
 ### Added

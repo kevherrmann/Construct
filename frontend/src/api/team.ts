@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPost } from '@/lib/api'
+import { ApiError, apiDelete, apiGet, apiPost } from '@/lib/api'
+import type { Settings } from '@/lib/bootstrap'
 import { useSettings } from '@/stores/settings'
 
 // Team-Modus: die Firma aus KI-Mitarbeitern (server/team/, routes/team.py).
@@ -241,6 +242,57 @@ export const useTeamChat = (sid: string | null | undefined) => {
       q.state.data?.auftraege.some((a) => a.status === 'laeuft' || a.status === 'neu')
         ? 2500
         : 15000,
+  })
+}
+
+/** Eine Übergabe ([[firma: …]]), die ankam, während der Team-Modus aus war. */
+export interface Uebergabe {
+  id: string
+  titel: string
+  status: 'offen' | 'uebergeben'
+  /** Unix-Sekunden, Ende des Zugs: daran hängt der Hinweis im Chat. */
+  erstellt: number
+  auftrag: string | null
+}
+
+export const uebergabenKey = (sid: string | null | undefined) => ['firma', 'uebergaben', sid]
+
+/** Liegengebliebene Übergaben einer Session. Bewusst ohne Team-Modus: gerade dann
+ *  sind sie da. */
+export const useUebergaben = (sid: string | null | undefined) =>
+  useQuery({
+    queryKey: uebergabenKey(sid),
+    queryFn: () =>
+      apiGet<{ uebergaben: Uebergabe[] }>(`/api/firma/uebergaben/${encodeURIComponent(sid!)}`).then(
+        (d) => d.uebergaben,
+      ),
+    enabled: !!sid,
+    refetchOnMount: 'always',
+  })
+
+/** Knopf „Firma einschalten und übergeben“: der Server schaltet den Team-Modus ein
+ *  und übergibt; der Schalter in der Oberfläche übernimmt seine Einstellungen. */
+export function useUebergabeNachholen(sid: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPost<{ ok: boolean; uebergabe: Uebergabe; auftrag: string; settings: Settings }>(
+        `/api/firma/uebergaben/${encodeURIComponent(sid)}/${encodeURIComponent(id)}`,
+      ),
+    onSuccess: (r) => {
+      useSettings.setState({ settings: r.settings })
+      qc.setQueryData<Uebergabe[]>(uebergabenKey(sid), (alt) =>
+        alt?.map((u) => (u.id === r.uebergabe.id ? r.uebergabe : u)),
+      )
+      void qc.invalidateQueries({ queryKey: ['team'] })
+    },
+    // 409: schon übergeben (anderes Fenster, Doppelklick) — den Stand neu holen.
+    // 400: die Übergabe scheiterte, eingeschaltet ist die Firma trotzdem.
+    onError: (e) => {
+      if (e instanceof ApiError && e.status === 400)
+        useSettings.getState().preview({ team: { aktiv: true } })
+      void qc.invalidateQueries({ queryKey: uebergabenKey(sid) })
+    },
   })
 }
 

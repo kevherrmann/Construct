@@ -4,6 +4,7 @@ import {
   ERSCHEINEN_MS,
   FLACKERN_MS,
   PLAETZE,
+  VERWEILEN_MS,
   ZERFALL_MS,
   aufstellung,
   holosNach,
@@ -51,13 +52,95 @@ describe('holosNach', () => {
     expect(da[0]).toMatchObject({ phase: 'arbeitet', ort: 'regal', detail: 'Reading eins.txt' })
   })
 
-  it('wechselt mit dem Werkzeug die Station', () => {
+  it('wechselt mit dem Werkzeug die Station, aber erst nach der Verweilzeit', () => {
+    const lesen = [helfer('a', { stand: 'laeuft', werkzeug: 'Read' })]
+    const schreiben = [helfer('a', { stand: 'laeuft', werkzeug: 'Edit' })]
+    // am Regal angekommen bei ERSCHEINEN_MS
     const v = ablauf([
-      [0, [helfer('a', { werkzeug: 'Read' })]],
-      [900, [helfer('a', { werkzeug: 'Read' })]],
-      [1200, [helfer('a', { stand: 'laeuft', werkzeug: 'Edit' })]],
+      [0, lesen],
+      [ERSCHEINEN_MS, lesen],
+      [1200, schreiben],
     ])
-    expect(v[0]!.ort).toBe('werkbank')
+    expect(v[0]).toMatchObject({ ort: 'regal', ortSeit: ERSCHEINEN_MS })
+    expect(holosNach(v, schreiben, ERSCHEINEN_MS + VERWEILEN_MS - 1)[0]!.ort).toBe('regal')
+    expect(holosNach(v, schreiben, ERSCHEINEN_MS + VERWEILEN_MS)[0]).toMatchObject({
+      ort: 'werkbank',
+      ortSeit: ERSCHEINEN_MS + VERWEILEN_MS,
+    })
+  })
+
+  it('ein kurzer Abstecher ans Regal bleibt stehen', () => {
+    const werk = (w: string) => [helfer('a', { stand: 'laeuft', werkzeug: w })]
+    let v = ablauf([
+      [0, werk('Edit')],
+      [ERSCHEINEN_MS, werk('Edit')],
+      [ERSCHEINEN_MS + VERWEILEN_MS, werk('Read')],
+    ])
+    expect(v[0]).toMatchObject({ ort: 'regal', ortSeit: ERSCHEINEN_MS + VERWEILEN_MS })
+    // eine Zehntelsekunde später schreibt er schon wieder: er bleibt trotzdem,
+    // und mit ihm die Zeile vom Regal
+    v = holosNach(v, werk('Edit'), ERSCHEINEN_MS + VERWEILEN_MS + 100)
+    expect(v[0]).toMatchObject({ ort: 'regal', werkzeug: 'Edit' })
+    const amRegal = [helfer('a', { stand: 'laeuft', werkzeug: 'Read', detail: 'Reading b.ts' })]
+    const zurueck = [helfer('a', { stand: 'laeuft', werkzeug: 'Edit', detail: 'Editing a.ts' })]
+    const z = holosNach(holosNach(v, amRegal, 5000), zurueck, 5100)
+    expect(z[0]).toMatchObject({ ort: 'regal', detail: 'Reading b.ts' })
+    expect(holosNach(z, zurueck, 5000 + VERWEILEN_MS)[0]).toMatchObject({
+      ort: 'werkbank',
+      detail: 'Editing a.ts',
+    })
+    expect(holosNach(v, werk('Edit'), ERSCHEINEN_MS + 2 * VERWEILEN_MS - 1)[0]!.ort).toBe('regal')
+    expect(holosNach(v, werk('Edit'), ERSCHEINEN_MS + 2 * VERWEILEN_MS)[0]!.ort).toBe('werkbank')
+  })
+
+  it('bei schnellen Wechseln zählt nur der neueste Ort', () => {
+    const werk = (w: string) => [helfer('a', { stand: 'laeuft', werkzeug: w })]
+    const t0 = ERSCHEINEN_MS
+    let v = ablauf([
+      [0, werk('Read')],
+      [t0, werk('Read')],
+      [t0 + 500, werk('Edit')],
+      [t0 + 900, werk('Grep')],
+    ])
+    // zurück zum Regal, wo es ohnehin steht: kein Wechsel mehr fällig
+    expect(holosNach(v, werk('Grep'), t0 + VERWEILEN_MS)).toBe(v)
+    expect(naechsteAenderung(v, t0 + 900)).toBeNull()
+    // Regal → Werkbank → Regal → Werkbank: am Ende nur einmal an die Werkbank
+    v = holosNach(v, werk('Bash'), t0 + 1500)
+    v = holosNach(v, werk('Bash'), t0 + VERWEILEN_MS)
+    expect(v[0]).toMatchObject({ ort: 'werkbank', ortSeit: t0 + VERWEILEN_MS })
+  })
+
+  it('vom Platz neben dem Besitzer geht es ohne Verweilzeit los', () => {
+    const v = ablauf([
+      [0, [helfer('a', { stand: 'laeuft' })]],
+      [ERSCHEINEN_MS, [helfer('a', { stand: 'laeuft' })]],
+      [ERSCHEINEN_MS + 200, [helfer('a', { stand: 'laeuft', werkzeug: 'Read' })]],
+    ])
+    expect(v[0]).toMatchObject({ ort: 'regal', ortSeit: ERSCHEINEN_MS + 200 })
+  })
+
+  it('Zerfall und Flackern warten nicht auf die Verweilzeit', () => {
+    const werk = (w: string, x: Partial<Helfer> = {}) => [
+      helfer('a', { stand: 'laeuft', werkzeug: w, ...x }),
+    ]
+    const v = ablauf([
+      [0, werk('Read')],
+      [ERSCHEINEN_MS, werk('Read')],
+      [ERSCHEINEN_MS + 100, werk('Edit')],
+    ])
+    const t = ERSCHEINEN_MS + 200
+    expect(holosNach(v, werk('Edit', { stand: 'fertig' }), t)[0]).toMatchObject({
+      phase: 'zerfaellt',
+      seit: t,
+      ort: 'regal',
+    })
+    expect(holosNach(v, werk('Edit', { stand: 'fehler' }), t)[0]).toMatchObject({
+      phase: 'flackert',
+      seit: t,
+      ort: 'regal',
+    })
+    expect(holosNach(v, [], t)[0]).toMatchObject({ phase: 'zerfaellt', seit: t })
   })
 
   it('ändert sich nichts, kommt dieselbe Liste zurück', () => {
@@ -133,6 +216,35 @@ describe('naechsteAenderung', () => {
     const da = holosNach(v, [helfer('a')], ERSCHEINEN_MS)
     expect(naechsteAenderung(da, ERSCHEINEN_MS)).toBeNull()
   })
+
+  it('kennt den verzögerten Wechsel der Station', () => {
+    const werk = (w: string) => [helfer('a', { stand: 'laeuft', werkzeug: w })]
+    const v = ablauf([
+      [0, werk('Read')],
+      [ERSCHEINEN_MS, werk('Read')],
+      [ERSCHEINEN_MS + 1000, werk('Edit')],
+    ])
+    expect(naechsteAenderung(v, ERSCHEINEN_MS + 1000)).toBe(VERWEILEN_MS - 1000)
+    // überfällig (Zeitgeber kam spät): sofort
+    expect(naechsteAenderung(v, ERSCHEINEN_MS + VERWEILEN_MS + 50)).toBe(0)
+  })
+
+  it('der Wechsel zählt nicht für wartende', () => {
+    const v: Holo[] = [
+      {
+        id: 'a',
+        beschreibung: '',
+        detail: '',
+        werkzeug: 'Edit',
+        phase: 'arbeitet',
+        seit: 0,
+        platz: -1,
+        ort: 'regal',
+        ortSeit: 0,
+      },
+    ]
+    expect(naechsteAenderung(v, 0)).toBeNull()
+  })
 })
 
 describe('ortVon', () => {
@@ -157,6 +269,7 @@ describe('aufstellung', () => {
     seit: 0,
     platz,
     ort,
+    ortSeit: 0,
   })
 
   it('neben dem Podest stehen alle an verschiedenen Stellen', () => {

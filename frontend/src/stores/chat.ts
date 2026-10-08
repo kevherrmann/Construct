@@ -3,6 +3,7 @@ import i18n from 'i18next'
 import { tk } from '@/lib/i18n'
 import { create } from 'zustand'
 import type { SessionDetail, SessionInfo } from '@/api/chat'
+import { uebergabenKey, type Uebergabe } from '@/api/team'
 import { apiGet, apiPost } from '@/lib/api'
 import { addRunNote, applyEvent, initialRun, newId, type RunState } from '@/lib/chat/reducer'
 import { SseParser } from '@/lib/chat/sse'
@@ -281,6 +282,13 @@ export const useChat = create<ChatStore>((set, get) => {
               case 'firma':
                 // Die Aufgabe ist an die Firma gegangen: ihre Nachrichten erscheinen im Chat.
                 void queryClient.invalidateQueries({ queryKey: ['team'] })
+                break
+              case 'firma_aus':
+                // Nicht angekommen, der Team-Modus war aus: Hinweis unter der Antwort.
+                queryClient.setQueryData<Uebergabe[]>(uebergabenKey(ev.session_id), (alt = []) => [
+                  ...alt.filter((u) => u.id !== ev.uebergabe.id),
+                  ev.uebergabe,
+                ])
                 break
               case 'stats':
                 if (ev.model) patch(key, { lastModel: ev.model })

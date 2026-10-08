@@ -547,10 +547,17 @@ def _firma_marke(run):
     try:
         neu = run.last_text[run.marke_ab:]
         run.marke_ab = len(run.last_text)
-        if not run.session_id or "[[" not in neu or not cfg.load_settings()["team"]["aktiv"]:
+        if not run.session_id or "[[" not in neu:
             return
         from server.team import chat as teamchat
         from server.team.engine import AuftragFehler
+        # Geprüft wird hier am Zugende, also zählt auch ein Schalter, der mitten im
+        # Zug umgelegt wurde. Aus: nicht verwerfen, sondern zum Nachreichen merken.
+        if not cfg.load_settings()["team"]["aktiv"]:
+            u = teamchat.zurueckhalten(neu, run.session_id, run.cwd)
+            if u:
+                run.emit({"type": "firma_aus", "session_id": run.session_id, "uebergabe": u})
+            return
         try:
             t = teamchat.uebergeben(neu, run.session_id, run.cwd)
         except AuftragFehler as e:

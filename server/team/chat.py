@@ -19,7 +19,11 @@ Kontext, die Zeile nur dann, wenn sie gebraucht wird.
 Rückweg: Was die Firma geliefert hat (oder dass sie wartet), bekommt der
 Assistent an der nächsten Nachricht des Nutzers in dieser Session mit.
 """
+import json
 import re
+import threading
+import time
+import uuid
 
 from server import config as cfg
 
@@ -148,3 +152,104 @@ async def meldungen(session: str) -> str:
     if not teile:
         return ""
     return "\n\n[" + cfg.L("Firma", "Company") + ": " + " · ".join(teile) + "]"
+
+
+# ---------- Nicht zugestellt ----------
+# War der Team-Modus am Zugende aus, ging die Übergabe früher still verloren: die
+# Oberfläche blendet die Markerzeile aus, also sah niemand, dass nichts ankam
+# (08.10.2026). Jetzt bleibt sie hier liegen, bis der Nutzer sie per Knopf
+# nachreicht. Einschalten allein startet nichts: ob eine alte Aufgabe noch gilt,
+# entscheidet der Nutzer, nicht der Schalter.
+# Ablage: firma/nicht_zugestellt.json, {session: [eintrag, …]}.
+_SPERRE = threading.Lock()
+PRO_SESSION = 20
+
+
+def _ablage():
+    from server.team import agents as ag
+    return ag.FIRMA_DIR / "nicht_zugestellt.json"
+
+
+def _lesen() -> dict:
+    try:
+        d = json.loads(_ablage().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def _schreiben(d: dict):
+    p = _ablage()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(p)
+
+
+def _anzeige(e: dict) -> dict:
+    return {k: e.get(k) for k in ("id", "titel", "status", "erstellt", "auftrag")}
+
+
+def zurueckhalten(text: str, session: str, cwd: str) -> dict | None:
+    """Übergabe bei ausgeschaltetem Team-Modus: nicht anlegen, sondern merken.
+    Gemerkt wird die ganze Antwort samt Zeile — `nachholen` gibt sie dann genau so
+    an `uebergeben`, wie es am Zugende passiert wäre (Ticketverweis inklusive)."""
+    titel = marke(text)
+    if titel is None or not session:
+        return None
+    e = {"id": uuid.uuid4().hex[:8], "titel": titel or ohne_marke(text).strip()[:80],
+         "text": text, "cwd": cwd, "status": "offen", "erstellt": time.time(),
+         "gemeldet": False, "auftrag": None}
+    with _SPERRE:
+        d = _lesen()
+        d[session] = (d.get(session) or [])[-(PRO_SESSION - 1):] + [e]
+        _schreiben(d)
+    return _anzeige(e)
+
+
+def nicht_zugestellt(session: str) -> list:
+    return [_anzeige(e) for e in _lesen().get(session) or []]
+
+
+class NichtOffen(Exception):
+    pass
+
+
+def nachholen(session: str, eid: str) -> tuple[dict, dict]:
+    """Der Knopf: die gemerkte Übergabe jetzt an die Firma. Unter der Sperre, damit
+    ein Doppelklick nicht zwei Aufträge anlegt. AuftragFehler geht durch, der
+    Eintrag bleibt dann offen."""
+    with _SPERRE:
+        d = _lesen()
+        e = next((x for x in d.get(session) or [] if x.get("id") == eid), None)
+        if not e or e.get("status") != "offen":
+            raise NichtOffen(eid)
+        t = uebergeben(e["text"], session, e.get("cwd") or "")
+        if not t:
+            raise NichtOffen(eid)
+        e.update(status="uebergeben", auftrag=t["id"])
+        _schreiben(d)
+    return _anzeige(e), t
+
+
+def nicht_angekommen(session: str) -> str:
+    """Wie `meldungen`, aber unabhängig vom Schalter: offene Übergaben, von denen
+    der Assistent noch nichts weiß, einmal an die Nachricht des Nutzers."""
+    if not session:
+        return ""
+    with _SPERRE:
+        d = _lesen()
+        neu = [e for e in d.get(session) or [] if e.get("status") == "offen" and not e.get("gemeldet")]
+        if not neu:
+            return ""
+        for e in neu:
+            e["gemeldet"] = True
+        _schreiben(d)
+    titel = ", ".join(f"„{e['titel']}“" for e in neu)
+    if len(neu) == 1:
+        satz = cfg.L(f"Übergabe {titel} nicht angekommen, der Team-Modus war aus.",
+                     f"handover {titel} did not arrive, team mode was off.")
+    else:
+        satz = cfg.L(f"Übergaben {titel} nicht angekommen, der Team-Modus war aus.",
+                     f"handovers {titel} did not arrive, team mode was off.")
+    return "\n\n[" + cfg.L("Firma", "Company") + ": " + satz + "]"

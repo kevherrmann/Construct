@@ -2,6 +2,8 @@
 // Stream-Events; hier wird daraus zuerst ein Zustand (ChatItem[]), den React
 // zeichnet. Das macht Reconnect, Session-Wechsel und Tests einfach.
 
+import type { Uebergabe } from '@/api/team'
+
 /** Ein Ereignis aus /api/stream/{run_id} (SSE, "data: {...}"). */
 export type StreamEvent =
   | { type: 'session'; session_id: string }
@@ -11,6 +13,8 @@ export type StreamEvent =
   | { type: 'tickets'; nr: number }
   /** Die Aufgabe ist an die Firma gegangen ([[firma: …]] am Ende der Antwort). */
   | { type: 'firma'; auftrag: string }
+  /** Die Übergabe kam nicht an, der Team-Modus war aus: der Chat zeigt einen Hinweis. */
+  | { type: 'firma_aus'; session_id: string; uebergabe: Uebergabe }
   | { type: 'thinking_marker' }
   /** `parent`: der Schritt gehört dem Helfer mit dieser id, nicht dem Assistenten. */
   | { type: 'tool'; id?: string; name: string; input?: unknown; parent?: string }

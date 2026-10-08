@@ -1,8 +1,16 @@
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { gesehen, merkeGesehen, useTeamChat, useTeamStand, type Person } from '@/api/team'
+import {
+  gesehen,
+  merkeGesehen,
+  useTeamChat,
+  useTeamStand,
+  useUebergaben,
+  type Person,
+} from '@/api/team'
 import { Eskalation } from './Eskalation'
+import { UebergabeHinweis } from './Uebergabe'
 import { LiveZug } from './LiveZug'
 import { NachrichtKarte } from './NachrichtKarte'
 import s from './Firma.module.css'
@@ -31,6 +39,7 @@ export function useFirmaImChat(sid: string | null | undefined): {
   const qc = useQueryClient()
   const { data } = useTeamChat(sid)
   const { data: stand } = useTeamStand()
+  const { data: uebergaben } = useUebergaben(sid)
   const auftraege = data?.auftraege ?? []
   const leute = data?.agents ?? {}
 
@@ -65,6 +74,14 @@ export function useFirmaImChat(sid: string | null | undefined): {
         })
       else zeilen.push({ ts, key: e.id, node: <NachrichtKarte e={e} leute={leute} /> })
     }
+  // Übergaben, die bei ausgeschaltetem Team-Modus liegen blieben. Ihre Zeit ist das
+  // Ende des Zugs: so stehen sie direkt unter der Antwort, die sie ausgelöst hat.
+  for (const u of uebergaben ?? [])
+    zeilen.push({
+      ts: u.erstellt * 1000,
+      key: `uebergabe-${u.id}`,
+      node: <UebergabeHinweis sid={sid!} u={u} />,
+    })
   zeilen.sort((x, y) => x.ts - y.ts)
 
   const ids = new Set(auftraege.map((a) => a.id))

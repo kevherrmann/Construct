@@ -22,6 +22,9 @@ import {
 export const ERSCHEINEN_MS = 800
 /** Zerfall in Code-Regen samt Blatt, das zum Besitzer schwebt. */
 export const ZERFALL_MS = 1600
+/** So lange bleibt es mindestens an einer Station, damit auch ein kurzer Abstecher
+ *  zu sehen ist. Wechselt das Werkzeug schneller, zählt danach nur der neueste Ort. */
+export const VERWEILEN_MS = 4000
 /** Fehler: kurzes Ausflackern. */
 export const FLACKERN_MS = 700
 /** So viele stehen gleichzeitig im Raum, weitere zählt ein „+N“. */
@@ -42,6 +45,8 @@ export interface Holo {
   /** Platz 0 … PLAETZE-1; -1 = wartet auf einen freien (zählt zum „+N“). */
   platz: number
   ort: HoloOrt
+  /** Seit wann es an diesem Ort steht (ms). */
+  ortSeit: number
 }
 
 /** Station eines Werkzeugs → Ort im Raum. Ohne eigene Station bleibt es stehen. */
@@ -59,6 +64,13 @@ const DAUER: Partial<Record<HoloPhase, number>> = {
   flackert: FLACKERN_MS,
 }
 const endet = (h: Holo) => h.phase === 'zerfaellt' || h.phase === 'flackert'
+
+/** Ab wann es an die Station seines Werkzeugs geht (null = es steht schon richtig).
+ *  Neben dem Besitzer ist keine Station: von dort geht es sofort los. */
+function wechselAb(h: Holo): number | null {
+  if (h.phase !== 'arbeitet' || h.ort === ortVon(h.werkzeug)) return null
+  return h.ort === 'neben' ? h.ortSeit : h.ortSeit + VERWEILEN_MS
+}
 const gleich = (a: Holo, b: Holo) => (Object.keys(a) as (keyof Holo)[]).every((k) => a[k] === b[k])
 
 /**
@@ -87,8 +99,13 @@ export function holosNach(vorher: Holo[], helfer: readonly Helfer[], jetzt: numb
     } else if (neu.phase === 'erscheint' && vorbei) {
       neu = { ...neu, phase: 'arbeitet', seit: neu.seit + ERSCHEINEN_MS }
     }
-    // An die Station erst, wenn es ganz da ist; beim Zerfallen bleibt es, wo es war.
-    if (neu.phase === 'arbeitet') neu = { ...neu, ort: ortVon(neu.werkzeug) }
+    // An die Station erst, wenn es ganz da ist, und erst nach der Verweilzeit an der
+    // vorigen; beim Zerfallen bleibt es, wo es war.
+    // Solange es noch bleibt, behält es die Zeile seines Orts: „Editing“ am Regal
+    // passt nicht zum Bild.
+    const ab = wechselAb(neu)
+    if (ab !== null && jetzt >= ab) neu = { ...neu, ort: ortVon(neu.werkzeug), ortSeit: jetzt }
+    else if (ab !== null) neu = { ...neu, detail: alt.detail }
     out.push(gleich(neu, alt) ? alt : neu)
   }
   for (const h of helfer) {
@@ -102,6 +119,7 @@ export function holosNach(vorher: Holo[], helfer: readonly Helfer[], jetzt: numb
       seit: jetzt,
       platz: -1,
       ort: 'neben',
+      ortSeit: jetzt,
     })
   }
   // Wartende rücken auf freie Plätze nach, in der Reihenfolge ihres Starts.
@@ -113,7 +131,7 @@ export function holosNach(vorher: Holo[], helfer: readonly Helfer[], jetzt: numb
     while (belegt.has(p)) p++
     if (p >= PLAETZE) break
     belegt.add(p)
-    out[i] = { ...h, platz: p, phase: 'erscheint', seit: jetzt, ort: 'neben' }
+    out[i] = { ...h, platz: p, phase: 'erscheint', seit: jetzt, ort: 'neben', ortSeit: jetzt }
   }
   return out.length === vorher.length && out.every((h, i) => h === vorher[i]) ? vorher : out
 }
@@ -122,9 +140,11 @@ export function holosNach(vorher: Holo[], helfer: readonly Helfer[], jetzt: numb
 export function naechsteAenderung(holos: readonly Holo[], jetzt: number): number | null {
   let min: number | null = null
   for (const h of holos) {
+    if (h.platz < 0) continue
     const d = DAUER[h.phase]
-    if (d === undefined || h.platz < 0) continue
-    const rest = Math.max(0, h.seit + d - jetzt)
+    const ab = d === undefined ? wechselAb(h) : h.seit + d
+    if (ab === null) continue
+    const rest = Math.max(0, ab - jetzt)
     if (min === null || rest < min) min = rest
   }
   return min
