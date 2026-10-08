@@ -41,9 +41,10 @@ def test_ohne_meldung():
     assert teamchat.ohne_meldung("Alt\n\n[Tickets: aktuell #1]") == "Alt"
 
 
-def test_regeln_fragen_vor_der_uebergabe():
+def test_regeln_schalter_entscheidet():
     text = teamchat.regeln()
-    assert "fragst, ob du sie an die Firma geben darfst" in text and "Anna" in text
+    assert "entscheidet der Schalter, nicht du" in text and "ohne Rückfrage" in text
+    assert "Anna" in text
     assert "[[firma: Kurztitel]]" in text
     # Der Begriff ist verankert: wer zur Firma gehört, steht dabei
     assert "„Die Firma“ ist der Team-Modus" in text and "Janus: Code-Auditor" in text

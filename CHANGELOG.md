@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.1.0 — 2026-10-08
+
+### Changed
+- **The team-mode switch decides who works.** The assistant no longer weighs
+  whether a task is big enough for the company and no longer asks before handing
+  it over. With team mode on, every task that builds, changes, reviews or tests
+  something goes to the company, however small; questions, explanations,
+  calendar and mail stay with the assistant, and so does anything you
+  explicitly give to it. With team mode off, the assistant works alone, as
+  before.
+
 ## 8.0.1 — 2026-10-07
 
 ### Fixed

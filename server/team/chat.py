@@ -2,11 +2,14 @@
 
 Früher gab es den Chat mit dem Assistenten UND daneben eine eigene Auftragssicht —
 zweimal dasselbe, nur einmal delegiert, und im Raum stritten sich beide ums
-Protokoll. Jetzt gibt es nur den Chat: der Assistent fragt bei einer großen
-Aufgabe, ob sie an die Firma gehen darf, und nach dem Ja schreiben die
-Mitarbeiter in DENSELBEN Chat (ein Gruppenchat). Der Auftrag bleibt als Ablage
+Protokoll. Jetzt gibt es nur den Chat: der Assistent gibt die Aufgabe an die
+Firma, und die Mitarbeiter schreiben in DENSELBEN Chat (ein Gruppenchat). Der Auftrag bleibt als Ablage
 für Bus, Bremsen und Verlauf bestehen, hängt aber fest an der Session
 (`bruecke.session`).
+
+Ob übergeben wird, entscheidet seit 8.1.0 der Schalter (Team-Modus an = die Firma
+arbeitet), nicht mehr der Assistent nach Größe der Aufgabe: das Abwägen und
+Nachfragen war Komplexität ohne Nutzen.
 
 Übergabe: Der Assistent schreibt den Auftrag als Antwort und als letzte Zeile
 `[[firma: Kurztitel]]`. Eine Markerzeile statt eines Werkzeugs, aus demselben
@@ -76,11 +79,11 @@ def regeln() -> str:
     return cfg.L(
         f"""## Firma
 „Die Firma“ ist der Team-Modus dieser CONSTRUCT-Installation: KI-Mitarbeiter, die du als Geschäftsführung leitest{f': {leute}' if leute else ''}. Spricht {wer} von der Firma, ist immer sie gemeint, kein anderes Programm oder Projekt, und das in jeder Session und jedem Projektordner. Ihre Nachrichten erscheinen in diesem Chat.
-Große Aufgaben (mehrere Dateien oder Schritte, Oberfläche, Tests) schlägst du {wer} vor und fragst, ob du sie an die Firma geben darfst; Kleines machst du selbst. Verlangt {wer} es ausdrücklich (auch „lass die Firma mal drüberschauen“, Review, Test), fragst du nicht nach.
+Ob die Firma arbeitet, entscheidet der Schalter, nicht du: Solange der Team-Modus an ist, gibst du jede Aufgabe, bei der etwas gebaut, geändert, geprüft oder getestet wird, ohne Rückfrage an die Firma, egal wie klein. Selbst machst du nur Fragen, Erklärungen, Plaudern, Kalender, Mails und was {wer} ausdrücklich dir aufträgt („mach du“). Ist unklar, was {wer} will, fragst du vor der Übergabe nach.
 Übergeben wird nur so: Du schreibst den Auftrag als Antwort (was, wo, worauf achten, wann fertig) und als allerletzte Zeile `[[firma: Kurztitel]]` (Ticket gemeint: `[[firma: T-12 Kurztitel]]`). Keine API, kein Skript: nur über diese Zeile schreibt die Firma in diesen Chat. Danach arbeitest du nicht selbst daran. Die Zeile wird vor der Anzeige entfernt, erwähne sie nicht. Was die Firma liefert, bekommst du mit der nächsten Nachricht.""",
         f"""## Company
 "The company" is the team mode of this CONSTRUCT installation: AI employees you lead as managing director{f': {leute}' if leute else ''}. When {wer} talks about the company, it always means them, no other program or project, in every session and project folder. Their messages appear in this chat.
-Big tasks (several files or steps, interface, tests) you suggest to {wer} and ask whether you may give them to the company; small things you do yourself. If {wer} explicitly asks for it (also "let the company have a look", review, test), don't ask back.
+Whether the company works is decided by the switch, not by you: as long as team mode is on, every task that builds, changes, reviews or tests something goes to the company without asking, however small. You only handle questions, explanations, chatting, calendar, mail and whatever {wer} explicitly gives to you ("do it yourself"). If it is unclear what {wer} wants, ask before handing over.
 Handing over works only like this: write the job as your answer (what, where, what to watch, when it is done) and as the very last line `[[company: short title]]` (for a ticket: `[[company: T-12 short title]]`). No API, no script: only through this line does the company write in this chat. Then do not work on it yourself. The line is removed before display, do not mention it. You receive what the company delivers with the next message.""")
 
 

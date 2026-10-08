@@ -123,8 +123,8 @@ export function TilesSection() {
 }
 
 // Der Team-Modus: eine Firma aus KI-Mitarbeitern neben dem einzelnen Assistenten.
-// Aus = CONSTRUCT ist, was es war: ein Assistent. An = bei großen Aufgaben fragt der
-// Assistent, ob er sie an die Firma geben darf; die Mitarbeiter schreiben dann im
+// Aus = CONSTRUCT ist, was es war: ein Assistent. An = jede Arbeitsaufgabe geht an die
+// Firma, ohne dass der Assistent abwägt oder fragt; die Mitarbeiter schreiben dann im
 // selben Chat.
 export function TeamSection() {
   const { t } = useTranslation()
@@ -143,7 +143,7 @@ export function TeamSection() {
             <span className={s.t}>🏢 {t('Team-Modus')}</span>
             <span className={s.d}>
               {t(
-                'Eine Firma aus KI-Mitarbeitern. Bei großen Aufgaben fragt der Assistent, ob er sie an die Firma geben darf; die Mitarbeiter schreiben dann mit im Chat. Kleines erledigt er allein. Aus = alles wie bisher.',
+                'Eine Firma aus KI-Mitarbeitern. An = jede Arbeitsaufgabe geht ohne Rückfrage an die Firma, die Mitarbeiter schreiben mit im Chat. Fragen, Kalender und Mails erledigt der Assistent weiter selbst. Aus = er arbeitet allein.',
               )}
             </span>
           </span>

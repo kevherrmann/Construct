@@ -105,9 +105,10 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   jobs that the staff pass between each other over an internal bus, safety
   brakes against endless loops, a fixed crew of five, shared know-how
   ("instructions") and a fixed test bench. The assistant is the managing
-  director. Small things the assistant does alone; for big ones it asks whether
-  it may give them to the company. After your yes the employees write in the
-  same chat, like a group chat, and their card on the ticket board follows them
+  director. The switch decides, not the assistant: with team mode on, every
+  task that builds, changes or tests something goes to the company without
+  asking; questions, calendar and mail stay with the assistant. The employees
+  write in the same chat, like a group chat, and their card on the ticket board follows them
   (Janus pulls it to In review, Miranda to QA). Off by default; switch on under
   ⚙ Settings → Team. In the room the crew sits at two double desks behind the assistant; whoever works gets
   up, walks to the workbench and types there, and the director looks in on
