@@ -381,3 +381,84 @@ def test_schritt_eines_helfers_im_nachlauf_ist_kein_neuer_zug(tmp_path, monkeypa
     run = _lauf_mit(tmp_path, monkeypatch, zeilen)
     typen = [e["type"] for e in run.events]
     assert "nachlauf" in typen and "neuer_zug" not in typen
+
+
+# ---------- Zweites Fenster: kein zweiter Prozess auf derselben Sitzung ----------
+
+class _Stdin:
+    def __init__(self):
+        self.geschrieben = []
+
+    def write(self, daten):
+        self.geschrieben.append(daten)
+
+    async def drain(self):
+        pass
+
+
+class _Proc:
+    def __init__(self):
+        self.stdin = _Stdin()
+
+
+def _laufender_lauf(sid, run_id="lauf-offen", **extra):
+    run = runs.Run(run_id, "/tmp", sid, "", initial_prompt="hallo")
+    run.proc = _Proc()
+    for k, v in extra.items():
+        setattr(run, k, v)
+    run.emit({"type": "text", "text": "alter Zug"})
+    runs.RUNS[run.id] = run
+    return run
+
+
+def test_nachricht_fuer_laufende_sitzung_geht_in_denselben_prozess(client, monkeypatch):
+    # Ein Fenster, das den laufenden Prozess nicht kennt, schickt per /api/chat.
+    # Vorher startete das einen zweiten claude per --resume auf derselben Sitzung,
+    # beide arbeiteten parallel weiter (09.10.2026).
+    from server.routes import chat as chatroute
+    run = _laufender_lauf("sid-offen", nachlauf=True)
+    monkeypatch.setattr(chatroute, "start_run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("zweiter Prozess")))
+    try:
+        r = client.post("/api/chat", json={"message": "noch was", "session_id": "sid-offen"})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert j["run_id"] == run.id and j["joined"] is True
+        assert b"noch was" in run.proc.stdin.geschrieben[0]
+        assert run.nachlauf is False
+        # Ab "ab" kommt nur Neues: das user_inject zeigt das andockende Fenster schon selbst.
+        assert [e["type"] for e in run.events[:j["ab"]]] == ["text", "user_inject"]
+    finally:
+        runs.RUNS.pop(run.id, None)
+
+
+def test_lauf_der_firma_wird_nicht_mitbenutzt(client, monkeypatch):
+    from server.routes import chat as chatroute
+    run = _laufender_lauf("sid-firma", run_id="lauf-firma", auftrag_id="a1")
+    gestartet = []
+
+    class _Neu:
+        id = "neuer-lauf"
+
+    monkeypatch.setattr(chatroute, "start_run", lambda *a, **k: gestartet.append(a) or _Neu())
+    monkeypatch.setattr(chatroute.auto_modell, "starte", lambda *a, **k: None)
+    try:
+        r = client.post("/api/chat", json={"message": "hallo", "session_id": "sid-firma"})
+        assert r.status_code == 200, r.text
+        assert r.json()["run_id"] == "neuer-lauf" and gestartet
+        assert run.proc.stdin.geschrieben == []
+    finally:
+        runs.RUNS.pop(run.id, None)
+
+
+def test_stream_ab_position_spielt_nur_den_rest_ab(client):
+    run = _laufender_lauf("sid-ab", run_id="lauf-ab")
+    run.emit({"type": "thinking_marker"})   # sonst fasst emit die Texte zu einem Ereignis zusammen
+    run.emit({"type": "text", "text": "neu"})
+    run.emit({"type": "done", "session_id": "sid-ab"})
+    run.finish()
+    try:
+        r = client.get(f"/api/stream/{run.id}?ab=2")
+        evs = [json.loads(z[6:]) for z in r.text.splitlines() if z.startswith("data: ")]
+        assert [e.get("text") for e in evs if e["type"] == "text"] == ["neu"]
+    finally:
+        runs.RUNS.pop(run.id, None)

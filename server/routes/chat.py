@@ -78,6 +78,17 @@ async def chat(req: Request):
             if not resume_at:
                 session_id = None
 
+    # Läuft für diese Sitzung schon ein claude-Prozess, der noch Eingaben annimmt
+    # (mitten im Zug oder im Nachlauf), geht die Nachricht in DIESEN Prozess. Ein
+    # zweiter per --resume würde parallel in derselben Sitzung weiterarbeiten.
+    # Passiert, wenn ein anderes Fenster den laufenden Prozess nicht kennt.
+    if session_id and resume_at is None:
+        laufend = laufender_lauf(session_id)
+        if laufend:
+            ab = await einwerfen(laufend, text, images, [])
+            if ab is not None:
+                return {"run_id": laufend.id, "session_id": session_id, "joined": True, "ab": ab}
+
     # Was die Firma in dieser Session getan hat, hinten an der Nachricht (nicht im
     # Systemprompt, der soll im Zwischenspeicher bleiben). Beigabe: scheitert es,
     # geht die Nachricht trotzdem ab.
@@ -108,7 +119,7 @@ async def inject(run_id: str, req: Request):
     """Schiebt dem LAUFENDEN claude-Prozess eine weitere Nachricht nach (kein
     Warten auf das Ende, kein --resume) — wie Weitertippen im Terminal."""
     run = RUNS.get(run_id)
-    if not run or run.done or run.stdin_closed or not run.proc:
+    if not nimmt_an(run):
         return JSONResponse({"error": "Lauf nimmt nichts mehr an"}, status_code=409)
     body = await req.json()
     text = (body.get("message") or "").strip()
@@ -116,7 +127,33 @@ async def inject(run_id: str, req: Request):
     urls = body.get("urls") or []
     if not text and not images:
         return JSONResponse({"error": "leere Nachricht"}, status_code=400)
+    try:
+        await einwerfen(run, text, images, urls, fehler_werfen=True)
+    except Exception as e:
+        return JSONResponse({"error": f"Einspeisen fehlgeschlagen: {e}"}, status_code=500)
+    return {"ok": True}
+
+
+def nimmt_an(run):
+    """Nimmt der Lauf noch Nachrichten über stdin an?"""
+    return bool(run and not run.done and not run.stdin_closed and run.proc)
+
+
+def laufender_lauf(session_id):
+    """Der Chat-Lauf, der für diese Sitzung gerade Eingaben annimmt (oder None).
+    Läufe der Firma (eigene Sitzungen, Dispatcher wartet aufs Prozessende) zählen nicht."""
+    for run in RUNS.values():
+        if run.session_id == session_id and nimmt_an(run) and not run.auftrag_id and not run.agent_slug:
+            return run
+    return None
+
+
+async def einwerfen(run, text, images, urls, fehler_werfen=False):
+    """Schiebt eine Nachricht in den laufenden Prozess. Gibt die Ereignis-Position
+    nach dem user_inject zurück (ab dort braucht ein neu andockendes Fenster den
+    Stream), bei einem Fehler None."""
     run.emit({"type": "user_inject", "text": text, "urls": urls})
+    ab = len(run.events)
     if run.nachlauf:
         # Kevin schreibt, waehrend der Prozess nur noch auf den Hintergrund
         # wartet: ein neuer Zug in derselben Sitzung. Kein "neuer_zug" hier —
@@ -127,13 +164,18 @@ async def inject(run_id: str, req: Request):
         run.proc.stdin.write(stdin_message(build_prompt(text, images)))
         await run.proc.stdin.drain()
     except Exception as e:
-        return JSONResponse({"error": f"Einspeisen fehlgeschlagen: {e}"}, status_code=500)
-    return {"ok": True}
+        print(f"[run] Einwerfen in {run.id} fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+        if fehler_werfen:
+            raise
+        return None
+    return ab
 
 
 @router.get("/api/stream/{run_id}")
-async def stream(run_id: str):
-    """Hängt sich an einen Lauf: erst Backlog (Replay), dann live. Reconnect-fähig."""
+async def stream(run_id: str, ab: int = 0):
+    """Hängt sich an einen Lauf: erst Backlog (Replay), dann live. Reconnect-fähig.
+    ab: erst ab dieser Ereignis-Position abspielen (ein Fenster, das per
+    /api/chat an einen schon laufenden Prozess angedockt hat, kennt den Anfang)."""
     run = RUNS.get(run_id)
     if not run:
         return JSONResponse({"error": "unknown run"}, status_code=404)
@@ -144,7 +186,7 @@ async def stream(run_id: str):
         idx = len(run.events)        # atomar (kein await bis hier) -> keine Lücken/Dupes
         already = run.done
         try:
-            for ev in run.events[:idx]:
+            for ev in run.events[max(0, ab):idx]:
                 yield sse(ev)
             while not already:
                 try:

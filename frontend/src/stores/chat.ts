@@ -52,6 +52,9 @@ export interface Conv {
   /** Zug fertig, aber claude wartet noch auf eigene Hintergrundaufgaben. */
   nachlauf: boolean
   runId: string | null
+  /** Erst ab dieser Ereignis-Position abspielen: gesetzt, wenn diese Ansicht an einen
+   *  schon laufenden Prozess angedockt hat (sonst stünden dessen frühere Züge doppelt da). */
+  streamAb: number | null
   stopReq: boolean
   queue: Queued[]
   /** Byte-Position für den Live-Tail; null = beim nächsten Mal neu synchronisieren. */
@@ -120,6 +123,7 @@ function makeConv(opts: Partial<Conv> = {}): Conv {
     busy: false,
     nachlauf: false,
     runId: null,
+    streamAb: null,
     stopReq: false,
     queue: [],
     fileOffset: null,
@@ -183,6 +187,7 @@ export const useChat = create<ChatStore>((set, get) => {
       history: [...c.history, ...(c.run?.items ?? [])],
       run: null,
       runId: null,
+      streamAb: null,
       busy: false,
       nachlauf: false,
       stopReq: false,
@@ -236,7 +241,8 @@ export const useChat = create<ChatStore>((set, get) => {
       let dropped = false
       try {
         bump()
-        const res = await fetch(`/api/stream/${encodeURIComponent(c.runId)}`, {
+        const ab = c.streamAb != null ? `?ab=${c.streamAb}` : ''
+        const res = await fetch(`/api/stream/${encodeURIComponent(c.runId)}${ab}`, {
           signal: ctrl.signal,
         })
         if (res.status === 404) {
@@ -380,6 +386,8 @@ export const useChat = create<ChatStore>((set, get) => {
         session_id?: string | null
         forked_from?: string | null
         rewound?: boolean | null
+        joined?: boolean
+        ab?: number
         error?: string
       }>('/api/chat', {
         message: text,
@@ -396,7 +404,11 @@ export const useChat = create<ChatStore>((set, get) => {
         j.forked_from
           ? // Abgezweigt: die neue Sitzungs-ID kommt gleich mit dem Stream.
             { runId: j.run_id!, sessionId: null, forkedFrom: j.forked_from }
-          : { runId: j.run_id!, sessionId: j.session_id ?? c.sessionId },
+          : j.joined
+            ? // Der Server hat die Nachricht in einen schon laufenden Prozess dieser
+              // Sitzung gegeben (z. B. aus einem anderen Fenster gestartet).
+              { runId: j.run_id!, sessionId: j.session_id ?? c.sessionId, streamAb: j.ab ?? null }
+            : { runId: j.run_id!, sessionId: j.session_id ?? c.sessionId, streamAb: null },
       )
       if (edit && j.rewound === false)
         patch(key, (c) => ({

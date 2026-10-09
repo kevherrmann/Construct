@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.2.2 — 2026-10-09
+
+### Fixed
+- **A second window no longer starts a second assistant in the same chat.** If
+  you wrote from another window or tab while the assistant was still working (or
+  waiting for a background job), the server started a second process on the same
+  session. Both kept answering in parallel, and the chat jumped between two
+  outputs. Now the message goes into the process that is already running, no
+  matter which window sent it, and that window joins the running answer without
+  showing its earlier turns twice.
+
 ## 8.2.1 — 2026-10-08
 
 ### Fixed
