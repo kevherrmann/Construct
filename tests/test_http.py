@@ -101,3 +101,37 @@ def test_eigene_figur_im_startpaket(client, tmp_path, monkeypatch):
     (tmp_path / "figur" / "idle.webp").write_bytes(b"x")
     (tmp_path / "figur" / "video" / "idle.mp4").write_bytes(b"x")
     assert '"figur": ["idle.webp", "video/idle.mp4"]' in client.get("/").text
+
+
+def test_limits_aus_dem_stream_wenn_die_usage_api_drosselt(client, monkeypatch):
+    # Die Usage-API drosselt schnell (429) und lässt das setup-token gar nicht
+    # rein. Dann gelten die Zahlen, die claude nach jeder Antwort mitschickt.
+    import time
+    import urllib.error
+    from server.routes import auth
+    aufrufe = []
+
+    def drosselt(req, timeout=0):
+        aufrufe.append(req)
+        raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {"Retry-After": "30"}, None)
+
+    monkeypatch.setattr(auth.urllib.request, "urlopen", drosselt)
+    monkeypatch.setattr(auth, "_usage_token", lambda: "tok")
+    monkeypatch.setattr(auth, "USAGE_CACHE", {"t": 0.0, "data": None, "pause_bis": 0.0, "reason": ""})
+    for k in ("t", "five_hour", "seven_day"):
+        monkeypatch.setitem(core.STREAM_USAGE, k, None if k != "t" else 0.0)
+
+    r = client.get("/api/usage").json()
+    assert r["available"] is False and "429" in r["reason"]
+
+    bald = int(time.time()) + 3600
+    core.note_rate_limit({"type": "rate_limit_event", "rate_limit_info": {"unifiedWindows": {
+        "five_hour": {"utilization": 0.4, "resetsAt": bald},
+        "seven_day": {"utilization": 0.9, "resetsAt": int(time.time()) - 10}}}})
+    r = client.get("/api/usage").json()
+    assert r["available"] is True
+    assert round(r["five_hour"]["percent"]) == 40 and r["five_hour"]["resets_at"].startswith("20")
+    # Woche ist seit der Meldung neu angefangen.
+    assert r["seven_day"] == {"percent": 0, "resets_at": None}
+    # Nach dem 429 wird nicht bei jedem Poll erneut angeklopft.
+    assert len(aufrufe) == 1

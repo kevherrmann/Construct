@@ -47,7 +47,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.2.2"
+VERSION = "8.2.3"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -249,6 +249,21 @@ WEB_LOGIN_OK = os.name == "posix"
 # Merkt sich das letzte "Limit erreicht" aus einem Lauf — Fallback für Hosts,
 # deren Token die Usage-API nicht abfragen darf (403, z.B. setup-token).
 LIMIT_HIT = {"resets_at": 0}
+
+# Auslastung, wie claude sie nach jeder Antwort selbst meldet (rate_limit_event).
+# Kommt auch mit dem setup-token an, das die Usage-API nicht abfragen darf.
+# Je Fenster: {"percent": 0..100, "resets_at": Unix-Zeit}; "t" = Zeitpunkt der Meldung.
+STREAM_USAGE = {"t": 0.0, "five_hour": None, "seven_day": None}
+
+def note_rate_limit(ev: dict):
+    """rate_limit_event aus dem claude-Stream fürs HUD merken."""
+    fenster = (ev.get("rate_limit_info") or {}).get("unifiedWindows") or {}
+    for key in ("five_hour", "seven_day"):
+        w = fenster.get(key)
+        if isinstance(w, dict) and isinstance(w.get("utilization"), (int, float)):
+            STREAM_USAGE[key] = {"percent": w["utilization"] * 100,
+                                 "resets_at": int(w.get("resetsAt") or 0)}
+            STREAM_USAGE["t"] = time.time()
 
 def friendly_claude_error(msg: str) -> str:
     """Rohe claude-Fehler in verständliche Hinweise übersetzen."""

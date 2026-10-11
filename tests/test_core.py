@@ -2,7 +2,8 @@
 import json
 
 from server import config
-from server.core import BASE_DIR, LIMIT_HIT, VERSION, extract_text, friendly_claude_error, sse
+from server.core import (BASE_DIR, LIMIT_HIT, STREAM_USAGE, VERSION, extract_text, friendly_claude_error,
+                         note_rate_limit, sse)
 
 
 def test_base_dir_ist_der_projektordner():
@@ -34,6 +35,20 @@ def test_limit_fehler_wird_erklaert_und_gemerkt():
     msg = friendly_claude_error("Claude AI usage limit reached|1790000000")
     assert msg.startswith("⛔")
     assert LIMIT_HIT["resets_at"] == 1790000000
+
+
+def test_auslastung_aus_dem_stream_wird_gemerkt(monkeypatch):
+    for k in ("t", "five_hour", "seven_day"):
+        monkeypatch.setitem(STREAM_USAGE, k, STREAM_USAGE[k])
+    # So schickt claude 2.1 es nach jeder Antwort, auch mit dem setup-token.
+    note_rate_limit({"type": "rate_limit_event", "rate_limit_info": {
+        "status": "allowed", "resetsAt": 1791743400, "rateLimitType": "five_hour",
+        "unifiedWindows": {"five_hour": {"utilization": 0.05, "resetsAt": 1791743400},
+                           "seven_day": {"utilization": 0.57, "resetsAt": 1791896400}}}})
+    assert round(STREAM_USAGE["five_hour"]["percent"]) == 5
+    assert STREAM_USAGE["five_hour"]["resets_at"] == 1791743400
+    assert round(STREAM_USAGE["seven_day"]["percent"]) == 57
+    assert STREAM_USAGE["t"] > 0
 
 
 def test_anmeldefehler_wird_erklaert():

@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.2.3 — 2026-10-11
+
+### Fixed
+- **The usage limits at the top show real numbers again.** They came only from
+  Anthropic's usage API, which throttles quickly (429) and does not accept the
+  web-login token at all. Then both chips showed only a dash. Now the server
+  also takes the numbers that Claude Code sends after every answer, and uses
+  them whenever the usage API refuses. After a refusal it waits at least five
+  minutes before asking the API again, instead of knocking on every poll and
+  prolonging the throttling.
+
 ## 8.2.2 — 2026-10-09
 
 ### Fixed

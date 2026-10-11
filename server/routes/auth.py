@@ -7,12 +7,15 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from server.core import CRED_FILE, LIMIT_HIT, TOKEN_FILE, WEB_LOGIN_OK, claude_bin, load_web_token
+from server.core import (CRED_FILE, LIMIT_HIT, STREAM_USAGE, TOKEN_FILE, WEB_LOGIN_OK, claude_bin,
+                         load_web_token)
 
 router = APIRouter()
 
@@ -228,7 +231,7 @@ async def auth_code(req: Request):
             TOKEN_FILE.chmod(0o600)
             flow.kill()
             LOGIN["flow"] = None
-            USAGE_CACHE["t"] = 0     # Limits mit neuem Token frisch holen
+            USAGE_CACHE.update(t=0, pause_bis=0)   # Limits mit neuem Token frisch holen
             return {"ok": True}
         if not flow.alive():
             break
@@ -245,7 +248,7 @@ async def auth_code(req: Request):
 
 
 # ---------- Nutzungs-Limits (5h-Fenster + Woche) ----------
-USAGE_CACHE = {"t": 0.0, "data": None}
+USAGE_CACHE = {"t": 0.0, "data": None, "pause_bis": 0.0, "reason": ""}
 
 
 OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"   # öffentl. Client-ID von Claude Code
@@ -315,15 +318,43 @@ def _limit_hit():
     return LIMIT_HIT["resets_at"] if LIMIT_HIT["resets_at"] > time.time() else 0
 
 
+def _stream_usage():
+    """Auslastung aus der letzten claude-Antwort (rate_limit_event), oder None."""
+    if not STREAM_USAGE["t"]:
+        return None
+    out = {"available": True, "subscription": _cred_info().get("subscription", ""),
+           "stand": STREAM_USAGE["t"]}
+    for key in ("five_hour", "seven_day"):
+        w = STREAM_USAGE[key]
+        if not w:
+            out[key] = {"percent": None, "resets_at": None}
+        elif w["resets_at"] and w["resets_at"] <= time.time():
+            out[key] = {"percent": 0, "resets_at": None}   # Fenster seitdem neu angefangen
+        else:
+            out[key] = {"percent": w["percent"],
+                        "resets_at": datetime.fromtimestamp(w["resets_at"], timezone.utc).isoformat()
+                        if w["resets_at"] else None}
+    return out
+
+
 @router.get("/api/usage")
 def usage():
-    """Aktuelle Auslastung der Subscription (gecacht, max. 1 Abfrage/Minute)."""
+    """Aktuelle Auslastung der Subscription (gecacht, max. 1 Abfrage/Minute).
+
+    Erst die Usage-API. Die drosselt aber schnell (429) und lässt das
+    setup-token gar nicht rein (403) — dann gelten die Zahlen, die claude
+    nach jeder Antwort selbst mitschickt."""
     if USAGE_CACHE["data"] and time.time() - USAGE_CACHE["t"] < 60:
         return dict(USAGE_CACHE["data"], limit_hit=_limit_hit())
+    if time.time() < USAGE_CACHE["pause_bis"]:
+        # Nach einem Fehler nicht bei jedem Poll erneut anklopfen: das
+        # verlängert eine Drosselung nur.
+        return dict(_stream_usage() or {"available": False, "reason": USAGE_CACHE["reason"]},
+                    limit_hit=_limit_hit())
     tok = _usage_token()
     if not tok:
-        return {"available": False, "reason": "kein Token — bitte einloggen",
-                "limit_hit": _limit_hit()}
+        return dict(_stream_usage() or {"available": False, "reason": "kein Token — bitte einloggen"},
+                    limit_hit=_limit_hit())
     req = urllib.request.Request(
         "https://api.anthropic.com/api/oauth/usage",
         headers={"Authorization": f"Bearer {tok}",
@@ -333,8 +364,13 @@ def usage():
         with urllib.request.urlopen(req, timeout=10) as r:
             d = json.load(r)
     except Exception as e:
-        return {"available": False, "reason": f"{type(e).__name__}: {e}",
-                "limit_hit": _limit_hit()}
+        warte = 300
+        if isinstance(e, urllib.error.HTTPError) and (e.headers.get("Retry-After") or "").isdigit():
+            warte = max(warte, int(e.headers["Retry-After"]))
+        reason = f"{type(e).__name__}: {e}"
+        USAGE_CACHE.update(pause_bis=time.time() + warte, reason=reason)
+        return dict(_stream_usage() or {"available": False, "reason": reason},
+                    limit_hit=_limit_hit())
     out = {"available": True, "subscription": _cred_info().get("subscription", "")}
     for key, src in (("five_hour", d.get("five_hour")), ("seven_day", d.get("seven_day"))):
         src = src or {}

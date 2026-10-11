@@ -18,7 +18,7 @@ from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
 from server.core import (BASE_DIR, LIMIT_HIT, PROJECTS_DIR, claude_bin, claude_env, extract_text,
-                         friendly_claude_error, load_persona)
+                         friendly_claude_error, load_persona, note_rate_limit)
 from server.sessions import model_short
 from server.team.chat import ohne_marke
 
@@ -367,6 +367,8 @@ async def run_claude(run, cmd):
                 helfer = _helfer_ereignis(run, ev)
                 if helfer:
                     run.emit(helfer)
+            elif t == "rate_limit_event":
+                note_rate_limit(ev)
             elif t == "stream_event":
                 e = ev.get("event", {})
                 if e.get("type") == "content_block_delta":
