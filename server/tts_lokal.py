@@ -14,7 +14,12 @@ dafür meist zu neu ist und die Abhängigkeiten nicht in CONSTRUCT gehören.
     Laden ab, und das sieht man nur im Log,
   - ein Wächter beendet ihn nach IDLE_S Sekunden ohne Anfrage (nie mitten in
     einer), dann ist der VRAM wieder frei,
-  - mit CONSTRUCT geht er mit (stop() beim Herunterfahren, plus PDEATHSIG).
+  - mit CONSTRUCT geht er mit (stop() beim Herunterfahren, plus PDEATHSIG);
+    wo es kein PDEATHSIG gibt, beendet er sich nach Leerlauf selbst.
+
+_LOCK schützt nur _PROC und _IN_FLIGHT und wird nie lange gehalten: auf das
+Laden des Modells (~15 s) wartet start() außerhalb, sonst hingen Stoppen,
+Ausschalten und Herunterfahren so lange mit.
 """
 import ctypes
 import json
@@ -22,6 +27,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -45,10 +51,9 @@ VRAM_GB = 4.0             # gemessen 3,7 GB Spitze, plus Luft
 DOWNLOAD_GB = 9           # ~6 GB Umgebung (torch mit CUDA) + ~3 GB Modell
 
 _LOCK = threading.Lock()
-_ZAEHLER = threading.Lock()
 _PROC = None          # laufender Dienst (subprocess.Popen) oder None
 _LAST_USED = 0.0
-_IN_FLIGHT = 0        # Anfragen, die gerade rechnen
+_IN_FLIGHT = 0        # Anfragen, die gerade warten oder rechnen
 _WATCHDOG = None
 _GERAET = ""          # vom Dienst gemeldet: cuda / mps / cpu
 
@@ -143,53 +148,61 @@ def _env() -> dict:
 
 
 def start(wait_s=300) -> str:
-    """Dienst starten und auf /health warten; "" bei Erfolg, sonst Fehlertext.
-    wait_s großzügig: beim allerersten Start lädt er das Modell herunter."""
+    """Dienst starten (falls nötig) und warten, bis er antwortet; "" bei Erfolg,
+    sonst Fehlertext. wait_s großzügig: beim allerersten Start lädt er das
+    Modell herunter."""
     global _PROC
     with _LOCK:
-        if running() and reachable():
-            touch()
-            return ""
-        if not installiert():
-            return ("Die lokale Stimme ist noch nicht installiert — "
-                    "⚙ Einstellungen → Vorlesen → Installieren.")
-        if reachable():
-            # Läuft schon, etwa von einer zweiten CONSTRUCT-Instanz: mitbenutzen,
-            # aber nicht verwalten.
-            touch()
-            return ""
-        g = gpu()
-        if g and g["free_gb"] < VRAM_GB:
-            return (f"Zu wenig freier Grafikspeicher für die lokale Stimme: "
-                    f"{g['free_gb']:.1f} GB frei, gebraucht werden etwa {VRAM_GB:.0f} GB. "
-                    "Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?")
-        log = open(LOG, "ab")
-        try:
-            _PROC = subprocess.Popen(
-                [str(python_bin()), "-I", str(WORKER), "--port", str(PORT)],
-                env=_env(), stdout=log, stderr=subprocess.STDOUT, cwd=str(VENV),
-                preexec_fn=_preexec if os.name == "posix" else None)
-        except Exception as e:
-            return f"Die lokale Stimme ließ sich nicht starten: {type(e).__name__}: {e}"
-        finally:
-            log.close()
-        print(f"[tts-lokal] starte auf Port {PORT}", flush=True)
-        t0 = time.time()
-        while time.time() - t0 < wait_s:
-            if _PROC.poll() is not None:
-                return ("Die lokale Stimme ist beim Start abgebrochen — meist zu wenig "
-                        f"freier Grafikspeicher. Details: {LOG}")
+        proc = _PROC if running() else None
+        if proc is None:
+            if not installiert():
+                return ("Die lokale Stimme ist noch nicht installiert — "
+                        "⚙ Einstellungen → Vorlesen → Installieren.")
             if reachable():
+                # Läuft schon, etwa von einer zweiten CONSTRUCT-Instanz: mitbenutzen,
+                # aber nicht verwalten.
                 touch()
-                _ensure_watchdog()
-                print(f"[tts-lokal] bereit nach {time.time() - t0:.1f}s ({_GERAET})", flush=True)
                 return ""
-            time.sleep(0.5)
-        _stop()
-        return f"Die lokale Stimme antwortet nach {wait_s}s nicht."
+            g = gpu()
+            if g and g["free_gb"] < VRAM_GB:
+                return (f"Zu wenig freier Grafikspeicher für die lokale Stimme: "
+                        f"{g['free_gb']:.1f} GB frei, gebraucht werden etwa {VRAM_GB:.0f} GB. "
+                        "Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?")
+            try:
+                with open(LOG, "ab") as log:
+                    proc = _PROC = subprocess.Popen(
+                        [str(python_bin()), "-I", str(WORKER), "--port", str(PORT),
+                         "--idle", str(IDLE_S + 120)],
+                        env=_env(), stdout=log, stderr=subprocess.STDOUT, cwd=str(VENV),
+                        preexec_fn=_preexec if os.name == "posix" else None)
+            except Exception as e:
+                return f"Die lokale Stimme ließ sich nicht starten: {type(e).__name__}: {e}"
+            print(f"[tts-lokal] starte auf Port {PORT}", flush=True)
+        touch()
+    # Ein eigener, laufender Prozess gilt nie als tot, nur weil er gerade lädt:
+    # gewartet wird, bis er antwortet, abstürzt oder gestoppt wird.
+    t0 = time.time()
+    while time.time() - t0 < wait_s:
+        if _PROC is not proc:
+            return "Die lokale Stimme wurde gestoppt."
+        if proc.poll() is not None:
+            return ("Die lokale Stimme ist beim Start abgebrochen — meist zu wenig "
+                    f"freier Grafikspeicher. Details: {LOG}")
+        if reachable():
+            touch()
+            _ensure_watchdog()
+            if time.time() - t0 > 1:
+                print(f"[tts-lokal] bereit nach {time.time() - t0:.1f}s ({_GERAET})", flush=True)
+            return ""
+        time.sleep(0.5)
+    with _LOCK:
+        if _PROC is proc:
+            _stop()
+    return f"Die lokale Stimme antwortet nach {wait_s}s nicht."
 
 
 def _stop():
+    """Nur unter _LOCK aufrufen."""
     global _PROC
     p = _PROC
     _PROC = None
@@ -216,10 +229,10 @@ def _ensure_watchdog():
     def loop():
         while True:
             time.sleep(20)
-            if not running() or _IN_FLIGHT or time.monotonic() - _LAST_USED < IDLE_S:
-                continue
+            # Unter der Sperre: eine Anfrage zählt sich vor dem Start mit (synthesize),
+            # also kann hier keine zwischen Prüfen und Stoppen hineinrutschen.
             with _LOCK:
-                if not _IN_FLIGHT:
+                if running() and not _IN_FLIGHT and time.monotonic() - _LAST_USED >= IDLE_S:
                     _stop()
 
     _WATCHDOG = threading.Thread(target=loop, daemon=True, name="tts-lokal-watchdog")
@@ -230,18 +243,20 @@ def _ensure_watchdog():
 def synthesize(text: str, lang: str, probe: str = "") -> bytes:
     """Ein Stück Text → WAV. probe = absoluter Pfad der Stimmprobe, "" = eingebaute Stimme."""
     global _IN_FLIGHT
-    err = start()
-    if err:
-        raise TTSLokalError(err)
-    with _ZAEHLER:
+    with _LOCK:
         _IN_FLIGHT += 1
     try:
+        err = start()
+        if err:
+            raise TTSLokalError(err)
         req = urllib.request.Request(
             f"http://127.0.0.1:{PORT}/tts",
             data=json.dumps({"text": text, "lang": lang, "probe": probe}).encode(),
             headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=300) as r:
             return r.read()
+    except TTSLokalError:
+        raise
     except urllib.error.HTTPError as e:
         try:
             msg = json.loads(e.read()).get("error") or str(e)
@@ -251,7 +266,7 @@ def synthesize(text: str, lang: str, probe: str = "") -> bytes:
     except Exception as e:
         raise TTSLokalError(f"Lokale Stimme nicht erreichbar: {type(e).__name__}: {e}") from None
     finally:
-        with _ZAEHLER:
+        with _LOCK:
             _IN_FLIGHT -= 1
         touch()
 
@@ -280,10 +295,16 @@ def _schritte() -> list[list[str]]:
     py = str(python_bin())
     uv = _uv()
     if uv:
-        return [[uv, "venv", "--allow-existing", "-p", PYTHON_VERSION, str(VENV)],
-                [uv, "pip", "install", "--python", py, PAKET]]
-    for name in ("python3.11", "python3.12", "python3.13", "python3.10", "python3.14", "python3"):
-        exe = shutil.which(name)
+        pip = [uv, "pip", "install", "--python", py, PAKET]
+        if os.name == "nt":
+            # torch von PyPI ist unter Windows reine CPU-Fassung; uv wählt mit
+            # "auto" die zum Grafiktreiber passende CUDA-Fassung. Unter Linux
+            # bringt PyPI CUDA schon mit — dort bleibt es beim erprobten Stand.
+            pip.append("--torch-backend=auto")
+        return [[uv, "venv", "--allow-existing", "-p", PYTHON_VERSION, str(VENV)], pip]
+    for exe in (*(shutil.which(n) for n in ("python3.11", "python3.12", "python3.13",
+                                            "python3.10", "python3.14", "python3", "python")),
+                sys.executable):
         if not exe:
             continue
         ok = subprocess.run([exe, "-c", "import sys; print(sys.version_info >= (3, 10))"],
@@ -308,7 +329,8 @@ def install_start() -> dict:
     def run(cmd: list[str]):
         log("» " + " ".join(Path(c).name if i == 0 else c for i, c in enumerate(cmd)))
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, env=_env(), cwd=str(BASE_DIR))
+                                text=True, encoding="utf-8", errors="replace",
+                                env=_env(), cwd=str(BASE_DIR))
         for line in proc.stdout:
             if line.strip():
                 log(line.strip())
@@ -320,8 +342,10 @@ def install_start() -> dict:
         try:
             if not shutil.which("git"):
                 raise RuntimeError("git fehlt — Chatterbox wird direkt aus dem Repository geladen.")
-            stop()   # ein laufender Dienst hielte Dateien der venv offen
+            # Erst „nicht installiert“, dann stoppen: sonst startet eine Anfrage
+            # dazwischen den Dienst neu, während uv die venv umschreibt.
             MARKER.unlink(missing_ok=True)
+            stop()   # ein laufender Dienst hielte Dateien der venv offen
             for cmd in _schritte():
                 run(cmd)
             log("» Modell laden (beim ersten Mal ~3 GB) und Probesatz sprechen …")

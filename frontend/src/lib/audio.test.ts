@@ -108,3 +108,16 @@ it('lokale Stimme: ein späteres Stück scheitert → ⚠ am Knopf, kein Wurf', 
   expect(result.current.phase).toBe('idle')
   expect(result.current.error).toEqual({ owner: 'm', message: 'Zu wenig Grafikspeicher' })
 })
+
+it('Stopp während das erste Stück lädt: kein ⚠ und kein Fehler', async () => {
+  let antworte!: (r: Response) => void
+  vi.spyOn(window, 'fetch').mockReturnValueOnce(new Promise((r) => (antworte = r)))
+  const { result } = renderHook(() => useSayState())
+  const laeuft = say('lang', { owner: 'm' })
+  act(() => stopSay())
+  antworte(
+    new Response(JSON.stringify({ error: 'Die lokale Stimme wurde gestoppt.' }), { status: 400 }),
+  )
+  await expect(laeuft).resolves.toBeUndefined()
+  expect(result.current).toEqual({ owner: null, phase: 'idle', error: null })
+})

@@ -11,6 +11,7 @@ sprechen beginnt; die übrigen rechnet sie, während das vorige läuft.
 """
 import base64
 import re
+from collections import deque
 import struct
 import time
 
@@ -60,31 +61,26 @@ def clean_text(text: str, lang: str = "de", max_chars: int = MAX_CHARS) -> str:
     return t
 
 
-def _gruppen(teile: list[str], n: int) -> list[str]:
-    """Stücke der Reihe nach zu Gruppen bis n Zeichen zusammenlegen."""
-    out: list[str] = []
-    for t in teile:
-        if out and len(out[-1]) + 1 + len(t) <= n:
-            out[-1] += " " + t
-        else:
-            out.append(t)
-    return out
-
-
 def _zerlege(satz: str) -> list[str]:
     """Längere Sätze an Kommas teilen — so kann ein Stück auch mitten im Satz
-    enden, wenn es sonst zu groß würde (dort ist ohnehin eine kleine Pause).
-    Was dann noch über TEIL_MAX liegt, an Leerzeichen, ein Riesenwort hart."""
+    enden, wenn es sonst zu groß würde (dort ist ohnehin eine kleine Pause)."""
     if len(satz) <= TEIL_ERSTER:
         return [satz]
-    out = []
-    for teil in re.split(r"(?<=[,;–—])\s+", satz):
-        if len(teil) <= TEIL_MAX:
-            out.append(teil)
-            continue
-        woerter = [w[i:i + TEIL_MAX] for w in teil.split() for i in range(0, len(w), TEIL_MAX)]
-        out += _gruppen(woerter, TEIL_MAX)
-    return out
+    return re.split(r"(?<=[,;–—])\s+", satz)
+
+
+def _kopf(text: str, n: int) -> tuple[str, str]:
+    """Längster Anfang aus ganzen Wörtern bis n Zeichen, und der Rest.
+    Ein einzelnes Riesenwort (URL o. Ä.) wird hart geschnitten."""
+    woerter = text.split(" ")
+    kopf = woerter[0][:n]
+    if len(woerter[0]) > n:
+        return kopf, text[n:]
+    i = 1
+    while i < len(woerter) and len(kopf) + 1 + len(woerter[i]) <= n:
+        kopf += " " + woerter[i]
+        i += 1
+    return kopf, " ".join(woerter[i:])
 
 
 def teile(text: str, lang: str = "de") -> list[str]:
@@ -100,18 +96,37 @@ def teile(text: str, lang: str = "de") -> list[str]:
             zeile += "."
         saetze += [x for x in re.split(r"(?<=[.!?…:;])\s+", zeile) if x]
     out: list[str] = []
-    for stueck in (st for s in saetze for st in _zerlege(s)):
-        # Grenze des Stücks, in das gerade gefüllt wird (out[-1]): das erste
-        # kurz, jedes weitere höchstens WACHSTUM-mal so lang wie sein Vorgänger.
-        grenze = (TEIL_ERSTER if len(out) <= 1 else
-                  min(TEIL_MAX, max(TEIL_MIN, int(WACHSTUM * len(out[-2])))))
-        # Winzige Reste („Ende.“) nicht allein: die klingen bei Chatterbox oft verschluckt.
-        if len(stueck) < 30:
-            grenze += 40
-        if out and len(out[-1]) + 1 + len(stueck) <= grenze:
-            out[-1] += " " + stueck
-        else:
-            out.append(stueck)
+    offen = deque(st for s in saetze for st in _zerlege(s))
+    while offen:
+        stueck = offen.popleft()
+        if out:
+            # Grenze des Stücks, in das gerade gefüllt wird (out[-1]): das erste
+            # kurz, jedes weitere höchstens WACHSTUM-mal so lang wie sein Vorgänger.
+            grenze = (TEIL_ERSTER if len(out) == 1 else
+                      min(TEIL_MAX, max(TEIL_MIN, int(WACHSTUM * len(out[-2])))))
+            # Winzige Reste („Ende.“) nicht allein: die klingen bei Chatterbox oft verschluckt.
+            if len(stueck) < 30:
+                grenze += 40
+            if len(out[-1]) + 1 + len(stueck) <= grenze:
+                out[-1] += " " + stueck
+                continue
+            if len(out[-1]) < 40:
+                # Ein Winzling („Ja.“) spielt zu kurz, um das nächste Stück zu
+                # rechnen — mit dem Anfang des nächsten Satzes auffüllen.
+                kopf, rest = _kopf(stueck, grenze - len(out[-1]) - 1)
+                if kopf:
+                    out[-1] += " " + kopf
+                    if rest:
+                        offen.appendleft(rest)
+                    continue
+        # Neues Stück. Passt der Brocken nicht in dessen Grenze, an Wortgrenzen
+        # kürzen — sonst käme nach „Ja.“ ein 20-s-Stück und davor lange Stille.
+        neu = (TEIL_ERSTER if not out else
+               min(TEIL_MAX, max(TEIL_MIN, int(WACHSTUM * len(out[-1])))))
+        if len(stueck) > neu:
+            stueck, rest = _kopf(stueck, neu)
+            offen.appendleft(rest)
+        out.append(stueck)
     return out
 
 

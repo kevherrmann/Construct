@@ -114,10 +114,13 @@ export async function say(text: string, opts: TtsOptions & { owner?: string } = 
   const weiter = async (i: number) => {
     if (!lebt()) return
     if (i >= teile) return stopSay()
-    if (i + 1 < teile) void hole(i + 1)
     try {
       const blob = await hole(i)
-      if (lebt()) await spiele(blob, i)
+      if (!lebt()) return
+      // Erst jetzt das übernächste bestellen: der Dienst rechnet ohnehin eins
+      // nach dem anderen, und so wartet nie eine zweite Anfrage hinter ihm.
+      if (i + 1 < teile) void hole(i + 1)
+      await spiele(blob, i)
     } catch (e) {
       if (lebt()) fehler(owner, e)
     }
@@ -131,7 +134,9 @@ export async function say(text: string, opts: TtsOptions & { owner?: string } = 
     if (teile > 1) void hole(1)
     await spiele(erst.blob, 0)
   } catch (e) {
-    if (gen === mine) fehler(owner, e)
+    // Gestoppt oder überholt (⏹ während das Modell lädt): kein ⚠, kein Fehler.
+    if (!lebt()) return
+    fehler(owner, e)
     throw e
   }
 }

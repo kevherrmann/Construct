@@ -7,8 +7,15 @@ Grafikspeicher. Gestartet wird er mit `python -I` — sonst läge server/ auf de
 Importpfad, und eine Bibliothek, die `import config` sagt, bekäme CONSTRUCTs
 config.py.
 
-Nur Standardbibliothek und was die venv mitbringt. Eine Anfrage nach der
-anderen (HTTPServer, kein Threading): die GPU rechnet ohnehin nur eine.
+Nur Standardbibliothek und was die venv mitbringt. Gerechnet wird eine
+Anfrage nach der anderen (_RECHNET) — die GPU kann ohnehin nur eine —, aber
+/health antwortet sofort, auch mitten in einem Satz: sonst hielte CONSTRUCT
+den beschäftigten Dienst für tot und startete einen zweiten.
+
+Nach --idle Sekunden ohne Anfrage beendet er sich selbst. Normalerweise stoppt
+ihn CONSTRUCT vorher; das hier fängt den Fall ab, dass CONSTRUCT hart beendet
+wurde und es kein PDEATHSIG gibt (Windows, macOS) — sonst hielte ein
+verwaister Dienst den VRAM, bis man den Rechner neu startet.
 
   GET  /health   {"chatterbox": true, "device": "cuda"}
   POST /tts      {"text", "lang", "probe": absoluter Pfad oder ""} → audio/wav
@@ -20,9 +27,10 @@ import io
 import json
 import os
 import sys
+import threading
 import time
 import wave
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import torch
 from chatterbox.mtl_tts import SUPPORTED_LANGUAGES, ChatterboxMultilingualTTS
@@ -33,6 +41,8 @@ MODEL = None
 DEVICE = "cpu"
 _STANDARD = None  # eingebaute Stimme (conds.pt) — gilt ohne Stimmprobe
 _PROBEN = {}      # (pfad, mtime) → vorberechnete Stimmprobe
+_RECHNET = threading.Lock()
+_LETZTE = time.monotonic()   # letzte Anfrage (Beginn oder Ende)
 
 
 def geraet() -> str:
@@ -106,12 +116,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"error": "unbekannt"})
         if not self._von_constructs_server():
             return self._json(403, {"error": "nur für CONSTRUCT"})
+        global _LETZTE
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
             probe = str(body.get("probe") or "")
             if probe and not os.path.isfile(probe):
                 return self._json(400, {"error": "Stimmprobe nicht gefunden."})
-            data = sprechen(str(body.get("text") or ""), str(body.get("lang") or "en"), probe)
+            with _RECHNET:
+                _LETZTE = time.monotonic()
+                try:
+                    data = sprechen(str(body.get("text") or ""), str(body.get("lang") or "en"), probe)
+                finally:
+                    _LETZTE = time.monotonic()
         except torch.cuda.OutOfMemoryError:
             torch.cuda.empty_cache()
             return self._json(500, {"error": "Zu wenig Grafikspeicher (VRAM)."})
@@ -139,15 +155,32 @@ def pruefen() -> int:
     return 0
 
 
+def _waechter(idle_s: int):
+    while True:
+        time.sleep(15)
+        if not _RECHNET.locked() and time.monotonic() - _LETZTE > idle_s:
+            print(f"{idle_s} s ohne Anfrage — beende mich", flush=True)
+            os._exit(0)
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+
 def main() -> int:
+    global _LETZTE
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8791)
+    ap.add_argument("--idle", type=int, default=0, help="Sekunden ohne Anfrage bis zum Selbst-Ende")
     ap.add_argument("--pruefen", action="store_true")
     a = ap.parse_args()
     if a.pruefen:
         return pruefen()
     laden()
-    srv = HTTPServer(("127.0.0.1", a.port), Handler)
+    srv = Server(("127.0.0.1", a.port), Handler)
+    _LETZTE = time.monotonic()
+    if a.idle:
+        threading.Thread(target=_waechter, args=(a.idle,), daemon=True).start()
     print(f"bereit auf Port {a.port} ({DEVICE})", flush=True)
     srv.serve_forever()
     return 0

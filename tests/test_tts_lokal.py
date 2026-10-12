@@ -163,3 +163,67 @@ def test_stimmprobe_aus_gemini(client, einstellungen, monkeypatch, tmp_path):
     assert r.status_code == 200
     assert aufrufe[0][0] == ttsmod.PROBE_TEXT["de"] and aufrufe[0][2] == "de-de-csagent-2"
     assert (tmp_path / r.json()["url"].rsplit("/", 1)[1]).read_bytes() == WAV
+
+
+def test_teile_halten_ihre_grenzen_auch_ohne_kommas():
+    # Satz ohne Komma nach einem Winzling: früher 3 Zeichen, dann ein 20-s-Stück (= Stille).
+    lang = "Ein sehr langer Satz ohne ein einziges Komma der immer weiter und weiter geht " * 4
+    teile = ttsmod.teile("Ja. " + lang + "Kurz.")
+    assert teile[0].startswith("Ja. Ein sehr langer")
+    assert len(teile[0]) <= ttsmod.TEIL_ERSTER
+    for vor, nach in zip(teile, teile[1:]):
+        assert len(nach) <= max(ttsmod.TEIL_MIN, ttsmod.WACHSTUM * len(vor)) + 40
+    assert teile[-1].endswith("Kurz.") and teile[-1] != "Kurz."
+    assert " ".join(teile).split() == ("Ja. " + lang + "Kurz.").split()
+
+
+class _Proc:
+    """Stellt einen laufenden Dienst dar (poll() None = lebt)."""
+    def __init__(self):
+        self.tot = None
+
+    def poll(self):
+        return self.tot
+
+
+@pytest.fixture
+def installiert(monkeypatch, tmp_path):
+    py = tmp_path / "venv" / "bin" / "python"
+    py.parent.mkdir(parents=True)
+    py.write_text("")
+    monkeypatch.setattr(tts_lokal, "VENV", tmp_path / "venv")
+    monkeypatch.setattr(tts_lokal, "MARKER", py)
+    monkeypatch.setattr(tts_lokal, "_ensure_watchdog", lambda: None)
+    monkeypatch.setattr(tts_lokal.time, "sleep", lambda s: None)
+
+
+def test_eigener_dienst_gilt_beim_rechnen_nicht_als_tot(installiert, monkeypatch):
+    # Der eigene Dienst belegt den VRAM selbst — die VRAM-Prüfung darf ihn nicht
+    # aussperren, und neu gestartet wird auch nicht.
+    monkeypatch.setattr(tts_lokal, "_PROC", _Proc())
+    monkeypatch.setattr(tts_lokal, "gpu", lambda: {"name": "X", "total_gb": 8.0, "free_gb": 0.5})
+    antworten = iter([False, False, True])   # lädt noch, dann bereit
+    monkeypatch.setattr(tts_lokal, "reachable", lambda: next(antworten))
+    monkeypatch.setattr(tts_lokal.subprocess, "Popen", lambda *a, **k: pytest.fail("zweiter Dienst"))
+    assert tts_lokal.start() == ""
+
+
+def test_stopp_waehrend_des_ladens(installiert, monkeypatch):
+    proc = _Proc()
+    monkeypatch.setattr(tts_lokal, "_PROC", proc)
+
+    def nie_bereit():
+        tts_lokal._PROC = None   # jemand drückt „VRAM freigeben“
+        return False
+    monkeypatch.setattr(tts_lokal, "reachable", nie_bereit)
+    assert tts_lokal.start() == "Die lokale Stimme wurde gestoppt."
+
+
+def test_anfrage_zaehlt_sich_vor_dem_start_mit(installiert, monkeypatch):
+    # Der Wächter stoppt nur bei _IN_FLIGHT == 0 — eine Anfrage, die gerade auf den
+    # Start wartet, muss schon mitzählen.
+    gesehen = []
+    monkeypatch.setattr(tts_lokal, "start", lambda: gesehen.append(tts_lokal._IN_FLIGHT) or "kaputt")
+    with pytest.raises(tts_lokal.TTSLokalError):
+        tts_lokal.synthesize("Hallo", "de")
+    assert gesehen == [1] and tts_lokal._IN_FLIGHT == 0
