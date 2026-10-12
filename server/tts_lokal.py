@@ -6,7 +6,7 @@ Vorlesen belegt das Modell gemessen 3,7 GB VRAM (RTX 3070 Ti). Darum ist es
 standardmäßig aus und muss unter ⚙ → Vorlesen ausdrücklich eingeschaltet
 werden (tts.engine = "lokal"); erst dann lässt es sich installieren.
 
-Aufbau wie bei Bonsai (bonsai.py): der Dienst (tts_lokal_worker.py) läuft in
+Der Dienst (tts_lokal_worker.py) läuft in
 einer eigenen venv (VENV, torch + chatterbox, ~6 GB), weil CONSTRUCTs Python
 dafür meist zu neu ist und die Abhängigkeiten nicht in CONSTRUCT gehören.
   - gestartet wird er erst beim ersten Vorlesen,
@@ -167,7 +167,7 @@ def start(wait_s=300) -> str:
             if g and g["free_gb"] < VRAM_GB:
                 return (f"Zu wenig freier Grafikspeicher für die lokale Stimme: "
                         f"{g['free_gb']:.1f} GB frei, gebraucht werden etwa {VRAM_GB:.0f} GB. "
-                        "Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?")
+                        "Läuft gerade ein Spiel oder ein anderes KI-Modell?")
             try:
                 with open(LOG, "ab") as log:
                     proc = _PROC = subprocess.Popen(

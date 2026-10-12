@@ -46,15 +46,6 @@ def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
     assert hermes.with_context("Hallo") == "Hallo"
 
 
-def test_bonsai_bekommt_seine_adresse_auch_beim_fortsetzen(monkeypatch):
-    # Sonst löst Hermes den gespeicherten Anbieter "custom" beim Fortsetzen
-    # nicht auf und schickt die zweite Nachricht an Gemini.
-    from server import bonsai
-    monkeypatch.delenv("CUSTOM_BASE_URL", raising=False)
-    assert hermes.run_env("bonsai:Ternary-Bonsai-8B")["CUSTOM_BASE_URL"] == bonsai.BASE_URL
-    assert "CUSTOM_BASE_URL" not in hermes.run_env("gemini:gemini-2.5-flash")
-
-
 def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
     from server import images
     monkeypatch.setattr(images, "context_block", lambda: "## Bilder erzeugen\n…")

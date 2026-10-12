@@ -49,19 +49,6 @@ export interface ProviderSave {
 export const saveProvider = (body: ProviderSave) =>
   apiPost<{ ok: boolean; models: number; error: string }>('/api/llm/providers', body)
 
-// ---------- Bonsai (bonsai.status) ----------
-export interface BonsaiStatus {
-  available: boolean
-  running: boolean
-  model: string
-  vram: boolean
-  idle_min: number
-}
-
-export const useBonsai = () =>
-  useQuery({ queryKey: ['bonsai'], queryFn: () => apiGet<BonsaiStatus>('/api/bonsai/status') })
-export const stopBonsai = () => apiPost<BonsaiStatus>('/api/bonsai/stop')
-
 // ---------- Ollama (app.ollama_models) ----------
 export interface Progress {
   status: string

@@ -27,7 +27,6 @@ import time
 import urllib.request
 from pathlib import Path
 
-from server import bonsai as bonsaimod
 from server import config as cfg
 from server import llm as llmmod
 
@@ -103,21 +102,6 @@ def child_env() -> dict:
     return env
 
 
-def run_env(model: str) -> dict:
-    """Umgebung für einen Lauf mit diesem Modell.
-
-    Bonsai: Hermes speichert die Sitzung nur als namenlosen Anbieter "custom"
-    und kann ihn beim Fortsetzen nicht auflösen. Dann griff seine Automatik
-    und nahm Gemini (der Key liegt in der Umgebung) — die zweite Nachricht
-    ging an Google ("Please pass a valid API key"). CUSTOM_BASE_URL ist
-    Hermes' eigener Weg, "custom" eine Adresse zu geben.
-    """
-    env = child_env()
-    if llmmod.split_model(model)[0] == "bonsai":
-        env["CUSTOM_BASE_URL"] = bonsaimod.BASE_URL
-    return env
-
-
 # ---------- Persona und Kalender für fremde Modelle ----------
 # Claude bekommt SOUL.md/USER.md und den Kalender bei jedem Lauf per
 # --append-system-prompt. Hermes kennt dafür keinen Schalter, lädt aber
@@ -132,9 +116,10 @@ CTX_OPEN, CTX_CLOSE = "[CONSTRUCT-Kontext]", "[/CONSTRUCT-Kontext]"
 _CTX_RE = re.compile(r"(^\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*)"
                      r"|(\s*" + re.escape(CTX_OPEN) + r".*?" + re.escape(CTX_CLOSE) + r"\s*$)", re.S)
 # Kleine lokale Modelle: Kontext VOR die Nachricht und ohne Bild-Anleitung.
-# Hinten angehängt plapperte Bonsai bei kurzen Bitten ("Sag nur: eins") den
-# Block nach, statt zu antworten — das Letzte, was es las, war der Kontext.
-LOKAL = ("bonsai", "ollama")
+# Hinten angehängt plapperte ein kleines Modell bei kurzen Bitten ("Sag nur:
+# eins") den Block nach, statt zu antworten — das Letzte, was es las, war der
+# Kontext.
+LOKAL = ("ollama",)
 
 
 def lokale_persona() -> str:
@@ -154,7 +139,7 @@ def soul_text(lokal: bool = False) -> str:
 
 
 # Es gibt nur EINE SOUL.md für alle Hermes-Läufe. Mit eigener Persona für
-# lokale Modelle könnten ein Gemini- und ein Bonsai-Lauf, die gleichzeitig
+# lokale Modelle könnten ein Gemini- und ein Ollama-Lauf, die gleichzeitig
 # starten, die falsche erwischen. Hermes liest die Datei, sobald er die
 # Nachricht verarbeitet (bei ACP-Sitzungen jedes Mal neu) — so lange hält ein
 # Lauf die Sperre, höchstens bis zur ersten Rückmeldung.
@@ -269,18 +254,6 @@ def friendly_failure(text: str) -> str | None:
         detail = said.group(1).strip()
         msg += f"\n\n_Details: {detail[:240]}{'…' if len(detail) > 240 else ''}_"
     return msg
-
-
-def acp_model_id(model: str) -> str:
-    """CONSTRUCT-Wert "anbieter:modell" → Hermes-Modell-ID.
-
-    Die eingebauten Anbieter (openai, ollama …) heißen bei Hermes genauso;
-    Bonsai kennt es nur als selbst eingetragenen Endpunkt "custom:bonsai".
-    """
-    pid, m = llmmod.split_model(model)
-    if pid == "bonsai":
-        return bonsaimod.acp_model_id(m)
-    return model
 
 
 # ---------- Installation (nur auf Klick) ----------
@@ -401,13 +374,7 @@ class AcpSession:
         if not hermes_bin():
             raise AcpError("Hermes ist nicht installiert. Unter ⚙ Einstellungen → "
                            "„Modelle & Anbieter“ lässt es sich einrichten.")
-        env = run_env(self.model)
-        if llmmod.split_model(self.model)[0] == "bonsai":
-            # Hermes muss den Endpunkt kennen, bevor set_model ihn wählen kann.
-            err = await asyncio.to_thread(bonsaimod.ensure_hermes_provider,
-                                          hermes_bin(), env)
-            if err:
-                raise AcpError(err)
+        env = child_env()
         self._q = asyncio.Queue()
         self.proc = await asyncio.create_subprocess_exec(
             hermes_bin(), "acp", "--accept-hooks",
@@ -579,7 +546,7 @@ class AcpSession:
             try:
                 await self.call("session/set_model",
                                 {"sessionId": self.session_id,
-                                 "modelId": acp_model_id(self.model)},
+                                 "modelId": self.model},
                                 timeout=60)
             except Exception as e:
                 emit({"type": "text", "text":

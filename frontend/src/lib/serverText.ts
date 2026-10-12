@@ -8,15 +8,11 @@ import en from '@/i18n/en.json'
 
 // Texte mit eingesetzten Werten.
 const RX: [RegExp, string][] = [
-  [
-    /^PrismML-Bonsai über den llama-server des Bonsai-Demos — startet erst beim ersten Prompt und räumt den VRAM nach (\d+) Min Leerlauf wieder frei$/,
-    "PrismML Bonsai via the Bonsai demo's llama-server — starts on the first prompt and frees the VRAM after $1 min of inactivity",
-  ],
   [/^Ordner (.+) nicht lesbar$/, 'Folder $1 unreadable'],
   // Lokale Stimme (server/tts_lokal.py)
   [
-    /^Zu wenig freier Grafikspeicher für die lokale Stimme: ([\d.]+) GB frei, gebraucht werden etwa (\d+) GB\. Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell\?$/,
-    'Not enough free graphics memory for the local voice: $1 GB free, about $2 GB needed. Is Bonsai, a game or another AI model running?',
+    /^Zu wenig freier Grafikspeicher für die lokale Stimme: ([\d.]+) GB frei, gebraucht werden etwa (\d+) GB\. Läuft gerade ein Spiel oder ein anderes KI-Modell\?$/,
+    'Not enough free graphics memory for the local voice: $1 GB free, about $2 GB needed. Is a game or another AI model running?',
   ],
   [
     /^Die lokale Stimme ist beim Start abgebrochen — meist zu wenig freier Grafikspeicher\. Details: (.+)$/,

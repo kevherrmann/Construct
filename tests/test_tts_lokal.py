@@ -126,7 +126,7 @@ def test_start_prueft_den_freien_vram(monkeypatch, tmp_path):
     err = tts_lokal.start()
     # Wortlaut fest: die englische Oberfläche übersetzt ihn per Muster (serverText.ts).
     assert err == ("Zu wenig freier Grafikspeicher für die lokale Stimme: 2.1 GB frei, gebraucht "
-                   "werden etwa 4 GB. Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?")
+                   "werden etwa 4 GB. Läuft gerade ein Spiel oder ein anderes KI-Modell?")
     assert not started
 
 

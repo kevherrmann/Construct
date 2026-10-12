@@ -3,7 +3,7 @@ import type { AuthStatus } from '@/api/system'
 
 // Welche App-weite Dialogbox gerade offen ist. Gerendert werden sie einmal im
 // AppShell; öffnen kann sie jeder: useDialogs.getState().open('providers').
-//   providers  KI-Anbieter (Keys, Ollama, Bonsai)
+//   providers  KI-Anbieter (Keys, Ollama)
 //   login      Claude-Web-Login (setup-token)
 //   claude     Anleitung: Claude Code installieren / im Terminal anmelden
 export type DialogName = 'providers' | 'login' | 'claude'

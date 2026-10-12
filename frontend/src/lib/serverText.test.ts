@@ -17,21 +17,19 @@ it('übersetzt bekannte Texte zeilenweise', () => {
 })
 
 it('setzt Werte ein und kennt (lokal)', () => {
-  expect(
-    trServer(
-      'PrismML-Bonsai über den llama-server des Bonsai-Demos — startet erst beim ersten Prompt und räumt den VRAM nach 10 Min Leerlauf wieder frei',
-    ),
-  ).toMatch(/after 10 min of inactivity$/)
-  expect(trServer('Bonsai (lokal)')).toBe('Bonsai (local)')
+  expect(trServer('Die lokale Stimme antwortet nach 300s nicht.')).toBe(
+    'The local voice is not responding after 300 s.',
+  )
+  expect(trServer('Ollama (lokal)')).toBe('Ollama (local)')
 })
 
 it('lokale Stimme: Meldungen mit Werten (Wortlaut wie in tests/test_tts_lokal.py)', () => {
   expect(
     trServer(
-      'Zu wenig freier Grafikspeicher für die lokale Stimme: 2.1 GB frei, gebraucht werden etwa 4 GB. Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?',
+      'Zu wenig freier Grafikspeicher für die lokale Stimme: 2.1 GB frei, gebraucht werden etwa 4 GB. Läuft gerade ein Spiel oder ein anderes KI-Modell?',
     ),
   ).toBe(
-    'Not enough free graphics memory for the local voice: 2.1 GB free, about 4 GB needed. Is Bonsai, a game or another AI model running?',
+    'Not enough free graphics memory for the local voice: 2.1 GB free, about 4 GB needed. Is a game or another AI model running?',
   )
   expect(
     trServer(
@@ -47,6 +45,6 @@ it('lässt Unbekanntes und leere Werte stehen', () => {
 
 it('ändert auf Deutsch nichts', async () => {
   await i18n.changeLanguage('de')
-  expect(trServer('Bonsai (lokal)')).toBe('Bonsai (lokal)')
+  expect(trServer('Ollama (lokal)')).toBe('Ollama (lokal)')
   await i18n.changeLanguage('en')
 })

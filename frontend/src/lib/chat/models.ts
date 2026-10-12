@@ -51,7 +51,11 @@ const RETIRED: Record<string, string> = {
   'claude-opus-5': 'claude-opus-5-5',
   'claude-sonnet-5': 'claude-sonnet-5-5',
 }
-export const successor = (v: string) => RETIRED[v] ?? v
+/** Entfallene Anbieter (8.3.0: Bonsai) → gespeicherte Wahl geht auf die Vorgabe. */
+const RETIRED_PROVIDERS = ['bonsai']
+export const successor = (v: string) =>
+  RETIRED[v] ??
+  (RETIRED_PROVIDERS.includes(v.split(':')[0]!) && v.includes(':') ? DEFAULT_MODEL : v)
 
 /**
  * Aufwand (`--effort`): wie gründlich Claude nachdenkt. '' = Vorgabe des
@@ -75,7 +79,6 @@ export const PROV_ICON: Record<string, string> = {
   gemini: '✦',
   deepseek: '🐋',
   ollama: '🦙',
-  bonsai: '🌱',
 }
 export const provIcon = (id?: string) => (id ? (PROV_ICON[id] ?? '🌐') : '')
 

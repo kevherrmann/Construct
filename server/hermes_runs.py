@@ -5,7 +5,6 @@ import asyncio
 import time
 import uuid
 
-from server import bonsai as bonsaimod
 from server import config as cfg
 from server import hermes as hermesmod
 from server import llm as llmmod
@@ -47,16 +46,7 @@ async def run_hermes(run, sess, prompt, allow_writes: bool):
     """
     run.hermes = sess
     t0 = time.time()
-    is_bonsai = llmmod.split_model(run.model)[0] == "bonsai"
     try:
-        if is_bonsai:
-            # Der Server liegt erst im VRAM, wenn jemand ihn braucht — jetzt.
-            # Das Laden dauert Sekunden; ohne Hinweis sähe es nach Hängen aus.
-            if not bonsaimod.running():
-                run.emit({"type": "text", "text": "_⏳ Bonsai wird in den VRAM geladen …_\n\n"})
-            err = await asyncio.to_thread(bonsaimod.ensure_running)
-            if err:
-                raise hermesmod.AcpError(err)
         result = await sess.run(prompt, run.emit, allow_writes=allow_writes,
                                 images=run.images)
         # Ohne "done" bleibt die Oberfläche im Laufzustand und merkt sich die
@@ -86,8 +76,6 @@ async def run_hermes(run, sess, prompt, allow_writes: bool):
         print(f"[hermes] fehler: {type(e).__name__}: {e}", flush=True)
         run.emit({"type": "error", "message": f"Server-Fehler: {type(e).__name__}: {e}"})
     finally:
-        if is_bonsai:
-            bonsaimod.touch()   # Leerlauf zählt ab Ende des Laufs, nicht ab Start
         sess.kill()
         run.stdin_closed = True
         run.finish()

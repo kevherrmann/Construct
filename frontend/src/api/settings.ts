@@ -55,7 +55,7 @@ export const runUpdates = () =>
   apiPost<{ ok?: boolean; error?: string; already?: boolean }>('/api/updates/run')
 
 // ---------- Charakter (SOUL.md / USER.md) ----------
-/** lokal = eigene Persona nur für lokale Modelle (Bonsai, Ollama). */
+/** lokal = eigene Persona nur für lokale Modelle (Ollama). */
 export type PersonaKey = 'soul' | 'user' | 'lokal'
 export type Persona = Record<PersonaKey, string>
 

@@ -316,7 +316,7 @@ def apply_patch(patch: dict) -> dict:
 PERSONA_FILES = {
     "soul": (BASE_DIR / "SOUL.md", BASE_DIR / "SOUL.default.md"),
     "user": (BASE_DIR / "USER.md", None),
-    # Eigene Persona nur für lokale Modelle (Bonsai, Ollama) — zum Spielen,
+    # Eigene Persona nur für lokale Modelle (Ollama) — zum Spielen,
     # ohne Cody anzufassen. Leer = dieselbe Persona wie Cody.
     "lokal": (BASE_DIR / "SOUL.lokal.md", None),
 }

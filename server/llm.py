@@ -1,6 +1,6 @@
 """
-Externe KI-Anbieter für CONSTRUCT — ChatGPT (OpenAI), Gemini, DeepSeek,
-Ollama (lokal) und Bonsai (lokal, eigener llama-server — siehe bonsai.py).
+Externe KI-Anbieter für CONSTRUCT — ChatGPT (OpenAI), Gemini, DeepSeek und
+Ollama (lokal).
 
 Dieses Modul verwaltet Anbieter, Keys und Modell-Listen; GEFAHREN werden die
 fremden Modelle über Hermes (hermes.py), das ihnen Werkzeuge gibt. Die Keys aus
@@ -27,7 +27,6 @@ import urllib.request
 from pathlib import Path
 
 from server import config as cfg  # Einstellungen der Installation (Namen)
-from server import bonsai as bonsaimod  # llama-server des Bonsai-Demos (nur bei Bedarf im VRAM)
 
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,15 +65,6 @@ PROVIDERS = {
         "needs_key": False,
         "fallback_models": [],
         "hint": "Lokale Modelle (Gemma & Co.) — Ollama muss laufen (Port 11434)",
-    },
-    "bonsai": {
-        "label": "Bonsai (lokal)",
-        "base_url": bonsaimod.BASE_URL,
-        "needs_key": False,
-        "fallback_models": [],   # kommt live aus bonsai.model_name()
-        "hint": ("PrismML-Bonsai über den llama-server des Bonsai-Demos — startet erst "
-                 f"beim ersten Prompt und räumt den VRAM nach {bonsaimod.IDLE_S // 60} Min "
-                 "Leerlauf wieder frei"),
     },
 }
 
@@ -138,8 +128,6 @@ def is_configured(pid: str) -> bool:
         return bool(c.get("api_key"))
     if pid == "ollama":
         return c.get("enabled") is True
-    if pid == "bonsai":
-        return c.get("enabled") is True and bonsaimod.available()
     return False
 
 
@@ -260,8 +248,6 @@ def tool_capable(pid: str, model: str):
         c = _ollama_tool_capable(model)
         if c is not None:
             return c
-    if pid == "bonsai":
-        return True   # Qwen3-Basis mit --jinja; Tool-Calls geprüft (09/2026)
     e = _mdev_entry(pid, model)
     return None if e is None else bool(e.get("tool_call"))
 
@@ -295,11 +281,6 @@ def _filter_models(pid: str, ids):
 def list_remote_models(pid: str, force=False):
     """(models, error) — GET {base}/models beim Anbieter, 5 min gecacht."""
     now = time.time()
-    if pid == "bonsai":
-        # Kein Netz: der Server läuft absichtlich nicht, solange niemand mit ihm
-        # arbeitet. Das Modell steht auf der Platte, das reicht für die Liste.
-        return ([bonsaimod.model_name()] if bonsaimod.available() else [],
-                "" if bonsaimod.available() else f"kein Modell unter {bonsaimod.BONSAI_DIR}")
     cached = _MODEL_CACHE.get(pid)
     if cached and not force and now - cached[0] < _CACHE_TTL:
         return cached[1], cached[2]

@@ -20,12 +20,19 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
   - **Frees the VRAM again.** The model loads on first use (about 15 s) and
     stops after 10 minutes without reading aloud, or right away with
     “Free VRAM”. Before it starts, it checks whether enough graphics memory is
-    free, and says so if Bonsai or a game is holding it.
+    free, and says so if a game or another AI model is holding it.
   - **Once loaded, it starts talking after about two seconds**, even for long replies: the
     text is read in chunks that grow from one sentence to about 20 seconds,
     and the next chunk is computed while the current one plays.
   - Runs in its own Python environment (`.venv-tts`), so torch and Chatterbox
     stay out of CONSTRUCT's own dependencies.
+
+### Removed
+- **Bonsai (local).** The PrismML Bonsai provider and its on-demand
+  `llama-server` are gone (`server/bonsai.py`, the Bonsai box in the provider
+  dialog, `BONSAI_*` variables). In practice the small model was not good
+  enough for real work. Local models still run through Ollama. A chat that was
+  set to a Bonsai model falls back to the default Claude model.
 
 ## 8.2.3 — 2026-10-11
 

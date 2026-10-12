@@ -330,7 +330,7 @@ CODE_STAMP = code_stamp()
 # Seit das Fenster ein Browser ist, läuft der Server nach dem Schließen weiter.
 # Beenden geht darum über die Oberfläche (⏻). Wer den Server startet, meldet
 # hier, wie er sauber herunterfährt (desktop.py: uvicorn.should_exit); dann
-# laufen die Aufräumarbeiten aus app.lifespan (Bonsai, Telegram) noch durch.
+# laufen die Aufräumarbeiten aus app.lifespan (lokale Stimme, Telegram) noch durch.
 _beim_beenden: list = []
 
 

@@ -36,6 +36,8 @@ describe('modelInfo', () => {
     expect(successor('claude-sonnet-5')).toBe('claude-sonnet-5-5')
     expect(successor('claude-opus-4-8')).toBe('claude-opus-4-8')
     expect(successor('')).toBe('')
+    expect(successor('bonsai:Ternary-Bonsai-8B')).toBe('claude-opus-5-5')
+    expect(successor('ollama:gemma3:12b')).toBe('ollama:gemma3:12b')
   })
   it('kennt externe Modelle, auch wenn die Anbieterliste fehlt', () => {
     expect(modelInfo('ollama:gemma3:12b', prov)).toMatchObject({ l: 'gemma3:12b', prov: 'ollama' })

@@ -1,10 +1,9 @@
-"""API: externe KI-Anbieter, Bonsai und Ollama."""
+"""API: externe KI-Anbieter und Ollama."""
 import asyncio
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from server import bonsai as bonsaimod
 from server import llm as llmmod
 
 router = APIRouter()
@@ -30,19 +29,6 @@ async def llm_providers_save(req: Request):
         return {"ok": True, "models": 0, "error": ""}
     models, err = await asyncio.to_thread(llmmod.list_remote_models, pid, True)
     return {"ok": not err, "models": len(models), "error": err}
-
-
-# ---------- Bonsai: läuft der lokale Server gerade (= VRAM belegt)? ----------
-@router.get("/api/bonsai/status")
-def bonsai_status():
-    return bonsaimod.status()
-
-
-@router.post("/api/bonsai/stop")
-def bonsai_stop():
-    """VRAM sofort freigeben, ohne auf den Leerlauf-Wächter zu warten."""
-    bonsaimod.stop()
-    return bonsaimod.status()
 
 
 # ---------- Ollama: lokale Modelle ansehen / laden / löschen ----------

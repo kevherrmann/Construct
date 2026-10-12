@@ -220,7 +220,7 @@ export const useChat = create<ChatStore>((set, get) => {
       // nach finishRun und schrieb die fertige Antwort zurück in den Lauf —
       // sie stand dann doppelt da (Verlauf + Lauf), bis zur nächsten Nachricht.
       // Trat auf, wenn letzter Text und "done" im selben Paket kamen und der
-      // Browser Bilder spät aufbaut (WebKitGTK, Bonsai).
+      // Browser Bilder spät aufbaut (WebKitGTK, schnelle lokale Modelle).
       const flush = () => {
         if (frame) cancelAnimationFrame(frame)
         frame = 0

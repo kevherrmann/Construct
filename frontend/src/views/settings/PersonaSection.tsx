@@ -20,7 +20,7 @@ export function PersonaSection() {
   const assistant = useSettings((x) => x.boot.assistant)
   // Den Reiter für lokale Modelle gibt es nur, wenn eins eingerichtet ist.
   const lokalDa = (useProviders().data ?? []).some(
-    (p) => (p.id === 'bonsai' || p.id === 'ollama') && p.configured && p.models.length > 0,
+    (p) => p.id === 'ollama' && p.configured && p.models.length > 0,
   )
   const [wahl, setTab] = useState<PersonaKey>(lastTab)
   const tab: PersonaKey = wahl === 'lokal' && !lokalDa ? 'soul' : wahl
@@ -95,7 +95,7 @@ export function PersonaSection() {
         <div className={s.d} style={{ margin: '8px 0' }}>
           {rich(
             t(
-              'Eigene Persona <b>nur für Bonsai und Ollama</b> — zum Ausprobieren, {a} bleibt davon unberührt. Ersetzt Charakter und „Über dich“, Kalender und Werkzeuge bleiben. Leer = dieselbe Persona wie {a}. Für einen sauberen Rollenwechsel eine <b>neue Session</b> starten: in einer laufenden Unterhaltung spielt ein kleines Modell oft die alte Rolle weiter.',
+              'Eigene Persona <b>nur für lokale Ollama-Modelle</b> — zum Ausprobieren, {a} bleibt davon unberührt. Ersetzt Charakter und „Über dich“, Kalender und Werkzeuge bleiben. Leer = dieselbe Persona wie {a}. Für einen sauberen Rollenwechsel eine <b>neue Session</b> starten: in einer laufenden Unterhaltung spielt ein kleines Modell oft die alte Rolle weiter.',
               { a: assistant },
             ),
           )}

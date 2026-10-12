@@ -44,7 +44,7 @@ export function TtsLokal() {
   const installFehler = d && !laeuft && d.install.error ? '⚠ ' + trServer(d.install.error) : ''
 
   const warnung = t(
-    '⚠ Belegt beim Vorlesen rund {vram} GB Grafikspeicher (VRAM) und gibt ihn erst {n} Min nach dem letzten Vorlesen wieder frei. So lange fehlt er Spielen, Bonsai oder anderen lokalen KI-Modellen. Einmalig rund {dl} GB Download (Programm und Modell). Ohne NVIDIA-Grafikkarte rechnet der Prozessor, das ist deutlich langsamer.',
+    '⚠ Belegt beim Vorlesen rund {vram} GB Grafikspeicher (VRAM) und gibt ihn erst {n} Min nach dem letzten Vorlesen wieder frei. So lange fehlt er Spielen oder anderen lokalen KI-Modellen. Einmalig rund {dl} GB Download (Programm und Modell). Ohne NVIDIA-Grafikkarte rechnet der Prozessor, das ist deutlich langsamer.',
     { vram: zahl(d?.vram_gb ?? 4), n: d?.idle_min ?? 10, dl: d?.download_gb ?? 9 },
   )
   const gpu = d?.gpu?.name

@@ -40,6 +40,11 @@ async def chat(req: Request):
     # noch werkzeugfähige Modelle, und ein Modell, das nichts tun kann, wäre
     # in einer Werkzeug-Oberfläche eine Falle.
     pid, ext_model = llmmod.split_model(model)
+    if ":" in model and not pid:
+        # Anbieter gibt es nicht mehr (etwa Bonsai, 8.3.0 entfernt), die Auswahl
+        # steht aber noch in einer alten Session: Claude mit seiner Vorgabe,
+        # statt den Wert als Claude-Modellnamen durchzureichen.
+        model = ""
     if pid:
         if not hermesmod.hermes_bin():
             return JSONResponse(

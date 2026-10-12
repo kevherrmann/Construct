@@ -39,7 +39,7 @@ the same kind of file and terminal tools.
 
 ```
 Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p     ──► Claude subscription
-                                        │          └─► hermes acp  ──► OpenAI / Gemini / DeepSeek / Ollama / Bonsai
+                                        │          └─► hermes acp  ──► OpenAI / Gemini / DeepSeek / Ollama
                                         └─ reads ~/.claude/projects/*.jsonl (existing sessions)
 ```
 
@@ -77,7 +77,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   (`default`, `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`).
   Claude gets real file and terminal access in the selected working folder.
 - **Other providers through Hermes.** Supported providers are ChatGPT (OpenAI),
-  Gemini, DeepSeek, local **Ollama** models and **Bonsai** (local). Only models
+  Gemini, DeepSeek and local **Ollama** models. Only models
   that can use tools are offered. You manage API keys in the settings panel.
   Cody's persona and calendar reach these models too (via
   `$HERMES_HOME/SOUL.md` — a SOUL.md you wrote for Hermes yourself is left
@@ -87,10 +87,6 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   models from a curated catalog or by name with a progress bar. On Linux, if
   Ollama is missing, CONSTRUCT can install it with one click into your user
   account.
-- **Bonsai (local).** CONSTRUCT runs PrismML's Bonsai models through the
-  `llama-server` from [Bonsai-demo](https://github.com/PrismML-Eng/Bonsai-demo).
-  The server starts on the first prompt and stops after a period of inactivity
-  or when CONSTRUCT exits, so it only uses VRAM while it's needed.
 - **Attachments.** You can paste, drag and drop, or upload images and PDFs.
   Images are normalized: EXIF orientation is applied, metadata is removed,
   images are resized to 2048×2048 or smaller and HEIC is converted. PDFs get a
@@ -140,7 +136,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   installation: `SOUL.md` is created from `SOUL.default.md` on first start, is
   not versioned and survives updates, so you can give your assistant a
   different name and character without touching the code.
-  Local models (Bonsai, Ollama) can get a persona of their own under
+  Local Ollama models can get a persona of their own under
   ⚙ Settings → Character → Local models (`SOUL.lokal.md`), for example to try
   out playful system prompts without touching Cody.
 - **Look.** Eight color themes (Matrix, Amber, Ice, Space, Ash, Blood, Paper,
@@ -178,8 +174,7 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **[Claude Code](https://docs.claude.com/en/docs/claude-code)** (`claude` on your `PATH`), signed in to your Claude account.
   Without it, CONSTRUCT still starts, but only Hermes-backed providers work.
 - **Optional:** [Hermes Agent](https://hermes-agent.nousresearch.com) for
-  non-Claude models (you can install it from the settings panel), Ollama and
-  Bonsai-demo.
+  non-Claude models (you can install it from the settings panel) and Ollama.
 - **Optional:** a Gemini API key for read-aloud and voice input — free at
   [aistudio.google.com/apikey](https://aistudio.google.com/apikey). The same key
   also unlocks the Gemini models.
@@ -281,8 +276,6 @@ when it writes it.
 | `CONSTRUCT_NO_UPDATE` | Skip the CONSTRUCT self-update |
 | `CONSTRUCT_USER`, `CONSTRUCT_ASSISTANT` | Override display names |
 | `HERMES_HOME`, `HERMES_IDLE_TIMEOUT` | Hermes data directory and idle timeout |
-| `BONSAI_DIR` | Bonsai-demo location (default `~/projects/Bonsai-demo`) |
-| `BONSAI_PORT`, `BONSAI_CTX`, `BONSAI_KV`, `BONSAI_IDLE_MIN` | llama-server port (8790), context (65536), KV cache type (`q4_0`), idle shutdown in minutes (10) |
 | `CONSTRUCT_TTS_VENV`, `CONSTRUCT_TTS_PORT`, `CONSTRUCT_TTS_IDLE_MIN` | Local voice: its virtual environment (default `.venv-tts` in the project folder), port (8791), idle shutdown in minutes (10) |
 | `TELEGRAM_TOKEN`, `CODY_CHAT_ID` | Override the Telegram settings, e.g. on a headless server (`python3 telegram_bot.py` runs the bot on its own) |
 | `CODY_NOTIFY_MIN_SECS` | Minimum run length before a Telegram notification is sent (90) |
@@ -361,7 +354,7 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `frontend/` | Web interface: React 19 + TypeScript + Vite — see [`frontend/README.md`](frontend/README.md) |
 | `static/app/` | Built interface, committed so installs and updates need no Node.js |
 | `server/config.py` | `settings.json` and persona files |
-| `server/llm.py`, `server/hermes.py`, `server/bonsai.py` | Providers and models: API keys, model lists, Ollama; Hermes Agent (ACP) for non-Claude models; on-demand `llama-server` for Bonsai |
+| `server/llm.py`, `server/hermes.py` | Providers and models: API keys, model lists, Ollama; Hermes Agent (ACP) for non-Claude models |
 | `server/mail.py` | IMAP/SMTP mail, Outlook OAuth2 |
 | `server/telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
 | `server/gemini.py` | Shared Gemini API client (key, errors) |

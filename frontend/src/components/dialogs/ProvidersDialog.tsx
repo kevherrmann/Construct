@@ -9,8 +9,6 @@ import {
   ollamaPull,
   refreshProviders,
   saveProvider,
-  stopBonsai,
-  useBonsai,
   useOllama,
   useProviders,
   type Provider,
@@ -126,50 +124,8 @@ function ProviderCard({ p }: { p: Provider }) {
           {msg}
         </span>
       </div>
-      {/* Ollama immer — enthält notfalls den Install-Knopf. Bonsai: liegt der
-          Server gerade im VRAM? + Knopf zum Freigeben. */}
+      {/* Ollama immer — enthält notfalls den Install-Knopf. */}
       {p.id === 'ollama' && <OllamaBox />}
-      {p.id === 'bonsai' && <BonsaiBox />}
-    </div>
-  )
-}
-
-// ---------- Bonsai: Server-Zustand (VRAM belegt?) ----------
-function BonsaiBox() {
-  const { t } = useTranslation()
-  const st = useBonsai()
-  const [busy, setBusy] = useState(false)
-  if (!st.data) return null
-  if (!st.data.available)
-    return (
-      <div className={s.vhint}>
-        {rich(
-          t(
-            '⚠ Bonsai-Demo nicht gefunden — <code>setup.sh</code> im Bonsai-Ordner ausführen oder <code>BONSAI_DIR</code> setzen.',
-          ),
-        )}
-      </div>
-    )
-  const stop = async () => {
-    setBusy(true)
-    await stopBonsai().catch(() => undefined)
-    await st.refetch()
-    setBusy(false)
-  }
-  return (
-    <div className={s.row} style={{ alignItems: 'center' }}>
-      <span className={s.vhint} style={{ flex: 1 }}>
-        {st.data.running
-          ? t('🟢 läuft — Modell im VRAM (stoppt nach {n} Min Leerlauf von selbst)', {
-              n: st.data.idle_min,
-            })
-          : t('⚪ aus — VRAM frei, startet beim ersten Prompt')}
-      </span>
-      {st.data.running && (
-        <button type="button" className={s.tbtn} disabled={busy} onClick={stop}>
-          {t('⏹ JETZT STOPPEN')}
-        </button>
-      )}
     </div>
   )
 }

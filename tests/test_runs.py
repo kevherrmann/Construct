@@ -462,3 +462,19 @@ def test_stream_ab_position_spielt_nur_den_rest_ab(client):
         assert [e.get("text") for e in evs if e["type"] == "text"] == ["neu"]
     finally:
         runs.RUNS.pop(run.id, None)
+
+
+def test_modell_eines_entfernten_anbieters_faellt_auf_claude_zurueck(client, monkeypatch):
+    # Bonsai ist mit 8.3.0 raus; eine alte Session mit "bonsai:…" darf den Wert
+    # nicht als Claude-Modellnamen an claude --model weiterreichen.
+    from server.routes import chat as chatroute
+    gestartet = []
+
+    class _Neu:
+        id = "neuer-lauf"
+        session_id = None
+    monkeypatch.setattr(chatroute, "start_run",
+                        lambda prompt, wd, mode, model, *a, **k: gestartet.append(model) or _Neu())
+    r = client.post("/api/chat", json={"message": "hallo", "model": "bonsai:Ternary-Bonsai-8B"})
+    assert r.status_code == 200, r.text
+    assert gestartet == [""]

@@ -17,7 +17,6 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from server import bonsai as bonsaimod
 from server import config as cfg
 from server import llm as llmmod
 from server import telegram_bot as tgmod
@@ -56,8 +55,7 @@ async def lifespan(_app: FastAPI):
         engine.starten()      # offene Aufträge nach einem Neustart wieder aufnehmen
     yield
     engine.stoppen()
-    bonsaimod.stop()   # sonst hielte der Server die GPU, obwohl CONSTRUCT weg ist
-    ttslokal.stop()    # dito: die lokale Stimme
+    ttslokal.stop()    # sonst hielte die lokale Stimme die GPU, obwohl CONSTRUCT weg ist
     tgmod.stop()
 
 
