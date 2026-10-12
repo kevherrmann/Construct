@@ -2,6 +2,31 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.3.0 — 2026-10-12
+
+### Added
+- **Local voice for read-aloud.** Instead of Gemini TTS, a voice model on your
+  own computer can read the replies:
+  [Chatterbox Multilingual V3](https://github.com/resemble-ai/chatterbox) by
+  Resemble AI (MIT). No quota, no cost, and no text leaves the machine. It
+  imitates a voice sample: either one made from your Gemini voice with one
+  click (a single request against the quota) or your own recording (WAV, MP3,
+  FLAC, OGG).
+  - **Off by default.** It needs about 4 GB of graphics memory while speaking
+    and a one-time download of about 9 GB. The setting under ⚙ Settings → Read
+    aloud says so up front, asks again before switching on, and only then
+    offers the install. It shows which graphics card it found and how much
+    memory is free.
+  - **Frees the VRAM again.** The model loads on first use (about 15 s) and
+    stops after 10 minutes without reading aloud, or right away with
+    “Free VRAM”. Before it starts, it checks whether enough graphics memory is
+    free, and says so if Bonsai or a game is holding it.
+  - **Once loaded, it starts talking after about two seconds**, even for long replies: the
+    text is read in chunks that grow from one sentence to about 20 seconds,
+    and the next chunk is computed while the current one plays.
+  - Runs in its own Python environment (`.venv-tts`), so torch and Chatterbox
+    stay out of CONSTRUCT's own dependencies.
+
 ## 8.2.3 — 2026-10-11
 
 ### Fixed

@@ -25,6 +25,21 @@ it('setzt Werte ein und kennt (lokal)', () => {
   expect(trServer('Bonsai (lokal)')).toBe('Bonsai (local)')
 })
 
+it('lokale Stimme: Meldungen mit Werten (Wortlaut wie in tests/test_tts_lokal.py)', () => {
+  expect(
+    trServer(
+      'Zu wenig freier Grafikspeicher für die lokale Stimme: 2.1 GB frei, gebraucht werden etwa 4 GB. Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell?',
+    ),
+  ).toBe(
+    'Not enough free graphics memory for the local voice: 2.1 GB free, about 4 GB needed. Is Bonsai, a game or another AI model running?',
+  )
+  expect(
+    trServer(
+      'Die lokale Stimme ist noch nicht installiert — ⚙ Einstellungen → Vorlesen → Installieren.',
+    ),
+  ).toMatch(/^The local voice is not installed yet/)
+})
+
 it('lässt Unbekanntes und leere Werte stehen', () => {
   expect(trServer('irgendwas Neues')).toBe('irgendwas Neues')
   expect(trServer(undefined)).toBe('')

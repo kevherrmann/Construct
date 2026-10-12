@@ -361,3 +361,17 @@ select.btn {
   margin-bottom: 6px;
   color: var(--green);
 }
+
+/* Hinweis mit Folgen, z. B. der Grafikspeicher der lokalen Stimme. Gelb wie
+   „wartet“ in der Firma; helle Farbwelten setzen --warn dunkler. */
+.warnung {
+  display: block;
+  margin-top: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--warn, #ffcf5a);
+  border-left: 2px solid currentColor;
+  background: rgba(var(--accent-rgb), 0.04);
+  border-radius: var(--radius);
+}

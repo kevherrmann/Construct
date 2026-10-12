@@ -21,6 +21,7 @@ from server import bonsai as bonsaimod
 from server import config as cfg
 from server import llm as llmmod
 from server import telegram_bot as tgmod
+from server import tts_lokal as ttslokal
 from server import updates as updmod
 from server import runs as runsmod
 from server import uploads_gc
@@ -56,6 +57,7 @@ async def lifespan(_app: FastAPI):
     yield
     engine.stoppen()
     bonsaimod.stop()   # sonst hielte der Server die GPU, obwohl CONSTRUCT weg ist
+    ttslokal.stop()    # dito: die lokale Stimme
     tgmod.stop()
 
 

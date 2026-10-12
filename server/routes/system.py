@@ -10,7 +10,7 @@ import threading
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Request, Response, WebSocket
+from fastapi import APIRouter, File, Request, Response, UploadFile, WebSocket
 from fastapi.responses import JSONResponse
 
 from server import config as cfg
@@ -18,6 +18,7 @@ from server import hermes as hermesmod
 from server import telegram_bot as tgmod
 from server import stt as sttmod
 from server import tts as ttsmod
+from server import tts_lokal as ttslokal
 from server import updates as updmod
 
 from server.core import (BASE_DIR, CODE_STAMP, VERSION, WEB_LOGIN_OK, WORKSPACE, auth_ok, fremder_host,
@@ -192,23 +193,121 @@ async def settings_set(req: Request):
     return neu
 
 
-# ---------- Vorlesen (Gemini TTS) ----------
+# ---------- Vorlesen (Gemini TTS oder lokal) ----------
 @router.post("/api/tts")
 async def tts_speak(req: Request):
     """Text → WAV. Stimme/Modell aus den Einstellungen, einzeln überschreibbar
-    (für die Hörprobe im Einstellungsdialog)."""
+    (für die Hörprobe im Einstellungsdialog).
+
+    Lokal kommt der Text in Stücken (tts.teile): `teil` wählt eins, die Kopfzeile
+    X-TTS-Teile sagt, wie viele es gibt — die Oberfläche holt das nächste,
+    während das vorige spielt. Gemini liest alles am Stück (ein Stück = eine
+    Anfrage ans Kontingent). engine "gemini" erzwingt Gemini, etwa für die
+    Hörprobe einer Gemini-Stimme; lokal nur, wenn es eingeschaltet ist."""
     body = await req.json()
     st = cfg.load_settings()
     conf, lang = st["tts"], st["lang"]
+    text = str(body.get("text") or "")
+    if conf["engine"] == "lokal" and body.get("engine") != "gemini":
+        teile = ttsmod.teile(text, lang)
+        if not teile:
+            return JSONResponse({"error": "Nichts zum Vorlesen."}, status_code=400)
+        try:
+            i = max(0, min(len(teile) - 1, int(body.get("teil") or 0)))
+        except (TypeError, ValueError):
+            i = 0
+        try:
+            wav = await asyncio.to_thread(ttslokal.synthesize, teile[i], lang,
+                                          _probe_pfad(conf["probe"][lang]))
+        except ttslokal.TTSLokalError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return Response(wav, media_type="audio/wav", headers={"X-TTS-Teile": str(len(teile))})
     model = body.get("model") if body.get("model") in cfg.TTS_MODELS else conf["model"]
     voice = re.sub(r"[^\w.\-]", "", str(body.get("voice") or "")) or conf["voice"][lang]
     style = str(body.get("style") if "style" in body else conf["style"][lang])[:200]
     try:
-        wav = await asyncio.to_thread(ttsmod.synthesize, str(body.get("text") or ""),
-                                      model, voice, style, lang)
+        wav = await asyncio.to_thread(ttsmod.synthesize, text, model, voice, style, lang)
     except ttsmod.TTSError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-    return Response(wav, media_type="audio/wav")
+    return Response(wav, media_type="audio/wav", headers={"X-TTS-Teile": "1"})
+
+
+def _probe_pfad(url: str) -> str:
+    """"/uploads/x.wav" (geprüft in config) → Pfad auf der Platte; "" = eingebaute Stimme."""
+    from server.core import UPLOAD_DIR
+    return str(UPLOAD_DIR / Path(url).name) if url else ""
+
+
+@router.get("/api/tts/lokal")
+def tts_lokal_status():
+    """Lokale Stimme: installiert? läuft (= VRAM belegt)? Grafikkarte, Installationslauf."""
+    return ttslokal.status()
+
+
+@router.post("/api/tts/lokal/install")
+def tts_lokal_install():
+    """Installation erst, wenn die lokale Stimme unter ⚙ eingeschaltet ist —
+    das Einschalten ist die ausdrückliche Zustimmung zu Download und VRAM."""
+    if cfg.load_settings()["tts"]["engine"] != "lokal":
+        return JSONResponse({"error": "Erst die lokale Stimme einschalten."}, status_code=400)
+    return ttslokal.install_start()
+
+
+@router.post("/api/tts/lokal/stop")
+def tts_lokal_stop():
+    """VRAM sofort freigeben, statt auf den Leerlauf-Wächter zu warten."""
+    ttslokal.stop()
+    return ttslokal.status()
+
+
+# Stimmproben: Datei-Anfang statt Endung — die Endung sagt nur, was jemand behauptet.
+_AUDIO_MAGIC = ((b"RIFF", ".wav"), (b"fLaC", ".flac"), (b"OggS", ".ogg"), (b"ID3", ".mp3"))
+MAX_PROBE = 20 * 1024 * 1024
+
+
+def _audio_ext(data: bytes) -> str:
+    for magic, ext in _AUDIO_MAGIC:
+        if data.startswith(magic) and (ext != ".wav" or data[8:12] == b"WAVE"):
+            return ext
+    if len(data) > 1 and data[0] == 0xFF and data[1] & 0xE0 == 0xE0:   # MP3 ohne ID3-Kopf
+        return ".mp3"
+    return ""
+
+
+def _probe_ablegen(data: bytes, ext: str) -> dict:
+    import uuid
+    from server.core import UPLOAD_DIR
+    UPLOAD_DIR.mkdir(exist_ok=True)
+    name = f"{uuid.uuid4().hex}{ext}"
+    (UPLOAD_DIR / name).write_bytes(data)
+    return {"url": f"/uploads/{name}"}
+
+
+@router.post("/api/tts/probe")
+async def tts_probe_upload(file: UploadFile = File(...)):
+    """Eigene Stimmprobe hochladen (WAV, MP3, FLAC, OGG). Gespeichert wird sie in
+    den Einstellungen (tts.probe) — erst dort ist sie vor dem Aufräumen sicher."""
+    data = await file.read(MAX_PROBE + 1)
+    if len(data) > MAX_PROBE:
+        return JSONResponse({"error": "Datei zu groß (max. 20 MB)."}, status_code=400)
+    ext = _audio_ext(data)
+    if not ext:
+        return JSONResponse({"error": "Keine Audiodatei (erlaubt: WAV, MP3, FLAC, OGG)."},
+                            status_code=400)
+    return _probe_ablegen(data, ext)
+
+
+@router.post("/api/tts/probe/gemini")
+async def tts_probe_gemini():
+    """Stimmprobe aus der eingestellten Gemini-Stimme: ~15 s, EINE Anfrage ans Kontingent."""
+    st = cfg.load_settings()
+    conf, lang = st["tts"], st["lang"]
+    try:
+        wav = await asyncio.to_thread(ttsmod.synthesize, ttsmod.PROBE_TEXT[lang], conf["model"],
+                                      conf["voice"][lang], conf["style"][lang], lang)
+    except ttsmod.TTSError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return _probe_ablegen(wav, ".wav")
 
 
 def _same_origin(ws: WebSocket | Request) -> bool:

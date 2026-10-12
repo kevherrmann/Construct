@@ -65,9 +65,14 @@ DEFAULT_SETTINGS = {
     # Vorlesen über Gemini TTS (tts.py) — nutzt den Gemini-Key aus llm.py.
     # auto = jede neue Antwort sofort vorlesen. Stimme und Sprechanweisung
     # je Oberflächensprache: eine deutsche Stimme liest Englisch mit Akzent.
-    "tts": {"auto": False, "model": "gemini-3.8-flash-lite-tts",
+    # engine "lokal" = Chatterbox auf dem eigenen Rechner (tts_lokal.py) statt
+    # Gemini. Aus, bis man es unter ⚙ ausdrücklich einschaltet: es belegt
+    # Grafikspeicher. probe = Stimmprobe (eigener Upload), die die lokale
+    # Stimme nachahmt; leer = deren eingebaute Stimme.
+    "tts": {"auto": False, "engine": "gemini", "model": "gemini-3.8-flash-lite-tts",
             "voice": {"de": "de-de-podcaster-3", "en": "en-us-podcaster-6"},
-            "style": {"de": "", "en": ""}},
+            "style": {"de": "", "en": ""},
+            "probe": {"de": "", "en": ""}},
     # Bilder erzeugen (images.py, bild.py) über fal.ai. Der Key liegt wie die
     # anderen Anbieter-Keys in .llm-config.json, hier nur die Modellwahl.
     "images": {"model": "openai/gpt-image-2"},
@@ -109,6 +114,7 @@ def fallback_models(model: str) -> str:
 
 
 TTS_MODELS = ("gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts")
+TTS_ENGINES = ("gemini", "lokal")
 
 
 def _clean_tts(src: dict, cur: dict):
@@ -117,6 +123,12 @@ def _clean_tts(src: dict, cur: dict):
         cur["auto"] = bool(src["auto"])
     if src.get("model") in TTS_MODELS:
         cur["model"] = src["model"]
+    if src.get("engine") in TTS_ENGINES:
+        cur["engine"] = src["engine"]
+    probe = src.get("probe")
+    for lang, v in probe.items() if isinstance(probe, dict) else ():
+        if lang in LANGS:
+            cur["probe"][lang] = _clean_image(v)   # nur eigene Uploads, wie bei Bildern
     voice, style = src.get("voice"), src.get("style")
     # Frühe Fassung speicherte eine einzelne Stimme — die gehört zur Sprache
     # ihres Kürzels (de-de-…, en-us-…), die Sprechanweisung dann zu Deutsch.

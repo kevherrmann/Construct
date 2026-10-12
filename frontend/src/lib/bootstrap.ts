@@ -18,9 +18,13 @@ export interface Settings {
   updates: { auto: boolean; interval_h: number; construct: boolean }
   tts: {
     auto: boolean
+    /** "lokal" = Chatterbox auf diesem Rechner (server/tts_lokal.py), sonst Gemini. */
+    engine: 'gemini' | 'lokal'
     model: string
     voice: Record<Lang, string>
     style: Record<Lang, string>
+    /** Stimmprobe der lokalen Stimme (/uploads/…); leer = deren eingebaute Stimme. */
+    probe: Record<Lang, string>
   }
   images: { model: string }
   /** Automatische Modellwahl — vorerst nur Schattenbetrieb, ohne Schalter in der Oberfläche. */
@@ -62,9 +66,11 @@ export const DEFAULT_SETTINGS: Settings = {
   updates: { auto: true, interval_h: 6, construct: true },
   tts: {
     auto: false,
+    engine: 'gemini',
     model: 'gemini-3.8-flash-lite-tts',
     voice: { de: 'de-de-podcaster-3', en: 'en-us-podcaster-6' },
     style: { de: '', en: '' },
+    probe: { de: '', en: '' },
   },
   images: { model: 'openai/gpt-image-2' },
   auto: { schatten: false },

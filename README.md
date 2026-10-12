@@ -60,6 +60,13 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   filler words disappear. Enter ends dictation, Esc discards it.
 - **Read-aloud.** 🔊 above every reply reads it out with Gemini TTS, or every
   new reply automatically. Voice and speaking style per UI language.
+  Optionally a **local voice** ([Chatterbox Multilingual](https://github.com/resemble-ai/chatterbox),
+  MIT) reads on your own machine instead: no quota, nothing leaves the computer.
+  It imitates a voice sample (e.g. made from your Gemini voice, or your own
+  recording). Off by default: it needs about 4 GB of VRAM while speaking and a
+  one-time ~9 GB download, so you switch it on and install it explicitly under
+  ⚙ Settings → Read aloud. It starts on first use and frees the VRAM after
+  10 idle minutes.
 - **Image generation.** Ask Cody for an image and it appears right in the
   reply. Runs on [fal.ai](https://fal.ai) with prepaid credit; add the key under
   ⚙ Settings → Image generation. GPT Image 2 is the default (about 5 cents per
@@ -258,7 +265,7 @@ when it writes it.
 | `avatars` | `{"user": "", "assistant": ""}`: uploaded image paths |
 | `tiles` | `skills`, `kalender`, `mail`, `mcp` (on/off; the chat tile is always shown) |
 | `background` | `{"mode": "matrix" \| "image" \| "plain", "image": "", "dim": 60}` |
-| `tts` | `{"auto": false, "model": "gemini-3.8-flash-lite-tts", "voice": {"de": …, "en": …}, "style": {"de": "", "en": ""}}` |
+| `tts` | `{"auto": false, "engine": "gemini" \| "lokal", "model": "gemini-3.8-flash-lite-tts", "voice": {"de": …, "en": …}, "style": {"de": "", "en": ""}, "probe": {"de": "", "en": ""}}` (`probe`: uploaded voice sample for the local voice) |
 | `hermes` | `{"home": ""}`: empty means `~/.hermes` |
 | `updates` | `{"auto": true, "interval_h": 6, "construct": true}` |
 
@@ -276,6 +283,7 @@ when it writes it.
 | `HERMES_HOME`, `HERMES_IDLE_TIMEOUT` | Hermes data directory and idle timeout |
 | `BONSAI_DIR` | Bonsai-demo location (default `~/projects/Bonsai-demo`) |
 | `BONSAI_PORT`, `BONSAI_CTX`, `BONSAI_KV`, `BONSAI_IDLE_MIN` | llama-server port (8790), context (65536), KV cache type (`q4_0`), idle shutdown in minutes (10) |
+| `CONSTRUCT_TTS_VENV`, `CONSTRUCT_TTS_PORT`, `CONSTRUCT_TTS_IDLE_MIN` | Local voice: its virtual environment (default `.venv-tts` in the project folder), port (8791), idle shutdown in minutes (10) |
 | `TELEGRAM_TOKEN`, `CODY_CHAT_ID` | Override the Telegram settings, e.g. on a headless server (`python3 telegram_bot.py` runs the bot on its own) |
 | `CODY_NOTIFY_MIN_SECS` | Minimum run length before a Telegram notification is sent (90) |
 | `CODY_WHISPER_MODEL` | faster-whisper model for Telegram voice messages (`small`) |
@@ -357,7 +365,8 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
 | `server/mail.py` | IMAP/SMTP mail, Outlook OAuth2 |
 | `server/telegram_bot.py` | Telegram bot, reminders and notifications (configured in ⚙ Settings) |
 | `server/gemini.py` | Shared Gemini API client (key, errors) |
-| `server/tts.py` | Read-aloud via Gemini TTS, voice catalog |
+| `server/tts.py` | Read-aloud via Gemini TTS, voice catalog; splits text into chunks for the local voice |
+| `server/tts_lokal.py`, `server/tts_lokal_worker.py` | Local voice: install on demand, start/stop with VRAM check and idle shutdown; the worker runs Chatterbox in its own venv |
 | `server/images.py`, `bild.py` | Image generation via fal.ai; `bild.py` is the CLI Cody uses |
 | `server/auto_modell.py` | Experimental automatic model choice, shadow mode only (off by default, see `scripts/auto_auswertung.py`) |
 | `server/stt.py` | Voice input: relays the microphone stream to Gemini 3.5 Transcribe Live |

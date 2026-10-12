@@ -8,6 +8,7 @@ import { trServer } from '@/lib/serverText'
 import { openDialog } from '@/stores/dialogs'
 import { useSettings } from '@/stores/settings'
 import { Note, Section } from './parts'
+import { TtsLokal } from './TtsLokal'
 import s from './Settings.module.css'
 
 const MODELS = [
@@ -62,6 +63,7 @@ export function TtsSection() {
           voice: curVoice || list[0]?.id || '',
           model: tts.model,
           style,
+          engine: 'gemini',
           owner: 'settings-preview',
         },
       )
@@ -77,7 +79,7 @@ export function TtsSection() {
       <div className={s.d} style={{ marginBottom: 10 }}>
         {rich(
           t(
-            'Antworten per <b>Gemini TTS</b> vorlesen lassen — der 🔊 neben dem Namen über jeder Antwort. Braucht einen Gemini-Key (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat.',
+            'Antworten per <b>Gemini TTS</b> vorlesen lassen — der 🔊 neben dem Namen über jeder Antwort. Braucht einen Gemini-Key (kostenlos auf aistudio.google.com/apikey) — derselbe wie für den Gemini-Chat. Ganz unten lässt sich stattdessen eine <b>lokale Stimme</b> einschalten.',
           ),
         )}
       </div>
@@ -171,6 +173,7 @@ export function TtsSection() {
           />
         </span>
       </div>
+      <TtsLokal />
     </Section>
   )
 }

@@ -13,6 +13,22 @@ const RX: [RegExp, string][] = [
     "PrismML Bonsai via the Bonsai demo's llama-server — starts on the first prompt and frees the VRAM after $1 min of inactivity",
   ],
   [/^Ordner (.+) nicht lesbar$/, 'Folder $1 unreadable'],
+  // Lokale Stimme (server/tts_lokal.py)
+  [
+    /^Zu wenig freier Grafikspeicher für die lokale Stimme: ([\d.]+) GB frei, gebraucht werden etwa (\d+) GB\. Läuft gerade Bonsai, ein Spiel oder ein anderes KI-Modell\?$/,
+    'Not enough free graphics memory for the local voice: $1 GB free, about $2 GB needed. Is Bonsai, a game or another AI model running?',
+  ],
+  [
+    /^Die lokale Stimme ist beim Start abgebrochen — meist zu wenig freier Grafikspeicher\. Details: (.+)$/,
+    'The local voice stopped while starting — usually not enough free graphics memory. Details: $1',
+  ],
+  [
+    /^Die lokale Stimme antwortet nach (\d+)s nicht\.$/,
+    'The local voice is not responding after $1 s.',
+  ],
+  [/^Die lokale Stimme ließ sich nicht starten: (.+)$/, 'The local voice could not be started: $1'],
+  [/^Lokale Stimme nicht erreichbar: (.+)$/, 'Local voice not reachable: $1'],
+  [/^(\S+) beendet mit Code (-?\d+)$/, '$1 exited with code $2'],
   [/^Ordner (.+) nicht wählbar$/, 'Folder $1 not selectable'],
 ]
 

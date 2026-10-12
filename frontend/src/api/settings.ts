@@ -126,6 +126,37 @@ export const useTtsVoices = (lang: string) =>
     retry: false,
   })
 
+// ---------- Lokale Stimme (tts_lokal.status) ----------
+export interface TtsLokal {
+  installiert: boolean
+  /** Läuft der Dienst gerade (= Modell im VRAM)? */
+  laeuft: boolean
+  geraet: string
+  /** Erste NVIDIA-Karte; leer ohne NVIDIA-Treiber. */
+  gpu: { name?: string; total_gb?: number; free_gb?: number }
+  vram_gb: number
+  download_gb: number
+  idle_min: number
+  install: { running: boolean; done: boolean; log: string[]; error: string }
+}
+
+export const useTtsLokal = () =>
+  useQuery({
+    queryKey: ['tts-lokal'],
+    queryFn: () => apiGet<TtsLokal>('/api/tts/lokal'),
+    // Während der Installation das Protokoll mitlesen, sonst nur ab und zu
+    // nachsehen, ob der Wächter den VRAM schon freigegeben hat.
+    refetchInterval: (q) => (q.state.data?.install.running ? 1200 : 15000),
+  })
+export const installTtsLokal = () => apiPost<{ ok: boolean }>('/api/tts/lokal/install')
+export const stopTtsLokal = () => apiPost<TtsLokal>('/api/tts/lokal/stop')
+export const probeAusGemini = () => apiPost<{ url: string }>('/api/tts/probe/gemini')
+export function probeHochladen(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiPost<{ url: string }>('/api/tts/probe', undefined, { body: fd, headers: {} })
+}
+
 // ---------- Hochladen (attach.store) ----------
 export interface Upload {
   path: string
