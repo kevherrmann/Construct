@@ -7,7 +7,7 @@ export const MODELLE: Record<Modell, string> = {
   fable: 'Fable 5.1',
   opus: 'Opus 5.5',
   sonnet: 'Sonnet 5.5',
-  haiku: 'Haiku 4.5 · 200K',
+  haiku: 'Haiku 5.5',
 }
 
 export const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']

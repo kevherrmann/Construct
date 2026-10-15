@@ -30,6 +30,24 @@ def test_andere_faelle(monkeypatch):
         "OpenAI rejected your API key, so the model can't be reached. Update it in Settings.")
     assert "'gpt-9' is not available on OpenAI" in hermes.friendly_failure(
         "Model 'gpt-9' isn't available on OpenAI. Pick a different model with /model.")
+    # Free-Tier-Abbruch nach dem ersten Versuch (agent/turn_failure_copy.py,
+    # _EXHAUSTED_FIRST_ATTEMPT_LEADS)
+    assert "resets in 52s" in hermes.friendly_failure(
+        "Google AI Studio is rate-limiting requests right now — its usage limit resets in 52s. "
+        "Send /retry after that, or switch models with /model.")
+
+
+def test_freigabe_nur_fuer_die_sitzung():
+    # So bietet Hermes sie an (acp_adapter/permissions.py) — auch in anderer
+    # Reihenfolge darf nie die dauerhafte Freigabe gewählt werden.
+    opts = [{"optionId": "allow_once", "kind": "allow_once"},
+            {"optionId": "allow_always", "kind": "allow_always"},
+            {"optionId": "allow_session", "kind": "allow_always"},
+            {"optionId": "deny", "kind": "reject_once"}]
+    assert hermes._permission_choice({"options": opts}, True) == "allow_session"
+    assert hermes._permission_choice({"options": opts}, False) == "deny"
+    nur_einmal = [o for o in opts if o["optionId"] in ("allow_once", "deny")]
+    assert hermes._permission_choice({"options": nur_einmal}, True) == "allow_once"
 
 
 def test_normale_antworten_bleiben():

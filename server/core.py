@@ -47,7 +47,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.3.0"
+VERSION = "8.3.1"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -240,6 +240,44 @@ def claude_env() -> dict:
     if tok:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = tok
     return env
+
+# Was `claude --help` nennt, gemerkt je Programmdatei: ein Update legt eine neue
+# Fassung ab (anderer Pfad hinter dem Link, andere Änderungszeit), dann wird neu
+# gefragt. Gebraucht für Schalter, die erst neuere Fassungen kennen — einen
+# unbekannten Schalter quittiert claude mit "unknown option", und der Lauf startet nicht.
+_HILFE = {"key": None, "text": ""}
+
+def claude_kann(schalter: str) -> bool:
+    exe = claude_bin()
+    if not exe:
+        return False
+    try:
+        real = os.path.realpath(exe)
+        key = (real, os.stat(real).st_mtime)
+    except OSError:
+        return False
+    if _HILFE["key"] != key:
+        import subprocess
+        try:
+            p = subprocess.run([exe, "--help"], capture_output=True, text=True, timeout=20,
+                               stdin=subprocess.DEVNULL)
+            _HILFE["text"] = p.stdout or ""
+        except (OSError, subprocess.SubprocessError):
+            _HILFE["text"] = ""
+        _HILFE["key"] = key
+    return schalter in _HILFE["text"]
+
+def frischer_systemprompt() -> list:
+    """Schalter, damit ein fortgesetzter Chat den Systemprompt von JETZT bekommt.
+
+    Seit Claude Code 2.1.267 hält eine Sitzung ihren Systemprompt beim ersten
+    Request fest und schickt ihn bei jedem --resume unverändert wieder — ein
+    neues --append-system-prompt kam nicht mehr an. Bei uns stehen darin aber
+    Kalender und Datum (context_text), dazu SOUL.md, USER.md und die Regeln für
+    Board und Firma: ein Chat von Montag kannte am Donnerstag noch Montags
+    Termine. Zwischengespeichert wird trotzdem: innerhalb eines Laufs ist der
+    Prompt gleich, über Läufe hinweg, solange sich nichts geändert hat."""
+    return ["--system-prompt-snapshot", "off"] if claude_kann("--system-prompt-snapshot") else []
 
 # Der Web-Login steuert `claude setup-token` über ein Pseudo-Terminal. pty,
 # termios und fcntl sind Unix-only — unter Windows gibt es diesen Weg nicht,

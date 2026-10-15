@@ -197,7 +197,8 @@ def strip_context(text: str) -> str:
 # CONSTRUCT ins Leere gehen. Bekannte Fälle werden zu einem kurzen Hinweis;
 # Unbekanntes bleibt, wie es ist. Vorlagen: agent/turn_failure_copy.py.
 _FAIL_PATTERNS = [
-    ("rate", re.compile(r"^(?P<label>.{1,60}?) rate-limited every one of \d+ attempts — ")),
+    ("rate", re.compile(r"^(?P<label>.{1,60}?) (?:rate-limited every one of \d+ attempts|"
+                        r"is rate-limiting requests right now) — ")),
     ("down", re.compile(r"^(?P<label>.{1,60}?) (?:reported it was overloaded on all|returned a "
                         r"server error on all|didn't respond in time on any of|didn't answer "
                         r"after) \d+ attempts — ")),
@@ -752,7 +753,15 @@ def _permission_choice(params: dict, allow_writes: bool) -> str:
     nicht nach Beschriftung — die kann übersetzt sein.
     """
     opts = params.get("options") or []
-    want = ("allow_always", "allow_once") if allow_writes else ("reject_once", "reject_always")
+    if allow_writes:
+        # Freigabe für diese Sitzung, nie für immer. Hermes führt beide unter
+        # kind allow_always (ACP kennt kein "Sitzung"); das echte "allow_always"
+        # schriebe eine dauerhafte Freigabe in seine Konfiguration. Darum nach
+        # optionId statt nach Reihenfolge — die steht nirgends fest.
+        for o in opts:
+            if o.get("optionId") == "allow_session":
+                return "allow_session"
+    want = ("allow_once",) if allow_writes else ("reject_once", "reject_always")
     for kind in want:
         for o in opts:
             if o.get("kind") == kind:

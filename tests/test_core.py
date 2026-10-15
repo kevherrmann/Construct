@@ -97,3 +97,61 @@ def test_einstellungen_ohne_objekt_sind_ein_400(client, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
     assert client.post("/api/settings", json=[]).status_code == 400
     assert client.post("/api/settings", content=b"kaputt").status_code == 400
+
+
+# ---------- Hermes aktuell halten (server/updates.py) ----------
+
+def _hermes_update(monkeypatch, check_ausgabe, check_code=0):
+    from server import hermes as hermesmod
+    from server import updates
+    aufrufe = []
+
+    def run(cmd, timeout=60, env=None):
+        aufrufe.append(cmd[1:])
+        return (check_code, check_ausgabe) if "--check" in cmd else (0, "✓ Updated")
+
+    fassungen = iter(["Hermes Agent v0.21.6 · local dce1e9b", "Hermes Agent v0.22.2 · local d923a5e"])
+    monkeypatch.setattr(updates, "_run", run)
+    monkeypatch.setattr(updates, "hermes_version", lambda: next(fassungen))
+    monkeypatch.setattr(hermesmod, "hermes_bin", lambda: "/usr/bin/hermes")
+    monkeypatch.setattr(hermesmod, "child_env", lambda: {})
+    updates._STATE["steps"] = updates._blank_steps()
+    updates._update_hermes()
+    return aufrufe, updates._STATE["steps"]["hermes"]
+
+
+def test_hermes_release_kanal_wird_als_neuerung_erkannt(monkeypatch):
+    # Wortgleich aus `hermes update --check` am 15.10.2026 (Kanal stable)
+    aufrufe, step = _hermes_update(monkeypatch, "→ Update channel: stable\n"
+                                   "→ Selected release available: stable v0.22.2 (d923a5eb487a)\n"
+                                   "  Run `hermes update` to install it.")
+    assert ["update", "--yes"] in aufrufe
+    assert step["state"] == "new"
+
+
+def test_hermes_ohne_neuerung_zieht_nichts(monkeypatch):
+    aufrufe, step = _hermes_update(monkeypatch, "→ Update channel: stable\n"
+                                   "✓ Up to date with the latest release (stable v0.22.2).")
+    assert aufrufe == [["update", "--check"]]
+    assert step["state"] == "ok"
+
+
+def test_gescheiterte_pruefung_sperrt_die_naechste_nicht(tmp_path, monkeypatch):
+    # Beim Hochfahren fehlte das Netz noch (DNS): mit Stempel wäre die nächste
+    # Prüfung erst sechs Stunden später gekommen.
+    import time
+    from server import updates
+    monkeypatch.setattr(updates, "STAMP_FILE", tmp_path / ".update-stamp")
+    monkeypatch.setattr(updates, "WERKZEUGE", ("hermes",))
+
+    def scheitert():
+        updates._step("hermes", state="error", msg="Temporary failure in name resolution")
+
+    monkeypatch.setattr(updates, "_update_hermes", scheitert)
+    monkeypatch.setattr(updates, "_update_claude", scheitert)
+    updates.start("start")
+    for _ in range(100):
+        if updates._STATE["done"]:
+            break
+        time.sleep(0.02)
+    assert not (tmp_path / ".update-stamp").exists()

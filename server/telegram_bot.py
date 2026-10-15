@@ -76,6 +76,9 @@ HOOKS = {
     "claude_env": lambda: dict(os.environ),
     "persona": _persona_standalone,
     "workspace": str(Path.home()),
+    # Schalter für --resume, damit Persona und Kalender von heute ankommen
+    # (core.frischer_systemprompt).
+    "frisch": lambda: [],
 }
 
 _lock = threading.Lock()
@@ -268,7 +271,7 @@ def ask_cody(prompt, cwd, session_id, conf):
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:
-        cmd += ["--resume", session_id]
+        cmd += ["--resume", session_id] + HOOKS["frisch"]()
     cmd += [prompt]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd,

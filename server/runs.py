@@ -18,7 +18,7 @@ from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
 from server.core import (BASE_DIR, LIMIT_HIT, PROJECTS_DIR, claude_bin, claude_env, extract_text,
-                         friendly_claude_error, load_persona, note_rate_limit)
+                         frischer_systemprompt, friendly_claude_error, load_persona, note_rate_limit)
 from server.sessions import model_short
 from server.team.chat import ohne_marke
 
@@ -624,8 +624,9 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     if effort in EFFORTS:
         cmd += ["--effort", effort]
     persona = load_persona()
-    # Feste Texte: ändern sich nie während einer Session und bleiben so im
-    # Zwischenspeicher. Alles Veränderliche steht hinten an der Nachricht.
+    # Persona und Kalender ändern sich zwischen zwei Läufen derselben Sitzung
+    # (neuer Tag, neuer Termin, SOUL.md bearbeitet, Schalter umgelegt). Was die
+    # Firma getan hat, steht dagegen hinten an der Nachricht.
     if chat and conf["tiles"]["tickets"]:
         persona = (persona + "\n\n" + tickmod.regeln()).strip()
     if chat and conf["team"]["aktiv"]:
@@ -634,7 +635,7 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     if persona:
         cmd += ["--append-system-prompt", persona]
     if session_id:
-        cmd += ["--resume", session_id]
+        cmd += ["--resume", session_id] + frischer_systemprompt()
         if resume_at:
             # Bearbeitete Nachricht: bis zu dieser Stelle fortsetzen, als
             # eigene neue Sitzung — das Original bleibt unangetastet.

@@ -55,6 +55,9 @@ const WERKZEUGE: Record<string, Werkzeug> = {
   write_file: { phase: 'schreibt', station: 'werkbank' },
   patch: { phase: 'schreibt', station: 'werkbank' },
   Bash: { phase: 'terminal', station: 'monitore' },
+  // Hintergrund-Befehle beobachten und beenden; BashOutput/KillShell sind die alten Namen
+  Monitor: { phase: 'terminal', station: 'monitore' },
+  TaskStop: { phase: 'terminal', station: 'monitore' },
   BashOutput: { phase: 'terminal', station: 'monitore' },
   KillShell: { phase: 'terminal', station: 'monitore' },
   terminal: { phase: 'terminal', station: 'monitore' },

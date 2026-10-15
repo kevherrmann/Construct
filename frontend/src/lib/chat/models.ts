@@ -8,10 +8,9 @@ import type { Provider } from '@/api/providers'
 // das jeweils neueste Modell seiner Reihe, und man sieht ihm nicht an, welches
 // das gerade IST. Nachmessen, wenn ein neues Modell erscheint:
 //   claude -p "ok" --model <name> --output-format json | jq .modelUsage
-// Gemessen am 30.09.2026 mit Claude Code 2.1.283: fable→claude-fable-5-1,
-// opus→claude-opus-5-5, sonnet→claude-sonnet-5 (!), haiku→claude-haiku-4-5.
-// Sonnet 5.5 kennt diese CLI-Version noch nicht als Alias, die volle ID
-// `claude-sonnet-5-5` läuft aber (nur eine Warnung auf stderr).
+// Gemessen am 15.10.2026 mit Claude Code 2.1.296: sonnet→claude-sonnet-5-5,
+// haiku→claude-haiku-5-5 (1M Kontext). Am 30.09. (2.1.283) zeigten beide noch
+// auf Sonnet 5 und Haiku 4.5; fable→claude-fable-5-1, opus→claude-opus-5-5.
 
 export interface ModelInfo {
   v: string
@@ -33,7 +32,7 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     d: 'stärkstes Modell — für die härtesten und längsten Aufgaben',
   },
   { v: 'claude-sonnet-5-5', l: 'Sonnet 5.5', d: 'schnell, schont das Limit' },
-  { v: 'claude-haiku-4-5', l: 'Haiku 4.5', d: 'am schnellsten — kleine Aufgaben' },
+  { v: 'claude-haiku-5-5', l: 'Haiku 5.5', d: 'am schnellsten — kleine Aufgaben' },
 ]
 
 /** Vorgabe für alle neuen Gespräche, solange nie etwas gewählt wurde. */
@@ -42,14 +41,15 @@ export const DEFAULT_MODEL = 'claude-opus-5-5'
 const MODEL_ALIAS: Record<string, string> = {
   fable: 'claude-fable-5-1',
   opus: 'claude-opus-5-5',
-  sonnet: 'claude-sonnet-5',
-  haiku: 'claude-haiku-4-5',
+  sonnet: 'claude-sonnet-5-5',
+  haiku: 'claude-haiku-5-5',
 }
 
 /** Aus der Auswahl genommen → gespeicherte Wahl geht auf den Nachfolger. */
 const RETIRED: Record<string, string> = {
   'claude-opus-5': 'claude-opus-5-5',
   'claude-sonnet-5': 'claude-sonnet-5-5',
+  'claude-haiku-4-5': 'claude-haiku-5-5',
 }
 /** Entfallene Anbieter (8.3.0: Bonsai) → gespeicherte Wahl geht auf die Vorgabe. */
 const RETIRED_PROVIDERS = ['bonsai']

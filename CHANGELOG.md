@@ -2,6 +2,38 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.3.1 — 2026-10-15
+
+### Fixed
+- **Continued chats see today's calendar and persona again.** Since Claude
+  Code 2.1.267 a session records its system prompt on the first request and
+  sends that record again on every resume. CONSTRUCT's system prompt carries
+  the calendar, today's date, `SOUL.md`, `USER.md` and the rules for the ticket
+  board and the team, so a chat started on Monday still saw Monday's events on
+  Thursday, and an edited persona or a flipped team switch never reached older
+  chats. Resumed chats (also via Telegram) now pass
+  `--system-prompt-snapshot off`, but only if the installed Claude Code knows
+  the flag.
+- **Hermes updates again.** Since Hermes follows release channels,
+  `hermes update --check` reports a new version as "Selected release
+  available". The update check did not recognize that, reported "up to date"
+  and left Hermes on its old version. A check that fails (for example because
+  the network is not up yet at boot) also no longer blocks the next attempt
+  for six hours.
+- **Hermes: "… is rate-limiting requests right now"** (free tier, first
+  attempt) shows as the short quota hint like the other provider failures.
+- **Hermes approvals are for the session only, picked by ID.** CONSTRUCT took
+  the first "allow always" option, which today happens to be "for this
+  session". Had Hermes reordered its options, CONSTRUCT would have written
+  permanent approvals into the Hermes configuration.
+
+### Changed
+- **Haiku 5.5 replaces Haiku 4.5** in the model picker, the fallback chain and
+  the staff files. Claude Code's `haiku` alias points to it now (1M context).
+  A stored Haiku 4.5 choice moves to 5.5. The automatic model choice keeps its
+  Haiku 4.5 classifier until its shadow run has been evaluated.
+- Room: `Monitor` and `TaskStop` (background commands) work at the monitors.
+
 ## 8.3.0 — 2026-10-12
 
 ### Added

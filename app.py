@@ -26,8 +26,8 @@ from server import runs as runsmod
 from server import uploads_gc
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
-                         auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host, load_persona,
-                         remember_server)
+                         auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host,
+                         frischer_systemprompt, load_persona, remember_server)
 from server.scheduler import scheduler_loop
 from server.team import engine
 from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, team, tickets, ui
@@ -40,7 +40,7 @@ async def lifespan(_app: FastAPI):
     # Läufe, die der vorige Server mitten im Zug zurückgelassen hat
     runsmod.aufnehmen()
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
-               persona=load_persona, workspace=WORKSPACE)
+               persona=load_persona, workspace=WORKSPACE, frisch=frischer_systemprompt)
     tgmod.restart()
     uploads_gc.start()   # verwaiste Anhänge nach ein paar Tagen wegräumen
     # Früher installiertes Ollama nach Container-Neustart wieder hochfahren

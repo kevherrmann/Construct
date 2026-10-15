@@ -478,3 +478,48 @@ def test_modell_eines_entfernten_anbieters_faellt_auf_claude_zurueck(client, mon
     r = client.post("/api/chat", json={"message": "hallo", "model": "bonsai:Ternary-Bonsai-8B"})
     assert r.status_code == 200, r.text
     assert gestartet == [""]
+
+
+# ---------- Systemprompt beim Fortsetzen frisch (Claude Code 2.1.267) ----------
+
+def _falsches_claude(tmp_path, monkeypatch, hilfe):
+    from server import core
+    exe = tmp_path / "claude"
+    exe.write_text(f"#!/bin/sh\necho '{hilfe}'\n")
+    exe.chmod(0o755)
+    monkeypatch.setattr(core, "claude_bin", lambda: str(exe))
+    monkeypatch.setattr(core, "_HILFE", {"key": None, "text": ""})
+    return exe
+
+
+def _befehl(monkeypatch, **kw):
+    gesehen = {}
+
+    async def kein_lauf(run, cmd):
+        gesehen["cmd"] = cmd
+
+    monkeypatch.setattr(runs, "run_claude", kein_lauf)
+    monkeypatch.setattr(runs, "load_persona", lambda: "Persona mit Kalender")
+
+    async def los():
+        run = runs.start_run("hallo", "/tmp", "default", **kw)
+        await run.task
+        runs.RUNS.pop(run.id, None)
+
+    asyncio.run(los())
+    return gesehen["cmd"]
+
+
+def test_fortgesetzter_chat_bekommt_den_systemprompt_von_jetzt(tmp_path, monkeypatch):
+    _falsches_claude(tmp_path, monkeypatch, "  --system-prompt-snapshot <on|off>   Record …")
+    cmd = _befehl(monkeypatch, session_id="sid-alt")
+    i = cmd.index("--system-prompt-snapshot")
+    assert cmd[i + 1] == "off"
+    # Neue Sitzung: nichts festzuhalten, der Schalter bleibt weg
+    assert "--system-prompt-snapshot" not in _befehl(monkeypatch)
+
+
+def test_aeltere_claude_fassung_bekommt_den_schalter_nicht(tmp_path, monkeypatch):
+    # Ein unbekannter Schalter ließe den Lauf gar nicht erst starten.
+    _falsches_claude(tmp_path, monkeypatch, "  --resume [value]   Resume a conversation")
+    assert "--system-prompt-snapshot" not in _befehl(monkeypatch, session_id="sid-alt")

@@ -97,9 +97,9 @@ IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano
 # eigentliche versucht). Welches wirklich lief, meldet `modelUsage`.
 _FALLBACK = {
     "claude-fable-5-1": "claude-opus-5-5,claude-sonnet-5-5",
-    "claude-opus-5-5": "claude-sonnet-5-5,claude-haiku-4-5",
-    "claude-sonnet-5-5": "claude-opus-5-5,claude-haiku-4-5",
-    "claude-haiku-4-5": "claude-sonnet-5-5",
+    "claude-opus-5-5": "claude-sonnet-5-5,claude-haiku-5-5",
+    "claude-sonnet-5-5": "claude-opus-5-5,claude-haiku-5-5",
+    "claude-haiku-5-5": "claude-sonnet-5-5",
 }
 
 
@@ -110,7 +110,7 @@ DEFAULT_EFFORT = "high"
 
 def fallback_models(model: str) -> str:
     """Wert für `--fallback-model`; "" (Konto-Standard) und Unbekanntes → Sonnet."""
-    return _FALLBACK.get(model, "claude-sonnet-5-5,claude-haiku-4-5")
+    return _FALLBACK.get(model, "claude-sonnet-5-5,claude-haiku-5-5")
 
 
 TTS_MODELS = ("gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts")

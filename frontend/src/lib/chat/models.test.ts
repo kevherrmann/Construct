@@ -21,19 +21,21 @@ describe('modelInfo', () => {
   })
   it('führt Aliase, Datumsstempel und Kontext-Zusätze auf den Listeneintrag zurück', () => {
     expect(modelInfo('opus')?.l).toBe('Opus 5.5')
-    expect(modelInfo('claude-haiku-4-5-20251001')?.l).toBe('Haiku 4.5')
+    expect(modelInfo('haiku')?.l).toBe('Haiku 5.5')
+    expect(modelInfo('claude-haiku-5-5-20261001')?.l).toBe('Haiku 5.5')
     expect(modelInfo('claude-opus-5-5[1m]')?.l).toBe('Opus 5.5')
   })
   it('zeigt ausgemusterte Claude-Modelle mit roher ID statt "Standard"', () => {
     expect(modelInfo('claude-opus-4-8')).toMatchObject({ l: 'opus-4-8' })
     // Präfix gilt nur in eine Richtung: Sonnet 5 ist nicht Sonnet 5.5
     expect(modelInfo('claude-sonnet-5')).toMatchObject({ l: 'sonnet-5' })
-    // Alias, dessen Ziel nicht mehr in der Liste steht (CLI 2.1.283: sonnet → 5)
-    expect(modelInfo('sonnet')).toMatchObject({ l: 'sonnet-5' })
+    // Haiku 4.5 aus alten Transkripten: so, wie es damals lief
+    expect(modelInfo('claude-haiku-4-5-20251001')).toMatchObject({ l: 'haiku-4-5-20251001' })
   })
   it('stellt gespeicherte ausgemusterte Modelle auf den Nachfolger um', () => {
     expect(successor('claude-opus-5')).toBe('claude-opus-5-5')
     expect(successor('claude-sonnet-5')).toBe('claude-sonnet-5-5')
+    expect(successor('claude-haiku-4-5')).toBe('claude-haiku-5-5')
     expect(successor('claude-opus-4-8')).toBe('claude-opus-4-8')
     expect(successor('')).toBe('')
     expect(successor('bonsai:Ternary-Bonsai-8B')).toBe('claude-opus-5-5')

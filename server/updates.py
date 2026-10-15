@@ -205,8 +205,11 @@ def _update_hermes():
     # umformulierte Meldung würde sonst bei JEDEM Start einen kompletten
     # Neubau der Abhängigkeiten auslösen. Bleibt die Erkennung mal stumm,
     # steht die Antwort von --check im Protokoll und fällt auf.
+    # "release available": seit Hermes auf Kanälen läuft (stable, v0.21.7), meldet
+    # --check eine neue Fassung als "→ Selected release available: stable v0.22.2"
+    # — ohne dieses Wort hieß das "aktuell", und Hermes blieb stehen.
     verfuegbar = any(w in text for w in
-                     ("update available", "behind", "outdated", "new version"))
+                     ("update available", "release available", "behind", "outdated", "new version"))
     if code != 0 and not verfuegbar:
         _step("hermes", state="error", to=_kurz(before),
               msg=(out.splitlines() or ["Prüfung fehlgeschlagen"])[-1][:200])
@@ -218,8 +221,9 @@ def _update_hermes():
         return
 
     # --yes: der Aufruf läuft ohne Terminal, eine Rückfrage würde ihn aufhängen.
-    # Das Sicherungspaket bleibt an (Vorgabe von hermes) — hier wird ohne
-    # Aufsicht aktualisiert, da ist der Rückweg mehr wert als die Minute.
+    # Gesichert wird, wie `updates.pre_update_backup` in der Hermes-Konfiguration
+    # es sagt (Vorgabe: schneller Schnappschuss, `false` schaltet ihn ab). Kein
+    # --backup von hier: wer die Sicherung abgeschaltet hat, wollte das.
     code, out = _run([hermesmod.hermes_bin(), "update", "--yes"], timeout=TIMEOUT, env=env)
     for line in out.splitlines()[-15:]:
         _log("   " + line)
@@ -278,7 +282,11 @@ def start(trigger: str = "manuell", only=None) -> dict:
                 except Exception as e:
                     _step(w, state="error", msg=f"{type(e).__name__}: {e}")
                     _log(f"!! {w}: {type(e).__name__}: {e}")
-            _stamp()
+            # Nur ein Lauf ohne Fehler zählt als geprüft. Scheiterte die Prüfung
+            # beim Hochfahren am noch fehlenden Netz (DNS), sperrte der Stempel
+            # sonst die nächsten sechs Stunden — und der nächste Start ging leer aus.
+            if not any(_STATE["steps"][w]["state"] == "error" for w in todo):
+                _stamp()
         finally:
             _STATE.update(running=False, done=True, finished=time.time())
 
