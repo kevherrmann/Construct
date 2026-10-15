@@ -98,6 +98,13 @@ class Run:
         self.bus_letztes = ""            # welches Werkzeug das war (für die Fehlermeldung)
         self.bus_ziele = []              # wen er in diesem Zug schon beauftragt hat
         self.gesagt_ab = 0               # bis wohin last_text schon im Auftragsprotokoll steht
+        # Unterbrechen statt abschießen (Stop-Knopf, „Jetzt senden“): claude bekommt
+        # ein interrupt über stdin und schließt den Zug selbst mit einem result ab.
+        # "stop" = danach ist Schluss, "jetzt" = eine Nachricht wartet schon im
+        # Prozess, er macht mit ihr weiter.
+        self.unterbrechung = ""
+        self.stopped = False             # Stop-Knopf gedrückt: keine Telegram-Meldung
+        self.gestoppt_gemeldet = False
 
     def emit(self, ev):
         self.letztes_ereignis = time.monotonic()
@@ -186,6 +193,15 @@ def stdin_message(prompt: str) -> bytes:
         "type": "user",
         "message": {"role": "user", "content": [{"type": "text", "text": prompt}]},
     }, ensure_ascii=False) + "\n").encode()
+
+
+def stdin_unterbrechen() -> bytes:
+    """Steueranfrage an claude: den laufenden Zug abbrechen. Der Prozess bleibt
+    am Leben und nimmt danach weitere Nachrichten an (geprüft mit 2.1.296: ein
+    laufendes Bash bricht sofort ab, das result trägt terminal_reason
+    "aborted_tools" bzw. "aborted_streaming")."""
+    return (json.dumps({"type": "control_request", "request_id": f"stop-{uuid.uuid4().hex[:8]}",
+                        "request": {"subtype": "interrupt"}}) + "\n").encode()
 
 
 def is_pdf(path) -> bool:
@@ -367,6 +383,11 @@ async def run_claude(run, cmd):
                 helfer = _helfer_ereignis(run, ev)
                 if helfer:
                     run.emit(helfer)
+            elif t == "system" and ev.get("subtype") == "permission_denied":
+                # Der Modus hat ein Werkzeug nicht erlaubt (default/plan). Headless
+                # kann niemand nachgeben; die Oberfläche zeigt, warum es scheiterte.
+                run.emit({"type": "verweigert", "id": ev.get("tool_use_id"),
+                          "name": str(ev.get("tool_name") or "?")})
             elif t == "rate_limit_event":
                 note_rate_limit(ev)
             elif t == "stream_event":
@@ -393,10 +414,24 @@ async def run_claude(run, cmd):
                             run.emit(_ergebnis_ereignis(block, ev.get("parent_tool_use_id")))
             elif t == "result":
                 run.session_id = ev.get("session_id", run.session_id)
+                art, run.unterbrechung = run.unterbrechung, ""
+                if art == "jetzt":
+                    # Unterbrochen für eine Nachricht, die schon im Prozess
+                    # wartet: weder Fehler noch Zugende. Die Antwort darauf kommt
+                    # gleich hier; ihre Sprechblase hat user_inject schon geöffnet.
+                    run.zug_offen = False
+                    continue
+                # Stop-Knopf: claude hat den Zug abgebrochen (oder war gerade von
+                # selbst fertig, dann zählt das Ergebnis ganz normal).
+                gestoppt = art == "stop" and str(ev.get("terminal_reason") or "").startswith("aborted")
                 # Fehler-Resultate (Limit erreicht, Login abgelaufen, …) wurden
                 # früher verschluckt -> jetzt sichtbar machen.
                 res_text = ev.get("result") if isinstance(ev.get("result"), str) else ""
-                if ev.get("is_error") or ev.get("subtype") not in (None, "success"):
+                if gestoppt:
+                    got_error = True
+                    run.gestoppt_gemeldet = True
+                    run.emit({"type": "error", "message": "⏹ Gestoppt."})
+                elif ev.get("is_error") or ev.get("subtype") not in (None, "success"):
                     got_error = True
                     run.emit({"type": "error",
                               "message": friendly_claude_error(
@@ -411,7 +446,7 @@ async def run_claude(run, cmd):
                 # total_cost_usd ist die einzige echte Geldzahl im System — die
                 # Firma zeigt sie je Auftrag an, also mitnehmen statt wegwerfen.
                 run.cost_usd = ev.get("total_cost_usd") or 0.0
-                if not run.agent_slug:
+                if not run.agent_slug and not gestoppt:
                     _firma_marke(run)
                 # `run.model` ist nur die AUSWAHL — bei "Standard" ist sie leer,
                 # und ein Alias wie "fable" sagt nicht, welches Fable lief.
@@ -433,7 +468,7 @@ async def run_claude(run, cmd):
                     "model": echt or run.model,
                 })
                 run.zug_offen = False
-                if (run.hintergrund and not run.auftrag_id
+                if (run.hintergrund and not run.auftrag_id and not art
                         and time.time() - run.started < NACHLAUF_MAX):
                     # NACHLAUF. Der Zug ist fertig, aber claude hat noch
                     # Hintergrundaufgaben laufen. Bleibt stdin offen, bleibt
@@ -488,7 +523,8 @@ async def run_claude(run, cmd):
                 run.proc.kill()
         except Exception:
             pass
-        run.emit({"type": "error", "message": "⏹ Gestoppt."})
+        if not run.gestoppt_gemeldet:
+            run.emit({"type": "error", "message": "⏹ Gestoppt."})
         raise
     except Exception as e:
         print(f"[run] fehler: {type(e).__name__}: {e}", flush=True)
@@ -507,7 +543,7 @@ async def run_claude(run, cmd):
             run.nachlauf = False
             run.emit({"type": "nachlauf_ende"})
         run.finish()
-        if not getattr(run, "stopped", False) and not run.agent_slug:
+        if not run.stopped and not run.agent_slug:
             # Züge der Firma melden sich nicht einzeln — sonst pingt jeder Schritt
             # das Telefon.
             maybe_notify(run)
@@ -589,6 +625,43 @@ def _nachlauf_beenden(run):
         run.proc.stdin.close()
     except Exception:
         pass
+
+
+# So lange bekommt claude, um einer Unterbrechung nachzukommen, bevor der
+# Prozess wie früher hart beendet wird.
+STOP_FRIST = 10
+
+
+async def anhalten(run) -> bool:
+    """Stop-Knopf, sanft: claude bricht den Zug selbst ab. Vorher wurde der
+    Prozess sofort getötet — dann fehlte im Verlauf das Ende des Zugs, und was
+    claude im Hintergrund gestartet hatte, lief verwaist weiter.
+    False = geht so nicht (kein Prozess, Nachlauf ohne laufenden Zug), dann
+    beendet der Aufrufer hart."""
+    if run.agent_slug or run.auftrag_id:
+        # Züge der Firma: der Dispatcher erkennt „von Hand gestoppt“ daran, dass
+        # der Lauf abgebrochen wird (engine._zustellen_innen, CancelledError).
+        return False
+    if run.done or run.stdin_closed or not run.proc or run.nachlauf or run.proc.returncode is not None:
+        return False
+    try:
+        run.proc.stdin.write(stdin_unterbrechen())
+        await run.proc.stdin.drain()
+    except Exception as e:
+        print(f"[run] Unterbrechen von {run.id} fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+        return False
+    run.unterbrechung = "stop"
+    run.stopped = True
+    asyncio.get_running_loop().call_later(STOP_FRIST, _stop_absichern, run)
+    return True
+
+
+def _stop_absichern(run):
+    """Wecker nach dem Stop-Knopf: ist claude noch da (hängt, oder eine
+    Hintergrundaufgabe hält ihn), wird er wie früher beendet. Kam nach dem Stopp
+    eine neue Nachricht in den Prozess, gilt der Stopp nicht mehr."""
+    if not run.done and run.stopped and run.task:
+        run.task.cancel()
 
 
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./,:_-]{0,63}$")
@@ -876,7 +949,7 @@ async def _nachlesen(run, pid, kennung):
     finally:
         vergessen(run.id)
         run.finish()
-        if lief and not getattr(run, "stopped", False):
+        if lief and not run.stopped:
             maybe_notify(run)
 
 

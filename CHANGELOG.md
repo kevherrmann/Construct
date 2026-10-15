@@ -2,6 +2,27 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.4.0 — 2026-10-15
+
+### Added
+- **Ctrl+Enter: interrupt and send.** While the assistant works, Enter still
+  sends a message into the running turn, where it is read at the next tool
+  boundary (a long command finishes first). Ctrl+Enter (⌘+Enter) cancels the
+  current step instead, and the assistant answers the new message right away
+  in the same process, like "send now" in Claude Code. A message written right
+  after ⏹ does the same instead of starting a second process on the session.
+- **Blocked tools are explained.** In 🛡 Standard or 📋 Plan mode Claude Code
+  denies tools that would need an approval, and in a headless run nobody can
+  give it. Such a tool now shows 🔒 instead of ✗, and the end of the reply
+  names what was blocked, with a button to switch to ⚡ Auto.
+
+### Changed
+- **⏹ ends the turn cleanly.** It used to kill the claude process. Now it
+  sends an interrupt, Claude Code ends the turn itself and records it in the
+  session, and what it started in the background is cleaned up with it. If it
+  does not react within 10 seconds, the process is ended as before. Team turns
+  still stop hard.
+
 ## 8.3.1 — 2026-10-15
 
 ### Fixed

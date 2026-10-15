@@ -83,7 +83,8 @@ interface ChatStore {
   newSession: () => void
   activate: (key: string) => void
   openSession: (s: SessionInfo, runningRunId?: string) => Promise<void>
-  send: (text: string) => Promise<void>
+  /** jetzt: läuft Cody gerade, erst den Zug abbrechen und dann senden (Strg+Enter). */
+  send: (text: string, opts?: { jetzt?: boolean }) => Promise<void>
   resend: (itemId: string, text: string) => void
   stop: () => void
   removeQueued: (i: number) => void
@@ -532,7 +533,7 @@ export const useChat = create<ChatStore>((set, get) => {
       if (runningRunId) await consumeRun(c.key)
     },
 
-    async send(text) {
+    async send(text, opts) {
       const c = get().active()
       if (!c) return
       const { pending } = get()
@@ -551,6 +552,7 @@ export const useChat = create<ChatStore>((set, get) => {
               message: text,
               images,
               urls,
+              jetzt: !!opts?.jetzt,
             })
             if (conv(c.key)?.nachlauf) patch(c.key, { nachlauf: false, busy: true })
             return

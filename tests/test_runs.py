@@ -480,6 +480,121 @@ def test_modell_eines_entfernten_anbieters_faellt_auf_claude_zurueck(client, mon
     assert gestartet == [""]
 
 
+# ---------- Unterbrechen statt abschießen (Stop-Knopf, „Jetzt senden“) ----------
+# Benimmt sich wie claude 2.1.296 (gemessen 15.10.2026): ein interrupt bricht den
+# Zug ab, das result trägt terminal_reason "aborted_tools", der Prozess bleibt
+# und beantwortet danach die nächste Nachricht. EOF auf stdin beendet ihn.
+INTERAKTIV = r'''
+import json, sys
+def out(ev):
+    sys.stdout.write(json.dumps(ev) + "\n"); sys.stdout.flush()
+def zug_ende(**mehr):
+    out({"type": "result", "session_id": "sid-u", "usage": {}, **mehr})
+sys.stdin.readline()
+out({"type": "system", "subtype": "init", "session_id": "sid-u"})
+out({"type": "assistant", "message": {"content": [
+    {"type": "tool_use", "id": "toolu_lang", "name": "Bash", "input": {"command": "sleep 300"}}]}})
+for zeile in sys.stdin:
+    ev = json.loads(zeile)
+    if ev["type"] == "control_request" and ev["request"]["subtype"] == "interrupt":
+        out({"type": "control_response", "response": {"subtype": "success",
+             "request_id": ev["request_id"], "response": {"still_queued": []}}})
+        zug_ende(subtype="error_during_execution", is_error=True, terminal_reason="aborted_tools")
+    elif ev["type"] == "user":
+        text = ev["message"]["content"][0]["text"]
+        out({"type": "stream_event", "event": {"type": "content_block_delta",
+             "delta": {"type": "text_delta", "text": "antwort auf: " + text}}})
+        zug_ende(subtype="success", terminal_reason="completed")
+'''
+
+
+def _interaktiver_lauf(tmp_path, monkeypatch, waehrenddessen):
+    """run_claude gegen INTERAKTIV; waehrenddessen(run) läuft, sobald das Werkzeug steht."""
+    stub = tmp_path / "claude_interaktiv.py"
+    stub.write_text(INTERAKTIV)
+    monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
+    monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
+
+    async def los():
+        run = runs.Run("test-unterbrechen", str(tmp_path), None, "", initial_prompt="mach was Langes")
+        runs.RUNS[run.id] = run
+        run.task = asyncio.create_task(runs.run_claude(run, [sys.executable, str(stub)]))
+        for _ in range(200):
+            if any(e["type"] == "tool" for e in run.events):
+                break
+            await asyncio.sleep(0.02)
+        await waehrenddessen(run)
+        await asyncio.wait_for(run.task, timeout=10)
+        return run
+
+    try:
+        return asyncio.run(los())
+    finally:
+        runs.RUNS.pop("test-unterbrechen", None)
+
+
+def test_stop_unterbricht_den_zug_statt_den_prozess_zu_toeten(tmp_path, monkeypatch):
+    async def stop(run):
+        assert await runs.anhalten(run) is True
+
+    run = _interaktiver_lauf(tmp_path, monkeypatch, stop)
+    fehler = [e["message"] for e in run.events if e["type"] == "error"]
+    # Genau ein „Gestoppt“, nicht die rohe Meldung "error_during_execution"
+    assert fehler == ["⏹ Gestoppt."]
+    assert run.events[-1]["type"] == "done"
+    assert run.stopped and run.done
+    assert run.proc.returncode == 0          # von selbst gegangen, nicht abgeschossen
+
+
+def test_jetzt_senden_bricht_ab_und_antwortet_im_selben_prozess(tmp_path, monkeypatch):
+    from server.routes import chat as chatroute
+
+    async def jetzt(run):
+        assert await chatroute.einwerfen(run, "neue Richtung", [], [], jetzt=True) is not None
+
+    run = _interaktiver_lauf(tmp_path, monkeypatch, jetzt)
+    typen = [e["type"] for e in run.events]
+    assert "error" not in typen
+    nach = typen[typen.index("user_inject"):]
+    # Der abgebrochene Zug endet still; die Antwort kommt in derselben Sprechblase
+    assert nach == ["user_inject", "text", "stats", "done"], nach
+    assert run.events[typen.index("user_inject") + 1]["text"] == "antwort auf: neue Richtung"
+    assert not run.stopped
+
+
+def test_nach_dem_stop_geschriebenes_uebernimmt_den_prozess(tmp_path, monkeypatch):
+    from server.routes import chat as chatroute
+
+    async def stop_und_weiter(run):
+        assert await runs.anhalten(run) is True
+        await chatroute.einwerfen(run, "doch noch was", [], [])
+
+    run = _interaktiver_lauf(tmp_path, monkeypatch, stop_und_weiter)
+    assert [e for e in run.events if e["type"] == "error"] == []
+    assert any(e.get("text") == "antwort auf: doch noch was" for e in run.events)
+    assert not run.stopped                   # gilt nicht mehr: Telegram darf sich melden
+
+
+def test_zug_der_firma_wird_weiter_hart_gestoppt():
+    run = _laufender_lauf("sid-zug", run_id="lauf-zug", auftrag_id="a1", agent_slug="luna")
+    try:
+        assert asyncio.run(runs.anhalten(run)) is False
+        assert run.proc.stdin.geschrieben == []
+    finally:
+        runs.RUNS.pop(run.id, None)
+
+
+def test_verweigertes_werkzeug_wird_gemeldet(tmp_path, monkeypatch):
+    run = _lauf_mit(tmp_path, monkeypatch, [
+        {"type": "system", "subtype": "init", "session_id": "sid-v"},
+        _msg("assistant", [{"type": "tool_use", "id": "toolu_t", "name": "Bash",
+                            "input": {"command": "touch x"}}]),
+        {"type": "system", "subtype": "permission_denied", "tool_name": "Bash", "tool_use_id": "toolu_t"},
+        {"type": "result", "subtype": "success", "session_id": "sid-v", "usage": {}},
+    ])
+    assert {"type": "verweigert", "id": "toolu_t", "name": "Bash"} in run.events
+
+
 # ---------- Systemprompt beim Fortsetzen frisch (Claude Code 2.1.267) ----------
 
 def _falsches_claude(tmp_path, monkeypatch, hilfe):

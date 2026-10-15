@@ -98,6 +98,21 @@ describe('applyEvent', () => {
     expect(bots(s)[0]!.blocks.map((b) => b.t)).toEqual(['thinkmark', 'text'])
   })
 
+  it('abgelehnte Werkzeuge: Schloss am Werkzeug, ein Hinweis am Zugende', () => {
+    const s = run([
+      { type: 'tool', id: 't1', name: 'Bash', input: { command: 'touch x' } },
+      { type: 'verweigert', id: 't1', name: 'Bash' },
+      { type: 'tool_result', id: 't1', content: 'needs approval', is_error: true },
+      { type: 'tool', id: 't2', name: 'Bash', input: { command: 'touch y' } },
+      { type: 'verweigert', id: 't2', name: 'Bash' },
+      { type: 'stats', duration_ms: 1, out: 1 },
+    ])
+    const blocks = bots(s)[0]!.blocks
+    expect(blocks.filter((b) => b.t === 'tool').every((b) => b.t === 'tool' && b.denied)).toBe(true)
+    expect(blocks.slice(-1)[0]).toEqual({ t: 'verweigert', names: ['Bash'] })
+    expect(s.verweigert).toEqual([])
+  })
+
   it('Fehler landen als Block im Zug', () => {
     const s = run([{ type: 'error', message: 'claude nicht gefunden' }])
     expect(bots(s)[0]!.blocks).toEqual([{ t: 'error', message: 'claude nicht gefunden' }])

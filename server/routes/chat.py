@@ -13,7 +13,8 @@ from server import llm as llmmod
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
-from server.runs import EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, build_prompt, gc_runs, start_run, stdin_message
+from server.runs import (EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, anhalten, build_prompt, gc_runs, start_run,
+                         stdin_message, stdin_unterbrechen)
 
 router = APIRouter()
 
@@ -122,7 +123,11 @@ async def chat(req: Request):
 @router.post("/api/inject/{run_id}")
 async def inject(run_id: str, req: Request):
     """Schiebt dem LAUFENDEN claude-Prozess eine weitere Nachricht nach (kein
-    Warten auf das Ende, kein --resume) — wie Weitertippen im Terminal."""
+    Warten auf das Ende, kein --resume) — wie Weitertippen im Terminal.
+
+    jetzt: erst den laufenden Zug abbrechen, dann die Nachricht (Strg+Enter, wie
+    „send now“ in Claude Code). Ohne liest claude sie erst am nächsten
+    Werkzeug-Ende mit, ein langes Bash läuft also erst fertig."""
     run = RUNS.get(run_id)
     if not nimmt_an(run):
         return JSONResponse({"error": "Lauf nimmt nichts mehr an"}, status_code=409)
@@ -133,7 +138,7 @@ async def inject(run_id: str, req: Request):
     if not text and not images:
         return JSONResponse({"error": "leere Nachricht"}, status_code=400)
     try:
-        await einwerfen(run, text, images, urls, fehler_werfen=True)
+        await einwerfen(run, text, images, urls, fehler_werfen=True, jetzt=bool(body.get("jetzt")))
     except Exception as e:
         return JSONResponse({"error": f"Einspeisen fehlgeschlagen: {e}"}, status_code=500)
     return {"ok": True}
@@ -153,19 +158,30 @@ def laufender_lauf(session_id):
     return None
 
 
-async def einwerfen(run, text, images, urls, fehler_werfen=False):
+async def einwerfen(run, text, images, urls, fehler_werfen=False, jetzt=False):
     """Schiebt eine Nachricht in den laufenden Prozess. Gibt die Ereignis-Position
     nach dem user_inject zurück (ab dort braucht ein neu andockendes Fenster den
     Stream), bei einem Fehler None."""
     run.emit({"type": "user_inject", "text": text, "urls": urls})
     ab = len(run.events)
+    unterbrechen = False
     if run.nachlauf:
         # Kevin schreibt, waehrend der Prozess nur noch auf den Hintergrund
         # wartet: ein neuer Zug in derselben Sitzung. Kein "neuer_zug" hier —
         # das user_inject-Ereignis oben oeffnet in der Oberflaeche schon die
         # neue Sprechblase.
         run.nachlauf = False
+    elif run.unterbrechung == "stop":
+        # Gestoppt und gleich weitergeschrieben: der Zug bricht schon ab, die
+        # Nachricht übernimmt den Prozess. Ein zweiter per --resume würde in
+        # dieselbe Sitzung schreiben, während der erste sie noch abschließt.
+        run.unterbrechung, run.stopped = "jetzt", False
+    elif jetzt and not run.unterbrechung:
+        unterbrechen = True     # im Nachlauf läuft kein Zug, da gibt es nichts abzubrechen
     try:
+        if unterbrechen:
+            run.proc.stdin.write(stdin_unterbrechen())
+            run.unterbrechung = "jetzt"
         run.proc.stdin.write(stdin_message(build_prompt(text, images)))
         await run.proc.stdin.drain()
     except Exception as e:
@@ -222,12 +238,14 @@ def list_runs():
 
 
 @router.post("/api/stop/{run_id}")
-def stop_run(run_id: str):
-    """Stop-Button: bricht den Lauf wirklich ab (killt den claude-Prozess)."""
+async def stop_run(run_id: str):
+    """Stop-Button: claude bricht den Zug ab (runs.anhalten); geht das nicht oder
+    kommt er nicht nach, wird der Prozess beendet. async: der Stopp schreibt in
+    den stdin des Prozesses, und der gehört der Ereignisschleife."""
     run = RUNS.get(run_id)
     if not run:
         return JSONResponse({"error": "unknown run"}, status_code=404)
-    if run.task and not run.done:
+    if run.task and not run.done and not await anhalten(run):
         run.task.cancel()
     return {"stopped": True}
 

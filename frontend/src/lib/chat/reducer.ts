@@ -16,6 +16,8 @@ export interface RunState {
   helfer: Helfer[]
   /** Zug fertig, claude wartet noch auf Hintergrundaufgaben. */
   nachlauf: boolean
+  /** Werkzeuge dieses Zuges, die der Rechte-Modus abgelehnt hat (Namen). */
+  verweigert: string[]
 }
 
 let seq = 0
@@ -34,6 +36,7 @@ export const initialRun = (): RunState => ({
   written: {},
   helfer: [],
   nachlauf: false,
+  verweigert: [],
 })
 
 function currentTurn(s: RunState): BotItem {
@@ -144,6 +147,17 @@ const applyBlocks = (state: RunState, ev: StreamEvent): RunState =>
         if (ev.id && s.written[ev.id]) s.written[ev.id]!.ok = !ev.is_error
         break
       }
+      case 'verweigert': {
+        for (const item of s.items) {
+          if (item.kind !== 'bot') continue
+          const b = item.blocks.find(
+            (x): x is Extract<Block, { t: 'tool' }> => x.t === 'tool' && !!ev.id && x.id === ev.id,
+          )
+          if (b) b.denied = true
+        }
+        s.verweigert.push(ev.name)
+        break
+      }
       case 'stats': {
         const turn = currentTurn(s)
         turn.thinking = false
@@ -164,6 +178,11 @@ const applyBlocks = (state: RunState, ev: StreamEvent): RunState =>
         ]
         s.written = {}
         if (paths.length) turn.blocks.push({ t: 'files', paths })
+        // Am Zugende, nicht am Werkzeug: erst hier steht fest, dass Cody keinen
+        // anderen Weg gefunden hat — und der Hinweis kommt nur einmal je Zug.
+        if (s.verweigert.length)
+          turn.blocks.push({ t: 'verweigert', names: [...new Set(s.verweigert)] })
+        s.verweigert = []
         break
       }
       case 'nachlauf': {

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/lib/chat/types'
 import { fmtDur, fmtMsgTime, fmtNum, isPdf } from '@/lib/format'
+import { MODES } from '@/lib/chat/models'
 import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
 import { ohneMarke } from '@/lib/chat/marken'
@@ -194,6 +195,27 @@ function UserMessage({ item, busy }: { item: UserItem; busy: boolean }) {
   )
 }
 
+// Headless kann niemand „Erlauben“ klicken: was der Modus nicht erlaubt, scheitert.
+// Statt nur ✗ am Werkzeug steht am Zugende, woran es lag, und ein Knopf hilft weiter.
+function Verweigert({ names }: { names: string[] }) {
+  const { t } = useTranslation()
+  const mode = useChat((st) => st.mode)
+  const setMode = useChat((st) => st.setMode)
+  const name = t((MODES.find((m) => m.v === mode) ?? MODES[0]).l)
+  return (
+    <div className={s.verweigert}>
+      🔒 {t('Nicht erlaubt im Modus {mode}: {names}', { mode: name, names: names.join(', ') })}
+      {mode === 'bypassPermissions' ? (
+        <span> · {t('Auto ist an, schick die Nachricht einfach nochmal.')}</span>
+      ) : (
+        <button type="button" onClick={() => setMode('bypassPermissions')}>
+          {t('⚡ Auto einschalten')}
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function BlockView({ block }: { block: Block }) {
   const { t } = useTranslation()
   const note = useNote()
@@ -250,6 +272,8 @@ export function BlockView({ block }: { block: Block }) {
           ))}
         </div>
       )
+    case 'verweigert':
+      return <Verweigert names={block.names} />
     case 'note':
       return <div className={s.note}>{note(block.note)}</div>
     case 'error':

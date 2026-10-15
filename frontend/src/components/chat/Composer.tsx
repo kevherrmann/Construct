@@ -238,7 +238,8 @@ export function Composer({
   }, [rec.state])
   useEffect(() => () => dictation.current?.cancel(), [])
 
-  const submit = () => {
+  /** jetzt: Cody unterbrechen und die Nachricht sofort bearbeiten lassen (Strg+Enter). */
+  const submit = (jetzt = false) => {
     const msg = text.trim()
     if (!msg && !pending.length) return
     if (location.pathname !== '/chat') navigate('/chat')
@@ -263,7 +264,7 @@ export function Composer({
       })
       return
     }
-    void send(msg)
+    void send(msg, { jetzt })
   }
 
   return (
@@ -364,7 +365,7 @@ export function Composer({
               // Während des Diktats beendet Enter nur das Diktat — gesendet
               // wird erst mit dem nächsten Enter, nach einem Blick auf den Text.
               if (rec.state === 'recording') void toggleMic()
-              else if (rec.state === 'idle') submit()
+              else if (rec.state === 'idle') submit(busy && (e.ctrlKey || e.metaKey))
             }
           }}
           onPaste={(e) => {
@@ -385,11 +386,11 @@ export function Composer({
           title={
             busy
               ? t(
-                  'Geht SOFORT an den laufenden Cody (Steering) — er bezieht es in die aktuelle Arbeit ein',
+                  'Geht SOFORT an den laufenden Cody (Steering) — er bezieht es in die aktuelle Arbeit ein. Strg+Enter bricht seinen Schritt ab und er antwortet gleich darauf.',
                 )
               : undefined
           }
-          onClick={submit}
+          onClick={() => submit()}
           aria-label={raum || schmal ? (busy ? t('Einwerfen') : t('Senden')) : undefined}
         >
           {raum || schmal ? '➤' : busy ? t('➤ EINWERFEN') : t('SENDEN')}
@@ -397,7 +398,13 @@ export function Composer({
       </div>
       {!raum && (
         <div className={s.hint}>
-          {t('ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Modus · 🧠 Modell ·')}{' '}
+          {busy
+            ? t(
+                'ENTER = einwerfen · STRG+ENTER = unterbrechen und senden · SHIFT+ENTER = neue Zeile ·',
+              )
+            : t(
+                'ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Modus · 🧠 Modell ·',
+              )}{' '}
           <code>/help</code> {t('= Befehle')}
         </div>
       )}

@@ -60,7 +60,12 @@ export function ToolBox({ block }: { block: ToolBlock }) {
         <span className={s.ic}>⚙</span>
         <span className={s.name}>{block.name}</span>
         <span className={s.sum}>{toolSummary(input)}</span>
-        <span className={s.st}>{block.result ? (err ? '✗' : '✓') : '⏳'}</span>
+        <span
+          className={s.st}
+          title={block.denied ? t('Vom Rechte-Modus nicht erlaubt') : undefined}
+        >
+          {block.denied ? '🔒' : block.result ? (err ? '✗' : '✓') : '⏳'}
+        </span>
         <span className={s.tg}>{open ? '▾' : '▸'}</span>
       </button>
       {open && (

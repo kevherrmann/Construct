@@ -48,8 +48,9 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **Claude Code chat.** Replies stream token by token. You can browse your
   existing Claude Code sessions and continue any of them (`--resume`), and
   rename, archive or delete sessions. You can queue messages or send them into
-  a turn that is still running, and stop a run. Each chat has a working-folder
-  picker and a model picker.
+  a turn that is still running (Ctrl+Enter interrupts the current step and
+  answers right away), and stop a run; ⏹ lets Claude Code end the turn
+  cleanly. Each chat has a working-folder picker and a model picker.
 - **Edit and resend.** ✎ on one of your messages lets Cody continue from exactly
   that point, as if the old version and everything after it had never
   happened (the session branches with `--resume-session-at`). The original goes
@@ -76,6 +77,8 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
 - **Permission modes.** You choose Claude Code's permission mode per chat
   (`default`, `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`).
   Claude gets real file and terminal access in the selected working folder.
+  If a mode blocks a tool, the reply says which one and offers to switch to
+  Auto.
 - **Other providers through Hermes.** Supported providers are ChatGPT (OpenAI),
   Gemini, DeepSeek and local **Ollama** models. Only models
   that can use tools are offered. You manage API keys in the settings panel.

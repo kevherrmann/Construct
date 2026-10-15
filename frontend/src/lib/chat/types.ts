@@ -19,6 +19,8 @@ export type StreamEvent =
   /** `parent`: der Schritt gehört dem Helfer mit dieser id, nicht dem Assistenten. */
   | { type: 'tool'; id?: string; name: string; input?: unknown; parent?: string }
   | { type: 'tool_result'; id?: string; content?: string; is_error?: boolean; parent?: string }
+  /** Der Rechte-Modus hat dieses Werkzeug nicht erlaubt (default/plan). */
+  | { type: 'verweigert'; id?: string; name: string }
   /** Ein Helfer (Agent/Task): Start, Fortschritt, Ende. Felder nur, wo der Stand sie kennt. */
   | {
       type: 'helfer'
@@ -77,10 +79,14 @@ export type Block =
       result?: { content: string; isError: boolean }
       /** Schritt eines Helfers (id seines Agent-Aufrufs); fehlt beim Assistenten selbst. */
       parent?: string
+      /** Vom Rechte-Modus abgelehnt, nicht an sich gescheitert. */
+      denied?: boolean
     }
   | { t: 'skill'; kind: 'used' | 'saved'; label: string }
   | { t: 'stats'; durationMs?: number; out?: number; ctx?: number; model?: string }
   | { t: 'files'; paths: string[] }
+  /** Am Zugende: Werkzeuge, die der Rechte-Modus nicht erlaubt hat. */
+  | { t: 'verweigert'; names: string[] }
   | { t: 'note'; note: NoteText }
   | { t: 'error'; message: string }
 
