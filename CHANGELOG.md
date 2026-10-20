@@ -2,6 +2,16 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.4.1 — 2026-10-20
+
+### Fixed
+- **A message no longer waits for a wait.** A message sent with Enter is read
+  at the next tool boundary, so when the assistant was only waiting (a loop
+  polling CI, a download or a server, a `sleep` before the next step), the
+  message arrived minutes later. Now Enter cancels such a wait right away and
+  the assistant answers the message, like Ctrl+Enter. Real work (builds, tests,
+  scripts, loops without a break condition) still runs to the end first.
+
 ## 8.4.0 — 2026-10-15
 
 ### Added

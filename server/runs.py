@@ -103,6 +103,9 @@ class Run:
         # "stop" = danach ist Schluss, "jetzt" = eine Nachricht wartet schon im
         # Prozess, er macht mit ihr weiter.
         self.unterbrechung = ""
+        # Werkzeuge des Zuges, die gerade laufen (ohne die der Helfer): woran
+        # einwerfen() erkennt, dass Cody nur wartet — siehe nur_am_warten().
+        self.offen = {}                  # tool_use_id -> (Name, Eingabe, Start monoton)
         self.stopped = False             # Stop-Knopf gedrückt: keine Telegram-Meldung
         self.gestoppt_gemeldet = False
 
@@ -193,6 +196,42 @@ def stdin_message(prompt: str) -> bytes:
         "type": "user",
         "message": {"role": "user", "content": [{"type": "text", "text": prompt}]},
     }, ensure_ascii=False) + "\n").encode()
+
+
+# ---------- Nur am Warten? ----------
+# Eine Nachricht, die per Enter in den laufenden Zug geht, liest claude erst am
+# Ende des laufenden Werkzeugs. Wartet das Werkzeug nur (CI beobachten, auf einen
+# Download warten), kam Kevins Nachricht erst nach Minuten an. Dann bricht
+# einwerfen() das Warten ab wie Strg+Enter. Echte Arbeit (Build, Tests, ein
+# Skript) läuft weiter fertig, dort könnte ein Abbruch etwas halb liegen lassen.
+
+# Eine Schleife, die zwischen zwei Versuchen schläft ...
+_SCHLAF_SCHLEIFE = re.compile(r"\b(?:for|while|until)\b[\s\S]*?\bdo\b[\s\S]*?\bsleep\s+\d")
+# ... und endet, sobald es so weit ist. Ohne break/until ist es eher eine
+# gedrosselte Stapelarbeit (für jede Datei hochladen, eine Sekunde Pause).
+_ENDET_VON_SELBST = re.compile(r"\bbreak\b|\buntil\b")
+# `sleep 90 && python3 …`: wartet nur, solange der Schlaf noch läuft.
+_ERST_SCHLAFEN = re.compile(r"^(?:\s*cd\s+[^;&|]+?\s*(?:&&|;))*\s*sleep\s+(\d+(?:\.\d+)?)\s*(?:$|&&|;)")
+
+
+def _wartet(name, eingabe, seit) -> bool:
+    if not isinstance(eingabe, dict):
+        return False
+    if name.endswith("__computer"):
+        return eingabe.get("action") == "wait"          # Chrome: ein paar Sekunden still
+    if name != "Bash":
+        return False
+    befehl = str(eingabe.get("command") or "")
+    if _SCHLAF_SCHLEIFE.search(befehl) and _ENDET_VON_SELBST.search(befehl):
+        return True
+    m = _ERST_SCHLAFEN.match(befehl)
+    return bool(m) and time.monotonic() - seit < float(m.group(1))
+
+
+def nur_am_warten(run) -> bool:
+    """Läuft gerade nur Warten? Laufen mehrere Werkzeuge parallel, müssen alle
+    warten, sonst bräche der Abbruch die Arbeit daneben mit ab."""
+    return bool(run.offen) and all(_wartet(*w) for w in run.offen.values())
 
 
 def stdin_unterbrechen() -> bytes:
@@ -404,6 +443,9 @@ async def run_claude(run, cmd):
                         thinking_sent = True
                         run.emit({"type": "thinking_marker"})
                     elif block.get("type") == "tool_use":
+                        if not ev.get("parent_tool_use_id"):
+                            run.offen[block.get("id")] = (block.get("name") or "", block.get("input"),
+                                                          time.monotonic())
                         run.emit(_werkzeug_ereignis(block, ev.get("parent_tool_use_id")))
             elif t == "user":
                 content = ev.get("message", {}).get("content")
@@ -411,9 +453,12 @@ async def run_claude(run, cmd):
                 if isinstance(content, list):
                     for block in content:
                         if isinstance(block, dict) and block.get("type") == "tool_result":
+                            if not ev.get("parent_tool_use_id"):
+                                run.offen.pop(block.get("tool_use_id"), None)
                             run.emit(_ergebnis_ereignis(block, ev.get("parent_tool_use_id")))
             elif t == "result":
                 run.session_id = ev.get("session_id", run.session_id)
+                run.offen.clear()
                 art, run.unterbrechung = run.unterbrechung, ""
                 if art == "jetzt":
                     # Unterbrochen für eine Nachricht, die schon im Prozess

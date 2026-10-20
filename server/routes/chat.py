@@ -13,8 +13,8 @@ from server import llm as llmmod
 from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
-from server.runs import (EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, anhalten, build_prompt, gc_runs, start_run,
-                         stdin_message, stdin_unterbrechen)
+from server.runs import (EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, anhalten, build_prompt, gc_runs, nur_am_warten,
+                         start_run, stdin_message, stdin_unterbrechen)
 
 router = APIRouter()
 
@@ -127,7 +127,8 @@ async def inject(run_id: str, req: Request):
 
     jetzt: erst den laufenden Zug abbrechen, dann die Nachricht (Strg+Enter, wie
     „send now“ in Claude Code). Ohne liest claude sie erst am nächsten
-    Werkzeug-Ende mit, ein langes Bash läuft also erst fertig."""
+    Werkzeug-Ende mit, ein langes Bash läuft also erst fertig — außer es wartet
+    nur, dann bricht einwerfen() das Warten von selbst ab."""
     run = RUNS.get(run_id)
     if not nimmt_an(run):
         return JSONResponse({"error": "Lauf nimmt nichts mehr an"}, status_code=409)
@@ -176,8 +177,10 @@ async def einwerfen(run, text, images, urls, fehler_werfen=False, jetzt=False):
         # Nachricht übernimmt den Prozess. Ein zweiter per --resume würde in
         # dieselbe Sitzung schreiben, während der erste sie noch abschließt.
         run.unterbrechung, run.stopped = "jetzt", False
-    elif jetzt and not run.unterbrechung:
-        unterbrechen = True     # im Nachlauf läuft kein Zug, da gibt es nichts abzubrechen
+    elif (jetzt or nur_am_warten(run)) and not run.unterbrechung:
+        # Im Nachlauf läuft kein Zug, da gibt es nichts abzubrechen. Wartet Cody
+        # nur (CI, Download), wäre die Nachricht erst danach angekommen.
+        unterbrechen = True
     try:
         if unterbrechen:
             run.proc.stdin.write(stdin_unterbrechen())

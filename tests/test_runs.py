@@ -4,6 +4,8 @@ import json
 import sys
 import time
 
+import pytest
+
 from server import runs
 
 
@@ -508,10 +510,10 @@ for zeile in sys.stdin:
 '''
 
 
-def _interaktiver_lauf(tmp_path, monkeypatch, waehrenddessen):
+def _interaktiver_lauf(tmp_path, monkeypatch, waehrenddessen, befehl="sleep 300"):
     """run_claude gegen INTERAKTIV; waehrenddessen(run) läuft, sobald das Werkzeug steht."""
     stub = tmp_path / "claude_interaktiv.py"
-    stub.write_text(INTERAKTIV)
+    stub.write_text(INTERAKTIV.replace('"sleep 300"', json.dumps(befehl)))
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
 
@@ -573,6 +575,80 @@ def test_nach_dem_stop_geschriebenes_uebernimmt_den_prozess(tmp_path, monkeypatc
     assert [e for e in run.events if e["type"] == "error"] == []
     assert any(e.get("text") == "antwort auf: doch noch was" for e in run.events)
     assert not run.stopped                   # gilt nicht mehr: Telegram darf sich melden
+
+
+# ---------- Nur am Warten: Enter bricht das Warten ab ----------
+# Echte Befehle aus Kevins Verläufen (Oktober 2026), gekürzt.
+CI_BEOBACHTEN = ('cd /Users/kh/construct && for i in $(seq 1 40); do r=$(gh run list -R kevherrmann/Construct '
+                 '--json status -q ".[0].status"); [ "$r" = completed ] && break; sleep 30; done')
+DOWNLOAD_ABWARTEN = ('for i in $(seq 1 60); do\n  f=$(ls ~/Downloads | grep -i "REST API 101")\n'
+                     '  if echo "$f" | grep -q mp4; then break; fi\n  sleep 5\ndone')
+BIS_ER_ANTWORTET = 'until curl -sf http://127.0.0.1:8799/api/health; do sleep 1; done'
+
+
+@pytest.mark.parametrize("befehl", [CI_BEOBACHTEN, DOWNLOAD_ABWARTEN, BIS_ER_ANTWORTET, "sleep 300",
+                                    "cd /tmp/zoo && sleep 90 && python3 - <<'EOF'\nprint(1)\nEOF"])
+def test_warten_wird_erkannt(befehl):
+    assert runs._wartet("Bash", {"command": befehl}, time.monotonic())
+
+
+@pytest.mark.parametrize("befehl", [
+    "cd /tmp && uv run pytest -q",
+    "npm run build && npm test",
+    # gedrosselte Stapelarbeit: kein break, also kein Warten auf etwas
+    "for f in *.png; do curl -sF file=@$f https://example.org/upload; sleep 1; done",
+    "pkill -f uvicorn; sleep 1; nohup ./start.sh &",
+])
+def test_arbeit_ist_kein_warten(befehl):
+    assert not runs._wartet("Bash", {"command": befehl}, time.monotonic())
+
+
+def test_erst_schlafen_wartet_nur_solange_der_schlaf_laeuft():
+    befehl = {"command": "sleep 90 && python3 import.py"}
+    assert runs._wartet("Bash", befehl, time.monotonic() - 30)
+    assert not runs._wartet("Bash", befehl, time.monotonic() - 100)   # jetzt läuft das Skript
+
+
+def test_chrome_warten_und_andere_werkzeuge():
+    assert runs._wartet("mcp__claude-in-chrome__computer", {"action": "wait", "duration": 10}, 0)
+    assert not runs._wartet("mcp__claude-in-chrome__computer", {"action": "left_click"}, 0)
+    assert not runs._wartet("Agent", {"prompt": "sleep 300"}, 0)
+
+
+def test_parallel_muss_alles_warten():
+    run = runs.Run("test-parallel", "/tmp")
+    jetzt = time.monotonic()
+    run.offen = {"a": ("Bash", {"command": BIS_ER_ANTWORTET}, jetzt)}
+    assert runs.nur_am_warten(run)
+    run.offen["b"] = ("Bash", {"command": "npm test"}, jetzt)
+    assert not runs.nur_am_warten(run)
+    run.offen = {}
+    assert not runs.nur_am_warten(run)        # Cody schreibt gerade, kein Werkzeug offen
+
+
+def test_enter_bricht_reines_warten_ab(tmp_path, monkeypatch):
+    from server.routes import chat as chatroute
+
+    async def enter(run):
+        assert await chatroute.einwerfen(run, "bin wieder da", [], []) is not None
+        assert run.unterbrechung == "jetzt"
+
+    run = _interaktiver_lauf(tmp_path, monkeypatch, enter, befehl=CI_BEOBACHTEN)
+    typen = [e["type"] for e in run.events]
+    assert "error" not in typen
+    assert typen[typen.index("user_inject"):] == ["user_inject", "text", "stats", "done"]
+    assert run.events[typen.index("user_inject") + 1]["text"] == "antwort auf: bin wieder da"
+
+
+def test_enter_laesst_echte_arbeit_fertig_laufen(tmp_path, monkeypatch):
+    from server.routes import chat as chatroute
+
+    async def enter(run):
+        assert await chatroute.einwerfen(run, "noch was", [], []) is not None
+        assert run.unterbrechung == ""       # kein interrupt, claude liest es am Werkzeug-Ende
+
+    run = _interaktiver_lauf(tmp_path, monkeypatch, enter, befehl="npm run build")
+    assert any(e.get("text") == "antwort auf: noch was" for e in run.events)
 
 
 def test_zug_der_firma_wird_weiter_hart_gestoppt():
