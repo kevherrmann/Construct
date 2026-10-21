@@ -307,16 +307,20 @@ HELFER_LAUF = [
 ]
 
 
-def _lauf_mit(tmp_path, monkeypatch, zeilen):
-    """run_claude gegen ein falsches claude, das genau diese Zeilen ausgibt."""
+def _lauf_mit(tmp_path, monkeypatch, zeilen, nachher="", **felder):
+    """run_claude gegen ein falsches claude, das genau diese Zeilen ausgibt.
+    nachher: Python, das der falsche claude danach noch ausführt; felder: am Run gesetzt."""
     stub = tmp_path / "claude_stub.py"
-    stub.write_text("import sys\nsys.stdin.readline()\nsys.stdout.write(sys.argv[1])\n")
+    stub.write_text("import sys, time\nsys.stdin.readline()\nsys.stdout.write(sys.argv[1])\n"
+                    "sys.stdout.flush()\n" + nachher)
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
     text = "".join(json.dumps(z, ensure_ascii=False) + "\n" for z in zeilen)
 
     async def los():
         run = runs.Run("test-helfer", str(tmp_path), None, "", initial_prompt="hallo")
+        for k, v in felder.items():
+            setattr(run, k, v)
         runs.RUNS[run.id] = run
         await runs.run_claude(run, [sys.executable, str(stub), text])
         return run
@@ -383,6 +387,36 @@ def test_schritt_eines_helfers_im_nachlauf_ist_kein_neuer_zug(tmp_path, monkeypa
     run = _lauf_mit(tmp_path, monkeypatch, zeilen)
     typen = [e["type"] for e in run.events]
     assert "nachlauf" in typen and "neuer_zug" not in typen
+
+
+NACHLAUF_ZUG = [
+    {"type": "system", "subtype": "init", "session_id": "sid-n"},
+    {"type": "system", "subtype": "background_tasks_changed",
+     "tasks": [{"task_id": "b1", "description": "Wait for repackaging"}]},
+    {"type": "result", "subtype": "success", "session_id": "sid-n", "usage": {}},
+]
+
+
+def test_langer_zug_bekommt_trotzdem_nachlauf(tmp_path, monkeypatch):
+    # Die Frist zählte ab Laufbeginn: nach einem Zug über 30 Minuten ging stdin zu,
+    # claude wartete trotzdem auf seine Hintergrundaufgabe, und Kevins Nachrichten
+    # hingen in der Warteschlange (21.10.2026, Construct3D).
+    run = _lauf_mit(tmp_path, monkeypatch, NACHLAUF_ZUG, started=time.time() - 2 * runs.NACHLAUF_MAX)
+    assert "nachlauf" in [e["type"] for e in run.events]
+
+
+def test_claude_der_nach_dem_nachlauf_bleibt_wird_beendet(tmp_path, monkeypatch):
+    # Ohne stdin wartet claude weiter auf seine Hintergrundaufgaben (2.1.304) —
+    # der falsche claude hier liest bis stdin zu ist und bleibt dann einfach da.
+    monkeypatch.setattr(runs, "NACHLAUF_MAX", 0.2)
+    monkeypatch.setattr(runs, "STOP_FRIST", 0.2)
+    t0 = time.time()
+    run = _lauf_mit(tmp_path, monkeypatch, NACHLAUF_ZUG, nachher="sys.stdin.read()\ntime.sleep(30)\n")
+    assert time.time() - t0 < 10
+    typen = [e["type"] for e in run.events]
+    # Abgelaufener Nachlauf ist kein Fehler, auch wenn claude per Signal ging.
+    assert typen[-1] == "nachlauf_ende" and "error" not in typen, typen
+    assert run.done and run.abgeraeumt
 
 
 # ---------- Zweites Fenster: kein zweiter Prozess auf derselben Sitzung ----------

@@ -63,6 +63,8 @@ class Run:
         self.hintergrund = {}            # task_id -> Beschreibung
         self.helfer = set()              # tool_use_ids gestarteter Helfer (Agent/Task)
         self.nachlauf = False            # Zug fertig, Prozess wartet auf den Hintergrund
+        self.nachlauf_wecker = None      # beendet den Nachlauf nach NACHLAUF_MAX
+        self.abgeraeumt = False          # Nachlauf abgelaufen, der Server hat claude beendet
         self.zug_offen = False           # laeuft gerade ein Zug (fuer "neuer_zug")
         self.last_text = ""              # Text des letzten Turns (für Telegram-Notify)
         self.notify_always = False       # geplante Aufgaben melden sich immer per Telegram
@@ -513,8 +515,7 @@ async def run_claude(run, cmd):
                     "model": echt or run.model,
                 })
                 run.zug_offen = False
-                if (run.hintergrund and not run.auftrag_id and not art
-                        and time.time() - run.started < NACHLAUF_MAX):
+                if run.hintergrund and not run.auftrag_id and not art:
                     # NACHLAUF. Der Zug ist fertig, aber claude hat noch
                     # Hintergrundaufgaben laufen. Bleibt stdin offen, bleibt
                     # der Prozess am Leben und meldet sich von selbst wieder,
@@ -529,12 +530,19 @@ async def run_claude(run, cmd):
                     # /api/inject in DIESEN Prozess statt per --resume in einen
                     # zweiten auf derselben Sitzung. Züge in einem Auftrag bleiben
                     # außen vor: dort wartet der Dispatcher auf das Prozessende.
+                    #
+                    # Die Frist zählt ab diesem Zugende. Früher zählte sie ab
+                    # Laufbeginn: nach einem Zug über 30 Minuten gab es keinen
+                    # Nachlauf, stdin ging zu, claude blieb trotzdem für seine
+                    # Hintergrundaufgabe da, und Kevins Nachrichten hingen in der
+                    # Warteschlange (21.10.2026, Construct3D).
                     run.nachlauf = True
                     run.emit({"type": "nachlauf", "tasks": list(run.hintergrund.values())})
                     run.emit({"type": "done", "session_id": run.session_id})
-                    asyncio.get_running_loop().call_later(
-                        max(60, NACHLAUF_MAX - (time.time() - run.started)),
-                        _nachlauf_beenden, run)
+                    if run.nachlauf_wecker:
+                        run.nachlauf_wecker.cancel()
+                    run.nachlauf_wecker = asyncio.get_running_loop().call_later(
+                        NACHLAUF_MAX, _nachlauf_beenden, run)
                 else:
                     # Turn fertig -> stdin schließen, claude beendet sich sauber.
                     # (Mid-Turn-Injections sind zu diesem Zeitpunkt schon in den
@@ -554,7 +562,7 @@ async def run_claude(run, cmd):
             await asyncio.wait_for(stderr_task, timeout=5)
         except Exception:
             stderr_task.cancel()
-        if proc.returncode and not run.done and not got_error:
+        if proc.returncode and not run.done and not got_error and not run.abgeraeumt:
             err = b"".join(stderr_chunks).decode("utf-8", "replace").strip()
             print(f"[run] claude exit={proc.returncode}: {err[:500]}", flush=True)
             run.emit({"type": "error",
@@ -668,6 +676,22 @@ def _nachlauf_beenden(run):
     run.emit({"type": "nachlauf_ende"})
     try:
         run.proc.stdin.close()
+    except Exception:
+        pass
+    # Ohne stdin geht claude trotzdem nicht: er wartet auf seine Hintergrund-
+    # aufgaben und fängt nach ihrer Meldung einen neuen Zug an, den niemand mehr
+    # erreicht (gemessen 21.10.2026, claude 2.1.304).
+    asyncio.get_running_loop().call_later(STOP_FRIST, _nachlauf_abraeumen, run)
+
+
+def _nachlauf_abraeumen(run):
+    """Wecker nach dem Nachlauf: ist claude noch da, bekommt er SIGTERM. Darauf
+    geht er sofort und nimmt seine Hintergrund-Shells mit (gemessen 21.10.2026)."""
+    if run.done or not run.proc or run.proc.returncode is not None:
+        return
+    run.abgeraeumt = True
+    try:
+        run.proc.terminate()
     except Exception:
         pass
 

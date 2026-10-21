@@ -2,6 +2,20 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.4.2 — 2026-10-21
+
+### Fixed
+- **A chat no longer gets stuck after a long turn with background work.**
+  When a turn ends while the assistant still has a background task running
+  (for example a script waiting for a build), the chat stays open for messages
+  for up to 30 minutes. That window was counted from the start of the run, so
+  after a turn longer than 30 minutes the process got no window at all. Claude
+  Code kept running anyway, waiting for its background task and even starting
+  new turns on its own, while the chat showed it as busy and new messages
+  piled up in the queue. The window now counts from the end of each turn, and
+  when it runs out, a Claude Code process that is still around is ended
+  together with its background tasks.
+
 ## 8.4.1 — 2026-10-20
 
 ### Fixed
