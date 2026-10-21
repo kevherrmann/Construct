@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from server import attach
 from server import config as cfg
 from server import telegram_bot as tgmod
 from server import tickets as tickmod
@@ -249,44 +250,55 @@ def is_pdf(path) -> bool:
     return str(path).lower().endswith(".pdf")
 
 
-def pdf_note(pdfs) -> str:
-    """Hinweisblock für hochgeladene PDFs (Liedtexte, Dokumente).
+def is_image(path) -> bool:
+    return attach.kind_of(Path(str(path)).suffix) == "image"
 
-    Beim Upload wurde ein Textauszug daneben gelegt; den soll das Modell
-    zuerst lesen — die PDF selbst rendert das Read-Tool seitenweise als Bild,
-    das kostet ein Vielfaches an Tokens.
+
+def file_note(files) -> str:
+    """Hinweisblock für hochgeladene Dateien außer Bildern (PDFs, Office, Text …).
+
+    Beim Upload wurde für PDFs und Office-Dateien ein Textauszug daneben gelegt;
+    den soll das Modell zuerst lesen — die PDF selbst rendert das Read-Tool
+    seitenweise als Bild, das kostet ein Vielfaches an Tokens, und eine .odt
+    kann es gar nicht öffnen.
     """
     lines = []
-    for p in pdfs:
+    auszug = False
+    for p in files:
         txt = Path(str(p) + ".txt")
         if txt.is_file():
-            lines.append(cfg.L(f"[Vom Nutzer hochgeladene PDF: {p} — Textauszug: {txt}]",
-                               f"[PDF uploaded by the user: {p} — text extract: {txt}]"))
-        else:
+            auszug = True
+            lines.append(cfg.L(f"[Vom Nutzer hochgeladene Datei: {p} — Textauszug: {txt}]",
+                               f"[File uploaded by the user: {p} — text extract: {txt}]"))
+        elif is_pdf(p):
             lines.append(cfg.L(f"[Vom Nutzer hochgeladene PDF: {p} — kein Text extrahierbar, "
                                "vermutlich gescannt]",
                                f"[PDF uploaded by the user: {p} — no extractable text, "
                                "probably scanned]"))
-    lines.append(cfg.L("(Lies zuerst den Textauszug mit dem Read-Tool; die PDF selbst nur, "
-                       "wenn Layout oder Bilder wichtig sind.)",
-                       "(Read the text extract with the Read tool first; open the PDF itself "
-                       "only if layout or images matter.)"))
+        else:
+            lines.append(cfg.L(f"[Vom Nutzer hochgeladene Datei: {p}]",
+                               f"[File uploaded by the user: {p}]"))
+    if auszug:
+        lines.append(cfg.L("(Lies zuerst den Textauszug mit dem Read-Tool; die Datei selbst nur, "
+                           "wenn Layout oder Bilder wichtig sind.)",
+                           "(Read the text extract with the Read tool first; open the file itself "
+                           "only if layout or images matter.)"))
     return "\n".join(lines)
 
 
 def build_prompt(text: str, images) -> str:
-    """User-Text + Hinweise auf hochgeladene Dateien (Bilder, PDFs) kombinieren."""
+    """User-Text + Hinweise auf hochgeladene Dateien (Bilder, PDFs, alles andere) kombinieren."""
     prompt = (text or "").strip()
-    imgs = [p for p in (images or []) if not is_pdf(p)]
-    pdfs = [p for p in (images or []) if is_pdf(p)]
+    imgs = [p for p in (images or []) if is_image(p)]
+    files = [p for p in (images or []) if not is_image(p)]
     if imgs:
         img_lines = "\n".join(cfg.L(f"[Vom Nutzer hochgeladenes Bild: {p}]",
                                      f"[Image uploaded by the user: {p}]") for p in imgs)
         prompt = (f"{prompt}\n\n{img_lines}\n"
                   + cfg.L("(Bitte sieh dir die Bild-Datei(en) mit dem Read-Tool an.)",
                           "(Please look at the image file(s) with the Read tool.)")).strip()
-    if pdfs:
-        prompt = f"{prompt}\n\n{pdf_note(pdfs)}".strip()
+    if files:
+        prompt = f"{prompt}\n\n{file_note(files)}".strip()
     return prompt
 
 

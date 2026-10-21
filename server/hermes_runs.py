@@ -10,7 +10,7 @@ from server import hermes as hermesmod
 from server import llm as llmmod
 
 from server.core import PROJECTS_DIR
-from server.runs import RUNS, Run, gc_runs, is_pdf, maybe_notify, pdf_note
+from server.runs import RUNS, Run, file_note, gc_runs, is_image, maybe_notify
 from server.sessions import SID_RE, _parse_transcript_lines
 
 
@@ -130,11 +130,11 @@ def start_hermes_run(text, images, pid, model, work_dir, mode, session_id=None):
     verschiedenen Ablagen und lassen sich nicht ineinander überführen.
     """
     prompt = (text or "").strip()
-    # Bilder gehen als ACP-Blöcke mit (hermes._image_blocks); PDFs kennt ACP
-    # nicht, die bekommt das Modell wie bei claude als Hinweis + Textauszug.
-    pdfs = [p for p in (images or []) if is_pdf(p)]
-    if pdfs:
-        prompt = f"{prompt}\n\n{pdf_note(pdfs)}".strip()
+    # Bilder gehen als ACP-Blöcke mit (hermes._image_blocks); andere Dateien kennt
+    # ACP nicht, die bekommt das Modell wie bei claude als Hinweis + Textauszug.
+    files = [p for p in (images or []) if not is_image(p)]
+    if files:
+        prompt = f"{prompt}\n\n{file_note(files)}".strip()
     prev = session_id if (session_id or "").startswith("hermes-") else ""
     carried = False
     if session_id and not prev:

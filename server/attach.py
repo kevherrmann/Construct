@@ -1,24 +1,28 @@
-"""Anhänge (Bilder, PDFs) für den Chat ablegen — gemeinsam für /api/upload
-und den nativen Drop im Desktop-Fenster (desktop.py).
+"""Anhänge für den Chat ablegen (/api/upload). Erlaubt ist jede Datei; das
+Modell bekommt nur den Pfad und öffnet sie mit seinen Werkzeugen.
 
 Bilder werden beim Ablegen einmal normalisiert: EXIF-Drehung angewandt,
 Metadaten weg, auf höchstens 2048×2048 Pixel und ~4 MB gebracht, HEIC/BMP
 zu JPEG/PNG. Danach kann jedes Modell (claude wie Hermes) damit umgehen,
 und Handyfotos kosten nicht mehr Tokens als nötig. Saubere, kleine
 PNG/JPEG/WebP bleiben byte-gleich; SVG und animierte GIFs bleiben unangetastet.
-PDFs bekommen einen Textauszug daneben (<name>.pdf.txt)."""
+PDFs und Office-Dateien bekommen einen Textauszug daneben (<name>.pdf.txt,
+<name>.odt.txt …)."""
 import io
+import re
 import shutil
 import subprocess
 import uuid
 from pathlib import Path
+
+from server import office_text
 
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 
 IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".heic"}
-DOC_EXT = {".pdf"}
+PDF_EXT = {".pdf"}
 MAX_UPLOAD = 25 * 1024 * 1024
 
 MAX_PIXELS = 2048 * 2048          # Gesamtbudget, Seitenverhältnis bleibt
@@ -89,23 +93,36 @@ def normalize_image(data: bytes, ext: str) -> tuple[bytes, str]:
     return best
 
 
+def kind_of(ext: str) -> str:
+    ext = ext.lower()
+    if ext in IMG_EXT:
+        return "image"
+    return "pdf" if ext in PDF_EXT else "file"
+
+
 def store(data: bytes, ext: str, name: str) -> dict:
     """Anhang unter zufälligem Namen in uploads/ ablegen; gibt das dict fürs Frontend."""
     ext = ext.lower()
-    if ext not in IMG_EXT and ext not in DOC_EXT:
-        raise ValueError(f"Nur Bilder und PDFs erlaubt (nicht {ext})")
+    # Die Endung landet im Dateinamen und in der URL: nur harmlose Zeichen.
+    if not re.fullmatch(r"\.[a-z0-9]{1,10}", ext):
+        ext = ""
     if len(data) > MAX_UPLOAD:
         raise ValueError("Datei zu groß (max. 25 MB)")
-    kind = "pdf" if ext in DOC_EXT else "image"
+    kind = kind_of(ext)
     if kind == "image":
         data, ext = normalize_image(data, ext)
     UPLOAD_DIR.mkdir(exist_ok=True)
     fname = f"{uuid.uuid4().hex}{ext}"
     dest = UPLOAD_DIR / fname
     dest.write_bytes(data)
+    # Den Auszug liest das Modell billiger als die gerenderten Seiten, und
+    # Office-Dateien kann sein Read-Tool gar nicht öffnen.
     if kind == "pdf":
-        # Den Auszug liest das Modell billiger als die gerenderten Seiten.
         txt = extract_pdf_text(dest)
-        if txt.strip():
-            Path(str(dest) + ".txt").write_text(txt, encoding="utf-8")
+    elif ext in office_text.OFFICE_EXT:
+        txt = office_text.text_of(dest)
+    else:
+        txt = ""
+    if txt.strip():
+        Path(str(dest) + ".txt").write_text(txt, encoding="utf-8")
     return {"path": str(dest), "url": f"/uploads/{fname}", "name": name or fname, "kind": kind}

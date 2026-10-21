@@ -2,7 +2,7 @@ import { trServer } from '@/lib/serverText'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Block, BotItem, ChatItem, NoteText, SysBody, UserItem } from '@/lib/chat/types'
-import { fmtDur, fmtMsgTime, fmtNum, isPdf } from '@/lib/format'
+import { fileExt, fmtDur, fmtMsgTime, fmtNum, isImage } from '@/lib/format'
 import { MODES } from '@/lib/chat/models'
 import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
@@ -104,12 +104,12 @@ function Attachments({ urls }: { urls: string[] }) {
   return (
     <>
       {urls.map((u) =>
-        isPdf(u) ? (
-          <a key={u} className={s.att} href={u} target="_blank" rel="noreferrer">
-            📄 PDF
-          </a>
-        ) : (
+        isImage(u) ? (
           <img key={u} src={u} alt="" />
+        ) : (
+          <a key={u} className={s.att} href={u} target="_blank" rel="noreferrer">
+            📄 {fileExt(u) || '?'}
+          </a>
         ),
       )}
     </>

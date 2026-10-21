@@ -2,6 +2,27 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.5.0 — 2026-10-21
+
+### Added
+- **Any file can go into the chat.** Until now only images and PDFs were
+  accepted; an .odt, a spreadsheet or an STL was turned away. Now every file
+  type works through ⧉, drag and drop and paste. Images still show as a
+  preview, everything else as a file chip with its extension. The limit stays
+  at 25 MB.
+- **Text extract for office files.** Like PDFs, OpenDocument (.odt, .ods,
+  .odp, .odg) and Microsoft files (.docx, .xlsx, .pptx) get a plain-text
+  extract next to them when uploaded, with tables as tab-separated rows and a
+  heading per slide or sheet. The assistant reads that instead of fighting
+  the ZIP format. Old binary formats (.doc, .xls, .ppt) and everything else
+  are passed on as a path, and the assistant opens them with its own tools.
+
+### Security
+- **Uploaded files open in a sandbox.** An uploaded HTML or SVG file opened
+  in the browser now runs in its own empty origin and cannot use the
+  CONSTRUCT API. PDFs are left out, because Chromium does not show them in a
+  sandbox.
+
 ## 8.4.2 — 2026-10-21
 
 ### Fixed

@@ -162,7 +162,7 @@ export interface Upload {
   path: string
   url: string
   name: string
-  kind: 'image' | 'pdf'
+  kind: 'image' | 'pdf' | 'file'
 }
 
 export function uploadFile(file: File) {

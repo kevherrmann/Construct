@@ -1,6 +1,6 @@
 """Anhänge in uploads/ wieder wegräumen.
 
-Bilder und PDFs braucht man meist nur für eine Unterhaltung. Deshalb:
+Anhänge braucht man meist nur für eine Unterhaltung. Deshalb:
 - Wird eine Session gelöscht, gehen ihre Anhänge mit — außer eine andere
   Session (z.B. eine abgezweigte) oder die Einstellungen nutzen sie noch.
 - Einmal täglich fliegen Anhänge, die älter als ORPHAN_DAYS sind und nirgends
@@ -20,13 +20,19 @@ from server.core import BASE_DIR, PROJECTS_DIR, UPLOAD_DIR
 
 ORPHAN_DAYS = 7
 SWEEP_EVERY = 24 * 3600
-SIDECAR = ".txt"   # PDF-Textauszug neben <name>.pdf
+SIDECAR = ".txt"   # Textauszug neben <name>.pdf, <name>.odt …
+
+
+def _is_sidecar(name: str) -> bool:
+    # Anhänge heißen <uuid>.<endung>, ihr Auszug <uuid>.<endung>.txt; eine
+    # hochgeladene Textdatei (<uuid>.txt) hat vor der Endung keinen Punkt.
+    return name.endswith(SIDECAR) and "." in name[:-len(SIDECAR)]
 
 
 def _upload_names() -> list[str]:
     try:
         return [p.name for p in UPLOAD_DIR.iterdir()
-                if p.is_file() and not p.name.endswith(".pdf" + SIDECAR)]
+                if p.is_file() and not _is_sidecar(p.name)]
     except FileNotFoundError:
         return []
 

@@ -96,8 +96,23 @@ class _NachfragenStatic(StaticFiles):
         return r
 
 
+class _UploadsStatic(StaticFiles):
+    """Anhänge sind fremder Inhalt: eine hochgeladene HTML- oder SVG-Datei, im
+    Browser geöffnet, liefe sonst mit den Rechten der Oberfläche und könnte die
+    API bedienen. sandbox gibt ihr einen eigenen, leeren Ursprung. Für <img> und
+    <audio> spielt der Kopf keine Rolle. PDFs nicht: die zeigt Chromium in einer
+    Sandbox gar nicht an."""
+
+    def file_response(self, full_path, *args, **kwargs):
+        r = super().file_response(full_path, *args, **kwargs)
+        r.headers["X-Content-Type-Options"] = "nosniff"
+        if not str(full_path).lower().endswith(".pdf"):
+            r.headers["Content-Security-Policy"] = "sandbox"
+        return r
+
+
 app.mount("/static", _NachfragenStatic(directory=str(STATIC_DIR)), name="static")
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+app.mount("/uploads", _UploadsStatic(directory=str(UPLOAD_DIR)), name="uploads")
 # Oberfläche (React, frontend/ → static/app). Die Assets tragen einen Hash im
 # Namen und dürfen deshalb gecacht werden; index.html liefert routes/ui.py.
 app.mount("/assets", StaticFiles(directory=str(APP_DIR / "assets"), check_dir=False),

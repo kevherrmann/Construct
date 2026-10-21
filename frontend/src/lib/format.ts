@@ -36,7 +36,11 @@ export function fmtMsgTime(ts: number, lang?: string, now = Date.now()) {
   return `${date} ${time}`
 }
 
-export const isPdf = (u?: string) => /\.pdf$/i.test(u ?? '')
+/** Bilder zeigt der Chat als Vorschau, alle anderen Anhänge als Datei-Chip. */
+export const isImage = (u?: string) => /\.(png|jpe?g|gif|webp|bmp|svg|heic)$/i.test(u ?? '')
+
+/** Endung in Großbuchstaben (PDF, ODT …), leer ohne Endung. */
+export const fileExt = (u?: string) => /\.([a-z0-9]+)$/i.exec(u ?? '')?.[1]?.toUpperCase() ?? ''
 
 /** Bytes als GB (mit Komma, eine Stelle) bzw. MB — wie in der alten Oberfläche. */
 export const fmtGB = (n: number) =>

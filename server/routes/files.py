@@ -388,7 +388,9 @@ def mcp_remove(name: str, scope: str | None = None):
 
 @router.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename or "")[1].lower() or ".png"
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if not ext and (file.content_type or "").startswith("image/"):
+        ext = ".png"        # eingefügte Bilder aus der Zwischenablage haben teils keinen Namen
     data = await file.read()
     try:
         return attach.store(data, ext, file.filename or "")

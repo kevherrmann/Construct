@@ -90,10 +90,11 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   models from a curated catalog or by name with a progress bar. On Linux, if
   Ollama is missing, CONSTRUCT can install it with one click into your user
   account.
-- **Attachments.** You can paste, drag and drop, or upload images and PDFs.
-  Images are normalized: EXIF orientation is applied, metadata is removed,
-  images are resized to 2048×2048 or smaller and HEIC is converted. PDFs get a
-  text extract.
+- **Attachments.** You can paste, drag and drop, or upload any file up to
+  25 MB. Images are normalized: EXIF orientation is applied, metadata is
+  removed, images are resized to 2048×2048 or smaller and HEIC is converted.
+  PDFs and office files (.odt, .ods, .odp, .docx, .xlsx, .pptx) get a text
+  extract.
 - **Rendered replies.** Markdown and code are highlighted, and file paths in
   replies are clickable. Clicking one opens a preview or download of that file
   from the workspace.

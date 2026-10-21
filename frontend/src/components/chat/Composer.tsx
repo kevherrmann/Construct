@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useFolders } from '@/api/chat'
 import { useProviders } from '@/api/providers'
 import { runCommand } from '@/lib/chat/commands'
-import { isPdf } from '@/lib/format'
+import { fileExt, isImage } from '@/lib/format'
 import { useChat, type Attachment } from '@/stores/chat'
 import { useSettings } from '@/stores/settings'
 import { useMedien } from '@/hooks/useMedien'
@@ -15,8 +15,6 @@ import { EinwurfWahl } from '@/components/firma/FirmaEinwurf'
 import { useArbeitenderAuftrag, useEinwurf } from '@/components/firma/einwurf'
 import { Pickers, type PickerName } from './Pickers'
 import s from './Composer.module.css'
-
-const ATT_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|heic|pdf)$/i
 
 async function upload(f: File): Promise<Attachment> {
   const fd = new FormData()
@@ -133,11 +131,7 @@ export function Composer({
     const drop = (e: DragEvent) => {
       e.preventDefault()
       setDragging(false)
-      addFiles(
-        [...(e.dataTransfer?.files ?? [])].filter(
-          (f) => f.type.startsWith('image/') || ATT_EXT.test(f.name),
-        ),
-      )
+      addFiles([...(e.dataTransfer?.files ?? [])])
     }
     addEventListener('dragover', over)
     addEventListener('dragleave', leave)
@@ -289,12 +283,12 @@ export function Composer({
         <div className={s.thumbs}>
           {pending.map((p, i) => (
             <div key={p.path} className={s.th}>
-              {isPdf(p.url) ? (
-                <span className={s.doc} title={p.name}>
-                  📄 {p.name || 'PDF'}
-                </span>
-              ) : (
+              {isImage(p.url) ? (
                 <img src={p.url} alt="" />
+              ) : (
+                <span className={s.doc} title={p.name}>
+                  📄 {p.name || fileExt(p.url)}
+                </span>
               )}
               <button type="button" className={s.x} onClick={() => removePending(i)}>
                 ✕
@@ -313,7 +307,7 @@ export function Composer({
         <button
           type="button"
           className={s.attach}
-          title={t('Bild anhängen')}
+          title={t('Datei anhängen')}
           onClick={() => file.current?.click()}
         >
           ⧉
@@ -349,7 +343,7 @@ export function Composer({
                 : t('Sag etwas …')
               : schmal
                 ? t('> Nachricht …')
-                : t('> Nachricht eingeben... (Bilder: einfügen / ziehen / ⧉)')
+                : t('> Nachricht eingeben... (Dateien: einfügen / ziehen / ⧉)')
           }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -369,13 +363,13 @@ export function Composer({
             }
           }}
           onPaste={(e) => {
-            const imgs = [...e.clipboardData.items]
-              .filter((it) => it.type.startsWith('image/'))
+            const dateien = [...e.clipboardData.items]
+              .filter((it) => it.kind === 'file')
               .map((it) => it.getAsFile())
               .filter((f): f is File => !!f)
-            if (imgs.length) {
+            if (dateien.length) {
               e.preventDefault()
-              addFiles(imgs)
+              addFiles(dateien)
               return
             }
           }}
@@ -411,7 +405,6 @@ export function Composer({
       <input
         ref={file}
         type="file"
-        accept="image/*,.pdf,application/pdf"
         multiple
         hidden
         onChange={(e) => {
@@ -419,7 +412,7 @@ export function Composer({
           e.target.value = ''
         }}
       />
-      {dragging && <div className={s.dropmask}>{t('⌬ BILD HIER ABLEGEN ⌬')}</div>}
+      {dragging && <div className={s.dropmask}>{t('⌬ DATEI HIER ABLEGEN ⌬')}</div>}
     </div>
   )
 }
