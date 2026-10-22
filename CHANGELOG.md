@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.6.0 — 2026-10-22
+
+### Added
+- **Queue a message for after the current task.** While the assistant works,
+  Enter sends a message into the running turn. Now ⏳ next to the send button
+  or Alt+Enter puts it in the queue instead: it is sent once the run is
+  completely over, including any background work it is still waiting for.
+  Good for a list of things to do next while you are away. Queued messages
+  show above the input and can be removed with ✕; ⏹ clears the queue. The
+  queue lives in the window, so keep it open until it has been sent.
+
 ## 8.5.1 — 2026-10-22
 
 ### Fixed

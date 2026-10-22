@@ -83,8 +83,9 @@ interface ChatStore {
   newSession: () => void
   activate: (key: string) => void
   openSession: (s: SessionInfo, runningRunId?: string) => Promise<void>
-  /** jetzt: läuft Cody gerade, erst den Zug abbrechen und dann senden (Strg+Enter). */
-  send: (text: string, opts?: { jetzt?: boolean }) => Promise<void>
+  /** jetzt: läuft Cody gerade, erst den Zug abbrechen und dann senden (Strg+Enter).
+   *  hinten: läuft Cody gerade, erst nach dem Ende des Laufs senden (Alt+Enter). */
+  send: (text: string, opts?: { jetzt?: boolean; hinten?: boolean }) => Promise<void>
   resend: (itemId: string, text: string) => void
   stop: () => void
   removeQueued: (i: number) => void
@@ -541,6 +542,12 @@ export const useChat = create<ChatStore>((set, get) => {
       const urls = pending.map((p) => p.url)
       if (!text && !images.length) return
       set({ pending: [] })
+      // Hinten anstellen: kommt erst dran, wenn der Lauf ganz vorbei ist, auch
+      // nach dem Nachlauf (die Aufgabe wartet dort noch auf ihren Hintergrund).
+      if (opts?.hinten && (c.busy || c.nachlauf || c.runId)) {
+        patch(c.key, (cc) => ({ queue: [...cc.queue, { text, images, urls }] }))
+        return
+      }
       if (c.busy || c.nachlauf) {
         // Cody arbeitet gerade (oder wartet im Nachlauf auf eine Hintergrund-
         // aufgabe): Nachricht DIREKT in den laufenden Prozess einwerfen

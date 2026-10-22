@@ -65,6 +65,8 @@ export function Composer({
   const anFirma = anFirmaWahl && !!arbeitet
   const einwurf = useEinwurf()
   const busy = !!conv?.busy
+  // Im Nachlauf ist der Zug fertig, die Aufgabe wartet aber noch auf ihren Hintergrund.
+  const laeuft = busy || !!conv?.nachlauf
   const assistant = useSettings((st) => st.boot.assistant)
   // Im Raum: „Sprich mit Chanti …“, ist dafür kein Platz (320 px, langer Name), die
   // kurze Fassung. Gemessen, weil text-overflow am Platzhalter einer textarea nicht wirkt.
@@ -232,8 +234,9 @@ export function Composer({
   }, [rec.state])
   useEffect(() => () => dictation.current?.cancel(), [])
 
-  /** jetzt: Cody unterbrechen und die Nachricht sofort bearbeiten lassen (Strg+Enter). */
-  const submit = (jetzt = false) => {
+  /** jetzt: Cody unterbrechen und die Nachricht sofort bearbeiten lassen (Strg+Enter).
+   *  hinten: erst nach der laufenden Aufgabe (Alt+Enter, ⏳). */
+  const submit = (art?: 'jetzt' | 'hinten') => {
     const msg = text.trim()
     if (!msg && !pending.length) return
     if (location.pathname !== '/chat') navigate('/chat')
@@ -258,7 +261,7 @@ export function Composer({
       })
       return
     }
-    void send(msg, { jetzt })
+    void send(msg, { jetzt: art === 'jetzt', hinten: art === 'hinten' })
   }
 
   return (
@@ -359,7 +362,8 @@ export function Composer({
               // Während des Diktats beendet Enter nur das Diktat — gesendet
               // wird erst mit dem nächsten Enter, nach einem Blick auf den Text.
               if (rec.state === 'recording') void toggleMic()
-              else if (rec.state === 'idle') submit(busy && (e.ctrlKey || e.metaKey))
+              else if (rec.state === 'idle')
+                submit(e.altKey ? 'hinten' : busy && (e.ctrlKey || e.metaKey) ? 'jetzt' : undefined)
             }
           }}
           onPaste={(e) => {
@@ -374,6 +378,19 @@ export function Composer({
             }
           }}
         />
+        {laeuft && (
+          <button
+            type="button"
+            className={s.attach}
+            title={t(
+              'Hinten anstellen (Alt+Enter): kommt erst dran, wenn die aktuelle Aufgabe ganz fertig ist.',
+            )}
+            aria-label={t('Hinten anstellen')}
+            onClick={() => submit('hinten')}
+          >
+            ⏳
+          </button>
+        )}
         <button
           type="button"
           className={s.send}
@@ -394,7 +411,7 @@ export function Composer({
         <div className={s.hint}>
           {busy
             ? t(
-                'ENTER = einwerfen · STRG+ENTER = unterbrechen und senden · SHIFT+ENTER = neue Zeile ·',
+                'ENTER = einwerfen · ALT+ENTER = hinten anstellen · STRG+ENTER = unterbrechen und senden · SHIFT+ENTER = neue Zeile ·',
               )
             : t(
                 'ENTER = senden · SHIFT+ENTER = neue Zeile · 📂 Ordner · 🛡 Modus · 🧠 Modell ·',
