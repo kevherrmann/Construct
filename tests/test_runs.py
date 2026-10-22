@@ -1,6 +1,7 @@
 """Läufe: was passiert, wenn claude im Nachlauf endet (Hintergrundaufgaben offen)."""
 import asyncio
 import json
+import os
 import sys
 import time
 
@@ -307,9 +308,10 @@ HELFER_LAUF = [
 ]
 
 
-def _lauf_mit(tmp_path, monkeypatch, zeilen, nachher="", **felder):
+def _lauf_mit(tmp_path, monkeypatch, zeilen, nachher="", schalter=(), **felder):
     """run_claude gegen ein falsches claude, das genau diese Zeilen ausgibt.
-    nachher: Python, das der falsche claude danach noch ausführt; felder: am Run gesetzt."""
+    nachher: Python, das der falsche claude danach noch ausführt; schalter: weitere
+    Argumente (der falsche claude überliest sie); felder: am Run gesetzt."""
     stub = tmp_path / "claude_stub.py"
     stub.write_text("import sys, time\nsys.stdin.readline()\nsys.stdout.write(sys.argv[1])\n"
                     "sys.stdout.flush()\n" + nachher)
@@ -322,7 +324,7 @@ def _lauf_mit(tmp_path, monkeypatch, zeilen, nachher="", **felder):
         for k, v in felder.items():
             setattr(run, k, v)
         runs.RUNS[run.id] = run
-        await runs.run_claude(run, [sys.executable, str(stub), text])
+        await runs.run_claude(run, [sys.executable, str(stub), text, *schalter])
         return run
 
     return asyncio.run(los())
@@ -748,3 +750,31 @@ def test_aeltere_claude_fassung_bekommt_den_schalter_nicht(tmp_path, monkeypatch
     # Ein unbekannter Schalter ließe den Lauf gar nicht erst starten.
     _falsches_claude(tmp_path, monkeypatch, "  --resume [value]   Resume a conversation")
     assert "--system-prompt-snapshot" not in _befehl(monkeypatch, session_id="sid-alt")
+
+
+def _chrome_lauf(tmp_path, monkeypatch, mcp, token=True, sid="sid-chrome"):
+    """Ein Lauf mit --chrome; mcp: die Server, die claude im init meldet."""
+    env = {"PATH": os.environ.get("PATH", "")}
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = "sk-ant-oat01-test"
+    monkeypatch.setattr(runs, "claude_env", lambda: env)
+    zeilen = [{"type": "system", "subtype": "init", "session_id": sid, "mcp_servers": mcp},
+              {"type": "result", "subtype": "success", "session_id": sid, "usage": {}}]
+    run = _lauf_mit(tmp_path, monkeypatch, zeilen, schalter=["--chrome"])
+    return [e for e in run.events if e["type"] == "ohne_chrome"]
+
+
+def test_token_ohne_chrome_meldet_es_einmal_je_sitzung(tmp_path, monkeypatch):
+    # Mit dem setup-token lässt claude die Chrome-Werkzeuge stumm weg — der
+    # Chat sagt es, statt dass Chrome einfach nicht geht.
+    monkeypatch.setattr(runs, "OHNE_CHROME_GEMELDET", set())
+    assert len(_chrome_lauf(tmp_path, monkeypatch, [{"name": "n8n", "status": "connected"}])) == 1
+    assert _chrome_lauf(tmp_path, monkeypatch, []) == []          # dieselbe Sitzung: nicht nochmal
+    assert len(_chrome_lauf(tmp_path, monkeypatch, [], sid="sid-andere")) == 1
+
+
+def test_mit_chrome_oder_ohne_token_kein_hinweis(tmp_path, monkeypatch):
+    monkeypatch.setattr(runs, "OHNE_CHROME_GEMELDET", set())
+    chrome = [{"name": "claude-in-chrome", "status": "connected"}]
+    assert _chrome_lauf(tmp_path, monkeypatch, chrome) == []
+    assert _chrome_lauf(tmp_path, monkeypatch, [], token=False) == []

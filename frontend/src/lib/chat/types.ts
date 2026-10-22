@@ -21,6 +21,8 @@ export type StreamEvent =
   | { type: 'tool_result'; id?: string; content?: string; is_error?: boolean; parent?: string }
   /** Der Rechte-Modus hat dieses Werkzeug nicht erlaubt (default/plan). */
   | { type: 'verweigert'; id?: string; name: string }
+  /** Der Lauf hat keine Chrome-Werkzeuge, weil CONSTRUCT nur mit dem alten Token angemeldet ist. */
+  | { type: 'ohne_chrome' }
   /** Ein Helfer (Agent/Task): Start, Fortschritt, Ende. Felder nur, wo der Stand sie kennt. */
   | {
       type: 'helfer'

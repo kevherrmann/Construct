@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import shutil
+import sys
 import time
 from pathlib import Path
 
@@ -47,7 +48,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.5.0"
+VERSION = "8.5.1"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -205,11 +206,13 @@ ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", 
 APP_DIR = STATIC_DIR / "app"
 
 # ---------- Claude-Anmeldung (Status, Web-Login, Nutzungs-Limits) ----------
-# Problem bisher: headless `claude -p` kann abgelaufene OAuth-Tokens nicht selbst
-# erneuern -> Kevin musste ins Terminal (claudec). Lösung: Login direkt aus der
-# Web-UI über `claude setup-token` (PTY-gesteuert). Der dabei erzeugte LANGLEBIGE
-# Token (sk-ant-oat…) landet in TOKEN_FILE und wird allen claude-Subprozessen als
-# CLAUDE_CODE_OAUTH_TOKEN mitgegeben — unabhängig vom kurzlebigen Interactive-Login.
+# Der Web-Login steuert `claude auth login` über ein Pseudo-Terminal und erneuert
+# damit die normale Kontoanmeldung der CLI (Datei bzw. Mac-Schlüsselbund) — ohne
+# Terminal. Früher war es `claude setup-token`: dessen Langzeit-Token (sk-ant-oat…,
+# TOKEN_FILE) ging allen claude-Läufen als CLAUDE_CODE_OAUTH_TOKEN mit. Der darf
+# aber nur Modelle aufrufen: mit ihm ließ `claude --chrome` die Chrome-Werkzeuge
+# und die claude.ai-Connectors stumm weg. Er bleibt nur noch die Notlösung, wenn
+# keine Kontoanmeldung da ist.
 CRED_FILE = Path.home() / ".claude" / ".credentials.json"
 
 TOKEN_FILE = BASE_DIR / ".oauth-token"
@@ -233,9 +236,50 @@ def load_web_token() -> str:
     except Exception:
         return ""
 
+def read_creds() -> tuple:
+    """Kontoanmeldung der CLI: (claudeAiOauth-Dict, Quelle "file"/"keychain").
+
+    Linux/Windows: ~/.claude/.credentials.json. Auf dem Mac legt Claude Code den
+    Login aber im Schlüsselbund ab ("Claude Code-credentials") — die Datei gibt
+    es dort gar nicht. Ohne diesen zweiten Weg stand oben "LOGIN NÖTIG",
+    obwohl die CLI angemeldet war und jeder Chat lief. `security` ist genau
+    das Werkzeug, mit dem die CLI selbst liest; der Schlüsselbund fragt darum
+    nicht nach.
+    """
+    try:
+        c = json.loads(CRED_FILE.read_text(encoding="utf-8")).get("claudeAiOauth") or {}
+        if c:
+            return c, "file"
+    except Exception:
+        pass
+    if sys.platform == "darwin":
+        import subprocess
+        try:
+            r = subprocess.run(["security", "find-generic-password",
+                                "-s", "Claude Code-credentials", "-w"],
+                               capture_output=True, text=True, timeout=5)
+            if r.returncode == 0:
+                return (json.loads(r.stdout.strip()).get("claudeAiOauth") or {}), "keychain"
+        except Exception:
+            pass
+    return {}, ""
+
+def konto_login(c: dict | None = None) -> bool:
+    """Gilt die Kontoanmeldung? Ein abgelaufenes Access-Token ist kein Logout:
+    mit Refresh-Token erneuert die CLI es beim nächsten Aufruf selbst."""
+    if c is None:
+        c = read_creds()[0]
+    return bool(c.get("accessToken")) and (
+        bool(c.get("refreshToken")) or (c.get("expiresAt") or 0) / 1000 > time.time())
+
 def claude_env() -> dict:
-    """Env für claude-Subprozesse: Web-Login-Token (falls da) sticht alles."""
+    """Env für claude-Subprozesse: die Kontoanmeldung, wenn sie gilt — dann auch
+    kein geerbtes CLAUDE_CODE_OAUTH_TOKEN, das stäche sie aus und nähme Chrome
+    mit. Sonst der alte Web-Login-Token, damit der Chat wenigstens läuft."""
     env = dict(os.environ)
+    if konto_login():
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+        return env
     tok = load_web_token()
     if tok:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = tok
@@ -279,7 +323,7 @@ def frischer_systemprompt() -> list:
     Prompt gleich, über Läufe hinweg, solange sich nichts geändert hat."""
     return ["--system-prompt-snapshot", "off"] if claude_kann("--system-prompt-snapshot") else []
 
-# Der Web-Login steuert `claude setup-token` über ein Pseudo-Terminal. pty,
+# Der Web-Login steuert `claude auth login` über ein Pseudo-Terminal. pty,
 # termios und fcntl sind Unix-only — unter Windows gibt es diesen Weg nicht,
 # dort meldet man sich einmal im Terminal mit `claude` an.
 WEB_LOGIN_OK = os.name == "posix"

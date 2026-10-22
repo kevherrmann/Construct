@@ -62,18 +62,21 @@ export function Hud({
         'Claude Code ist nicht installiert — der Chat läuft über den Anbieter aus dem 🧠-Menü. Klicken für die Anleitung.',
       ),
     }
+  else if (auth.data.ok && auth.data.konto === false)
+    // Chat läuft, aber nur über einen Token: Chrome und die claude.ai-Connectors
+    // fehlen dann, ohne dass claude es meldet.
+    authChip = {
+      cls: s.warn,
+      text: t('🔑 OHNE CHROME'),
+      title: t(
+        'Nur mit Langzeit-Token angemeldet — Chrome-Werkzeuge und claude.ai-Connectors fehlen. Klicken und neu anmelden.',
+      ),
+    }
   else if (auth.data.ok)
     authChip = {
       cls: '',
       text: '🔑 OK',
-      title:
-        t('Angemeldet') +
-        (auth.data.web_token
-          ? t(' (Web-Login-Token)')
-          : auth.data.env_token
-            ? t(' (Server-Token)')
-            : t(' (claudec-Login)')) +
-        t(' — klicken zum Neu-Anmelden'),
+      title: t('Angemeldet') + t(' — klicken zum Neu-Anmelden'),
     }
   else
     authChip = {

@@ -377,6 +377,9 @@ async def run_claude(run, cmd):
         run.finish()
         return
 
+    env = claude_env()
+    # Mit dem alten Langzeit-Token lässt claude die Chrome-Werkzeuge stumm weg.
+    mit_token = "--chrome" in cmd and bool(env.get("CLAUDE_CODE_OAUTH_TOKEN"))
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -384,7 +387,7 @@ async def run_claude(run, cmd):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=run.cwd,
-            env=claude_env(),
+            env=env,
             limit=64 * 1024 * 1024,   # große stream-json-Zeilen (Tool-Ergebnisse)
         )
         run.proc = proc
@@ -427,6 +430,8 @@ async def run_claude(run, cmd):
                 run.session_id = ev.get("session_id", run.session_id)
                 run.emit({"type": "session", "session_id": run.session_id})
                 merken(run)
+                if mit_token and _ohne_chrome(run.session_id, ev):
+                    run.emit({"type": "ohne_chrome"})
             elif t == "system" and ev.get("subtype") == "background_tasks_changed":
                 # Die eine verlaessliche Liste: claude schickt sie bei jedem
                 # Start und Ende einer Hintergrundaufgabe komplett.
@@ -743,6 +748,22 @@ def _stop_absichern(run):
     eine neue Nachricht in den Prozess, gilt der Stopp nicht mehr."""
     if not run.done and run.stopped and run.task:
         run.task.cancel()
+
+
+# Sitzungen, die den Hinweis „Chrome fehlt“ schon bekommen haben: einmal
+# reicht, nicht bei jeder Nachricht wieder.
+OHNE_CHROME_GEMELDET: set = set()
+
+
+def _ohne_chrome(session_id, init: dict) -> bool:
+    """Fehlt Claude in Chrome in diesem Lauf, und ist das für die Sitzung neu?
+    claude meldet keinen Fehler, der Server steht einfach nicht in der Liste."""
+    if any((m or {}).get("name") == "claude-in-chrome" for m in init.get("mcp_servers") or []):
+        return False
+    if session_id in OHNE_CHROME_GEMELDET:
+        return False
+    OHNE_CHROME_GEMELDET.add(session_id)
+    return True
 
 
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./,:_-]{0,63}$")

@@ -4,7 +4,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 import threading
 import time
 import urllib.error
@@ -15,51 +14,21 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from server.core import (CRED_FILE, LIMIT_HIT, STREAM_USAGE, TOKEN_FILE, WEB_LOGIN_OK, claude_bin,
-                         load_web_token)
+                         konto_login, load_web_token, read_creds)
 
 router = APIRouter()
-
-
-def _read_creds() -> tuple:
-    """Interactive-Login der CLI: (claudeAiOauth-Dict, Quelle "file"/"keychain").
-
-    Linux/Windows: ~/.claude/.credentials.json. Auf dem Mac legt Claude Code den
-    Login aber im Schlüsselbund ab ("Claude Code-credentials") — die Datei gibt
-    es dort gar nicht. Ohne diesen zweiten Weg stand oben "LOGIN NÖTIG",
-    obwohl die CLI angemeldet war und jeder Chat lief. `security` ist genau
-    das Werkzeug, mit dem die CLI selbst liest; der Schlüsselbund fragt darum
-    nicht nach.
-    """
-    try:
-        c = json.loads(CRED_FILE.read_text(encoding="utf-8")).get("claudeAiOauth") or {}
-        if c:
-            return c, "file"
-    except Exception:
-        pass
-    if sys.platform == "darwin":
-        try:
-            r = subprocess.run(["security", "find-generic-password",
-                                "-s", "Claude Code-credentials", "-w"],
-                               capture_output=True, text=True, timeout=5)
-            if r.returncode == 0:
-                return (json.loads(r.stdout.strip()).get("claudeAiOauth") or {}), "keychain"
-        except Exception:
-            pass
-    return {}, ""
 
 
 def _cred_info() -> dict:
     """Kurzlebiger Interactive-Login der CLI (Datei oder Mac-Schlüsselbund)."""
     try:
-        c, src = _read_creds()
+        c, src = read_creds()
         exp = c.get("expiresAt") or 0
         return {
             "exists": bool(c.get("accessToken")),
             "source": src,
             "expires_at": exp,
-            # Abgelaufenes Access-Token ist kein Logout: mit Refresh-Token
-            # erneuert die CLI es beim nächsten Aufruf selbst.
-            "expired": exp / 1000 < time.time() and not c.get("refreshToken"),
+            "expired": not konto_login(c),
             "subscription": c.get("subscriptionType") or "",
         }
     except Exception:
@@ -72,13 +41,17 @@ def auth_status():
     web = bool(load_web_token())
     envtok = bool(os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"))
     cli = bool(claude_bin())
+    konto = cred["exists"] and not cred["expired"]
     return {
         "cli": cli,                  # ist Claude Code überhaupt installiert?
         "can_web_login": WEB_LOGIN_OK,
-        "ok": cli and (web or envtok or (cred["exists"] and not cred["expired"])),
-        "web_token": web,            # per Web-Login erzeugter Langzeit-Token
+        "ok": cli and (konto or web or envtok),
+        # Nur die Kontoanmeldung kann Chrome und die claude.ai-Connectors; mit
+        # einem der beiden Tokens läuft der Chat, aber ohne sie.
+        "konto": cli and konto,
+        "web_token": web,            # alter Langzeit-Token aus `claude setup-token`
         "env_token": envtok,         # CLAUDE_CODE_OAUTH_TOKEN aus der Umgebung
-        "credentials": cred,         # Interactive-Login (claudec)
+        "credentials": cred,         # Kontoanmeldung der CLI
     }
 
 
@@ -86,7 +59,7 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|
 
 
 class LoginFlow:
-    """Steuert `claude setup-token` über ein PTY: URL abgreifen, Code einfüttern."""
+    """Steuert `claude auth login` über ein PTY: URL abgreifen, Code einfüttern."""
 
     def __init__(self):
         self.buf = b""
@@ -109,8 +82,9 @@ class LoginFlow:
         env = dict(os.environ)
         env["BROWSER"] = "true"      # `true`-Kommando = No-Op, öffnet keinen Browser
         env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
         self.proc = subprocess.Popen(
-            [claude_bin() or "claude", "setup-token"],
+            [claude_bin() or "claude", "auth", "login", "--claudeai"],
             stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True,
         )
         os.close(slave)
@@ -135,15 +109,6 @@ class LoginFlow:
 
     def url(self):
         m = re.search(r"https://claude\.(?:com|ai)/\S+", self.text())
-        return m.group(0) if m else None
-
-    def token(self):
-        # Escapes hier durch Leerzeichen ersetzen, nicht löschen: die CLI setzt
-        # Wortabstände per Cursor-Sprung (\x1b[1C) — gelöscht klebte der
-        # Folgetext ("Store…") am Token -> 401 "OAuth access token is invalid".
-        with self.lock:
-            raw = self.buf.decode("utf-8", "replace")
-        m = re.search(r"sk-ant-oat[0-9A-Za-z_-]{20,}", ANSI_RE.sub(" ", raw))
         return m.group(0) if m else None
 
     def send_code(self, code: str):
@@ -211,7 +176,10 @@ async def auth_login():
 
 @router.post("/api/auth/code")
 async def auth_code(req: Request):
-    """Nimmt den Code aus dem Browser entgegen und speichert den Langzeit-Token."""
+    """Nimmt den Code aus dem Browser entgegen; die CLI legt die Anmeldung selbst ab.
+
+    Erfolg heißt: ein ANDERES Access-Token als vor dem Code. "loggedIn" allein
+    sagt nichts, das war die alte Anmeldung oft auch schon."""
     body = await req.json()
     code = (body.get("code") or "").strip()
     flow = LOGIN.get("flow")
@@ -220,20 +188,25 @@ async def auth_code(req: Request):
     if not flow or not flow.alive():
         return JSONResponse({"error": "Kein Login aktiv — bitte neu starten."}, status_code=400)
     seen = len(flow.text())
+    vorher = read_creds()[0].get("accessToken")
     flow.send_code(code)
     await asyncio.sleep(0.5)         # Paste erst "ankommen" lassen, dann Enter
     flow.send_enter()
     for _ in range(120):             # bis ~30 s auf Erfolg warten
         await asyncio.sleep(0.25)
-        tok = flow.token()
-        if tok:
-            TOKEN_FILE.write_text(tok + "\n", encoding="utf-8")
-            TOKEN_FILE.chmod(0o600)
-            flow.kill()
-            LOGIN["flow"] = None
-            USAGE_CACHE.update(t=0, pause_bis=0)   # Limits mit neuem Token frisch holen
-            return {"ok": True}
-        if not flow.alive():
+        lebt = flow.alive()
+        if not lebt or re.search(r"success|logged in|signed in", flow.text()[seen:], re.I):
+            c = read_creds()[0]
+            if c.get("accessToken") and c["accessToken"] != vorher and konto_login(c):
+                flow.kill()
+                LOGIN["flow"] = None
+                # Der alte setup-token wird nicht mehr gebraucht — und solange
+                # er da liegt, ginge er weiter an claude, sobald die
+                # Kontoanmeldung einmal nicht greift.
+                TOKEN_FILE.unlink(missing_ok=True)
+                USAGE_CACHE.update(t=0, pause_bis=0)   # Limits mit neuem Login frisch holen
+                return {"ok": True}
+        if not lebt:
             break
         if re.search(r"invalid|failed|error|denied|expired", flow.text()[seen:], re.I):
             break                    # klare Absage der CLI -> nicht sinnlos weiterwarten
@@ -296,7 +269,7 @@ def _refresh_credentials() -> dict:
 def _usage_token() -> str:
     """Frisches Interactive-Token bevorzugen (hat die nötigen Scopes), sonst oat."""
     try:
-        c, src = _read_creds()
+        c, src = read_creds()
         if c.get("accessToken"):
             if (c.get("expiresAt") or 0) / 1000 > time.time() + 60:
                 return c["accessToken"]

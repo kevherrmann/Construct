@@ -12,7 +12,7 @@ import s from './LoginDialog.module.css'
 
 type Msg = { cls: '' | 'ok' | 'bad'; text: string }
 
-// Claude-Login über die Web-UI: `claude setup-token` läuft am Server in einem
+// Claude-Login über die Web-UI: `claude auth login` läuft am Server in einem
 // Pseudo-Terminal; hier nur URL anzeigen und den Code zurückreichen.
 function LoginBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
@@ -57,9 +57,7 @@ function LoginBody({ onClose }: { onClose: () => void }) {
       await submitLoginCode(c)
       setMsg({
         cls: 'ok',
-        text: t(
-          '✅ Angemeldet! CONSTRUCT läuft jetzt mit einem langlebigen Token — kein Terminal-Login mehr nötig.',
-        ),
+        text: t('✅ Angemeldet! Chat, Chrome und Connectors laufen jetzt über dein Claude-Konto.'),
       })
       setDone(true)
       void qc.invalidateQueries({ queryKey: ['auth-status'] })
@@ -73,8 +71,10 @@ function LoginBody({ onClose }: { onClose: () => void }) {
   return (
     <>
       <p style={{ opacity: 0.85 }}>
-        {t(
-          'Meldet Cody bei deiner Claude-Subscription an — direkt hier, ohne Terminal. Es wird ein langlebiger Token erzeugt, der auch nach Ablauf des normalen Logins weiter funktioniert.',
+        {rich(
+          t(
+            'Meldet Cody bei deiner Claude-Subscription an — direkt hier, ohne Terminal. Das ist dieselbe Anmeldung wie <code>claude</code> im Terminal, mit Chrome-Werkzeugen und claude.ai-Connectors.',
+          ),
         )}
       </p>
       {!url && (

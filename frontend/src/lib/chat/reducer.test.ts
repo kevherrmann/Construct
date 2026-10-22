@@ -89,6 +89,13 @@ describe('applyEvent', () => {
     })
   })
 
+  it('ohne Chrome: Hinweis im Zug', () => {
+    const s = run([{ type: 'ohne_chrome' }, { type: 'text', text: 'Hallo' }])
+    expect(bots(s)).toHaveLength(1)
+    expect(bots(s)[0]!.blocks[0]).toMatchObject({ t: 'note' })
+    expect(bots(s)[0]!.blocks[1]).toMatchObject({ t: 'text', text: 'Hallo' })
+  })
+
   it('Denk-Marker steht immer oben und nur einmal', () => {
     const s = run([
       { type: 'text', text: 'x' },

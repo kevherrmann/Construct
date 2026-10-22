@@ -1,7 +1,8 @@
 """Grundlagen (server/core.py) und Einstellungen (config.py)."""
 import json
+import time
 
-from server import config
+from server import config, core
 from server.core import (BASE_DIR, LIMIT_HIT, STREAM_USAGE, VERSION, extract_text, friendly_claude_error,
                          note_rate_limit, sse)
 
@@ -155,3 +156,32 @@ def test_gescheiterte_pruefung_sperrt_die_naechste_nicht(tmp_path, monkeypatch):
             break
         time.sleep(0.02)
     assert not (tmp_path / ".update-stamp").exists()
+
+
+def _konto(monkeypatch, creds, tmp_path, token="sk-ant-oat01-alt"):
+    monkeypatch.setattr(core, "read_creds", lambda: (creds, "keychain"))
+    f = tmp_path / ".oauth-token"
+    f.write_text(token + "\n", encoding="utf-8")
+    monkeypatch.setattr(core, "TOKEN_FILE", f)
+
+
+def test_konto_login_gilt_mit_refresh_token_auch_abgelaufen():
+    alt = int((time.time() - 3600) * 1000)
+    assert core.konto_login({"accessToken": "a", "refreshToken": "r", "expiresAt": alt})
+    assert not core.konto_login({"accessToken": "a", "expiresAt": alt})
+    assert core.konto_login({"accessToken": "a", "expiresAt": int((time.time() + 3600) * 1000)})
+    assert not core.konto_login({})
+
+
+def test_claude_env_ohne_token_solange_die_kontoanmeldung_gilt(tmp_path, monkeypatch):
+    # Mit CLAUDE_CODE_OAUTH_TOKEN lässt `claude --chrome` die Chrome-Werkzeuge
+    # stumm weg — auch einen geerbten darf claude dann nicht sehen.
+    _konto(monkeypatch, {"accessToken": "a", "refreshToken": "r"}, tmp_path)
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-geerbt")
+    assert "CLAUDE_CODE_OAUTH_TOKEN" not in core.claude_env()
+
+
+def test_claude_env_nimmt_den_alten_token_wenn_kein_konto_da_ist(tmp_path, monkeypatch):
+    _konto(monkeypatch, {}, tmp_path)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    assert core.claude_env()["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-alt"

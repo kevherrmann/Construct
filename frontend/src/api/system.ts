@@ -14,6 +14,8 @@ export interface AuthStatus {
   cli: boolean
   can_web_login: boolean
   ok: boolean
+  /** Kontoanmeldung der CLI gilt — nur mit ihr gibt es Chrome und die claude.ai-Connectors. */
+  konto?: boolean
   web_token: boolean
   env_token: boolean
 }

@@ -204,6 +204,17 @@ const applyBlocks = (state: RunState, ev: StreamEvent): RunState =>
         })
         break
       }
+      case 'ohne_chrome': {
+        currentTurn(s).blocks.push({
+          t: 'note',
+          note: {
+            key: tk(
+              '🧩 Chrome-Werkzeuge fehlen in diesem Chat: CONSTRUCT ist nur mit dem alten Langzeit-Token angemeldet, und der kann kein Chrome. Zum Neu-Anmelden /login in den Chat schreiben (oder oben rechts auf 🔑 klicken) — dann ist Chrome wieder da.',
+            ),
+          },
+        })
+        break
+      }
       case 'neuer_zug': {
         s.nachlauf = false
         const turn = currentTurn(s)

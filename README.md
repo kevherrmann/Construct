@@ -153,9 +153,9 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   Hermes home directory, and update behavior.
 - **Usage limits.** Shows your subscription's 5-hour and 7-day usage in the
   header, including the reset time when you hit a limit.
-- **Web login.** Signs in to Claude Code from the UI through `claude setup-token`.
-  This creates a long-lived token, so you don't need a terminal login
-  (Linux/macOS only).
+- **Web login.** Signs in to Claude Code from the UI through `claude auth login`,
+  the same account sign-in as `claude` in a terminal, including Claude in
+  Chrome and the claude.ai connectors (Linux/macOS only).
 - **Auto-updates.** Keeps Claude Code and Hermes up to date in the background at
   startup. CONSTRUCT also updates itself through `git` (fast-forward only)
   before it starts.
@@ -335,7 +335,9 @@ To update by hand, run `git pull --ff-only`, then `./start.sh --update`.
   runs tools and shell commands without asking.** Never expose CONSTRUCT to a
   network without authentication. Put it behind a password or a reverse proxy
   with TLS.
-- The web-login token is stored in `.oauth-token`. API keys and mail
+- Claude Code keeps its own sign-in (`~/.claude`, on macOS the keychain). A
+  `.oauth-token` from older versions is only used while there is no account
+  sign-in, and is deleted on the next web login. API keys and mail
   credentials are stored in `.llm-config.json` and `.mail-accounts.json` with
   mode 600. All of them are gitignored.
 - File serving (`/api/file`) is limited to the workspace and refuses dotfiles.

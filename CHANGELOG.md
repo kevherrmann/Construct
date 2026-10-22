@@ -2,6 +2,22 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.5.1 — 2026-10-22
+
+### Fixed
+- **Claude in Chrome works after a web login.** The 🔑 login used to create a
+  long-lived token with `claude setup-token` and hand it to every Claude Code
+  run. That token can only call models: with it, Claude Code silently left
+  out the Chrome tools and the claude.ai connectors (Docs, Drive, Gmail,
+  Calendar), and nothing said why. The web login now runs `claude auth login`
+  and renews the regular account sign-in, without a terminal. CONSTRUCT no
+  longer passes a token while that sign-in is valid, not even one inherited
+  from the environment. An old `.oauth-token` is only used as a fallback when
+  there is no account sign-in, and the next web login deletes it.
+- **No more silent Chrome failure.** If a chat runs on the old token anyway,
+  the chat says once per session that the Chrome tools are missing and that
+  `/login` fixes it, and the 🔑 chip turns yellow with "NO CHROME".
+
 ## 8.5.0 — 2026-10-21
 
 ### Added

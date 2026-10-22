@@ -4,9 +4,6 @@
   " — wirkt nur mit Claude Code. Die Chat-Modelle (ChatGPT, Gemini …) haben keinen Zugriff auf Dateien.": " — only works with Claude Code. The chat models (ChatGPT, Gemini …) have no file access.",
   " · mit Werkzeugen": " · with tools",
   " · Werkzeuge unbestätigt": " · tools unconfirmed",
-  " (claudec-Login)": " (claudec login)",
-  " (Server-Token)": " (server token)",
-  " (Web-Login-Token)": " (web login token)",
   "_↪ Die bisherige Hermes-Sitzung ließ sich nicht fortsetzen — neue Sitzung, bisheriger Verlauf als Kontext übernommen._": "_↪ The previous Hermes session couldn't be resumed — new session, previous history carried over as context._",
   "_↪ Modellwechsel: neue Sitzung, bisheriger Verlauf als Kontext übernommen._": "_↪ Model switch: new session, previous history carried over as context._",
   "---------- Weitergeleitete Nachricht ----------": "---------- Forwarded message ----------",
@@ -154,7 +151,6 @@
   "⛔ Limit — bis": "⛔ Limit — until",
   "⛔ Limit — bis {t}": "⛔ Limit — until {t}",
   "⛔ Nutzungs-Limit der Subscription erreicht — geht um": "⛔ Subscription usage limit reached — continues at",
-  "✅ Angemeldet! CONSTRUCT läuft jetzt mit einem langlebigen Token — kein Terminal-Login mehr nötig.": "✅ Signed in! CONSTRUCT now runs with a long-lived token — no terminal login needed anymore.",
   "✅ Cody ist fertig": "✅ Cody is done",
   "✅ funktioniert —": "✅ works —",
   "✅ funktioniert — {n} Mails im Posteingang": "✅ works — {n} mails in the inbox",
@@ -782,7 +778,6 @@
   "MCP": "MCP",
   "MCP-Server für Claude Code. Hermes nutzt diese Liste nicht.": "MCP servers for Claude Code. Hermes does not use this list.",
   "Melden, wenn ein langer Lauf fertig ist": "Notify when a long run finishes",
-  "Meldet Cody bei deiner Claude-Subscription an — direkt hier, ohne Terminal. Es wird ein langlebiger Token erzeugt, der auch nach Ablauf des normalen Logins weiter funktioniert.": "Signs Cody in to your Claude subscription — right here, no terminal needed. This creates a long-lived token that keeps working after the normal login expires.",
   "Meta Llama 3.1 — bewährter 8B-Standard": "Meta Llama 3.1 — proven 8B standard",
   "Microsoft erlaubt kein Passwort-IMAP mehr — einfach auf MICROSOFT-LOGIN klicken und den angezeigten Code auf der Microsoft-Seite eingeben.": "Microsoft no longer allows password IMAP — just click MICROSOFT LOGIN and enter the displayed code on the Microsoft page.",
   "Microsoft Phi-4 — stark in Logik & Mathe für seine Größe": "Microsoft Phi-4 — strong at logic & math for its size",
@@ -1141,5 +1136,10 @@
   "Zur Chat-Ansicht": "Back to chat view",
   "zurück": "back",
   "Zurück in den Raum": "Back to the room",
-  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history."
+  "Zurückspulen ging hier nicht — Cody kennt die vorige Fassung noch und antwortet im selben Verlauf.": "Couldn't rewind here — Cody still knows the previous version and replies in the same history.",
+  "✅ Angemeldet! Chat, Chrome und Connectors laufen jetzt über dein Claude-Konto.": "✅ Signed in! Chat, Chrome and connectors now run through your Claude account.",
+  "Meldet Cody bei deiner Claude-Subscription an — direkt hier, ohne Terminal. Das ist dieselbe Anmeldung wie <code>claude</code> im Terminal, mit Chrome-Werkzeugen und claude.ai-Connectors.": "Signs Cody in to your Claude subscription — right here, no terminal needed. It is the same sign-in as <code>claude</code> in the terminal, including the Chrome tools and claude.ai connectors.",
+  "🔑 OHNE CHROME": "🔑 NO CHROME",
+  "Nur mit Langzeit-Token angemeldet — Chrome-Werkzeuge und claude.ai-Connectors fehlen. Klicken und neu anmelden.": "Signed in with a long-lived token only — Chrome tools and claude.ai connectors are missing. Click to sign in again.",
+  "🧩 Chrome-Werkzeuge fehlen in diesem Chat: CONSTRUCT ist nur mit dem alten Langzeit-Token angemeldet, und der kann kein Chrome. Zum Neu-Anmelden /login in den Chat schreiben (oder oben rechts auf 🔑 klicken) — dann ist Chrome wieder da.": "🧩 Chrome tools are missing in this chat: CONSTRUCT is signed in with the old long-lived token only, and that one can't do Chrome. To sign in again, type /login in the chat (or click 🔑 at the top right) — then Chrome is back."
 }
