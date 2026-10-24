@@ -34,17 +34,16 @@ def _jahr(j: str) -> int:
     return n
 
 
-def datum(text: str, heute: date | None = None) -> str | None:
-    """Erstes plausibles Datum (ISO) im Kopf des Textes oder None."""
-    heute = heute or date.today()
-    kopf = text[:KOPF]
+def _gueltige(stueck: str, heute: date) -> list[str]:
+    """Alle plausiblen Daten in stueck (ISO), in Textreihenfolge."""
     funde = []
-    for m in _ZAHL.finditer(kopf):
+    for m in _ZAHL.finditer(stueck):
         funde.append((m.start(), int(m.group(1)), int(m.group(2)), _jahr(m.group(3))))
-    for m in _WORT.finditer(kopf):
+    for m in _WORT.finditer(stueck):
         funde.append((m.start(), int(m.group(1)), MONATE[m.group(2).lower()], int(m.group(3))))
-    for m in _ISO.finditer(kopf):
+    for m in _ISO.finditer(stueck):
         funde.append((m.start(), int(m.group(3)), int(m.group(2)), int(m.group(1))))
+    raus = []
     for _, t, mo, j in sorted(funde):
         try:
             d = date(j, mo, t)
@@ -53,7 +52,48 @@ def datum(text: str, heute: date | None = None) -> str | None:
         # Geburtsdaten und Druckvermerke ("Fassung Juli 2016") sind älter als
         # das Schreiben, Fälligkeiten liegen in der Zukunft: beides kein Briefdatum.
         if date(1970, 1, 1) <= d <= heute:
-            return d.isoformat()
+            raus.append(d.isoformat())
+    return raus
+
+
+# "Lengerich, 13.04.2017" / "Mettingen, den 4. Oktober 2024": so datiert man
+# Briefe und unterschreibt Verträge. Verträge haben oft kein Datum im Kopf,
+# dort stehen nur Zinsbeginn und Laufzeit, und die wären das falsche Datum.
+_ORT_DATUM = re.compile(
+    r"(?<![\w-])[A-ZÄÖÜ][a-zäöüß]+(?:[ -][A-ZÄÖÜ][a-zäöüß]+)?,\s*(?:den\s+)?"
+    r"(\d{1,2}\.\s?(?:\d{1,2}\.\s?\d{2,4}|(?i:" + "|".join(MONATE) + r")\s+\d{4}))")
+
+
+def datum(text: str, heute: date | None = None) -> str | None:
+    """Datum des Schreibens (ISO) oder None: zuerst „Ort, Datum“ irgendwo im
+    Text, sonst das erste plausible Datum im Kopf."""
+    heute = heute or date.today()
+    for m in _ORT_DATUM.finditer(text):
+        d = _gueltige(m.group(1), heute)
+        if d:
+            return d[0]
+    d = _gueltige(text[:KOPF], heute)
+    return d[0] if d else None
+
+
+_ART = ("vereinbarung|bescheid|rechnung|vertrag|abrechnung|mitteilung|bestätigung|angebot|kontoauszug|"
+        "erklärung|kündigung|mahnung|police|bescheinigung|nachweis|antrag|tilgungsplan|sparplan")
+# Davor darf eine Ziffer kleben: die Texterkennung zieht Briefkopf-Nummern
+# gern an das erste Wort ("DE125501924Anschlusszinsvereinbarung").
+_TITEL = re.compile(r"(?<![A-Za-zÄÖÜäöüß-])([a-zäöüß]*(?:" + _ART + r"))(?![\w-])"
+                    r"(?:\s+(?:für\s+|über\s+)?((?:19|20)\d\d(?:\s*/\s*(?:19|20)?\d\d)?)(?!\d))?", re.I)
+
+
+def titel(text: str) -> str | None:
+    """Titelvorschlag aus dem Kopf: das erste Wort, das sagt, was das Papier
+    ist (Anschlusszinsvereinbarung, Einkommensteuerbescheid 2022, …)."""
+    for m in _TITEL.finditer(text[:KOPF]):
+        wort = m.group(1)
+        if wort.isupper():
+            wort = wort.capitalize()
+        elif not wort[0].isupper():
+            continue        # klein geschrieben: kein Substantiv am Zeilenanfang, Fließtext
+        return f"{wort} {re.sub(r'\s+', '', m.group(2))}" if m.group(2) else wort
     return None
 
 

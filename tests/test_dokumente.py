@@ -71,6 +71,21 @@ def test_datum_zukunft_und_unsinn_zaehlen_nicht():
     assert erkennen.datum("kein Datum hier", date(2026, 1, 1)) is None
 
 
+def test_datum_ort_und_datum_schlaegt_zinsbeginn():
+    t = "Anschlusszinsvereinbarung\nAb 01.01.2019 ist das Darlehen zu verzinsen.\n" + "x " * 2000 + \
+        "\nOrt, Datum\nLengerich, 13.04.2017\nUnterschrift"
+    assert erkennen.datum(t, date(2026, 10, 24)) == "2017-04-13"
+    assert erkennen.datum("Mettingen, den 4. Oktober 2024\nBescheid", date(2026, 1, 1)) == "2024-10-04"
+
+
+def test_titelvorschlag():
+    assert erkennen.titel("Ust-IDNr. DE125501924Anschlusszinsvereinbarung\n(Ergänzung des "
+                          "Immobiliar-Verbraucherdarlehensvertrags)") == "Anschlusszinsvereinbarung"
+    assert erkennen.titel("Finanzamt\nEinkommensteuerbescheid für 2022\n") == "Einkommensteuerbescheid 2022"
+    assert erkennen.titel("GEBÜHRENRECHNUNG\nRechnungsnummer") == "Gebührenrechnung"
+    assert erkennen.titel("die Steuerbescheide wurden erteilt") is None
+
+
 # ---------- Ablage ----------
 
 def test_neu_lesen_ablegen(daten):
@@ -121,6 +136,23 @@ def test_suche_findet_inhalt_titel_absender(daten):
     assert [x["id"] for x in ablage.liste(q="bahnhofstr 76")["dokumente"]] == [d["id"]]
     assert ablage.liste(q='"; DROP TABLE dokumente; --')["gesamt"] == 0          # keine FTS-Syntax
     assert ablage.liste(jahr="2023")["gesamt"] == 1
+
+
+def test_scan_titel_wird_ersetzt_echter_nicht(daten):
+    a = ablage.neu(pdf_mit_text(daten / "a.pdf", ["Kontoauszug 2023", "Sparkasse"]), titel="Scan 24.10.2026 23:43")
+    b = ablage.neu(pdf_mit_text(daten / "b.pdf", ["Kontoauszug 2023"]), titel="Mein Titel")
+    c = ablage.neu(pdf_mit_text(daten / "c.pdf", ["Kontoauszug"]), titel="Scan 24.10.2026 23:43 (Teil 2)")
+    ablage.jetzt_lesen_alle()
+    assert ablage.dokument(a["id"])["titel"] == "Kontoauszug 2023"
+    assert ablage.dokument(b["id"])["titel"] == "Mein Titel"
+    assert ablage.dokument(c["id"])["titel"] == "Kontoauszug (Teil 2)"
+
+
+def test_nummern_werden_nicht_wiederverwendet(daten):
+    a = aufnehmen(daten, "A", ["eins"])
+    ablage.loeschen(a["id"])
+    b = aufnehmen(daten, "B", ["zwei"])
+    assert b["id"] == a["id"] + 1
 
 
 def test_loeschen_legt_in_papierkorb(daten):

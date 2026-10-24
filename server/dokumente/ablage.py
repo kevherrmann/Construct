@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS dok_tags (
   dok_id INTEGER NOT NULL REFERENCES dokumente(id) ON DELETE CASCADE,
   tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   PRIMARY KEY (dok_id, tag_id));
+CREATE TABLE IF NOT EXISTS zaehler (name TEXT PRIMARY KEY, wert INTEGER NOT NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS suche USING fts5(
   titel, absender, text, tokenize = 'unicode61 remove_diacritics 2');
 """
@@ -468,8 +469,15 @@ def neu(pdf: Path, titel: str = "", quelle: str = "", vorschau_bild=None) -> dic
     """Nimmt ein PDF auf (wird verschoben) und stellt es zum Lesen an."""
     jetzt = _jetzt()
     with db() as c:
-        id_ = c.execute("INSERT INTO dokumente (titel, quelle, hinzugefuegt, geaendert) VALUES (?, ?, ?, ?)",
-                        (titel[:TITEL_MAX], quelle[:40], jetzt, jetzt)).lastrowid
+        # Nummern nie wiederverwenden: SQLite gäbe nach dem Löschen des letzten
+        # Dokuments dessen Nummer neu aus, und „Dokument 34“ im Chat oder im
+        # Papierkorb meinte dann ein anderes Papier.
+        z = c.execute("SELECT wert FROM zaehler WHERE name = 'dokument'").fetchone()
+        id_ = max(c.execute("SELECT COALESCE(MAX(id), 0) FROM dokumente").fetchone()[0], z[0] if z else 0) + 1
+        c.execute("INSERT INTO dokumente (id, titel, quelle, hinzugefuegt, geaendert) VALUES (?, ?, ?, ?, ?)",
+                  (id_, titel[:TITEL_MAX], quelle[:40], jetzt, jetzt))
+        c.execute("INSERT INTO zaehler (name, wert) VALUES ('dokument', ?) "
+                  "ON CONFLICT(name) DO UPDATE SET wert = excluded.wert", (id_,))
     roh = DATEN / "verarbeitung" / f"{id_}.pdf"
     roh.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(pdf, roh)
@@ -574,9 +582,14 @@ def _lesen(id_: int, roh: Path) -> None:
         c.execute(
             "UPDATE dokumente SET text = ?, seiten = ?, sha256 = ?, hinweis = ?, zustand = 'fertig', "
             "datum = COALESCE(datum, ?), absender_id = COALESCE(absender_id, ?), typ_id = COALESCE(typ_id, ?), "
+            # Nur den Platzhalter vom Scannen ersetzen, nie einen echten Titel oder Warnhinweis
+            "titel = CASE WHEN ? IS NOT NULL AND (titel = '' OR (titel LIKE 'Scan __.__.____ %' "
+            "AND titel NOT LIKE '%bitte prüfen%')) THEN ? || CASE WHEN instr(titel, ' (Teil') > 0 "
+            "THEN substr(titel, instr(titel, ' (Teil')) ELSE '' END "
+            "ELSE titel END, "
             "datei = ?, geaendert = ? WHERE id = ?",
             (text, seiten, sha, hinweis, erkennen.datum(text), vorschlag["absender"], vorschlag["typ"],
-             f"verarbeitung/{id_}.ocr.pdf", _jetzt(), id_))
+             vorschlag["titel"], vorschlag["titel"], f"verarbeitung/{id_}.ocr.pdf", _jetzt(), id_))
         if d.get("eingang"):
             c.executemany("INSERT OR IGNORE INTO dok_tags (dok_id, tag_id) VALUES (?, ?)",
                           [(id_, t) for t in vorschlag["tags"]])
@@ -600,6 +613,7 @@ def vorschlagen(text: str) -> dict:
         alle_tags = [r[0] for r in c.execute("SELECT id FROM tags")]
     wort = {r["id"]: erkennen.woerter(r["text"]) for r in bestaetigt}
     return {
+        "titel": erkennen.titel(text),
         "absender": erkennen.absender(text, ws, [(wort[r["id"]], r["absender_id"]) for r in bestaetigt
                                                  if r["absender_id"]], namen_a),
         "typ": erkennen.Bayes([(wort[r["id"]], r["typ_id"]) for r in bestaetigt if r["typ_id"]]).bestes(ws),
