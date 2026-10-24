@@ -2,6 +2,18 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.7.0 — 2026-10-24
+
+### Added
+- **The computer stays awake while the assistant works.** A long task used to
+  stop halfway when the power settings switched off the screen and sent the
+  computer to sleep because nobody touched the mouse. While any run is active
+  (chat, team, scheduled task), CONSTRUCT now holds a lock: on KDE with
+  `kde-inhibit` (screen, lock and standby, shown as "<name> arbeitet" in the
+  battery icon), on other Linux desktops with `systemd-inhibit` (standby), on
+  macOS with `caffeinate`. The lock ends with the run, and with the server.
+  Turn it off with `CODY_WACH_HALTEN=0`.
+
 ## 8.6.0 — 2026-10-22
 
 ### Added

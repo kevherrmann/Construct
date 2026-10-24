@@ -24,6 +24,7 @@ from server import tts_lokal as ttslokal
 from server import updates as updmod
 from server import runs as runsmod
 from server import uploads_gc
+from server import wachhalten
 
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host,
@@ -37,6 +38,7 @@ from server.routes import auth, calendar, chat, files, mail, providers, sessions
 async def lifespan(_app: FastAPI):
     """Start und Stopp des Servers (Tests ohne `with TestClient(...)` lösen das nicht aus)."""
     asyncio.create_task(scheduler_loop())
+    asyncio.create_task(wachhalten.wach_loop())   # Monitor/Standby aus, solange ein Lauf arbeitet
     # Läufe, die der vorige Server mitten im Zug zurückgelassen hat
     runsmod.aufnehmen()
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
@@ -55,6 +57,7 @@ async def lifespan(_app: FastAPI):
         engine.starten()      # offene Aufträge nach einem Neustart wieder aufnehmen
     yield
     engine.stoppen()
+    wachhalten.aus()
     ttslokal.stop()    # sonst hielte die lokale Stimme die GPU, obwohl CONSTRUCT weg ist
     tgmod.stop()
 
