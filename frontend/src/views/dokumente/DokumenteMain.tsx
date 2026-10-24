@@ -10,6 +10,7 @@ import {
 } from '@/api/dokumente'
 import { DokumentDetail } from './DokumentDetail'
 import { ScanDialog } from './ScanDialog'
+import { SicherungDialog } from './SicherungDialog'
 import { datum } from './format'
 import { useDokumenteAnsicht } from './store'
 import s from './Dokumente.module.css'
@@ -54,7 +55,17 @@ function Zeile({ d, onOpen }: { d: Dok; onOpen: () => void }) {
 // Hauptbereich: Suche und Liste, oder das geöffnete Dokument.
 export function DokumenteMain() {
   const { t } = useTranslation()
-  const { filter, setFilter, bereich, offen, oeffne, scannen, setScannen } = useDokumenteAnsicht()
+  const {
+    filter,
+    setFilter,
+    bereich,
+    offen,
+    oeffne,
+    scannen,
+    setScannen,
+    sicherung,
+    setSicherung,
+  } = useDokumenteAnsicht()
   const { data: u } = useUebersicht()
   const { data, isPending } = useDokumente(filter)
   const absender = useNamen('absender').data ?? []
@@ -173,6 +184,7 @@ export function DokumenteMain() {
         </>
       )}
       <ScanDialog open={scannen} onClose={() => setScannen(false)} />
+      <SicherungDialog open={sicherung} onClose={() => setSicherung(false)} />
     </div>
   )
 }

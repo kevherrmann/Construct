@@ -74,6 +74,44 @@ export interface ScanStand {
   hinten: number
 }
 
+export interface SicherungZiel {
+  an: boolean
+  letzte: string
+  fehler: string
+  ergebnis: string
+  aktuell: boolean
+}
+
+export interface SicherungStand {
+  ordner: string
+  server: { host?: string; benutzer?: string; port?: number; ordner?: string; schluessel?: string }
+  kennwort: boolean
+  ziele: { ordner: SicherungZiel; server: SicherungZiel }
+  eingerichtet: boolean
+  laeuft: boolean
+}
+
+export interface SicherungEinstellung {
+  ordner?: string
+  server?: { host: string; benutzer: string; port: number; ordner: string; schluessel: string }
+  kennwort?: string
+}
+
+export interface ProbeErgebnis {
+  dateien: number
+  fehlt: string[]
+  fehlt_anzahl: number
+  dokumente: number
+  dokumente_soll: number
+}
+
+export const useSicherung = () =>
+  useQuery({
+    queryKey: ['dokumente', 'sicherung'],
+    queryFn: () => apiGet<SicherungStand>(`${B}/sicherung`),
+    refetchInterval: (q) => (q.state.data?.laeuft ? 3000 : 60_000),
+  })
+
 export const dateiUrl = (id: number, download = false) =>
   `${B}/${id}/datei${download ? '?download=1' : ''}`
 export const vorschauUrl = (d: Pick<Dok, 'id' | 'geaendert' | 'zustand'>) =>
@@ -178,6 +216,13 @@ export function useDokumenteAktionen() {
       }),
     ),
     scanAbbrechen: useAktion((sid: string) => apiDelete<{ ok: boolean }>(`${B}/scan/${sid}`)),
+    sicherungEinrichten: useAktion((v: SicherungEinstellung) =>
+      apiPost<SicherungStand>(`${B}/sicherung`, v),
+    ),
+    sicherungJetzt: useAktion(() => apiPost<SicherungStand>(`${B}/sicherung/jetzt`, {})),
+    sicherungPruefen: useAktion((ziel: 'ordner' | 'server') =>
+      apiPost<ProbeErgebnis>(`${B}/sicherung/pruefen`, { ziel }),
+    ),
     umbenennen: useAktion(
       (v: { tabelle: 'absender' | 'typen' | 'tags'; id: number; name: string }) =>
         apiPost<{ ok: boolean }>(`${B}/namen/${v.tabelle}/${v.id}`, { name: v.name }),

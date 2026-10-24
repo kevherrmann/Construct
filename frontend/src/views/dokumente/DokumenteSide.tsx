@@ -1,7 +1,14 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDokumenteAktionen, useNamen, useUebersicht, type Filter } from '@/api/dokumente'
+import {
+  useDokumenteAktionen,
+  useNamen,
+  useSicherung,
+  useUebersicht,
+  type Filter,
+} from '@/api/dokumente'
 import { useUi } from '@/stores/ui'
+import { zeitpunkt } from './format'
 import { useDokumenteAnsicht } from './store'
 import s from './Dokumente.module.css'
 
@@ -12,7 +19,8 @@ const FELD: Record<Liste, keyof Filter> = { absender: 'absender', typen: 'typ', 
 export function DokumenteSide() {
   const { t } = useTranslation()
   const { data: u } = useUebersicht()
-  const { filter, bereich, setScannen } = useDokumenteAnsicht()
+  const { filter, bereich, setScannen, setSicherung } = useDokumenteAnsicht()
+  const sich = useSicherung().data
   const zu = useUi((st) => st.setSideOpen)
   const act = useDokumenteAktionen()
   const datei = useRef<HTMLInputElement>(null)
@@ -118,6 +126,30 @@ export function DokumenteSide() {
       {gruppe('absender', t('Absender'), absender)}
       {gruppe('typen', t('Typen'), typen)}
       {gruppe('tags', t('Tags'), tags)}
+      {sich && u && u.gesamt > 0 && (
+        <button
+          type="button"
+          className={`${s.sicherung} ${
+            !sich.eingerichtet || Object.values(sich.ziele).some((z) => z.an && z.fehler)
+              ? s.warnText
+              : ''
+          }`}
+          onClick={() => (setSicherung(true), zu(false))}
+        >
+          {!sich.eingerichtet
+            ? `⚠ ${t('Keine Sicherung eingerichtet')}`
+            : Object.values(sich.ziele).some((z) => z.an && z.fehler)
+              ? `⚠ ${t('Sicherung fehlgeschlagen')}`
+              : `🛟 ${t('Gesichert')}: ${
+                  zeitpunkt(
+                    [sich.ziele.ordner.letzte, sich.ziele.server.letzte]
+                      .filter(Boolean)
+                      .sort()
+                      .pop() ?? '',
+                  ) || t('noch nicht')
+                }`}
+        </button>
+      )}
       {u && u.lesen > 0 && (
         <div className={s.stand}>⏳ {t('{n} werden gerade gelesen', { n: u.lesen })}</div>
       )}

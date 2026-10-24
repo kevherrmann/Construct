@@ -29,6 +29,14 @@ All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://
     (pages `1-2, 3, 4-6`). Photos and PDFs can also be uploaded or dragged in.
   - **The assistant** can search, read and sort through `doku.py`; it only
     reads the documents a question needs.
+  - **Backup**, so the paper can go: to a folder (external disk, USB, NAS)
+    as a plain mirror readable without CONSTRUCT, and/or to any server via
+    SFTP, encrypted with a password of your choice (AES-256-GCM). Runs by
+    itself once things have settled after a change, only uploads what is new,
+    and checks the server copy right away. "Test" restores a backup into an
+    empty folder and compares every file. A missing disk or a failed upload
+    shows in red in the sidebar, and the assistant mentions it too.
+    `doku.py restore --from ordner|server --to DIR` brings everything back.
   - `scripts/dokumente_aus_paperless.py` moves an existing Paperless-ngx
     archive over, with titles, dates, senders, types and tags.
 

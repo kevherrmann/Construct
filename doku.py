@@ -8,6 +8,9 @@
                  --type Bescheid --tags Steuer,Haus --done
   doku.py split 12 "1-2, 3, 4-6"          in mehrere Dokumente aufteilen
   doku.py names                         Absender, Typen, Tags mit Anzahl
+  doku.py backup [--status]             jetzt sichern (oder nur Zustand zeigen)
+  doku.py backup-check ordner|server    Probe: zurückholen und vergleichen
+  doku.py restore --from ordner|server --to DIR   Ablage aus der Sicherung holen
   doku.py wait                          warten, bis alles gelesen ist
 """
 import argparse
@@ -61,6 +64,13 @@ def main(argv=None) -> int:
     sp.add_argument("id", type=int)
     sp.add_argument("seiten")
     sub.add_parser("names")
+    b = sub.add_parser("backup")
+    b.add_argument("--status", action="store_true")
+    bc = sub.add_parser("backup-check")
+    bc.add_argument("ziel", choices=("ordner", "server"))
+    rs = sub.add_parser("restore")
+    rs.add_argument("--from", dest="quelle", required=True, choices=("ordner", "server"))
+    rs.add_argument("--to", dest="ziel", required=True)
     w = sub.add_parser("wait")
     w.add_argument("--timeout", type=int, default=600)
     a = p.parse_args(argv)
@@ -100,6 +110,31 @@ def main(argv=None) -> int:
                 print(zeile(d))
             ablage.HINTERGRUND = False
             ablage.jetzt_lesen_alle()
+        elif a.cmd in ("backup", "backup-check", "restore"):
+            from server.dokumente import sicherung
+            from server.sicherung import Fehler as SFehler
+            try:
+                if a.cmd == "backup":
+                    s = sicherung.stand() if a.status else sicherung.sichern()
+                    for z, v in s["ziele"].items():
+                        if v["an"]:
+                            print(f"{z}: letzte {v['letzte'] or 'nie'}  {'aktuell' if v['aktuell'] else ''}  "
+                                  f"{v['ergebnis']}  {('FEHLER: ' + v['fehler']) if v['fehler'] else ''}")
+                    if not s["eingerichtet"]:
+                        print("Keine Sicherung eingerichtet.")
+                elif a.cmd == "backup-check":
+                    r = sicherung.pruefen(a.ziel)
+                    print(f"{r['dateien']} Dateien geprüft, {r['fehlt_anzahl']} fehlen oder weichen ab; "
+                          f"Dokumente in der Sicherung: {r['dokumente']} von {r['dokumente_soll']}")
+                    for f in r["fehlt"]:
+                        print("  fehlt:", f)
+                    return 1 if r["fehlt_anzahl"] or r["dokumente"] != r["dokumente_soll"] else 0
+                else:
+                    r = sicherung.wiederherstellen(a.quelle, Path(a.ziel))
+                    print(f"{r['dateien']} Dateien nach {r['ziel']} zurückgeholt")
+            except SFehler as e:
+                print(f"Fehler: {e}", file=sys.stderr)
+                return 1
         elif a.cmd == "names":
             for tab, titel in (("absender", "Absender"), ("typen", "Typen"), ("tags", "Tags")):
                 print(f"{titel}: " + ", ".join(f"{n['name']} ({n['anzahl']})" for n in ablage.namen(tab)))

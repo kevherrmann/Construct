@@ -1,4 +1,4 @@
-import { datum, tagsDazu } from './format'
+import { datum, tagsDazu, zeitpunkt } from './format'
 
 it('datum: ISO wird deutsch, leer bleibt leer', () => {
   expect(datum('2023-01-23')).toBe('23.01.2023')
@@ -13,4 +13,9 @@ it('tagsDazu: Komma trennt, Doppelte ohne Groß/klein fallen weg', () => {
     'Bahnhofstraße 76',
   ])
   expect(tagsDazu([], ' , ')).toEqual([])
+})
+
+it('zeitpunkt: Datum und Uhrzeit', () => {
+  expect(zeitpunkt('2026-10-25T00:18:43')).toBe('25.10.2026 00:18')
+  expect(zeitpunkt('')).toBe('')
 })

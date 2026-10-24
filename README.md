@@ -112,7 +112,8 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   letters and contracts, text recognition with OCRmyPDF, an inbox that suggests
   date, sender, type and tags learned from what you confirmed, full-text search
   and plain PDFs in `dokumente/dateien/YEAR/SENDER/`. The assistant searches and
-  sorts through `doku.py`. Off by default (⚙ Settings → Tiles); text
+  sorts through `doku.py`. Backup to a folder and/or encrypted to any SFTP
+  server, with a restore test. Off by default (⚙ Settings → Tiles); text
   recognition needs `ocrmypdf` plus Tesseract language packs.
 - **Team mode (optional).** A company of AI employees next to the single
   assistant: staff files (character, model, effort, tools, permissions, memory),

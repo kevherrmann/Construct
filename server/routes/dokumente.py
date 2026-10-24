@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from server import config as cfg
-from server.dokumente import ablage, ocr, scanner
+from server.dokumente import ablage, ocr, scanner, sicherung
+from server.sicherung import Fehler as SicherungsFehler
 
 DATEI_MAX = 60 * 1024 * 1024
 BILDER = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff"}
@@ -167,6 +168,38 @@ def scan_seite(sid: str, seite: str, n: int):
                         headers={"Cache-Control": "no-store"})
     except KeyError:
         raise HTTPException(status_code=404)
+
+
+# ---------- Sicherung ----------
+
+@router.get("/sicherung")
+def sicherung_stand():
+    return sicherung.stand()
+
+
+@router.post("/sicherung")
+async def sicherung_einrichten(req: Request):
+    try:
+        return sicherung.einrichten(await _body(req))
+    except SicherungsFehler as e:
+        return _fehler(e)
+
+
+@router.post("/sicherung/jetzt")
+async def sicherung_jetzt():
+    try:
+        return await asyncio.to_thread(sicherung.sichern)
+    except SicherungsFehler as e:
+        return _fehler(e)
+
+
+@router.post("/sicherung/pruefen")
+async def sicherung_pruefen(req: Request):
+    b = await _body(req)
+    try:
+        return await asyncio.to_thread(sicherung.pruefen, str(b.get("ziel") or ""))
+    except (SicherungsFehler, OSError) as e:
+        return _fehler(ablage.Fehler(str(e)))
 
 
 # ---------- Einzelnes Dokument (zuletzt: /{id_} würde sonst /scan und /hochladen schlucken) ----------

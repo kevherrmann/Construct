@@ -7,3 +7,5 @@ pyserial
 pypdf
 pillow
 pillow-heif
+# Verschlüsselt Sicherungen, die auf einen Server gehen (Dokumente)
+cryptography

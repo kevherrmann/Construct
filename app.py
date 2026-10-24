@@ -30,6 +30,7 @@ from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host,
                          frischer_systemprompt, load_persona, remember_server)
 from server.dokumente import ablage as dok_ablage
+from server.dokumente import sicherung as dok_sicherung
 from server.scheduler import scheduler_loop
 from server.team import engine
 from server.routes import (auth, calendar, chat, dokumente, files, mail, providers, sessions, system,
@@ -45,6 +46,7 @@ async def lifespan(_app: FastAPI):
     runsmod.aufnehmen()
     # Dokumente, die beim Beenden noch gelesen wurden
     dok_ablage.wieder_anstellen()
+    asyncio.create_task(dok_sicherung.schleife())   # Dokumente sichern, wenn sich etwas geändert hat
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
                persona=load_persona, workspace=WORKSPACE, frisch=frischer_systemprompt)
     tgmod.restart()
