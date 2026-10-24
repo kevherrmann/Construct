@@ -26,6 +26,12 @@ const TicketsMain = lazy(() =>
 const TicketsSide = lazy(() =>
   import('./tickets/TicketsSide').then((m) => ({ default: m.TicketsSide })),
 )
+const DokumenteMain = lazy(() =>
+  import('./dokumente/DokumenteMain').then((m) => ({ default: m.DokumenteMain })),
+)
+const DokumenteSide = lazy(() =>
+  import('./dokumente/DokumenteSide').then((m) => ({ default: m.DokumenteSide })),
+)
 const PersonalMain = lazy(() =>
   import('./personal/PersonalMain').then((m) => ({ default: m.PersonalMain })),
 )
@@ -40,7 +46,15 @@ const SettingsSide = lazy(() =>
 )
 
 export type ViewKey =
-  'chat' | 'tickets' | 'personal' | 'skills' | 'calendar' | 'mail' | 'mcp' | 'settings'
+  | 'chat'
+  | 'tickets'
+  | 'personal'
+  | 'skills'
+  | 'calendar'
+  | 'mail'
+  | 'dokumente'
+  | 'mcp'
+  | 'settings'
 
 export interface ViewDef {
   key: ViewKey
@@ -93,6 +107,14 @@ export const VIEWS: ViewDef[] = [
     Main: CalendarMain,
   },
   { key: 'mail', icon: '📧', label: 'E-Mails', tile: 'mail', Side: MailSide, Main: MailMain },
+  {
+    key: 'dokumente',
+    icon: '🗂',
+    label: 'Dokumente',
+    tile: 'dokumente',
+    Side: DokumenteSide,
+    Main: DokumenteMain,
+  },
   { key: 'mcp', icon: '🔌', label: 'MCP', tile: 'mcp', Side: McpSide, Main: McpMain },
   { key: 'settings', icon: '⚙', label: 'Einstellungen', Side: SettingsSide, Main: SettingsMain },
 ]

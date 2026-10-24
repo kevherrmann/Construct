@@ -34,9 +34,11 @@ def test_eigene_soul_bleibt_unangetastet(home):
 
 
 def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
-    # Unabhängig davon, ob auf diesem Rechner ein fal-Key liegt (Bild-Hinweis).
+    # Unabhängig davon, ob auf diesem Rechner ein fal-Key liegt (Bild-Hinweis)
+    # oder die Dokumente eingeschaltet sind.
     from server import images
     monkeypatch.setattr(images, "context_block", lambda: "")
+    monkeypatch.setattr(core, "dokumente_text", lambda: "")
     monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
     sent = hermes.with_context("Was steht an?")
     assert "Zahnarzt" in sent and sent.startswith("Was steht an?")
@@ -49,6 +51,7 @@ def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
 def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
     from server import images
     monkeypatch.setattr(images, "context_block", lambda: "## Bilder erzeugen\n…")
+    monkeypatch.setattr(core, "dokumente_text", lambda: "")
     monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
     lokal = hermes.with_context("Sag nur: eins", lokal=True)
     assert lokal.startswith(hermes.CTX_OPEN) and lokal.endswith("Sag nur: eins")

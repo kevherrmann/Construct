@@ -9,6 +9,7 @@ it('jede Ansicht kommt genau einmal vor, in der Reihenfolge des Menüs', () => {
     'skills',
     'calendar',
     'mail',
+    'dokumente',
     'mcp',
     'settings',
   ])

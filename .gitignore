@@ -39,6 +39,9 @@ sessions_meta.json
 # Die Firma (Team-Modus): Belegschaft, Aufträge, Anleitungen dieser Installation.
 # Verankert: ein künftiger Quellordner namens firma/ (etwa unter frontend/) bliebe sonst still draußen.
 /firma/
+# Dokumente-Ablage: gescannte Briefe, Bescheide, Verträge. Verankert wie /firma/,
+# sonst fiele server/dokumente/ (der Code) mit heraus.
+/dokumente/
 scripts/pruefstand/firma/
 scripts/pruefstand/arbeit/
 # Läufe und eigene Fallsammlungen des Prüfstands gehören dem, der misst — sie nennen

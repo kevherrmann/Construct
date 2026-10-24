@@ -79,6 +79,14 @@ const tileList = (t: TFunction): { k: Tile; i: string; label: string; d: string 
     label: t('MCP'),
     d: t('Zeigt konfigurierte MCP-Server. Nur mit Claude Code sinnvoll.'),
   },
+  {
+    k: 'dokumente',
+    i: '🗂',
+    label: t('Dokumente'),
+    d: t(
+      'Papierkram scannen oder hochladen, Texterkennung, Ablage nach Jahr und Absender, Volltextsuche. Alles bleibt auf diesem Rechner.',
+    ),
+  },
 ]
 
 // Der Chat hat bewusst keinen Schalter: eine Oberfläche ohne ihren Hauptzweck

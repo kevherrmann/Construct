@@ -13,7 +13,14 @@ export interface Settings {
   names: { user: string; assistant: string }
   avatars: { user: string; assistant: string }
   hermes: { home: string }
-  tiles: { skills: boolean; kalender: boolean; mail: boolean; mcp: boolean; tickets: boolean }
+  tiles: {
+    skills: boolean
+    kalender: boolean
+    mail: boolean
+    mcp: boolean
+    tickets: boolean
+    dokumente: boolean
+  }
   background: { mode: 'matrix' | 'plain' | 'image'; image: string; dim: number }
   updates: { auto: boolean; interval_h: number; construct: boolean }
   tts: {
@@ -61,7 +68,14 @@ export const DEFAULT_SETTINGS: Settings = {
   names: { user: '', assistant: 'Cody' },
   avatars: { user: '', assistant: '' },
   hermes: { home: '' },
-  tiles: { skills: false, kalender: true, mail: false, mcp: false, tickets: false },
+  tiles: {
+    skills: false,
+    kalender: true,
+    mail: false,
+    mcp: false,
+    tickets: false,
+    dokumente: false,
+  },
   background: { mode: 'matrix', image: '', dim: 60 },
   updates: { auto: true, interval_h: 6, construct: true },
   tts: {

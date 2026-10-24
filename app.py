@@ -29,9 +29,11 @@ from server import wachhalten
 from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host,
                          frischer_systemprompt, load_persona, remember_server)
+from server.dokumente import ablage as dok_ablage
 from server.scheduler import scheduler_loop
 from server.team import engine
-from server.routes import auth, calendar, chat, files, mail, providers, sessions, system, team, tickets, ui
+from server.routes import (auth, calendar, chat, dokumente, files, mail, providers, sessions, system,
+                           team, tickets, ui)
 
 
 @asynccontextmanager
@@ -41,6 +43,8 @@ async def lifespan(_app: FastAPI):
     asyncio.create_task(wachhalten.wach_loop())   # Monitor/Standby aus, solange ein Lauf arbeitet
     # Läufe, die der vorige Server mitten im Zug zurückgelassen hat
     runsmod.aufnehmen()
+    # Dokumente, die beim Beenden noch gelesen wurden
+    dok_ablage.wieder_anstellen()
     tgmod.init(claude_bin=lambda: claude_bin() or "claude", claude_env=claude_env,
                persona=load_persona, workspace=WORKSPACE, frisch=frischer_systemprompt)
     tgmod.restart()
@@ -123,7 +127,7 @@ app.mount("/assets", StaticFiles(directory=str(APP_DIR / "assets"), check_dir=Fa
 
 # Router in fester Reihenfolge. ui zuletzt: seine Direktlinks je Ansicht
 # (/{view}) würden sonst die /api-Routen verschlucken.
-for r in (auth, files, providers, system, calendar, mail, sessions, chat, tickets, team, ui):
+for r in (auth, files, providers, system, calendar, mail, sessions, chat, tickets, team, dokumente, ui):
     app.include_router(r.router)
 
 

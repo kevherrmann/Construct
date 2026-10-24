@@ -24,8 +24,9 @@ SETTINGS_FILE = BASE_DIR / "settings.json"
 # Kacheln, die sich abschalten lassen. "sessions" (der Chat) fehlt mit Absicht:
 # eine Oberfläche ohne ihren Hauptzweck wäre eine Sackgasse, aus der man sich
 # nicht mehr herausklicken kann. "tickets" ist zugleich der Hauptschalter des
-# Boards (server/tickets.py): aus = kein Commit wird zur Karte.
-OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp", "tickets")
+# Boards (server/tickets.py): aus = kein Commit wird zur Karte. "dokumente"
+# ebenso: aus = keine API, kein Block im Prompt (server/dokumente/).
+OPTIONAL_TILES = ("skills", "kalender", "mail", "mcp", "tickets", "dokumente")
 BG_MODES = ("matrix", "image", "plain")
 # Schriften, die das Frontend mitbringt (frontend/src/lib/fonts.ts).
 # "" = automatisch: Inter.
@@ -54,7 +55,7 @@ DEFAULT_SETTINGS = {
     # Zurückhaltende Vorgabe: wer frisch klont, bekommt Chat und Kalender.
     # Alles Weitere schaltet er sich selbst dazu und weiß dann, was es tut.
     "tiles": {"skills": False, "kalender": True, "mail": False, "mcp": False,
-              "tickets": False},
+              "tickets": False, "dokumente": False},
     # dim = Abdunklung des Hintergrundbildes in Prozent. Farbige Schrift auf
     # einem hellen Foto ist unlesbar, darum ein hoher Startwert.
     "background": {"mode": "matrix", "image": "", "dim": 60},

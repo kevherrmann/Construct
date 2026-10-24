@@ -48,7 +48,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.7.0"
+VERSION = "8.8.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -182,6 +182,17 @@ def calendar_text() -> str:
         return ""
 
 
+def dokumente_text() -> str:
+    """Hinweis auf die Dokumente-Ablage, nur wenn die Kachel an ist."""
+    try:
+        if not cfg.load_settings()["tiles"].get("dokumente", False):
+            return ""
+        from server.dokumente import kontext
+        return kontext.block()
+    except Exception:
+        return ""
+
+
 def context_text(bilder: bool = True) -> str:
     """Was sich laufend ändert: Kalender, dazu die Bild-Anleitung, falls ein Key da ist.
 
@@ -192,7 +203,7 @@ def context_text(bilder: bool = True) -> str:
         bilder = images.context_block() if bilder else ""
     except Exception:
         bilder = ""
-    return "\n\n".join(p for p in (calendar_text(), bilder) if p)
+    return "\n\n".join(p for p in (calendar_text(), dokumente_text(), bilder) if p)
 
 
 def load_persona() -> str:

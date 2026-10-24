@@ -70,7 +70,14 @@ describe('Büro im Raum', () => {
 })
 
 describe('Kacheln im Raum', () => {
-  const alle = { skills: true, kalender: true, mail: true, mcp: true, tickets: true }
+  const alle = {
+    skills: true,
+    kalender: true,
+    mail: true,
+    mcp: true,
+    tickets: true,
+    dokumente: true,
+  }
   it('abgeschaltete Kachel: ihre Station fehlt, die anderen bleiben', () => {
     const aus = { ...alle, skills: false, mcp: false }
     expect(stationDa('werkzeug', aus)).toBe(false)
@@ -79,7 +86,14 @@ describe('Kacheln im Raum', () => {
     expect(stationDa('postfach', aus)).toBe(true)
   })
   it('Stationen ohne Kachel sind immer da', () => {
-    const nichts = { skills: false, kalender: false, mail: false, mcp: false, tickets: false }
+    const nichts = {
+      skills: false,
+      kalender: false,
+      mail: false,
+      mcp: false,
+      tickets: false,
+      dokumente: false,
+    }
     for (const id of ['regal', 'archiv', 'werkbank', 'monitore', 'uhr', 'pult'] as const)
       expect(stationDa(id, nichts)).toBe(true)
   })

@@ -2,6 +2,36 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.8.0 — 2026-10-24
+
+### Added
+- **Documents tile: a paper archive on your own computer.** Scan or upload
+  letters, notices and contracts; CONSTRUCT recognizes the text, files them
+  by year and sender and makes everything searchable. Off by default, switch
+  it on under ⚙ → Tiles.
+  - **Scanning** through SANE (`scanimage`), made for network scanners with
+    eSCL/AirScan. With paper in the feeder the whole stack is scanned,
+    otherwise one page from the glass. Double-sided: scan the fronts, turn the
+    stack over, scan the backs; they are matched sheet by sheet and blank
+    back sides are dropped (pencil notes are kept). A paper jam keeps the
+    pages already scanned and continues with the rest. If only some sheets
+    were turned over, each back side can be assigned by hand.
+  - **Text recognition** with OCRmyPDF and Tesseract, if installed. Pages
+    upside down or crooked are turned straight. Without OCRmyPDF documents
+    are still filed, just not searchable by content.
+  - **Inbox and learning.** New documents land in the inbox with a suggested
+    date, sender, type and tags. The suggestions are learned from the
+    documents you have confirmed, nothing leaves the computer for that.
+  - **Filing** as plain PDFs with a text layer in
+    `dokumente/dateien/YEAR/SENDER/DATE TITLE.pdf`, usable without CONSTRUCT.
+    Deleting moves to `dokumente/papierkorb/`.
+  - **Split** a document that turned out to be several letters
+    (pages `1-2, 3, 4-6`). Photos and PDFs can also be uploaded or dragged in.
+  - **The assistant** can search, read and sort through `doku.py`; it only
+    reads the documents a question needs.
+  - `scripts/dokumente_aus_paperless.py` moves an existing Paperless-ngx
+    archive over, with titles, dates, senders, types and tags.
+
 ## 8.7.0 — 2026-10-24
 
 ### Added

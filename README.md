@@ -107,6 +107,13 @@ Browser / app window ──SSE──► FastAPI (app.py) ──► claude -p    
   the `tickets.py` CLI. Drag cards between columns by hand at any time; a click
   opens the card and jumps to the message in the chat. In the room a card-index
   box on a pedestal opens the board. Off by default (⚙ Settings → Tiles).
+- **Documents.** A paper archive on your own computer: scan (SANE, network
+  scanners with eSCL/AirScan, feeder with turned-over back sides) or upload
+  letters and contracts, text recognition with OCRmyPDF, an inbox that suggests
+  date, sender, type and tags learned from what you confirmed, full-text search
+  and plain PDFs in `dokumente/dateien/YEAR/SENDER/`. The assistant searches and
+  sorts through `doku.py`. Off by default (⚙ Settings → Tiles); text
+  recognition needs `ocrmypdf` plus Tesseract language packs.
 - **Team mode (optional).** A company of AI employees next to the single
   assistant: staff files (character, model, effort, tools, permissions, memory),
   jobs that the staff pass between each other over an internal bus, safety
@@ -262,7 +269,7 @@ when it writes it.
 | `font` | `""` (automatic: Inter), `share-tech-mono`, `jetbrains-mono`, `ibm-plex-mono`, `space-grotesk`, `exo-2`, `inter` |
 | `names` | `{"user": "", "assistant": "Cody"}` |
 | `avatars` | `{"user": "", "assistant": ""}`: uploaded image paths |
-| `tiles` | `skills`, `kalender`, `mail`, `mcp` (on/off; the chat tile is always shown) |
+| `tiles` | `skills`, `kalender`, `mail`, `mcp`, `tickets`, `dokumente` (on/off; the chat tile is always shown) |
 | `background` | `{"mode": "matrix" \| "image" \| "plain", "image": "", "dim": 60}` |
 | `tts` | `{"auto": false, "engine": "gemini" \| "lokal", "model": "gemini-3.8-flash-lite-tts", "voice": {"de": …, "en": …}, "style": {"de": "", "en": ""}, "probe": {"de": "", "en": ""}}` (`probe`: uploaded voice sample for the local voice) |
 | `hermes` | `{"home": ""}`: empty means `~/.hermes` |
