@@ -207,6 +207,24 @@ def test_teilen(daten):
     assert len(PdfReader(str(next((ablage.DATEN / "papierkorb").iterdir()))).pages) == 4
 
 
+def test_zusammenfuegen(daten):
+    a = aufnehmen(daten, "Brief", ["Seite 1 von 2", "Lengerich, 09.05.2023"])
+    b = aufnehmen(daten, "Rest", ["Seite 2 von 2"])
+    ablage.aendern(a["id"], {"absender": "Provinzial", "tags": ["Versicherung"]})
+    ablage.aendern(b["id"], {"tags": ["Rente"]})
+    with pytest.raises(ablage.Fehler):
+        ablage.zusammenfuegen([a["id"]])
+    neu = ablage.zusammenfuegen([a["id"], b["id"]])
+    ablage.jetzt_lesen_alle()
+    d = ablage.dokument(neu["id"])
+    assert d["seiten"] == 2 and d["text"].index("Seite 1") < d["text"].index("Seite 2")
+    assert d["absender"] == "Provinzial" and d["datum"] == "2023-05-09" and d["titel"] == "Brief"
+    assert {g["name"] for g in d["tags"]} == {"Versicherung", "Rente"}
+    for i in (a["id"], b["id"]):
+        with pytest.raises(KeyError):
+            ablage.dokument(i)
+
+
 # ---------- Lernen ----------
 
 def test_lernt_nur_aus_bestaetigten(daten):
@@ -229,7 +247,7 @@ def test_lernt_nur_aus_bestaetigten(daten):
     assert giro["typ"] == "Kontoauszug" and giro["tags"] == []
 
 
-def test_name_im_text_schlaegt_statistik(daten):
+def test_bescheid_an_steuerberater_bleibt_finanzamt(daten):
     # Steuerberater-Post klingt nach Steuer, der Bescheid nennt aber das Finanzamt wörtlich
     for i in range(3):
         d = aufnehmen(daten, f"sb{i}", ["Steuerkanzlei Heeke", "Einkommensteuer Bescheid geprüft", str(i)])
@@ -238,6 +256,25 @@ def test_name_im_text_schlaegt_statistik(daten):
     ablage.aendern(d["id"], {"absender": "Finanzamt Ibbenbüren", "eingang": False})
     neu = aufnehmen(daten, "bescheid", ["Finanzamt Ibbenbüren", "Einkommensteuer Bescheid", "Herrn Steuerberater"])
     assert neu["absender"] == "Finanzamt Ibbenbüren"
+
+
+def test_unbekannter_absender_bekommt_keinen_falschen_vorschlag(daten):
+    # Versicherungspost, die die Sparkasse als Betreuerin im Kopf nennt, ist kein Darlehen
+    for i in range(3):
+        d = aufnehmen(daten, f"dl{i}", ["Stadtsparkasse Lengerich Bahnhofstr. 76", "Darlehensvertrag Sollzins Tilgung",
+                                        f"Darlehen 6016{i} Annuität Restschuld Grundschuld Zinsbindung",
+                                        "Vorfälligkeitsentschädigung Sondertilgung Effektivzins Nennbetrag",
+                                        "Widerrufsinformation Darlehensnehmer Auszahlung Bereitstellungszinsen"])
+        ablage.aendern(d["id"], {"absender": "Stadtsparkasse Lengerich", "typ": "Vertrag",
+                                 "tags": ["Darlehen", "Original aufheben"], "eingang": False})
+    for i in range(3):
+        d = aufnehmen(daten, f"fa{i}", ["Finanzamt Ibbenbüren", f"Einkommensteuerbescheid 20{i}"])
+        ablage.aendern(d["id"], {"absender": "Finanzamt Ibbenbüren", "typ": "Bescheid", "eingang": False})
+    neu = aufnehmen(daten, "prov", ["PROVINZIAL Es betreut Sie Stadtsparkasse Lengerich Bahnhofstr. 76",
+                                    "Lastschriftmitteilung Haftpflichtversicherung Beitrag 8,16",
+                                    "Versicherungsnummer Beitragsrechnung Lastschrift Fälligkeit Versicherungsschutz",
+                                    "Privathaftpflicht Rundumschutz Versicherungsjahr Beitragszahlung Kundenservice"])
+    assert neu["absender"] is None and neu["typ"] is None and neu["tags"] == []
 
 
 def test_vorschlag_ueberschreibt_nichts_gesetztes(daten):

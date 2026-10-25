@@ -389,6 +389,38 @@ def teilen(id_: int, angabe: str) -> list[dict]:
     return neu_
 
 
+def zusammenfuegen(ids: list[int]) -> dict:
+    """Mehrere Dokumente zu einem, in der angegebenen Reihenfolge (etwa die
+    Blätter eines Briefs, die als „jedes Blatt einzeln“ gescannt wurden). Das
+    erste gibt Titel, Datum, Absender, Typ und Notiz vor, die Tags aller
+    zusammen; die Einzelteile gehen in den Papierkorb."""
+    import tempfile
+
+    from pypdf import PdfReader, PdfWriter
+    ids = list(dict.fromkeys(int(i) for i in ids))
+    if len(ids) < 2:
+        raise Fehler("Zum Zusammenfügen mindestens zwei Dokumente angeben")
+    docs = [dokument(i, mit_text=False) for i in ids]
+    if any(d["zustand"] == "lesen" for d in docs):
+        raise Fehler("Ein Dokument wird noch gelesen")
+    w = PdfWriter()
+    for i in ids:
+        for seite in PdfReader(str(datei(i))).pages:
+            w.add_page(seite)
+    erstes = docs[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = Path(tmp) / "zusammen.pdf"
+        with open(pdf, "wb") as f:
+            w.write(f)
+        x = neu(pdf, titel=erstes["titel"], quelle=erstes["quelle"])
+    x = aendern(x["id"], {"datum": erstes["datum"], "absender": erstes["absender"], "typ": erstes["typ"],
+                          "notiz": erstes["notiz"], "eingang": any(d["eingang"] for d in docs),
+                          "tags": sorted({g["name"] for d in docs for g in d["tags"]})})
+    for i in ids:
+        loeschen(i)
+    return x
+
+
 def loeschen(id_: int) -> None:
     """In den Papierkorb, nicht weg: ein falscher Klick soll keine Steuerunterlage kosten."""
     d = dokument(id_, mit_text=False)
@@ -600,25 +632,18 @@ def _lesen(id_: int, roh: Path) -> None:
 
 
 def vorschlagen(text: str) -> dict:
-    """Absender, Typ, Tags aus den bestätigten Dokumenten gelernt."""
-    ws = erkennen.woerter(text)
+    """Titel aus dem Kopf, Absender, Typ und Tags von den ähnlichsten
+    bestätigten Dokumenten (erkennen.vorschlag)."""
     with db() as c:
-        bestaetigt = c.execute("SELECT id, text, absender_id, typ_id FROM dokumente "
-                               "WHERE eingang = 0 AND zustand = 'fertig'").fetchall()
-        tags_je = {}
+        bestaetigt = [dict(r) for r in c.execute(
+            "SELECT id, text, absender_id, typ_id FROM dokumente WHERE eingang = 0 AND zustand = 'fertig'")]
+        tags_je: dict[int, set[int]] = {}
         for r in c.execute("SELECT x.dok_id, x.tag_id FROM dok_tags x JOIN dokumente d ON d.id = x.dok_id "
                            "WHERE d.eingang = 0"):
             tags_je.setdefault(r[0], set()).add(r[1])
-        namen_a = {r["id"]: r["name"] for r in c.execute("SELECT id, name FROM absender")}
-        alle_tags = [r[0] for r in c.execute("SELECT id FROM tags")]
-    wort = {r["id"]: erkennen.woerter(r["text"]) for r in bestaetigt}
-    return {
-        "titel": erkennen.titel(text),
-        "absender": erkennen.absender(text, ws, [(wort[r["id"]], r["absender_id"]) for r in bestaetigt
-                                                 if r["absender_id"]], namen_a),
-        "typ": erkennen.Bayes([(wort[r["id"]], r["typ_id"]) for r in bestaetigt if r["typ_id"]]).bestes(ws),
-        "tags": erkennen.tags(ws, [(wort[r["id"]], tags_je.get(r["id"], set())) for r in bestaetigt], alle_tags),
-    }
+    beispiele = [{"id": r["id"], "woerter": erkennen.woerter(r["text"]), "absender": r["absender_id"],
+                  "typ": r["typ_id"], "tags": tags_je.get(r["id"], set())} for r in bestaetigt]
+    return {"titel": erkennen.titel(text), **erkennen.vorschlag(erkennen.woerter(text), beispiele)}
 
 
 def wieder_anstellen() -> int:

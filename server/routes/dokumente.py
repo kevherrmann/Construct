@@ -68,6 +68,16 @@ def liste(q: str = "", jahr: str = "", absender: str = "", typ: str = "", tag: s
                         limit=limit, offset=offset)
 
 
+@router.post("/zusammenfuegen")
+async def zusammenfuegen(req: Request):
+    b = await _body(req)
+    ids = [x for x in (_zahl(i) for i in b.get("ids") or []) if x]
+    try:
+        return await asyncio.to_thread(ablage.zusammenfuegen, ids)
+    except (ablage.Fehler, KeyError) as e:
+        return _fehler(e)
+
+
 @router.get("/namen/{tabelle}")
 def namen(tabelle: str):
     return _aufruf(ablage.namen, tabelle)

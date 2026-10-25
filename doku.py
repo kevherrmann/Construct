@@ -7,6 +7,7 @@
   doku.py set 12 --title "…" --date 2023-01-23 --sender "Finanzamt" \\
                  --type Bescheid --tags Steuer,Haus --done
   doku.py split 12 "1-2, 3, 4-6"          in mehrere Dokumente aufteilen
+  doku.py merge 12 13 14                 zu einem Dokument zusammenfügen (in dieser Reihenfolge)
   doku.py names                         Absender, Typen, Tags mit Anzahl
   doku.py backup [--status]             jetzt sichern (oder nur Zustand zeigen)
   doku.py backup-check ordner|server    Probe: zurückholen und vergleichen
@@ -63,6 +64,8 @@ def main(argv=None) -> int:
     sp = sub.add_parser("split")
     sp.add_argument("id", type=int)
     sp.add_argument("seiten")
+    mg = sub.add_parser("merge")
+    mg.add_argument("ids", type=int, nargs="+")
     sub.add_parser("names")
     b = sub.add_parser("backup")
     b.add_argument("--status", action="store_true")
@@ -109,6 +112,9 @@ def main(argv=None) -> int:
             for d in ablage.teilen(a.id, a.seiten):
                 print(zeile(d))
             ablage.HINTERGRUND = False
+            ablage.jetzt_lesen_alle()
+        elif a.cmd == "merge":
+            print(zeile(ablage.zusammenfuegen(a.ids)))
             ablage.jetzt_lesen_alle()
         elif a.cmd in ("backup", "backup-check", "restore"):
             from server.dokumente import sicherung
