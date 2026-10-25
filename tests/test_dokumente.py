@@ -86,6 +86,11 @@ def test_datum_feld_schlaegt_druckzeile():
 def test_geburtsdatum_ist_kein_briefdatum():
     t = "Bestätigung\nGeburtsdatum:  30.04.1985 00:00:00\nist seit dem 05.10.2009 Teilnehmer"
     assert erkennen.datum(t, date(2026, 10, 24)) == "2009-10-05"
+
+
+def test_kind_mit_stern_und_verweis_mit_vom_sind_kein_briefdatum():
+    t = "Unterhalt für Emilia *06.02.2013\nVerordnung vom 21.11.2024\nTabelle Stand 18.12.2024"
+    assert erkennen.datum(t, date(2026, 10, 24)) == "2024-12-18"
     assert erkennen.datum("Mettingen, den 4. Oktober 2024\nBescheid", date(2026, 1, 1)) == "2024-10-04"
 
 
@@ -95,6 +100,7 @@ def test_titelvorschlag():
     assert erkennen.titel("Finanzamt\nEinkommensteuerbescheid für 2022\n") == "Einkommensteuerbescheid 2022"
     assert erkennen.titel("GEBÜHRENRECHNUNG\nRechnungsnummer") == "Gebührenrechnung"
     assert erkennen.titel("die Steuerbescheide wurden erteilt") is None
+    assert erkennen.titel("Unterhalt\nSprechzeiten: Mo. 8.30 Uhr oder nach Vereinbarung") is None
     assert erkennen.titel("Westfalen\n23. Juni 2021\nIhre  Renteninformation\nSehr geehrter") == "Renteninformation"
     assert erkennen.titel("Information zur Überschussbeteiligung\nVersicherungsvertrag") == "Versicherungsvertrag"
 

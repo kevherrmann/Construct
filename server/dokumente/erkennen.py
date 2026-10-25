@@ -64,9 +64,11 @@ _ORT_DATUM = re.compile(
 
 # "Datum: 16.05.2023" im Briefkopf schlägt die Druckzeile darüber, die das
 # Versanddatum trägt ("16176910 0001/0003 0000544 17.05.2023"). Groß
-# geschrieben, damit "Geburtsdatum:" nicht passt.
+# geschrieben, damit "Geburtsdatum:" nicht passt. "*06.02.2013" hinter einem
+# Namen heißt geboren. "Ihr Antrag vom …", "Verordnung vom …" verweisen auf
+# ein anderes Schriftstück.
 _DATUM_FELD = re.compile(r"(?<![\w-])Datum\s*:?\s*(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})")
-_GEBURT = re.compile(r"(?:geburtsdatum|geboren(?:\s+am)?|geb\.)\s*:?\s*\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}", re.I)
+_KEIN_BRIEFDATUM = re.compile(r"(?:geburtsdatum|geboren(?:\s+am)?|geb\.|\*|vom)\s*:?\s*\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}", re.I)
 
 
 def datum(text: str, heute: date | None = None) -> str | None:
@@ -79,7 +81,7 @@ def datum(text: str, heute: date | None = None) -> str | None:
             d = _gueltige(m.group(1), heute)
             if d:
                 return d[0]
-    d = _gueltige(_GEBURT.sub(" ", text[:KOPF]), heute)
+    d = _gueltige(_KEIN_BRIEFDATUM.sub(" ", text[:KOPF]), heute)
     return d[0] if d else None
 
 
@@ -94,11 +96,18 @@ _TITEL = re.compile(r"(?<![A-Za-zÄÖÜäöüß-])([a-zäöüß]*(?:" + _ART + r
                     r"(?:\s+(?:für\s+|über\s+)?((?:19|20)\d\d(?:\s*/\s*(?:19|20)?\d\d)?)(?!\d))?", re.I)
 
 
+# "Sprechzeiten … oder nach Vereinbarung" in der Fußzeile, "gemäß Vertrag":
+# hinter einer Präposition sagt das Wort nicht, was das Papier ist.
+_NACH_PRAEPOSITION = re.compile(r"(?<![\w-])(?:nach|laut|gemäß|gem\.|per|mit|ohne|zur|zum|zu|aus|von|vom)\s+$", re.I)
+
+
 def titel(text: str) -> str | None:
     """Titelvorschlag aus dem Kopf: das erste Wort, das sagt, was das Papier
     ist (Anschlusszinsvereinbarung, Einkommensteuerbescheid 2022, …)."""
     for m in _TITEL.finditer(text[:KOPF]):
         wort = m.group(1)
+        if _NACH_PRAEPOSITION.search(text[max(0, m.start() - 20):m.start()]):
+            continue
         if wort.isupper():
             wort = wort.capitalize()
         elif not wort[0].isupper():
