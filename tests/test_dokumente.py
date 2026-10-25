@@ -1,6 +1,7 @@
 """Dokumente-Ablage: Erkennen, Lernen, Ablegen, Suchen, API (server/dokumente/)."""
 import json
 import shutil
+import sys
 from datetime import date
 
 import pytest
@@ -84,6 +85,8 @@ def test_titelvorschlag():
     assert erkennen.titel("Finanzamt\nEinkommensteuerbescheid für 2022\n") == "Einkommensteuerbescheid 2022"
     assert erkennen.titel("GEBÜHRENRECHNUNG\nRechnungsnummer") == "Gebührenrechnung"
     assert erkennen.titel("die Steuerbescheide wurden erteilt") is None
+    assert erkennen.titel("Westfalen\n23. Juni 2021\nIhre  Renteninformation\nSehr geehrter") == "Renteninformation"
+    assert erkennen.titel("Information zur Überschussbeteiligung\nVersicherungsvertrag") == "Versicherungsvertrag"
 
 
 # ---------- Ablage ----------
@@ -415,3 +418,9 @@ def test_cli_set_und_search(daten, capsys):
     assert doku.main(["search", "zensus"]) == 0
     out = capsys.readouterr().out
     assert "IT.NRW" in out and "1 Treffer" in out and "[Haus,Steuer]" in out
+
+
+def test_kontext_ruft_cli_mit_dem_venv_python(daten):
+    # python3 aus dem PATH hat pypdf nicht: doku.py bräche schon beim Import ab
+    from server.dokumente import kontext
+    assert f'"{sys.executable}" "{kontext.CLI}"' in kontext.block()

@@ -74,8 +74,11 @@ def datum(text: str, heute: date | None = None) -> str | None:
     return d[0] if d else None
 
 
+# „information“ nur zusammengesetzt (Renteninformation): allein steht es in
+# jedem Infoblatt („Information zur Überschussbeteiligung“) vor dem Vertrag.
 _ART = ("vereinbarung|bescheid|rechnung|vertrag|abrechnung|mitteilung|bestätigung|angebot|kontoauszug|"
-        "erklärung|kündigung|mahnung|police|bescheinigung|nachweis|antrag|tilgungsplan|sparplan")
+        "erklärung|kündigung|mahnung|police|bescheinigung|nachweis|antrag|tilgungsplan|sparplan|"
+        "[a-zäöüß]information")
 # Davor darf eine Ziffer kleben: die Texterkennung zieht Briefkopf-Nummern
 # gern an das erste Wort ("DE125501924Anschlusszinsvereinbarung").
 _TITEL = re.compile(r"(?<![A-Za-zÄÖÜäöüß-])([a-zäöüß]*(?:" + _ART + r"))(?![\w-])"

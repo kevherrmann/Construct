@@ -17,8 +17,9 @@ def block() -> str:
     else:
         u = ablage.uebersicht()
     warnung = _sicherung_warnung(u["gesamt"], cfg.lang() == "en")
-    py = "python" if sys.platform == "win32" else "python3"
-    befehl = f'{py} "{CLI}"'
+    # Der Interpreter des Servers, nicht python3 aus dem PATH: doku.py braucht
+    # pypdf und Co. aus dem venv, das System-Python hat sie nicht.
+    befehl = f'"{sys.executable}" "{CLI}"'
     if cfg.lang() == "en":
         stand = f"{u['gesamt']} documents, {u['eingang']} of them in the inbox (not yet sorted)"
         if u["lesen"]:
