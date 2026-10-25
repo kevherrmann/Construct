@@ -62,15 +62,24 @@ _ORT_DATUM = re.compile(
     r"(\d{1,2}\.\s?(?:\d{1,2}\.\s?\d{2,4}|(?i:" + "|".join(MONATE) + r")\s+\d{4}))")
 
 
+# "Datum: 16.05.2023" im Briefkopf schlägt die Druckzeile darüber, die das
+# Versanddatum trägt ("16176910 0001/0003 0000544 17.05.2023"). Groß
+# geschrieben, damit "Geburtsdatum:" nicht passt.
+_DATUM_FELD = re.compile(r"(?<![\w-])Datum\s*:?\s*(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})")
+_GEBURT = re.compile(r"(?:geburtsdatum|geboren(?:\s+am)?|geb\.)\s*:?\s*\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}", re.I)
+
+
 def datum(text: str, heute: date | None = None) -> str | None:
     """Datum des Schreibens (ISO) oder None: zuerst „Ort, Datum“ irgendwo im
-    Text, sonst das erste plausible Datum im Kopf."""
+    Text, dann „Datum:“, sonst das erste plausible Datum im Kopf, das kein
+    Geburtsdatum ist."""
     heute = heute or date.today()
-    for m in _ORT_DATUM.finditer(text):
-        d = _gueltige(m.group(1), heute)
-        if d:
-            return d[0]
-    d = _gueltige(text[:KOPF], heute)
+    for muster in (_ORT_DATUM, _DATUM_FELD):
+        for m in muster.finditer(text):
+            d = _gueltige(m.group(1), heute)
+            if d:
+                return d[0]
+    d = _gueltige(_GEBURT.sub(" ", text[:KOPF]), heute)
     return d[0] if d else None
 
 

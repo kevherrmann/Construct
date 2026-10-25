@@ -76,6 +76,16 @@ def test_datum_ort_und_datum_schlaegt_zinsbeginn():
     t = "Anschlusszinsvereinbarung\nAb 01.01.2019 ist das Darlehen zu verzinsen.\n" + "x " * 2000 + \
         "\nOrt, Datum\nLengerich, 13.04.2017\nUnterschrift"
     assert erkennen.datum(t, date(2026, 10, 24)) == "2017-04-13"
+
+
+def test_datum_feld_schlaegt_druckzeile():
+    t = "16176910  0001/0003  0000544  17.05.2023  0000824\nBKK firmus\nDatum:  16.05.2023\n"
+    assert erkennen.datum(t, date(2026, 10, 24)) == "2023-05-16"
+
+
+def test_geburtsdatum_ist_kein_briefdatum():
+    t = "Bestätigung\nGeburtsdatum:  30.04.1985 00:00:00\nist seit dem 05.10.2009 Teilnehmer"
+    assert erkennen.datum(t, date(2026, 10, 24)) == "2009-10-05"
     assert erkennen.datum("Mettingen, den 4. Oktober 2024\nBescheid", date(2026, 1, 1)) == "2024-10-04"
 
 
