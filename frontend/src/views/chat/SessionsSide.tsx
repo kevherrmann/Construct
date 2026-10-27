@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useUi } from '@/stores/ui'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -45,6 +46,84 @@ export function SessionsSide() {
   const folders = [...groups.keys()].sort(
     (a, b) => groups.get(b)![0]!.mtime - groups.get(a)![0]!.mtime,
   )
+
+  // Mehrere auf einmal löschen oder archivieren. Im Auswahlmodus öffnet ein
+  // Klick die Session nicht, sondern hakt sie an; Shift hakt den Bereich seit
+  // dem letzten Klick an. Laufende Sessions bleiben außen vor: ihre Datei
+  // schreibt claude gerade noch.
+  const [waehlen, setWaehlen] = useState(false)
+  const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
+  const [anker, setAnker] = useState<string | null>(null)
+  const laeuft = (x: SessionInfo) =>
+    !!running[x.id] || Object.values(convs).some((c) => c.sessionId === x.id && c.busy)
+  const sichtbar = folders.flatMap((f) => (q || !closed[f] ? groups.get(f)! : []))
+  const gewaehlt = list.filter((x) => auswahl.has(x.id))
+  const auswahlEnde = () => {
+    setWaehlen(false)
+    setAuswahl(new Set())
+    setAnker(null)
+  }
+  const haken = (x: SessionInfo, bereich: boolean) => {
+    if (laeuft(x)) return
+    const neu = new Set(auswahl)
+    const an = !neu.has(x.id)
+    const ia = anker ? sichtbar.findIndex((y) => y.id === anker) : -1
+    const ib = sichtbar.findIndex((y) => y.id === x.id)
+    const ziel =
+      bereich && ia >= 0 && ib >= 0 ? sichtbar.slice(Math.min(ia, ib), Math.max(ia, ib) + 1) : [x]
+    for (const y of ziel) {
+      if (laeuft(y)) continue
+      if (an) neu.add(y.id)
+      else neu.delete(y.id)
+    }
+    setAuswahl(neu)
+    setAnker(x.id)
+  }
+  const ordnerHaken = (items: SessionInfo[]) => {
+    const frei = items.filter((x) => !laeuft(x))
+    const alle = frei.length > 0 && frei.every((x) => auswahl.has(x.id))
+    const neu = new Set(auswahl)
+    for (const x of frei) {
+      if (alle) neu.delete(x.id)
+      else neu.add(x.id)
+    }
+    setAuswahl(neu)
+  }
+  const alleSichtbaren = () => {
+    const frei = sichtbar.filter((x) => !laeuft(x))
+    const alle = frei.length > 0 && frei.every((x) => auswahl.has(x.id))
+    setAuswahl(alle ? new Set() : new Set(frei.map((x) => x.id)))
+  }
+  const auswahlArchivieren = async () => {
+    // Sind alle schon im Archiv, holt der Knopf sie zurück.
+    const archived = !gewaehlt.every((x) => x.archived)
+    await Promise.all(
+      gewaehlt.map((x) =>
+        apiPost(`/api/sessions/${encodeURIComponent(x.id)}/archive`, { archived }).catch(() => {}),
+      ),
+    )
+    auswahlEnde()
+    reload()
+  }
+  const auswahlLoeschen = async () => {
+    if (
+      !gewaehlt.length ||
+      !confirm(
+        t('{n} Sessions endgültig löschen?\n\nDas kann nicht rückgängig gemacht werden.', {
+          n: gewaehlt.length,
+        }),
+      )
+    )
+      return
+    for (const x of gewaehlt) {
+      await fetch(`/api/sessions/${encodeURIComponent(x.project)}/${encodeURIComponent(x.id)}`, {
+        method: 'DELETE',
+      }).catch(() => {})
+      forgetSession(x.id)
+    }
+    auswahlEnde()
+    reload()
+  }
 
   const open = (x: SessionInfo) => {
     setSideOpen(false)
@@ -109,6 +188,39 @@ export function SessionsSide() {
         🗄 {t('Archiv')} ({archCount}) ·{' '}
         <span>{showArchived ? t('ausblenden') : t('anzeigen')}</span>
       </div>
+      <div
+        className={`${s.toggle} ${waehlen ? s.toggleOn : ''}`}
+        onClick={() => (waehlen ? auswahlEnde() : setWaehlen(true))}
+      >
+        ☑ {t('Mehrere auswählen')} · <span>{waehlen ? t('beenden') : t('starten')}</span>
+      </div>
+      {waehlen && (
+        <div className={s.auswahl}>
+          <span className={s.anzahl}>{t('{n} ausgewählt', { n: gewaehlt.length })}</span>
+          <button type="button" className={s.ab} onClick={alleSichtbaren}>
+            {t('alle')}
+          </button>
+          <button
+            type="button"
+            className={s.ab}
+            disabled={!gewaehlt.length}
+            onClick={() => void auswahlArchivieren()}
+          >
+            {gewaehlt.length && gewaehlt.every((x) => x.archived)
+              ? `⤴ ${t('aus Archiv holen')}`
+              : `🗄 ${t('archivieren')}`}
+          </button>
+          <button
+            type="button"
+            className={`${s.ab} ${s.del}`}
+            disabled={!gewaehlt.length}
+            onClick={() => void auswahlLoeschen()}
+          >
+            🗑 {t('löschen')}
+          </button>
+          <div className={s.tipp}>{t('Shift+Klick wählt einen Bereich.')}</div>
+        </div>
+      )}
       {agentCount > 0 && (
         <div
           className={`${s.toggle} ${showAgents ? s.toggleOn : ''}`}
@@ -140,6 +252,19 @@ export function SessionsSide() {
               <span className={s.fn} title={folder}>
                 ▣ {baseName(folder)}
               </span>
+              {waehlen && (
+                <input
+                  type="checkbox"
+                  className={s.check}
+                  title={t('ganzen Ordner auswählen')}
+                  checked={
+                    items.some((x) => !laeuft(x)) &&
+                    items.every((x) => laeuft(x) || auswahl.has(x.id))
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => ordnerHaken(items)}
+                />
+              )}
               <span className={s.fc}>{items.length}</span>
             </div>
             {isOpen &&
@@ -162,9 +287,27 @@ export function SessionsSide() {
                       x.id === activeSid ? s.active : '',
                       isRunning ? s.running : '',
                       x.archived ? s.archived : '',
+                      waehlen ? s.waehlbar : '',
                     ].join(' ')}
                   >
-                    <div className={s.main} onClick={() => open(x)}>
+                    {waehlen && (
+                      <input
+                        type="checkbox"
+                        className={s.check}
+                        disabled={isRunning}
+                        title={isRunning ? t('läuft gerade') : undefined}
+                        checked={auswahl.has(x.id)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          haken(x, e.shiftKey)
+                        }}
+                        onChange={() => {}}
+                      />
+                    )}
+                    <div
+                      className={s.main}
+                      onClick={(e) => (waehlen ? haken(x, e.shiftKey) : open(x))}
+                    >
                       <span className={s.t}>
                         {isRunning ? '⚡ ' : ''}
                         {x.archived ? '🗄 ' : ''}
@@ -174,7 +317,7 @@ export function SessionsSide() {
                       </span>
                       <span className={s.d}>{dt}</span>
                     </div>
-                    <div className={s.acts}>
+                    <div className={s.acts} hidden={waehlen}>
                       <button
                         type="button"
                         className={s.sx}

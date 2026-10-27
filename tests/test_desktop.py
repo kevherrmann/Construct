@@ -81,3 +81,23 @@ def test_beenden_nur_von_hier(monkeypatch):
     assert c.post("/api/shutdown").json() == {"ok": True}
     core.beenden()                               # was die Route verzögert aufruft
     assert gerufen == [1]
+
+
+def test_pid_auf_dem_port_unter_windows(monkeypatch):
+    """Ohne lsof/ss: netstat, auch mit übersetztem Zustand (deutsches Windows)."""
+    import subprocess
+
+    import desktop
+    ausgabe = """
+Aktive Verbindungen
+
+  Proto  Lokale Adresse         Remoteadresse          Status           PID
+  TCP    127.0.0.1:8765         127.0.0.1:50311        HERGESTELLT      4711
+  TCP    127.0.0.1:18765        0.0.0.0:0              ABHÖREN          1111
+  TCP    127.0.0.1:8765         0.0.0.0:0              ABHÖREN          9876
+"""
+    monkeypatch.setattr(desktop.os, "name", "nt")
+    monkeypatch.setattr(subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=ausgabe))
+    assert desktop._pid_on_port(8765) == 9876
+    assert desktop._pid_on_port(9999) is None

@@ -163,6 +163,23 @@ def _pid_on_port(port: int):
     Instanz mit abgeräumt.
     """
     import subprocess
+    if os.name == "nt":
+        # lsof und ss gibt es hier nicht. Ohne diesen Weg hängte sich ein
+        # Neustart nach dem Update still an den alten Server, und die neue
+        # Version kam nie an (27.10.2026). Den Zustand (LISTENING) übersetzt
+        # Windows ("ABHÖREN"), darum zählt die leere Gegenstelle ":0".
+        try:
+            out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True,
+                                 text=True, errors="replace", timeout=10).stdout
+        except Exception:
+            return None
+        for zeile in out.splitlines():
+            t = zeile.split()
+            if (len(t) >= 5 and t[0].upper() == "TCP" and t[1].rsplit(":", 1)[-1] == str(port)
+                    and t[2].rsplit(":", 1)[-1] == "0" and t[-1].isdigit()
+                    and int(t[-1]) != os.getpid()):
+                return int(t[-1])
+        return None
     for cmd in (["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
                 ["ss", "-ltnpH", f"sport = :{port}"]):
         try:

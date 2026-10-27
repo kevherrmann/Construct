@@ -2,6 +2,23 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.9.0 — 2026-10-27
+
+### Added
+- **Select several sessions at once.** "☑ Select several" in the session list
+  puts a checkbox in front of every session. A click ticks it instead of
+  opening it, Shift+click ticks a range, the box next to a folder ticks the
+  whole folder, "all" everything visible. The ticked sessions can then be
+  archived (or brought back) or deleted in one go. Running sessions cannot be
+  ticked.
+
+### Fixed
+- **Windows: restarting after an update starts the new version.** Closing the
+  window leaves the server running. On the next start the launcher pulled the
+  update but could not find the old server's process (it looked with `lsof`
+  and `ss`, which Windows does not have), attached to it and kept showing the
+  old version. It now finds it with `netstat` and replaces it.
+
 ## 8.8.1 — 2026-10-27
 
 ### Fixed
