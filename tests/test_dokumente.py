@@ -94,6 +94,12 @@ def test_kind_mit_stern_und_verweis_mit_vom_sind_kein_briefdatum():
     assert erkennen.datum("Mettingen, den 4. Oktober 2024\nBescheid", date(2026, 1, 1)) == "2024-10-04"
 
 
+def test_gesetzesdatum_ist_kein_briefdatum():
+    assert erkennen.datum("Feuerstättenbescheid nach § 14a SchfHwG vom 26. November 2008\n"
+                          "als Ergebnis der Feuerstättenschau 31.07.2023") == "2023-07-31"
+    assert erkennen.datum("Kessel, die vor dem 1. Januar 1991 eingebaut wurden") is None
+
+
 def test_titelvorschlag():
     assert erkennen.titel("Ust-IDNr. DE125501924Anschlusszinsvereinbarung\n(Ergänzung des "
                           "Immobiliar-Verbraucherdarlehensvertrags)") == "Anschlusszinsvereinbarung"

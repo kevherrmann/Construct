@@ -65,10 +65,12 @@ _ORT_DATUM = re.compile(
 # "Datum: 16.05.2023" im Briefkopf schlägt die Druckzeile darüber, die das
 # Versanddatum trägt ("16176910 0001/0003 0000544 17.05.2023"). Groß
 # geschrieben, damit "Geburtsdatum:" nicht passt. "*06.02.2013" hinter einem
-# Namen heißt geboren. "Ihr Antrag vom …", "Verordnung vom …" verweisen auf
-# ein anderes Schriftstück.
+# Namen heißt geboren. "Ihr Antrag vom …", "Verordnung vom 8. April 2013"
+# verweisen auf ein anderes Schriftstück, "vor dem 1. Januar 1991" ist eine Frist.
 _DATUM_FELD = re.compile(r"(?<![\w-])Datum\s*:?\s*(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})")
-_KEIN_BRIEFDATUM = re.compile(r"(?:geburtsdatum|geboren(?:\s+am)?|geb\.|\*|vom)\s*:?\s*\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}", re.I)
+_KEIN_BRIEFDATUM = re.compile(
+    r"(?:\*|(?:geburtsdatum|geboren(?:\s+am)?|geb\.|vom|(?:vor|ab|nach)\s+dem)\s*:?\s*)"
+    r"\d{1,2}\.\s*(?:\d{1,2}\.\s?\d{2,4}|(?:" + "|".join(MONATE) + r")\s+\d{4})", re.I)
 
 
 def datum(text: str, heute: date | None = None) -> str | None:
