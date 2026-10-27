@@ -91,22 +91,26 @@ _ART = ("vereinbarung|bescheid|rechnung|vertrag|abrechnung|mitteilung|bestätigu
         "erklärung|kündigung|mahnung|police|bescheinigung|nachweis|antrag|tilgungsplan|sparplan|"
         "[a-zäöüß]information")
 # Davor darf eine Ziffer kleben: die Texterkennung zieht Briefkopf-Nummern
-# gern an das erste Wort ("DE125501924Anschlusszinsvereinbarung").
+# gern an das erste Wort ("DE125501924Anschlusszinsvereinbarung"). Ein Wort
+# aus der Spalte daneben ("UhrGrundbesitzabgabenbescheid") schneidet titel() ab.
 _TITEL = re.compile(r"(?<![A-Za-zÄÖÜäöüß-])([a-zäöüß]*(?:" + _ART + r"))(?![\w-])"
                     r"(?:\s+(?:für\s+|über\s+)?((?:19|20)\d\d(?:\s*/\s*(?:19|20)?\d\d)?)(?!\d))?", re.I)
+_NAHT = re.compile(r"(?<=[a-zäöüß])(?=[A-ZÄÖÜ])")
 
 
-# "Sprechzeiten … oder nach Vereinbarung" in der Fußzeile, "gemäß Vertrag":
-# hinter einer Präposition sagt das Wort nicht, was das Papier ist.
-_NACH_PRAEPOSITION = re.compile(r"(?<![\w-])(?:nach|laut|gemäß|gem\.|per|mit|ohne|zur|zum|zu|aus|von|vom)\s+$", re.I)
+# "Sprechzeiten … oder nach (besonderer) Vereinbarung" in der Fußzeile,
+# "gemäß Vertrag": hinter einer Präposition sagt das Wort nicht, was das Papier ist.
+_NACH_PRAEPOSITION = re.compile(r"(?<![\w-])(?:nach|laut|gemäß|gem\.|per|mit|ohne|zur|zum|zu|aus|von|vom)"
+                                r"\s+(?:(?-i:[a-zäöüß]+)\s+)?$", re.I)
 
 
 def titel(text: str) -> str | None:
     """Titelvorschlag aus dem Kopf: das erste Wort, das sagt, was das Papier
     ist (Anschlusszinsvereinbarung, Einkommensteuerbescheid 2022, …)."""
     for m in _TITEL.finditer(text[:KOPF]):
-        wort = m.group(1)
-        if _NACH_PRAEPOSITION.search(text[max(0, m.start() - 20):m.start()]):
+        # Am Wortanfang davor geklebt ("UhrGrundbesitzabgabenbescheid"): nur den letzten Teil
+        wort = _NAHT.split(m.group(1))[-1]
+        if _NACH_PRAEPOSITION.search(text[max(0, m.start() - 40):m.start()]):
             continue
         if wort.isupper():
             wort = wort.capitalize()

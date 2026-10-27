@@ -101,6 +101,9 @@ def test_titelvorschlag():
     assert erkennen.titel("GEBÜHRENRECHNUNG\nRechnungsnummer") == "Gebührenrechnung"
     assert erkennen.titel("die Steuerbescheide wurden erteilt") is None
     assert erkennen.titel("Unterhalt\nSprechzeiten: Mo. 8.30 Uhr oder nach Vereinbarung") is None
+    assert erkennen.titel("donnerstags: 14.00 Uhr\nund  nach  besonderer  Vereinbarung\n"
+                          "Entwässerungsgebührenbescheid\n") == "Entwässerungsgebührenbescheid"
+    assert erkennen.titel("freitags: 08.30 - 12.30 UhrGrundbesitzabgabenbescheid") == "Grundbesitzabgabenbescheid"
     assert erkennen.titel("Westfalen\n23. Juni 2021\nIhre  Renteninformation\nSehr geehrter") == "Renteninformation"
     assert erkennen.titel("Information zur Überschussbeteiligung\nVersicherungsvertrag") == "Versicherungsvertrag"
 
