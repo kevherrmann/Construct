@@ -2,6 +2,19 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.8.1 — 2026-10-27
+
+### Fixed
+- **Windows: the assistant no longer forgets the conversation.** With Claude
+  Code installed through npm, `claude` is a `claude.cmd` that runs through
+  cmd.exe, and cmd.exe cuts a command line off at the first line break. The
+  persona was passed as a multi-line argument, so everything after it was
+  lost, `--resume` included: every new message started a fresh session. The
+  persona now goes in as a file (`--append-system-prompt-file`), and the
+  Telegram bot sends the message through stdin.
+- **Documents:** better dates and titles from letters (pension statements,
+  dates of birth, legal and deadline dates, "by arrangement").
+
 ## 8.8.0 — 2026-10-24
 
 ### Added

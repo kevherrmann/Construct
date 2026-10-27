@@ -19,7 +19,8 @@ from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
 from server.core import (BASE_DIR, LIMIT_HIT, PROJECTS_DIR, claude_bin, claude_env, extract_text,
-                         frischer_systemprompt, friendly_claude_error, load_persona, note_rate_limit)
+                         frischer_systemprompt, friendly_claude_error, load_persona, note_rate_limit,
+                         persona_datei)
 from server.sessions import model_short
 from server.team.chat import ohne_marke
 
@@ -82,6 +83,7 @@ class Run:
         self.agent_slug = ""             # gehört der Lauf einem Mitarbeiter?
         self.auftrag_id = ""             # läuft er in einem Auftrag?
         self.bus_token = ""              # Einmal-Token für den Firmen-Bus
+        self.persona_datei = None        # Systemprompt-Datei dieses Laufs (core.persona_datei)
         # Lebenszeichen für die Hänger-Erkennung — MONOTON, nicht Wanduhr: time.time()
         # springt nach einem Standby des Rechners um die Schlafzeit nach vorn,
         # und zwei Züge galten als "30 Minuten still", die sechs Minuten alt waren
@@ -153,6 +155,10 @@ class Run:
     def finish(self):
         self.done = True
         self.finished_at = time.time()
+        if self.persona_datei:
+            # claude liest sie nur beim Start
+            self.persona_datei.unlink(missing_ok=True)
+            self.persona_datei = None
         for q in list(self.subs):
             q.put_nowait(None)
 
@@ -808,7 +814,8 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
         from server.team import chat as teamchat
         persona = (persona + "\n\n" + teamchat.regeln()).strip()
     if persona:
-        cmd += ["--append-system-prompt", persona]
+        run.persona_datei = persona_datei(persona)
+        cmd += ["--append-system-prompt-file", str(run.persona_datei)]
     if session_id:
         cmd += ["--resume", session_id] + frischer_systemprompt()
         if resume_at:

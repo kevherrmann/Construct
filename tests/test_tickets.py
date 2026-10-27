@@ -1,6 +1,7 @@
 """Ticket-Board: Karten von Hand, aus Commits, Spalten und Push (server/tickets.py)."""
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -332,5 +333,35 @@ def test_chat_lauf_bekommt_regeln_nur_mit_kachel(tmp_path, monkeypatch, an):
         runs.start_run("hallo", str(tmp_path), "default", chat=True)
         await asyncio.sleep(0)
     asyncio.run(los())
-    persona = gesehen[0][gesehen[0].index("--append-system-prompt") + 1]
+    datei = Path(gesehen[0][gesehen[0].index("--append-system-prompt-file") + 1])
+    persona = datei.read_text(encoding="utf-8")
+    datei.unlink()
     assert ("## Tickets" in persona) is an
+
+
+def test_chat_lauf_ohne_mehrzeilige_argumente(tmp_path, monkeypatch):
+    """claude.cmd (npm unter Windows) schneidet die Befehlszeile am ersten
+    Zeilenumbruch ab, --resume ging dabei verloren. Die Persona kommt darum als
+    Datei, und die verschwindet mit dem Lauf."""
+    import asyncio
+
+    from server import runs
+    (tmp_path / "settings.json").write_text(json.dumps({"lang": "de"}))
+    gesehen = []
+
+    async def nichts(run, cmd):
+        gesehen.append((run, cmd))
+    monkeypatch.setattr(runs, "run_claude", nichts)
+    monkeypatch.setattr(runs, "load_persona", lambda: "Zeile 1\nZeile 2")
+
+    async def los():
+        runs.start_run("hallo", str(tmp_path), "default", session_id="abc", chat=True)
+        await asyncio.sleep(0)
+    asyncio.run(los())
+    run, cmd = gesehen[0]
+    assert not any("\n" in a for a in cmd)
+    assert cmd[cmd.index("--resume") + 1] == "abc"
+    datei = Path(cmd[cmd.index("--append-system-prompt-file") + 1])
+    assert datei.read_text(encoding="utf-8") == "Zeile 1\nZeile 2"
+    run.finish()
+    assert not datei.exists()

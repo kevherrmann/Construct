@@ -48,7 +48,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.8.0"
+VERSION = "8.8.1"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -321,6 +321,23 @@ def claude_kann(schalter: str) -> bool:
             _HILFE["text"] = ""
         _HILFE["key"] = key
     return schalter in _HILFE["text"]
+
+def persona_datei(text: str) -> Path:
+    """Persona als Datei für `--append-system-prompt-file`, nie als Argument.
+
+    Unter Windows ist ein per npm installiertes claude eine `claude.cmd`, und
+    die läuft über cmd.exe. Das schneidet die Befehlszeile am ersten
+    Zeilenumbruch ab und kennt die Anführungszeichen von Python nicht. Die
+    Persona hat Dutzende Zeilen: alles dahinter fiel weg, auch `--resume`.
+    Jede Nachricht begann so eine neue Sitzung, Cody wusste nichts mehr vom
+    Gespräch (27.10.2026, erster Windows-Nutzer). Dazu kommt die Grenze von
+    8191 Zeichen für eine cmd.exe-Zeile. Wer die Datei anlegt, löscht sie
+    nach dem Lauf wieder."""
+    import tempfile
+    fd, pfad = tempfile.mkstemp(prefix="construct-persona-", suffix=".md")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return Path(pfad)
 
 def frischer_systemprompt() -> list:
     """Schalter, damit ein fortgesetzter Chat den Systemprompt von JETZT bekommt.

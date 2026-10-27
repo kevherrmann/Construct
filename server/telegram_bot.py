@@ -37,6 +37,7 @@ from pathlib import Path
 
 import cal
 from server import config as cfg
+from server.core import persona_datei
 
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -267,19 +268,24 @@ def ask_cody(prompt, cwd, session_id, conf):
         cmd += ["--model", conf["model"]]
     cmd += ["--fallback-model", cfg.fallback_models(conf.get("model") or ""),
             "--effort", cfg.DEFAULT_EFFORT]
+    # Persona als Datei und die Nachricht über stdin: mehrzeilige Argumente
+    # kommen unter Windows durch claude.cmd nicht heil an (core.persona_datei).
     persona = HOOKS["persona"]()
-    if persona:
-        cmd += ["--append-system-prompt", persona]
+    datei = persona_datei(persona) if persona else None
+    if datei:
+        cmd += ["--append-system-prompt-file", str(datei)]
     if session_id:
         cmd += ["--resume", session_id] + HOOKS["frisch"]()
-    cmd += [prompt]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd,
-                              timeout=900, env=HOOKS["claude_env"]())
+        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=cwd, timeout=900, env=HOOKS["claude_env"]())
     except subprocess.TimeoutExpired:
         return cfg.L("⚠ Zeitüberschreitung nach 15 Minuten.", "⚠ Timed out after 15 minutes."), session_id
     except FileNotFoundError:
         return cfg.L("⚠ Claude Code ist nicht installiert.", "⚠ Claude Code is not installed."), session_id
+    finally:
+        if datei:
+            datei.unlink(missing_ok=True)
     if proc.returncode != 0:
         return cfg.L("⚠ Fehler: ", "⚠ Error: ") + (proc.stderr or proc.stdout or "")[:500], session_id
     try:
