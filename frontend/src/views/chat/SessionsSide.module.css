@@ -206,11 +206,42 @@
   opacity: 0.7;
   margin-top: 2px;
 }
-.check {
+.box {
   flex: 0 0 auto;
-  margin: 0;
-  accent-color: var(--green);
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--green-dim);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--bg, #000);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
+  opacity: 0.45;
+  transition: 0.12s;
+}
+.sess:hover .box,
+.folder:hover .box,
+.waehlbar .box,
+.box:focus-visible {
+  opacity: 1;
+}
+.box:hover:not(:disabled) {
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+}
+.boxAn {
+  opacity: 1;
+  background: var(--green);
+  border-color: var(--green);
+}
+.box:disabled {
+  opacity: 0.15;
+  cursor: not-allowed;
 }
 .acts[hidden] {
   display: none;

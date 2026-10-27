@@ -2,6 +2,19 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.9.1 — 2026-10-27
+
+### Changed
+- **A checkbox in front of every session.** Selecting several sessions no
+  longer needs a separate mode, and the box is drawn by CONSTRUCT instead of
+  the browser's own checkbox, which was hard to see on the dark themes. Once
+  something is ticked, a click on a row ticks it instead of opening it, and
+  the bar with "all", archive, delete and "clear" appears.
+
+### Fixed
+- **Shift+click on the checkbox itself selected nothing.** The click was
+  cancelled to stop text selection, and the browser then reset the box.
+
 ## 8.9.0 — 2026-10-27
 
 ### Added

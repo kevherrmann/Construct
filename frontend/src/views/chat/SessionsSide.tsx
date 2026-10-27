@@ -47,19 +47,19 @@ export function SessionsSide() {
     (a, b) => groups.get(b)![0]!.mtime - groups.get(a)![0]!.mtime,
   )
 
-  // Mehrere auf einmal löschen oder archivieren. Im Auswahlmodus öffnet ein
-  // Klick die Session nicht, sondern hakt sie an; Shift hakt den Bereich seit
-  // dem letzten Klick an. Laufende Sessions bleiben außen vor: ihre Datei
-  // schreibt claude gerade noch.
-  const [waehlen, setWaehlen] = useState(false)
+  // Mehrere auf einmal löschen oder archivieren: das Kästchen vor jeder
+  // Session. Ist etwas angehakt, öffnet ein Klick auf die Zeile die Session
+  // nicht mehr, sondern hakt sie an; Shift hakt den Bereich seit dem letzten
+  // Klick an. Laufende Sessions bleiben außen vor: ihre Datei schreibt claude
+  // gerade noch.
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
+  const waehlen = auswahl.size > 0
   const [anker, setAnker] = useState<string | null>(null)
   const laeuft = (x: SessionInfo) =>
     !!running[x.id] || Object.values(convs).some((c) => c.sessionId === x.id && c.busy)
   const sichtbar = folders.flatMap((f) => (q || !closed[f] ? groups.get(f)! : []))
   const gewaehlt = list.filter((x) => auswahl.has(x.id))
   const auswahlEnde = () => {
-    setWaehlen(false)
     setAuswahl(new Set())
     setAnker(null)
   }
@@ -188,12 +188,6 @@ export function SessionsSide() {
         🗄 {t('Archiv')} ({archCount}) ·{' '}
         <span>{showArchived ? t('ausblenden') : t('anzeigen')}</span>
       </div>
-      <div
-        className={`${s.toggle} ${waehlen ? s.toggleOn : ''}`}
-        onClick={() => (waehlen ? auswahlEnde() : setWaehlen(true))}
-      >
-        ☑ {t('Mehrere auswählen')} · <span>{waehlen ? t('beenden') : t('starten')}</span>
-      </div>
       {waehlen && (
         <div className={s.auswahl}>
           <span className={s.anzahl}>{t('{n} ausgewählt', { n: gewaehlt.length })}</span>
@@ -217,6 +211,9 @@ export function SessionsSide() {
             onClick={() => void auswahlLoeschen()}
           >
             🗑 {t('löschen')}
+          </button>
+          <button type="button" className={s.ab} onClick={auswahlEnde}>
+            ✕ {t('aufheben')}
           </button>
           <div className={s.tipp}>{t('Shift+Klick wählt einen Bereich.')}</div>
         </div>
@@ -253,16 +250,13 @@ export function SessionsSide() {
                 ▣ {baseName(folder)}
               </span>
               {waehlen && (
-                <input
-                  type="checkbox"
-                  className={s.check}
-                  title={t('ganzen Ordner auswählen')}
-                  checked={
+                <Kaestchen
+                  an={
                     items.some((x) => !laeuft(x)) &&
                     items.every((x) => laeuft(x) || auswahl.has(x.id))
                   }
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => ordnerHaken(items)}
+                  title={t('ganzen Ordner auswählen')}
+                  onClick={() => ordnerHaken(items)}
                 />
               )}
               <span className={s.fc}>{items.length}</span>
@@ -290,20 +284,12 @@ export function SessionsSide() {
                       waehlen ? s.waehlbar : '',
                     ].join(' ')}
                   >
-                    {waehlen && (
-                      <input
-                        type="checkbox"
-                        className={s.check}
-                        disabled={isRunning}
-                        title={isRunning ? t('läuft gerade') : undefined}
-                        checked={auswahl.has(x.id)}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          haken(x, e.shiftKey)
-                        }}
-                        onChange={() => {}}
-                      />
-                    )}
+                    <Kaestchen
+                      an={auswahl.has(x.id)}
+                      aus={isRunning}
+                      title={isRunning ? t('läuft gerade') : t('auswählen')}
+                      onClick={(bereich) => haken(x, bereich)}
+                    />
                     <div
                       className={s.main}
                       onClick={(e) => (waehlen ? haken(x, e.shiftKey) : open(x))}
@@ -350,5 +336,33 @@ export function SessionsSide() {
         )
       })}
     </>
+  )
+}
+
+/** Eigenes Kästchen statt <input type="checkbox">: das native ist im dunklen
+ *  Design kaum zu sehen. */
+function Kaestchen(props: {
+  an: boolean
+  aus?: boolean
+  title: string
+  onClick: (bereich: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={props.an}
+      disabled={props.aus}
+      title={props.title}
+      className={`${s.box} ${props.an ? s.boxAn : ''}`}
+      // Shift+Klick soll anhaken, nicht Text markieren
+      onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+      onClick={(e) => {
+        e.stopPropagation()
+        props.onClick(e.shiftKey)
+      }}
+    >
+      {props.an ? '✓' : ''}
+    </button>
   )
 }
