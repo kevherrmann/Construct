@@ -104,6 +104,11 @@ interface ChatStore {
 
 const workspace = () => useSettings.getState().boot.workspace
 
+/** Ab dieser Länge des wachsenden Textblocks zeichnet das Streaming seltener:
+ *  bei 20 KB kostet ein Durchgang durch Markdown und Hervorhebung über 5 ms. */
+const LANG_AB = 8000
+const LANG_TAKT_MS = 100
+
 /** Noch nie etwas gewählt → Opus 5.5. Ein bewusst gewähltes "Standard" ist '' und bleibt es. */
 export const storedModel = () => successor(getItem('mxmodel') ?? DEFAULT_MODEL)
 const storedEffort = (): Effort => {
@@ -218,6 +223,11 @@ export const useChat = create<ChatStore>((set, get) => {
       // Bei jedem (Re)Connect frisch aus dem Replay aufbauen.
       let rs = initialRun()
       let frame = 0
+      let uhr: ReturnType<typeof setTimeout> | undefined
+      // Länge des Textblocks, der gerade wächst: jedes Zeichnen setzt ihn ganz
+      // neu (Markdown, Hervorhebung, Bereinigung), lange Antworten werden so
+      // pro Bild teurer. Ab LANG_AB wird darum seltener gezeichnet.
+      let blockLaenge = 0
       // Ein noch geplantes Zeichnen immer mit abbestellen: sonst feuerte es
       // nach finishRun und schrieb die fertige Antwort zurück in den Lauf —
       // sie stand dann doppelt da (Verlauf + Lauf), bis zur nächsten Nachricht.
@@ -225,12 +235,17 @@ export const useChat = create<ChatStore>((set, get) => {
       // Browser Bilder spät aufbaut (WebKitGTK, schnelle lokale Modelle).
       const flush = () => {
         if (frame) cancelAnimationFrame(frame)
+        clearTimeout(uhr)
         frame = 0
+        uhr = undefined
         patch(key, { run: rs })
       }
-      // Viele kleine Text-Deltas: höchstens einmal pro Bild zeichnen.
+      // Viele kleine Text-Deltas: höchstens einmal pro Bild zeichnen, bei
+      // langen Antworten höchstens alle LANG_TAKT_MS.
       const schedule = () => {
-        if (!frame) frame = requestAnimationFrame(flush)
+        if (frame || uhr) return
+        if (blockLaenge > LANG_AB) uhr = setTimeout(flush, LANG_TAKT_MS)
+        else frame = requestAnimationFrame(flush)
       }
       patch(key, { run: rs })
       const ctrl = new AbortController()
@@ -331,11 +346,15 @@ export const useChat = create<ChatStore>((set, get) => {
                 finished = true
                 break
             }
-            if (ev.type === 'text') schedule()
-            else flush()
+            if (ev.type === 'text') {
+              blockLaenge += ev.text.length
+              schedule()
+            } else {
+              blockLaenge = 0
+              flush()
+            }
           }
         }
-        if (frame) cancelAnimationFrame(frame)
         flush()
         clearTimeout(watchdog)
         if (!finished && !conv(key)?.stopReq) dropped = true // Stream zu, Lauf nicht fertig

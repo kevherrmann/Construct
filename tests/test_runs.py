@@ -29,7 +29,7 @@ def _lauf_der_im_nachlauf_endet(tmp_path, monkeypatch):
     stub = tmp_path / "claude_stub.py"
     stub.write_text(STUB)
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
-    monkeypatch.setattr(runs, "load_persona", lambda: "")
+    monkeypatch.setattr(runs, "load_persona", lambda **_: "")
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
 
     async def los():
@@ -726,7 +726,7 @@ def _befehl(monkeypatch, **kw):
         gesehen["cmd"] = cmd
 
     monkeypatch.setattr(runs, "run_claude", kein_lauf)
-    monkeypatch.setattr(runs, "load_persona", lambda: "Persona mit Kalender")
+    monkeypatch.setattr(runs, "load_persona", lambda **_: "Persona mit Kalender")
 
     async def los():
         run = runs.start_run("hallo", "/tmp", "default", **kw)

@@ -128,11 +128,18 @@ def lokale_persona() -> str:
 
 
 def soul_text(lokal: bool = False) -> str:
-    """Was in SOUL.md soll: Codys Persona, bei lokalen Modellen ggf. die eigene."""
-    from server.core import persona_text
+    """Was in SOUL.md soll: Codys Persona, bei lokalen Modellen ggf. die eigene.
+
+    Große Modelle bekommen dazu die festen Anleitungen (Termine, Dokumente,
+    Bilder, Bausteine im Chat). An der Nachricht stünden sie in jeder
+    einzelnen und blieben alle im Verlauf liegen."""
+    from server import genui
+    from server.core import anleitungen_text, persona_text
     eigene = lokale_persona() if lokal else ""
     if not eigene:
-        return persona_text()
+        if lokal:
+            return persona_text()
+        return "\n\n".join(p for p in (persona_text(), anleitungen_text(), genui.regeln()) if p)
     return eigene + "\n\n" + cfg.L(
         "Antworte auf Deutsch, außer der Nutzer schreibt in einer anderen Sprache.",
         "Reply in English unless the user writes in another language.")
@@ -174,16 +181,36 @@ def sync_soul(lokal: bool = False) -> bool:
     return True
 
 
+def soul_ist_unsere() -> bool:
+    """Trägt SOUL.md unsere Persona, oder wird sie es beim nächsten Lauf?
+    Eine selbst geschriebene SOUL.md bleibt unangetastet (sync_soul) — dann
+    müssen die Anleitungen an die Nachricht."""
+    try:
+        have = (Path(hermes_home()) / "SOUL.md").read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return (not have.strip() or SOUL_MARK in have
+            or have.lstrip().startswith(HERMES_DEFAULT_SOUL))
+
+
 def with_context(prompt: str, lokal: bool = False) -> str:
     """Kalender (und Bild-Anleitung) zur Nachricht legen — markiert, damit
-    die Verlaufsansicht ihn wieder abschneiden kann (strip_context)."""
+    die Verlaufsansicht ihn wieder abschneiden kann (strip_context).
+
+    Große Modelle mit unserer SOUL.md haben die Anleitungen schon dort
+    (soul_text): an die Nachricht kommt nur, was sich ändert. Kleine lokale
+    Modelle bekommen keine Bausteine (genui) — halbes JSON wäre nur ein
+    kaputter Codeblock mehr im Chat — und keine Bild-Anleitung."""
     from server import genui
-    from server.core import context_text
-    block = context_text(bilder=not lokal)
-    if not lokal:
-        # Bausteine (genui) nicht für kleine lokale Modelle: halbes JSON wäre
-        # nur ein kaputter Codeblock mehr im Chat.
-        block = "\n\n".join(p for p in (block, genui.regeln()) if p)
+    from server.core import anleitungen_text, context_text, lage_text
+    if lokal:
+        block = context_text(bilder=False)
+    elif soul_ist_unsere():
+        block = lage_text()
+    else:
+        block = "\n\n".join(p for p in (anleitungen_text(), lage_text(), genui.regeln()) if p)
     if not block:
         return prompt
     if lokal:

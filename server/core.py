@@ -48,7 +48,7 @@ DEFAULT_CWD = WORKSPACE
 # Statuszeile wie das gerade laufende Modell, war aber ein fester Text und
 # stimmte nach jedem Modellwechsel nicht mehr. Was wirklich laeuft, meldet der
 # Lauf selbst (stats-Ereignis, aus `modelUsage`).
-VERSION = "8.11.0"
+VERSION = "8.12.0"
 
 # Passwortschutz: greift NUR, wenn MATRIX_PASS gesetzt ist (z.B. auf einem Server).
 # Lokal ohne MATRIX_PASS bleibt die Oberfläche offen (kein Login).
@@ -175,22 +175,101 @@ def persona_text() -> str:
 
 
 def calendar_text() -> str:
-    """Anstehende Termine samt Anleitung zum Eintragen — ändert sich laufend."""
+    """Anstehende Termine samt Anleitung zum Eintragen (alles in einem Stück)."""
     try:
         return cal.context_block() or ""
     except Exception:
         return ""
 
 
+def _dokumente_an() -> bool:
+    try:
+        return bool(cfg.load_settings()["tiles"].get("dokumente", False))
+    except Exception:
+        return False
+
+
 def dokumente_text() -> str:
     """Hinweis auf die Dokumente-Ablage, nur wenn die Kachel an ist."""
     try:
-        if not cfg.load_settings()["tiles"].get("dokumente", False):
+        if not _dokumente_an():
             return ""
         from server.dokumente import kontext
         return kontext.block()
     except Exception:
         return ""
+
+
+def anleitungen_text(bilder: bool = True) -> str:
+    """Wie Termine, Dokumente und Bilder gehen — ohne Termine und Zahlen.
+
+    Ändert sich nur mit den Einstellungen und darf darum in den Systemprompt.
+    Der wird bei jeder Nachricht neu geschickt; ändert sich darin auch nur
+    ein Zeichen, schreibt Claude den GANZEN bisherigen Verlauf neu in den
+    Zwischenspeicher. Ein neuer Termin kostete so einmal über 500.000 Tokens
+    (gemessen am 28.10.2026)."""
+    teile = []
+    try:
+        teile.append(cal.cli_hilfe())
+    except Exception:
+        pass
+    if _dokumente_an():
+        try:
+            from server.dokumente import kontext
+            teile.append(kontext.anleitung())
+        except Exception:
+            pass
+    if bilder:
+        try:
+            from server import images
+            teile.append(images.context_block())
+        except Exception:
+            pass
+    return "\n\n".join(p for p in teile if p)
+
+
+def lage_text() -> str:
+    """Was sich laufend ändert: Datum, anstehende Termine, Stand der Ablage.
+    Gehört an die Nachricht (lage_anhang), nicht in den Systemprompt."""
+    teile = []
+    try:
+        teile.append(cal.lage_block())
+    except Exception:
+        pass
+    if _dokumente_an():
+        try:
+            from server.dokumente import kontext
+            teile.append(kontext.stand())
+        except Exception:
+            pass
+    return "\n\n".join(p for p in teile if p)
+
+
+# Je Session: Fingerabdruck und Zeitpunkt der zuletzt angehängten Lage. Nur im
+# Speicher — nach einem Neustart geht sie einmal zu oft mit, das schadet nicht.
+_LAGE_GESENDET: dict[str, tuple[str, float]] = {}
+LAGE_AUFFRISCHEN_S = 6 * 3600
+
+
+def lage_anhang(session_id: str | None, immer: bool = False) -> str:
+    """Die Lage für das Ende der Nachricht, oder "" wenn die Session sie schon
+    kennt. Neue Sessions bekommen sie immer, sonst nur wenn sich etwas geändert
+    hat — oder nach ein paar Stunden, falls der Verlauf inzwischen
+    zusammengefasst wurde und sie dabei verloren ging."""
+    lage = lage_text()
+    if not lage:
+        return ""
+    import hashlib
+    h = hashlib.sha1(lage.encode("utf-8")).hexdigest()
+    jetzt = time.time()
+    alt = _LAGE_GESENDET.get(session_id or "")
+    if session_id and not immer and alt and alt[0] == h and jetzt - alt[1] < LAGE_AUFFRISCHEN_S:
+        return ""
+    if session_id:
+        if len(_LAGE_GESENDET) > 500:
+            _LAGE_GESENDET.clear()
+        _LAGE_GESENDET[session_id] = (h, jetzt)
+    return f"\n\n[{cfg.L('Kontext', 'Context')}: {lage}]"
 
 
 def context_text(bilder: bool = True) -> str:
@@ -206,9 +285,14 @@ def context_text(bilder: bool = True) -> str:
     return "\n\n".join(p for p in (calendar_text(), dokumente_text(), bilder) if p)
 
 
-def load_persona() -> str:
-    """Persona + Kontext als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen)."""
-    return "\n\n".join(p for p in (persona_text(), context_text()) if p).strip()
+def load_persona(lage: bool = True) -> str:
+    """Persona + Kontext als System-Prompt-Zusatz (bei jeder Anfrage frisch gelesen).
+
+    lage=False für Chat-Läufe: nur die festen Anleitungen, Termine und Zahlen
+    gehen dort an die Nachricht (lage_anhang). Telegram und geplante Aufgaben
+    bekommen alles in einem Stück."""
+    kontext = context_text() if lage else anleitungen_text()
+    return "\n\n".join(p for p in (persona_text(), kontext) if p).strip()
 
 ALLOWED_MODES = {"acceptEdits", "auto", "bypassPermissions", "default", "plan", "dontAsk"}
 

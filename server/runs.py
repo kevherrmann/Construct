@@ -805,10 +805,11 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     cmd += ["--fallback-model", cfg.fallback_models(model)]
     if effort in EFFORTS:
         cmd += ["--effort", effort]
-    persona = load_persona()
-    # Persona und Kalender ändern sich zwischen zwei Läufen derselben Sitzung
-    # (neuer Tag, neuer Termin, SOUL.md bearbeitet, Schalter umgelegt). Was die
-    # Firma getan hat, steht dagegen hinten an der Nachricht.
+    # Im Chat nur Festes im Systemprompt: Termine und Zahlen hängt die Route
+    # hinten an die Nachricht (core.lage_anhang), sonst bräche jeder neue
+    # Termin den Zwischenspeicher für den ganzen Verlauf. Was die Firma getan
+    # hat, steht ebenso hinten an der Nachricht.
+    persona = load_persona(lage=not chat)
     if chat:
         persona = (persona + "\n\n" + genui.regeln()).strip()
     if chat and conf["tiles"]["tickets"]:

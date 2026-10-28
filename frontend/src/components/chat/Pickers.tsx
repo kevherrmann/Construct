@@ -1,6 +1,7 @@
 import { useAuthStatus } from '@/api/system'
 import { trServer } from '@/lib/serverText'
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import { useFolderTree, useFolders } from '@/api/chat'
 import { useProviders } from '@/api/providers'
@@ -88,7 +89,17 @@ export function Pickers({
   const treeIndex = useMemo(() => (tree.data ? indexTree(tree.data) : null), [tree.data])
   const providers = useProviders()
   const provs = useMemo(() => providers.data ?? [], [providers.data])
-  const { folder, mode, effort, setFolder, setMode, setModel, setEffort } = useChat()
+  const { folder, mode, effort, setFolder, setMode, setModel, setEffort } = useChat(
+    useShallow((st) => ({
+      folder: st.folder,
+      mode: st.mode,
+      effort: st.effort,
+      setFolder: st.setFolder,
+      setMode: st.setMode,
+      setModel: st.setModel,
+      setEffort: st.setEffort,
+    })),
+  )
   const model = useChat((st) => st.active()?.model ?? '')
 
   // Klick irgendwo sonst schließt das offene Menü.

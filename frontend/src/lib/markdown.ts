@@ -9,19 +9,32 @@ import 'highlight.js/styles/atom-one-dark.css'
 // offline. Die Klasse "hljs" setzte die alte Fassung (marked v4) nicht; ohne
 // sie bleibt der Grundtext im Codeblock in der Theme-Farbe, nur die Token
 // werden bunt.
+// Beim Streamen wird die ganze Antwort bei jedem Bild neu gesetzt, fertige
+// Codeblöcke darin also immer wieder eingefärbt — highlight.js macht dabei fast
+// 90 % der Arbeit aus. Fertige Blöcke merken wir uns (20 KB: 6,3 → 0,7 ms).
+const FARBE = new Map<string, string>()
+function faerben(text: string, language: string): string {
+  const key = `${language}\u0000${text}`
+  const hit = FARBE.get(key)
+  if (hit !== undefined) return hit
+  let html: string
+  try {
+    html = hljs.highlight(text, { language }).value
+  } catch {
+    html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+  if (FARBE.size > 400) FARBE.clear()
+  FARBE.set(key, html)
+  return html
+}
+
 const marked = new Marked({
   breaks: true,
   renderer: {
     code({ text, lang }) {
       const l = (lang ?? '').match(/^\S*/)?.[0] ?? ''
       const language = hljs.getLanguage(l) ? l : 'plaintext'
-      let html: string
-      try {
-        html = hljs.highlight(text, { language }).value
-      } catch {
-        html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      }
-      return `<pre><code class="language-${language}">${html}</code></pre>\n`
+      return `<pre><code class="language-${language}">${faerben(text, language)}</code></pre>\n`
     },
   },
 })

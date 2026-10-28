@@ -30,9 +30,9 @@ from server import config as cfg
 # Nur ganze Zeilen am Ende zählen; `[[ticket …]]` steht noch in alten Verläufen.
 MARKE_RE = re.compile(r"^\s*\[\[(?:firma|company|ticket)\b[^\]\n]*\]\]\s*$", re.I)
 FIRMA_RE = re.compile(r"^\s*\[\[(?:firma|company)\s*:?\s*(?P<titel>[^\]\n]*)\]\]\s*$", re.I)
-# Was an die Nachricht des Nutzers gehängt wird (meldungen): für den Assistenten,
-# nicht für die Anzeige.
-MELDUNG_RE = re.compile(r"\n\n\[(?:Firma|Company|Tickets): [\s\S]*?\]\s*$")
+# Was an die Nachricht des Nutzers gehängt wird (meldungen, core.lage_anhang):
+# für den Assistenten, nicht für die Anzeige.
+MELDUNG_RE = re.compile(r"\n\n\[(?:Firma|Company|Tickets|Kontext|Context): [\s\S]*?\]\s*$")
 
 
 def ohne_marke(text: str) -> str:

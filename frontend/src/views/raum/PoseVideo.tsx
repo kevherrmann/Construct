@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { RUHIG, useMedien } from '@/hooks/useMedien'
+import { useRuhe } from '@/hooks/useRuhe'
 import type { Rechteck } from './stationen'
 import s from './Raum.module.css'
 
@@ -27,7 +28,11 @@ export function PoseVideo({
 }) {
   const ref = useRef<HTMLVideoElement>(null)
   const [laeuft, setLaeuft] = useState(false)
-  const ruhig = useMedien(RUHIG)
+  // Reduzierte Bewegung gewünscht oder keiner sieht hin: Standbild statt Video
+  // (VP9 mit Maske, 24 Bilder pro Sekunde — der größte Posten im Leerlauf).
+  const reduziert = useMedien(RUHIG)
+  const keinerSiehtHin = useRuhe()
+  const ruhig = reduziert || keinerSiehtHin
   const spielt = an && !ruhig
   useEffect(() => {
     const v = ref.current

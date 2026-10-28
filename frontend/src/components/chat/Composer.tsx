@@ -2,6 +2,7 @@ import { canDictate, startDictation, type Dictation } from '@/lib/dictation'
 import { tipp } from '@/lib/klang'
 import { trServer } from '@/lib/serverText'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
 import { useFolders } from '@/api/chat'
@@ -57,16 +58,30 @@ export function Composer({
   const file = useRef<HTMLInputElement>(null)
   const providers = useProviders()
   const folders = useFolders()
-  const { pending, addPending, removePending, send, stop, removeQueued, focusTick } = useChat()
-  const conv = useChat((st) => st.active())
+  // Einzelne Felder statt der ganzen Unterhaltung: die ändert sich beim Streamen
+  // bei jedem Bild, das Eingabefeld müsste sonst jedes Mal mitzeichnen.
+  const { pending, addPending, removePending, send, stop, removeQueued, focusTick } = useChat(
+    useShallow((st) => ({
+      pending: st.pending,
+      addPending: st.addPending,
+      removePending: st.removePending,
+      send: st.send,
+      stop: st.stop,
+      removeQueued: st.removeQueued,
+      focusTick: st.focusTick,
+    })),
+  )
+  const sessionId = useChat((st) => st.active()?.sessionId)
+  const queue = useChat((st) => st.active()?.queue)
   // Arbeitet die Firma in diesem Chat, kann eine Nachricht auch an sie gehen (Einwurf).
-  const arbeitet = useArbeitenderAuftrag(conv?.sessionId)
+  const arbeitet = useArbeitenderAuftrag(sessionId)
   const [anFirmaWahl, setAnFirma] = useState(false)
   const anFirma = anFirmaWahl && !!arbeitet
   const einwurf = useEinwurf()
-  const busy = !!conv?.busy
+  const busy = useChat((st) => !!st.active()?.busy)
   // Im Nachlauf ist der Zug fertig, die Aufgabe wartet aber noch auf ihren Hintergrund.
-  const laeuft = busy || !!conv?.nachlauf
+  const nachlauf = useChat((st) => !!st.active()?.nachlauf)
+  const laeuft = busy || nachlauf
   const assistant = useSettings((st) => st.boot.assistant)
   // Im Raum: „Sprich mit Chanti …“, ist dafür kein Platz (320 px, langer Name), die
   // kurze Fassung. Gemessen, weil text-overflow am Platzhalter einer textarea nicht wirkt.
@@ -266,11 +281,11 @@ export function Composer({
 
   return (
     <div className={`${s.composer} ${raum ? s.imRaum : ''}`}>
-      {!!conv?.queue.length && (
+      {!!queue?.length && (
         <div className={s.queue}>
-          ⏳ <b>{conv.queue.length}</b>{' '}
+          ⏳ <b>{queue.length}</b>{' '}
           {t('in Warteschlange — läuft automatisch nach der aktuellen Aufgabe (gleiche Session):')}
-          {conv.queue.map((m, i) => (
+          {queue.map((m, i) => (
             <div key={i} className={s.qitem}>
               <span>{m.text.slice(0, 90) || t('(Bild)')}</span>
               <button type="button" className={s.qx} onClick={() => removeQueued(i)}>

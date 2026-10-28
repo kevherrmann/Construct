@@ -1,4 +1,5 @@
 import { hz, TAKT, takt, zufall, type Ereignis } from './klangMusik'
+import { ruhtGerade } from './ruhe'
 
 // Klänge im Construct-Raum. Alles entsteht hier mit der Web Audio API —
 // keine Audiodateien: keine Lizenzfragen bei der Musik, nichts zu laden, und
@@ -277,7 +278,9 @@ export function codyTippt(an: boolean) {
     inFolge = pause ? 0 : inFolge + 1
     codyTimer = setTimeout(
       () => {
-        tipp(Math.random() < 0.15, 0.45)
+        // Hört keiner zu, nicht tippen: sonst weckt das Geräusch den Rechner
+        // zehnmal pro Sekunde für nichts.
+        if (!ruhtGerade()) tipp(Math.random() < 0.15, 0.45)
         weiter()
       },
       pause ? 500 + Math.random() * 1400 : 70 + Math.random() * 110,

@@ -4,6 +4,7 @@ import { useSessions, type SessionInfo } from '@/api/chat'
 import { ChatItemView } from '@/components/chat/Message'
 import { useFirmaImChat } from '@/components/firma/FirmaImChat'
 import { useChat } from '@/stores/chat'
+import { Start } from './Start'
 
 // Hauptbereich: Verlauf der aktiven Unterhaltung plus der laufende Lauf.
 export function ChatView() {
@@ -136,6 +137,11 @@ export function ChatView() {
     setTimeout(() => delete el.dataset.flash, 2000)
     anker.current = null
   }, [conv, items.length, wanted, msg])
+
+  // Neue, noch leere Session: Begrüßung statt einer leeren Fläche mit Hinweiszeile.
+  const leer =
+    !!conv && !conv.sessionId && !conv.run && conv.history.every((i) => i.kind === 'note')
+  if (leer && !firma.zeilen.length) return <Start />
 
   return (
     <div>

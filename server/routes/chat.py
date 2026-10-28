@@ -10,7 +10,7 @@ from server import config as cfg
 from server import hermes as hermesmod
 from server import llm as llmmod
 
-from server.core import ALLOWED_MODES, DEFAULT_CWD, sse
+from server.core import ALLOWED_MODES, DEFAULT_CWD, lage_anhang, sse
 from server.hermes_runs import carry_over_block, start_hermes_run
 from server.sessions import find_prompt
 from server.runs import (EFFORTS, MODEL_RE, RUNS, SSE_HEADERS, anhalten, build_prompt, gc_runs, nur_am_warten,
@@ -112,6 +112,10 @@ async def chat(req: Request):
             prompt += teamchat.nicht_angekommen(session_id)
         except Exception as e:
             print(f"[firma] Meldung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+    # Datum, Termine, Stand der Ablage: hinten an die Nachricht, nur wenn neu
+    # oder geändert. Nach dem Bearbeiten immer, der abgezweigte Verlauf kennt
+    # die letzte Fassung womöglich nicht.
+    prompt += lage_anhang(session_id, immer=resume_at is not None)
     run = start_run(prompt, work_dir, mode, model, session_id, resume_at, effort, chat=True)
     if not session_id and not forked_from:
         # Schattenbetrieb der automatischen Modellwahl: nur protokollieren.

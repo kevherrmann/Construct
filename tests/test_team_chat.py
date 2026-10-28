@@ -170,6 +170,7 @@ def test_meldung_haengt_an_der_naechsten_nachricht(monkeypatch, client, tmp_path
     class Lauf:
         id = "r-x"
     monkeypatch.setattr(chatroute, "start_run", lambda prompt, *a, **kw: prompts.append(prompt) or Lauf())
+    monkeypatch.setattr(chatroute, "lage_anhang", lambda *a, **kw: "")
     for _ in range(2):
         assert client.post("/api/chat", json={"message": "Und?", "session_id": SID}).status_code == 200
     assert prompts[0].endswith("[Firma: Übergabe „Uhr bauen“ nicht angekommen, der Team-Modus war aus.]")

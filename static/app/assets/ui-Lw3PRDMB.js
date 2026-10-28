@@ -1,0 +1,1 @@
+import{t as e}from"./react-DrKniF1j.js";import{n as t,t as n}from"./storage-Bfc2wZY4.js";var r=e(e=>({raum:n(`mxraum`)===`1`,setRaum:n=>{t(`mxraum`,n?`1`:null),e({raum:n})},sideOpen:!1,setSideOpen:t=>e({sideOpen:t}),sessQuery:``,closedFolders:{},showArchived:!1,showAgents:!1,setSess:t=>e(t)}));export{r as t};

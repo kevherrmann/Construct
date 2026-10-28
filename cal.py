@@ -109,12 +109,34 @@ def upcoming(days=7, today=None):
 
 
 def context_block(days=7, today=None):
-    """Kalender-Block für Codys System-Prompt — frisch bei jeder Anfrage eingespielt.
+    """Kalender-Block samt Anleitung fürs Eintragen — für Telegram und geplante
+    Aufgaben, die alles in einem Stück bekommen.
 
     Dadurch *weiß* Cody jederzeit, was ansteht, und kann von sich aus erinnern.
-    Dazu die Anleitung fürs Eintragen samt ECHTEM Pfad dieser Datei: fest in
-    der Persona stünde er nur für einen Rechner richtig.
+    Die Anleitung nennt den ECHTEN Pfad dieser Datei: fest in der Persona
+    stünde er nur für einen Rechner richtig.
     """
+    try:
+        from server import config
+        en = config.lang() == "en"
+    except Exception:
+        en = False
+    return lage_block(days, today) + _cli_help(en)
+
+
+def cli_hilfe():
+    """Nur die Anleitung, ohne Termine: ändert sich nie und darf darum in den
+    Systemprompt, ohne dessen Zwischenspeicher zu brechen."""
+    try:
+        from server import config
+        en = config.lang() == "en"
+    except Exception:
+        en = False
+    return _cli_help(en).strip()
+
+
+def lage_block(days=7, today=None):
+    """Datum und anstehende Termine, ohne Anleitung — ändert sich laufend."""
     today = today or datetime.date.today()
     try:
         from server import config
@@ -129,7 +151,7 @@ def context_block(days=7, today=None):
     ups = upcoming(days, today)
     if not ups:
         return head + (f"\nNo events in the next {days} days." if en
-                       else f"\nKeine Termine in den nächsten {days} Tagen eingetragen.") + _cli_help(en)
+                       else f"\nKeine Termine in den nächsten {days} Tagen eingetragen.")
     lines = [head, "Upcoming events — remind the user of them yourself when it fits:" if en
              else "Anstehende Termine — erinnere den Nutzer von dir aus daran, wenn es gerade passt:"]
     for e in ups:
@@ -144,7 +166,7 @@ def context_block(days=7, today=None):
         t = (" " + e["time"]) if e.get("time") else ""
         note = f" — {e['notes']}" if e.get("notes") else ""
         lines.append(f"- {when}{t}: {e['title']}{note}")
-    return "\n".join(lines) + _cli_help(en)
+    return "\n".join(lines)
 
 
 def _cli_help(en: bool) -> str:

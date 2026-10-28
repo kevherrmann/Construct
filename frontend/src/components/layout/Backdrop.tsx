@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { useRuhe } from '@/hooks/useRuhe'
 import { useFx } from '@/lib/fx'
 import { useSettings } from '@/stores/settings'
 import s from './Backdrop.module.css'
@@ -17,6 +18,15 @@ function MatrixRain({ slow }: { slow: boolean }) {
   // Frame (das erzwänge ständiges Neu-Berechnen des Stils). Der Regen selbst
   // läuft beim Themenwechsel einfach weiter, nur in neuer Farbe.
   const colors = useRef({ color: '#00ff41', fade: 'rgba(0,6,0,.07)' })
+  // Sieht keiner hin, bleibt der Regen stehen (letztes Bild bleibt sichtbar) und
+  // läuft bei der nächsten Mausbewegung an derselben Stelle weiter.
+  const ruht = useRuhe()
+  const ruhtRef = useRef(ruht)
+  const weiter = useRef(() => {})
+  useEffect(() => {
+    ruhtRef.current = ruht
+    if (!ruht) weiter.current()
+  }, [ruht])
   useEffect(() => {
     const cs = getComputedStyle(document.documentElement)
     colors.current = {
@@ -48,6 +58,10 @@ function MatrixRain({ slow }: { slow: boolean }) {
     // requestAnimationFrame statt setInterval: pausiert von selbst, wenn das
     // Fenster unsichtbar ist, und staut nie Frames auf.
     const loop = (t: number) => {
+      if (ruhtRef.current) {
+        raf = 0
+        return
+      }
       raf = requestAnimationFrame(loop)
       if (t - last < every) return
       last = t
@@ -62,8 +76,12 @@ function MatrixRain({ slow }: { slow: boolean }) {
         drops[i]!++
       }
     }
+    weiter.current = () => {
+      if (!raf) raf = requestAnimationFrame(loop)
+    }
     raf = requestAnimationFrame(loop)
     return () => {
+      weiter.current = () => {}
       cancelAnimationFrame(raf)
       removeEventListener('resize', size)
     }

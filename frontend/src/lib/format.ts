@@ -22,17 +22,30 @@ export function parseTs(v?: string | number | null): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+// toLocale*String legt bei jedem Aufruf einen neuen Formatierer an — teuer,
+// wenn ein langer Verlauf neu zeichnet. Darum je Sprache und Form einer.
+const FORMATE = new Map<string, Intl.DateTimeFormat>()
+export function datumsFormat(lang: string | undefined, opts: Intl.DateTimeFormatOptions) {
+  const key = `${lang ?? ''}|${JSON.stringify(opts)}`
+  let f = FORMATE.get(key)
+  if (!f) {
+    f = new Intl.DateTimeFormat(lang, opts)
+    FORMATE.set(key, f)
+  }
+  return f
+}
+
 /** Uhrzeit neben der Nachricht: "21:14", an anderen Tagen "28.09. 21:14". */
 export function fmtMsgTime(ts: number, lang?: string, now = Date.now()) {
   const d = new Date(ts)
-  const time = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })
+  const time = datumsFormat(lang, { hour: '2-digit', minute: '2-digit' }).format(d)
   if (d.toDateString() === new Date(now).toDateString()) return time
   const sameYear = d.getFullYear() === new Date(now).getFullYear()
-  const date = d.toLocaleDateString(lang, {
+  const date = datumsFormat(lang, {
     day: '2-digit',
     month: '2-digit',
     ...(sameYear ? {} : { year: '2-digit' }),
-  })
+  }).format(d)
   return `${date} ${time}`
 }
 

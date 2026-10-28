@@ -327,7 +327,7 @@ def test_chat_lauf_bekommt_regeln_nur_mit_kachel(tmp_path, monkeypatch, an):
     async def nichts(run, cmd):
         gesehen.append(cmd)
     monkeypatch.setattr(runs, "run_claude", nichts)
-    monkeypatch.setattr(runs, "load_persona", lambda: "Persona")
+    monkeypatch.setattr(runs, "load_persona", lambda **_: "Persona")
 
     async def los():
         runs.start_run("hallo", str(tmp_path), "default", chat=True)
@@ -352,7 +352,7 @@ def test_chat_lauf_ohne_mehrzeilige_argumente(tmp_path, monkeypatch):
     async def nichts(run, cmd):
         gesehen.append((run, cmd))
     monkeypatch.setattr(runs, "run_claude", nichts)
-    monkeypatch.setattr(runs, "load_persona", lambda: "Zeile 1\nZeile 2")
+    monkeypatch.setattr(runs, "load_persona", lambda **_: "Zeile 1\nZeile 2")
 
     async def los():
         runs.start_run("hallo", str(tmp_path), "default", session_id="abc", chat=True)

@@ -32,7 +32,7 @@ def test_anleitung_nur_im_chat(tmp_path, monkeypatch, chat):
     async def nichts(run, cmd):
         gesehen.append(cmd)
     monkeypatch.setattr(runs, "run_claude", nichts)
-    monkeypatch.setattr(runs, "load_persona", lambda: "Persona")
+    monkeypatch.setattr(runs, "load_persona", lambda **_: "Persona")
 
     async def los():
         runs.start_run("hallo", str(tmp_path), "default", chat=chat)

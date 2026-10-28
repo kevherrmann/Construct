@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useUi } from '@/stores/ui'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -18,8 +19,22 @@ export function SessionsSide() {
   const qc = useQueryClient()
   const lang = useSettings((st) => st.boot.lang)
   const sessions = useSessions()
-  const { newSession, openSession, forgetSession } = useChat()
-  const convs = useChat((st) => st.convs)
+  const { newSession, openSession, forgetSession } = useChat(
+    useShallow((st) => ({
+      newSession: st.newSession,
+      openSession: st.openSession,
+      forgetSession: st.forgetSession,
+    })),
+  )
+  // Nur, welche Sessions hier gerade arbeiten, als String: die Unterhaltungen
+  // selbst ändern sich beim Streamen bei jedem Bild, die Liste müsste mitzeichnen.
+  const busyKey = useChat((st) =>
+    Object.values(st.convs)
+      .filter((c) => c.busy && c.sessionId)
+      .map((c) => c.sessionId)
+      .join(' '),
+  )
+  const busyHier = useMemo(() => new Set(busyKey.split(' ').filter(Boolean)), [busyKey])
   const activeSid = useChat((st) => st.active()?.sessionId)
   // Suche und Filter überleben den Wechsel in andere Ansichten.
   const { sessQuery: query, closedFolders: closed, showArchived, showAgents, setSess } = useUi()
@@ -55,8 +70,7 @@ export function SessionsSide() {
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
   const waehlen = auswahl.size > 0
   const [anker, setAnker] = useState<string | null>(null)
-  const laeuft = (x: SessionInfo) =>
-    !!running[x.id] || Object.values(convs).some((c) => c.sessionId === x.id && c.busy)
+  const laeuft = (x: SessionInfo) => !!running[x.id] || busyHier.has(x.id)
   const sichtbar = folders.flatMap((f) => (q || !closed[f] ? groups.get(f)! : []))
   const gewaehlt = list.filter((x) => auswahl.has(x.id))
   const auswahlEnde = () => {
@@ -263,8 +277,7 @@ export function SessionsSide() {
             </div>
             {isOpen &&
               items.map((x) => {
-                const conv = Object.values(convs).find((c) => c.sessionId === x.id)
-                const isRunning = !!conv?.busy || !!running[x.id]
+                const isRunning = busyHier.has(x.id) || !!running[x.id]
                 const dt =
                   new Date(x.mtime * 1000).toLocaleString(locale(lang), {
                     day: '2-digit',

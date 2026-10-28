@@ -33,21 +33,31 @@ def test_eigene_soul_bleibt_unangetastet(home):
     assert (home / "SOUL.md").read_text() == "Du bist mein Piraten-Agent."
 
 
-def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
+def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(home, monkeypatch):
     # Unabhängig davon, ob auf diesem Rechner ein fal-Key liegt (Bild-Hinweis)
     # oder die Dokumente eingeschaltet sind.
     from server import images
     monkeypatch.setattr(images, "context_block", lambda: "")
     monkeypatch.setattr(core, "dokumente_text", lambda: "")
-    monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
+    monkeypatch.setattr(core, "lage_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
     sent = hermes.with_context("Was steht an?")
     assert "Zahnarzt" in sent and sent.startswith("Was steht an?")
+    # Die festen Anleitungen stehen in unserer SOUL.md, nicht an jeder Nachricht.
+    assert "```ui" not in sent
     assert hermes.strip_context(sent) == "Was steht an?"
     assert hermes.strip_context("Ohne Kontext") == "Ohne Kontext"
-    monkeypatch.setattr(core, "calendar_text", lambda: "")
-    assert hermes.with_context("Hallo", lokal=True) == "Hallo"
-    # Die Bausteine-Anleitung (genui) geht immer mit, auch ohne Termine.
-    assert hermes.strip_context(hermes.with_context("Hallo")) == "Hallo"
+    monkeypatch.setattr(core, "lage_text", lambda: "")
+    assert hermes.with_context("Hallo") == "Hallo"
+
+
+def test_anleitungen_in_der_soul_oder_an_der_nachricht(home, monkeypatch):
+    monkeypatch.setattr(core, "lage_text", lambda: "")
+    assert hermes.sync_soul()
+    assert "```ui" in (home / "SOUL.md").read_text()
+    # Eine selbst geschriebene SOUL.md bleibt, dann müssen sie an die Nachricht.
+    (home / "SOUL.md").write_text("Du bist mein Piraten-Agent.")
+    sent = hermes.with_context("Hallo")
+    assert "```ui" in sent and hermes.strip_context(sent) == "Hallo"
 
 
 def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
@@ -55,6 +65,8 @@ def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
     monkeypatch.setattr(images, "context_block", lambda: "## Bilder erzeugen\n…")
     monkeypatch.setattr(core, "dokumente_text", lambda: "")
     monkeypatch.setattr(core, "calendar_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
+    monkeypatch.setattr(core, "lage_text", lambda: "## Dein Kalender\n- Mo: Zahnarzt")
+    monkeypatch.setattr(hermes, "soul_ist_unsere", lambda: False)
     lokal = hermes.with_context("Sag nur: eins", lokal=True)
     assert lokal.startswith(hermes.CTX_OPEN) and lokal.endswith("Sag nur: eins")
     assert "Bilder erzeugen" not in lokal and "Zahnarzt" in lokal

@@ -12,35 +12,49 @@ CLI = Path(__file__).resolve().parent.parent.parent / "doku.py"
 
 
 def block() -> str:
+    """Anleitung und Stand in einem Stück (Telegram, geplante Aufgaben)."""
+    return anleitung() + "\n" + stand()
+
+
+def stand() -> str:
+    """Wie viel in der Ablage liegt — ändert sich mit jedem einsortierten
+    Dokument und gehört darum an die Nachricht, nicht in den Systemprompt."""
     if not (ablage.DATEN / "dokumente.db").exists():
         u = {"gesamt": 0, "eingang": 0, "lesen": 0}
     else:
         u = ablage.uebersicht()
     warnung = _sicherung_warnung(u["gesamt"], cfg.lang() == "en")
+    if cfg.lang() == "en":
+        s = f"Document archive: {u['gesamt']} documents, {u['eingang']} of them in the inbox (not yet sorted)"
+        if u["lesen"]:
+            s += f", {u['lesen']} still being read"
+        return s + "." + warnung
+    s = f"Dokumente-Ablage: {u['gesamt']} Dokumente, davon {u['eingang']} im Eingang (noch nicht einsortiert)"
+    if u["lesen"]:
+        s += f", {u['lesen']} werden gerade gelesen"
+    return s + "." + warnung
+
+
+def anleitung() -> str:
+    """Wie der Assistent mit der Ablage arbeitet — fest, darf in den Systemprompt."""
     # Der Interpreter des Servers, nicht python3 aus dem PATH: doku.py braucht
     # pypdf und Co. aus dem venv, das System-Python hat sie nicht.
     befehl = f'"{sys.executable}" "{CLI}"'
     if cfg.lang() == "en":
-        stand = f"{u['gesamt']} documents, {u['eingang']} of them in the inbox (not yet sorted)"
-        if u["lesen"]:
-            stand += f", {u['lesen']} still being read"
-        return (f"## The user's document archive (Documents tile)\n{stand}.\n"
+        return ("## The user's document archive (Documents tile)\n"
                 f"Commands: `{befehl} search \"words\"` · `show ID` · `inbox` · "
                 "`set ID --title … --date YYYY-MM-DD --sender … --type … --tags a,b --done` · `split ID \"1-2, 3\"` · `merge ID ID …` · `names`.\n"
                 "Sorting the inbox: read each document with show, set title, date, sender, type and "
                 "tags, then --done. Reuse existing names (see names) instead of inventing variants.\n"
                 "Privacy: whatever you read with show goes to the model provider. Only read the "
-                "documents a question actually needs." + warnung)
-    stand = f"{u['gesamt']} Dokumente, davon {u['eingang']} im Eingang (noch nicht einsortiert)"
-    if u["lesen"]:
-        stand += f", {u['lesen']} werden gerade gelesen"
-    return (f"## Dokumente-Ablage des Nutzers (Kachel Dokumente)\n{stand}.\n"
+                "documents a question actually needs.")
+    return ("## Dokumente-Ablage des Nutzers (Kachel Dokumente)\n"
             f"Befehle: `{befehl} search \"Wörter\"` · `show ID` · `inbox` · "
             "`set ID --title … --date JJJJ-MM-TT --sender … --type … --tags a,b --done` · `split ID \"1-2, 3\"` · `merge ID ID …` · `names`.\n"
             "Eingang einsortieren: jedes Dokument mit show lesen, Titel, Datum, Absender, Typ und Tags "
             "setzen, dann --done. Vorhandene Namen nehmen (siehe names), keine Varianten erfinden.\n"
             "Datenschutz: Was du mit show liest, geht an den Modellanbieter. Lies nur die Dokumente, "
-            "die eine Frage wirklich braucht." + warnung)
+            "die eine Frage wirklich braucht.")
 
 
 def _sicherung_warnung(gesamt: int, en: bool) -> str:

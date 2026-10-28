@@ -2,6 +2,39 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.12.0 — 2026-10-28
+
+### Added
+- **A start screen for new sessions.** Instead of an empty area with one grey
+  line: a greeting, today's date, the next three events and a few ways in
+  ("What is coming up this week?", continue the last session, "What can you
+  do?"). In the chat view and in the room's log.
+
+### Changed
+- **Much cheaper conversations when the calendar changes.** Date, upcoming
+  events and the document count were part of the system prompt, which is sent
+  anew with every message. Whenever one of them changed (a new event, a new
+  day, a sorted document), Claude wrote the whole conversation into its cache
+  again: one new event once cost over 500,000 tokens. The system prompt now
+  only holds what never changes; date, events and counts go at the end of the
+  message, and only when they changed. Measured: the message after a new
+  event wrote 2,683 tokens instead of the whole conversation, a message
+  without changes 159.
+- **Models through Hermes** get the fixed instructions (calendar, documents,
+  images, building blocks) once in their persona instead of with every
+  message, where every copy stayed in the conversation.
+- **Smoother streaming of long answers.** Earlier messages no longer redraw
+  with every new word (300 messages: 59 → 6 ms per frame), finished code
+  blocks are not highlighted again and again, very long answers redraw every
+  100 ms instead of every frame, and the input, pickers and session list stay
+  still while the answer streams.
+- **Less work when nobody is looking.** The matrix rain, the assistant's
+  video in the room and the typing sound pause when the window is hidden or
+  after three minutes without mouse or keyboard, and continue on the next
+  movement.
+- **Session titles use two lines** in the session list instead of being cut
+  after a few words.
+
 ## 8.11.0 — 2026-10-28
 
 ### Added

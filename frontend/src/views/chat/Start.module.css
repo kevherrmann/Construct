@@ -1,0 +1,119 @@
+.start {
+  max-width: 560px;
+  margin: 12vh auto 0;
+  padding: 0 16px;
+  text-align: center;
+  color: var(--text);
+}
+.start > * {
+  animation: global(fade) 0.5s ease both;
+}
+.start > :nth-child(2) {
+  animation-delay: 0.06s;
+}
+.start > :nth-child(3) {
+  animation-delay: 0.12s;
+}
+.start > :nth-child(4) {
+  animation-delay: 0.18s;
+}
+.start > :nth-child(5) {
+  animation-delay: 0.24s;
+}
+
+.gruss {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--green);
+  text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.35);
+}
+.datum {
+  margin-top: 6px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.karte {
+  composes: glass-card from global;
+  margin: 28px auto 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--green-faint);
+  text-align: left;
+}
+.kopf {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.termine {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.termine li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.termine li + li {
+  border-top: 1px solid var(--green-faint);
+}
+.wann {
+  flex: none;
+  min-width: 112px;
+  font-size: 12px;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.titel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+}
+.chips button {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--green-faint);
+  background: rgba(var(--accent-rgb), 0.06);
+  color: var(--text);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+.chips button:hover {
+  background: rgba(var(--accent-rgb), 0.16);
+  border-color: var(--green);
+  transform: translateY(-1px);
+}
+
+.hinweis {
+  margin-top: 26px;
+  font-size: 12px;
+  color: var(--text-dim);
+  opacity: 0.8;
+}
