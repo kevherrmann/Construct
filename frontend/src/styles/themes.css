@@ -51,6 +51,14 @@
   --shade: rgba(0, 0, 0, 0.35);
   --mask: rgba(0, 4, 0, 0.82);
   --err: #ff9b9b;
+  /* Reihenfarben für Diagramme mit mehreren Reihen (Bausteine im Chat), in
+     fester Reihenfolge: Blau, Orange, Türkis, Gelb. Geprüft auf Abstand auch
+     bei Farbenblindheit; sie folgen nicht dem Akzent, damit die Reihen in
+     jeder Farbwelt unterscheidbar bleiben. Eine einzelne Reihe nimmt --green. */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
 }
 html[data-theme='bernstein'] {
   --green: #ffb648;
@@ -177,4 +185,8 @@ html:is([data-theme='papier'], [data-theme='nebel']) {
      Grund gemacht; auf hellem würden sie unlesbar (Gelb 1,4:1). */
   --akzent-dunkler: 50%;
   --warn: #8a6100;
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
 }

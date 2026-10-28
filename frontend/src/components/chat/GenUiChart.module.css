@@ -1,0 +1,174 @@
+.chart {
+  margin: 10px 0;
+  padding: 10px 12px 6px;
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  background: rgba(var(--accent-rgb), 0.04);
+  animation: global(fade) 0.25s ease;
+}
+.kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.titel {
+  flex: 1;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text);
+}
+.umschalter {
+  margin-left: auto;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--green-faint);
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.umschalter:hover {
+  color: var(--text);
+  border-color: var(--green-dim);
+}
+
+.legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text);
+}
+.legende li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.keyFlaeche {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+.keyLinie {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.flaeche {
+  position: relative;
+  margin-top: 6px;
+  width: 100%;
+}
+.flaeche svg {
+  display: block;
+  overflow: visible;
+}
+.gitter {
+  stroke: var(--green-faint);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.null {
+  stroke: var(--green-dim);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.achse {
+  fill: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.balken {
+  transition: opacity 0.15s;
+}
+.flaeche:has(.aktiv) .balken:not(.aktiv) {
+  opacity: 0.45;
+}
+.linie {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.punkt {
+  stroke: var(--popup);
+  stroke-width: 2;
+}
+.fadenkreuz {
+  stroke: var(--green-dim);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+.treffer {
+  fill: transparent;
+  outline: none;
+}
+.treffer:focus-visible {
+  stroke: var(--green-dim);
+  stroke-width: 1;
+}
+
+.tip {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--popup);
+  border: 1px solid var(--green-faint);
+  box-shadow: 0 4px 14px var(--shade);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 1;
+}
+.tipLinks {
+  transform: translateX(-100%);
+}
+.tipLabel {
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.tipZeile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.tipName {
+  color: var(--text-dim);
+}
+
+.tabelleWrap {
+  margin-top: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+.tabelle {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+.tabelle th,
+.tabelle td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--green-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabelle th:first-child {
+  text-align: left;
+  font-weight: normal;
+  color: var(--text-dim);
+}
+.tabelle thead th {
+  color: var(--text-dim);
+  font-weight: normal;
+}

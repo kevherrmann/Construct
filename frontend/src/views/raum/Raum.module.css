@@ -35,6 +35,10 @@
   --err: #b42318;
   --akzent-dunkler: 50%;
   --warn: #8a6100;
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
   color-scheme: light;
   position: fixed;
   inset: 0;

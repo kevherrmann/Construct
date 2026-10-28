@@ -107,3 +107,123 @@
   opacity: 0.6;
   animation: global(pulse) 1.2s ease-in-out infinite;
 }
+
+/* Formular */
+.felder {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 12px;
+}
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.feld:has(textarea) {
+  grid-column: 1 / -1;
+}
+.label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.pflicht {
+  color: var(--err);
+}
+.eingabe {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--green-faint);
+  background: var(--field);
+  color: var(--text);
+  min-width: 0;
+  resize: vertical;
+}
+.eingabe:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.felder:disabled .eingabe {
+  opacity: 0.7;
+}
+.formFuss {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* Checkliste */
+.listeKopf {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.listeKopf .question {
+  margin: 0;
+  font-weight: bold;
+}
+.zaehler {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.meter {
+  height: 4px;
+  border-radius: 2px;
+  margin: 8px 0;
+  background: rgba(var(--accent-rgb), 0.15);
+  overflow: hidden;
+}
+.meterFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--green);
+  transition: width 0.3s ease;
+}
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.liste li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+.zeichen {
+  flex: none;
+  width: 1em;
+  text-align: center;
+}
+.punktDone .zeichen {
+  color: var(--green);
+}
+.punktFailed .zeichen {
+  color: var(--err);
+}
+.punktActive .zeichen {
+  color: var(--green);
+  animation: global(pulse) 1.2s ease-in-out infinite;
+}
+.punktActive {
+  font-weight: bold;
+}
+.punktOpen {
+  color: var(--text-dim);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

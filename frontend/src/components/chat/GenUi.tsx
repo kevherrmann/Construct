@@ -1,9 +1,10 @@
 import { useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAddEvent, useEvents } from '@/api/calendar'
-import { splitUi, type UiSpec } from '@/lib/chat/genui'
+import { formText, formWerte, splitUi, type ItemState, type UiSpec } from '@/lib/chat/genui'
 import { useChat } from '@/stores/chat'
 import { AntwortId } from './antwortId'
+import { Chart } from './GenUiChart'
 import { Markdown } from './Markdown'
 import s from './GenUi.module.css'
 
@@ -105,12 +106,137 @@ function EventCard({ spec }: { spec: Extract<UiSpec, { type: 'event' }> }) {
   )
 }
 
+function Form({ spec }: { spec: Extract<UiSpec, { type: 'form' }> }) {
+  const { t } = useTranslation()
+  const send = useChat((st) => st.send)
+  const naechste = useNaechsteEingabe()
+  const [werte, setWerte] = useState<Record<string, string>>({})
+  const [geschickt, setGeschickt] = useState(false)
+  // Schon beantwortet (auch vor dem Neuladen): Werte aus der Nachricht zeigen.
+  const erledigt = geschickt || naechste != null
+  const zeige = geschickt || naechste == null ? werte : formWerte(spec, naechste)
+  const setze = (name: string, v: string) => setWerte((w) => ({ ...w, [name]: v }))
+  return (
+    <form
+      className={`${s.card} ${s.form}`}
+      onSubmit={(e) => {
+        e.preventDefault()
+        const text = formText(spec, werte)
+        if (!text || erledigt) return
+        setGeschickt(true)
+        void send(text, { hinten: true })
+      }}
+    >
+      {spec.title && <div className={s.question}>{spec.title}</div>}
+      <fieldset className={s.felder} disabled={erledigt}>
+        {spec.fields.map((f) => {
+          const props = {
+            name: f.name,
+            required: f.required,
+            value: zeige[f.name] ?? '',
+            className: s.eingabe,
+            onChange: (
+              e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+            ) => setze(f.name, e.target.value),
+          }
+          return (
+            <label key={f.name} className={s.feld}>
+              <span className={s.label}>
+                {f.label}
+                {f.required && <span className={s.pflicht}> *</span>}
+              </span>
+              {f.kind === 'textarea' ? (
+                <textarea {...props} rows={3} placeholder={f.placeholder} />
+              ) : f.kind === 'select' ? (
+                <select {...props}>
+                  <option value="">{t('— wählen —')}</option>
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input {...props} type={f.kind} placeholder={f.placeholder} />
+              )}
+            </label>
+          )
+        })}
+      </fieldset>
+      <div className={s.formFuss}>
+        {erledigt ? (
+          <span className={s.done}>{t('✓ Abgeschickt')}</span>
+        ) : (
+          <button type="submit" className={s.add}>
+            {spec.submit || t('Absenden')}
+          </button>
+        )}
+      </div>
+    </form>
+  )
+}
+
+const ZEICHEN: Record<ItemState, string> = { done: '✓', failed: '✗', active: '●', open: '○' }
+// Eigene Klassennamen: .done gibt es schon für „✓ Im Kalender“.
+const PUNKT: Record<ItemState, string | undefined> = {
+  done: s.punktDone,
+  failed: s.punktFailed,
+  active: s.punktActive,
+  open: s.punktOpen,
+}
+
+function Checklist({ spec }: { spec: Extract<UiSpec, { type: 'checklist' }> }) {
+  const { t } = useTranslation()
+  const fertig = spec.items.filter((i) => i.state === 'done').length
+  const fehler = spec.items.filter((i) => i.state === 'failed').length
+  return (
+    <div className={s.card}>
+      <div className={s.listeKopf}>
+        {spec.title && <span className={s.question}>{spec.title}</span>}
+        <span className={s.zaehler}>
+          {fertig}/{spec.items.length}
+          {fehler > 0 && ` · ${t('{n} fehlgeschlagen', { n: fehler })}`}
+        </span>
+      </div>
+      <div
+        className={s.meter}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={spec.items.length}
+        aria-valuenow={fertig}
+      >
+        <div className={s.meterFill} style={{ width: `${(fertig / spec.items.length) * 100}%` }} />
+      </div>
+      <ul className={s.liste}>
+        {spec.items.map((it, i) => (
+          <li key={i} className={PUNKT[it.state]}>
+            <span className={s.zeichen} aria-hidden>
+              {ZEICHEN[it.state]}
+            </span>
+            <span>
+              {it.text}
+              {it.state === 'failed' && <span className={s.srOnly}> ({t('fehlgeschlagen')})</span>}
+              {it.state === 'active' && <span className={s.srOnly}> ({t('läuft')})</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function Baustein({ spec }: { spec: UiSpec }) {
   switch (spec.type) {
     case 'choices':
       return <Choices spec={spec} />
     case 'event':
       return <EventCard spec={spec} />
+    case 'form':
+      return <Form spec={spec} />
+    case 'chart':
+      return <Chart spec={spec} />
+    case 'checklist':
+      return <Checklist spec={spec} />
   }
 }
 

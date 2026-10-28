@@ -86,3 +86,51 @@ it('ein offener Baustein beim Streamen zeigt einen Platzhalter statt JSON', () =
   expect(screen.getByText('baue Karte …')).toBeVisible()
   expect(screen.queryByText(/"type"/)).toBeNull()
 })
+
+it('Formular schickt alle Felder als eine Nachricht und sperrt danach', () => {
+  const send = vi.fn().mockResolvedValue(undefined)
+  useChat.setState({ send })
+  const form = ui({
+    type: 'form',
+    title: 'Kunde',
+    fields: [
+      { label: 'Firma', required: true },
+      { label: 'Priorität', type: 'select', options: ['hoch', 'normal'] },
+    ],
+  })
+  mitQuery(<RichMarkdown text={form} />)
+  fireEvent.change(screen.getByLabelText(/Firma/), { target: { value: 'Müller' } })
+  fireEvent.change(screen.getByLabelText('Priorität'), { target: { value: 'hoch' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Absenden' }))
+  expect(send).toHaveBeenCalledWith('**Kunde**\nFirma: Müller\nPriorität: hoch', { hinten: true })
+  expect(screen.getByText('✓ Abgeschickt')).toBeVisible()
+  expect(screen.getByLabelText(/Firma/)).toBeDisabled()
+})
+
+it('Checkliste zeigt Fortschritt und Fehlschläge', () => {
+  const liste = ui({
+    type: 'checklist',
+    title: 'Helpdesk-Test',
+    items: [{ text: 'Ticket anlegen', state: 'done' }, { text: 'Mail', state: 'failed' }, 'Portal'],
+  })
+  mitQuery(<RichMarkdown text={liste} />)
+  expect(screen.getByText('Helpdesk-Test')).toBeVisible()
+  expect(screen.getByText('1/3 · 1 fehlgeschlagen')).toBeVisible()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
+})
+
+it('Diagramm zeichnet Balken, zeigt den Wert beim Überfahren und hat eine Tabelle', () => {
+  const chart = ui({
+    type: 'chart',
+    title: 'Tickets pro Woche',
+    labels: ['KW40', 'KW41'],
+    values: [3, 1200],
+  })
+  const { container } = mitQuery(<RichMarkdown text={chart} />)
+  expect(container.querySelectorAll('svg path')).toHaveLength(2)
+  fireEvent.pointerEnter(screen.getByLabelText('KW41: 1.200'))
+  expect(screen.getAllByText('1.200').length).toBeGreaterThan(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }))
+  expect(screen.getByRole('table')).toBeVisible()
+  expect(screen.getByRole('cell', { name: '3' })).toBeVisible()
+})

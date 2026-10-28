@@ -2,6 +2,21 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.11.0 — 2026-10-28
+
+### Added
+- **Three more building blocks in the chat.**
+  - **Form:** when the assistant needs several details at once, it shows a
+    small form (text, date, number, choice, longer note) instead of asking one
+    question after the other. "Send" turns it into one message with a line
+    per field; afterwards the form stays visible with what you sent.
+  - **Chart:** bar or line charts for numbers, with up to four series, a
+    legend, the values on hover or keyboard focus, and a table view. Several
+    series get their own colors, chosen to stay apart for color-blind readers
+    too, in dark themes, light themes and the room.
+  - **Checklist:** steps of a longer task with done, running, failed and
+    open, plus a progress bar.
+
 ## 8.10.0 — 2026-10-28
 
 ### Added

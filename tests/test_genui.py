@@ -15,9 +15,8 @@ def test_beispiele_sind_gueltiges_json(monkeypatch):
     for sprache in ("de", "en"):
         monkeypatch.setattr(cfg, "lang", lambda s=sprache: s)
         bloecke = re.findall(r"```ui\n(.*?)\n```", genui.regeln(), re.S)
-        assert len(bloecke) == 2
-        typen = {json.loads(b)["type"] for b in bloecke}
-        assert typen == {"choices", "event"}
+        typen = [json.loads(b)["type"] for b in bloecke]
+        assert typen == ["choices", "event", "form", "chart", "checklist"]
 
 
 @pytest.mark.parametrize("chat", [True, False])
