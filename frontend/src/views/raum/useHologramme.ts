@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Helfer } from '@/lib/chat/types'
-import { holosNach, naechsteAenderung, type Holo } from './hologramme'
+import { holosNach, naechsteAenderung, type Holo } from './hologrammeDaten'
 
 const KEINE: readonly Helfer[] = []
 

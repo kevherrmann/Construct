@@ -21,6 +21,7 @@ export interface NewEvent {
   date: string
   time: string
   title: string
+  notes?: string
   prompt: string
   repeat: '' | 'yearly'
 }

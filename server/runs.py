@@ -15,6 +15,7 @@ from pathlib import Path
 
 from server import attach
 from server import config as cfg
+from server import genui
 from server import telegram_bot as tgmod
 from server import tickets as tickmod
 
@@ -808,6 +809,8 @@ def start_run(prompt, work_dir, mode, model="", session_id=None, resume_at=None,
     # Persona und Kalender ändern sich zwischen zwei Läufen derselben Sitzung
     # (neuer Tag, neuer Termin, SOUL.md bearbeitet, Schalter umgelegt). Was die
     # Firma getan hat, steht dagegen hinten an der Nachricht.
+    if chat:
+        persona = (persona + "\n\n" + genui.regeln()).strip()
     if chat and conf["tiles"]["tickets"]:
         persona = (persona + "\n\n" + tickmod.regeln()).strip()
     if chat and conf["team"]["aktiv"]:

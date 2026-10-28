@@ -13,7 +13,7 @@ import {
   ortVon,
   wartende,
   type Holo,
-} from './hologramme'
+} from './hologrammeDaten'
 import { WERKBANK } from './stationen'
 
 const helfer = (id: string, x: Partial<Helfer> = {}): Helfer => ({

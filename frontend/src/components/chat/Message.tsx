@@ -7,8 +7,11 @@ import { MODES } from '@/lib/chat/models'
 import { useChat } from '@/stores/chat'
 import { say, stopSay, useSayState } from '@/lib/audio'
 import { ohneMarke } from '@/lib/chat/marken'
+import { ohneUi } from '@/lib/chat/genui'
 import { speakableText } from '@/lib/chat/speak'
 import { useSettings } from '@/stores/settings'
+import { AntwortId } from './antwortId'
+import { RichMarkdown } from './GenUi'
 import { Markdown } from './Markdown'
 import { ToolBox } from './ToolBox'
 import s from './Message.module.css'
@@ -221,7 +224,9 @@ export function BlockView({ block }: { block: Block }) {
   const note = useNote()
   switch (block.t) {
     case 'text':
-      return <Markdown className={s.seg} text={ohneMarke(block.text)} streaming={block.streaming} />
+      return (
+        <RichMarkdown className={s.seg} text={ohneMarke(block.text)} streaming={block.streaming} />
+      )
     case 'thinkmark':
       return <div className={s.thinkmark}>{t('💭 nachgedacht')}</div>
     case 'tool':
@@ -287,28 +292,31 @@ export function BlockView({ block }: { block: Block }) {
 
 function BotMessage({ item }: { item: BotItem }) {
   const { t } = useTranslation()
-  const text = () => (item.markdown ?? speakableText(item.blocks)).trim()
+  const text = () =>
+    (item.markdown != null ? ohneUi(item.markdown) : speakableText(item.blocks)).trim()
   return (
     <Frame user={false} say={{ id: item.id, text }} ts={item.ts}>
-      <div className={s.bubble}>
-        {item.markdown != null ? (
-          <Markdown text={item.markdown} />
-        ) : (
-          <div>
-            {item.blocks.map((b, i) => (
-              <BlockView key={i} block={b} />
-            ))}
-            {item.thinking && (
-              <div className={s.thinking}>
-                {t('Denke nach')}
-                <span className={s.dot} />
-                <span className={s.dot} />
-                <span className={s.dot} />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <AntwortId.Provider value={item.id}>
+        <div className={s.bubble}>
+          {item.markdown != null ? (
+            <RichMarkdown text={item.markdown} />
+          ) : (
+            <div>
+              {item.blocks.map((b, i) => (
+                <BlockView key={i} block={b} />
+              ))}
+              {item.thinking && (
+                <div className={s.thinking}>
+                  {t('Denke nach')}
+                  <span className={s.dot} />
+                  <span className={s.dot} />
+                  <span className={s.dot} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </AntwortId.Provider>
     </Frame>
   )
 }

@@ -362,6 +362,6 @@ def test_chat_lauf_ohne_mehrzeilige_argumente(tmp_path, monkeypatch):
     assert not any("\n" in a for a in cmd)
     assert cmd[cmd.index("--resume") + 1] == "abc"
     datei = Path(cmd[cmd.index("--append-system-prompt-file") + 1])
-    assert datei.read_text(encoding="utf-8") == "Zeile 1\nZeile 2"
+    assert datei.read_text(encoding="utf-8").startswith("Zeile 1\nZeile 2")
     run.finish()
     assert not datei.exists()

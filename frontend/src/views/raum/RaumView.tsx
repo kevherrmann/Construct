@@ -14,7 +14,7 @@ import { useVersion } from '@/api/system'
 import { Composer } from '@/components/chat/Composer'
 import { BeendenKnopf } from '@/components/layout/Beenden'
 import type { PickerName } from '@/components/chat/Pickers'
-import { Markdown } from '@/components/chat/Markdown'
+import { RichMarkdown } from '@/components/chat/GenUi'
 import { baseName } from '@/lib/format'
 import { MODES, modelInfo } from '@/lib/chat/models'
 import { useFx } from '@/lib/fx'
@@ -43,7 +43,7 @@ import steckfeldBild from './assets/steckfeld.webp'
 import { abschnitte, lageAus, werkzeugStation, type Phase } from './lage'
 import { BueroHologramme, HoloSchicht } from './Hologramme'
 import { useHologramme } from './useHologramme'
-import { BRUST_PODEST, BRUST_WERKBANK, aufstellung } from './hologramme'
+import { BRUST_PODEST, BRUST_WERKBANK, aufstellung } from './hologrammeDaten'
 import { KartenInhalt } from './RaumKarten'
 import { useRaumKlang } from './useRaumKlang'
 import { Fernseher } from './Fernseher'
@@ -1452,7 +1452,7 @@ function Sprechblase({
         ))}
       {teile.length > 0 && (
         <div ref={ref} className={s.blasenText} data-scroll>
-          <Markdown
+          <RichMarkdown
             key={nr}
             className={s.blasenSeite}
             text={teile[nr] ?? ''}

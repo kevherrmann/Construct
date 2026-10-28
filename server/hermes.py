@@ -177,8 +177,13 @@ def sync_soul(lokal: bool = False) -> bool:
 def with_context(prompt: str, lokal: bool = False) -> str:
     """Kalender (und Bild-Anleitung) zur Nachricht legen — markiert, damit
     die Verlaufsansicht ihn wieder abschneiden kann (strip_context)."""
+    from server import genui
     from server.core import context_text
     block = context_text(bilder=not lokal)
+    if not lokal:
+        # Bausteine (genui) nicht für kleine lokale Modelle: halbes JSON wäre
+        # nur ein kaputter Codeblock mehr im Chat.
+        block = "\n\n".join(p for p in (block, genui.regeln()) if p)
     if not block:
         return prompt
     if lokal:

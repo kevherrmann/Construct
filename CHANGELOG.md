@@ -2,6 +2,24 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.10.0 — 2026-10-28
+
+### Added
+- **Building blocks in the chat.** Instead of plain text, the assistant can
+  now answer with small interactive pieces: answer buttons when you should
+  pick between a few options (a click sends your choice), and an event card
+  with an "Add to calendar" button when it suggests an appointment. They work
+  with Claude and with the models through Hermes, in the chat, in the history
+  and in the speech bubble of the room. Small local models don't get them. A
+  block the interface cannot read stays visible as a normal code block, and
+  read-aloud skips the blocks.
+
+### Fixed
+- **Building the interface on a Mac works again.** `Hologramme.tsx` and
+  `hologramme.ts` differed only in case, so on the Mac's file system the
+  import found the wrong file and `npm run check` failed. The data module is
+  now `hologrammeDaten.ts`.
+
 ## 8.9.1 — 2026-10-27
 
 ### Changed

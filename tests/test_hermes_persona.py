@@ -45,7 +45,9 @@ def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(monkeypatch):
     assert hermes.strip_context(sent) == "Was steht an?"
     assert hermes.strip_context("Ohne Kontext") == "Ohne Kontext"
     monkeypatch.setattr(core, "calendar_text", lambda: "")
-    assert hermes.with_context("Hallo") == "Hallo"
+    assert hermes.with_context("Hallo", lokal=True) == "Hallo"
+    # Die Bausteine-Anleitung (genui) geht immer mit, auch ohne Termine.
+    assert hermes.strip_context(hermes.with_context("Hallo")) == "Hallo"
 
 
 def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
@@ -56,9 +58,11 @@ def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
     lokal = hermes.with_context("Sag nur: eins", lokal=True)
     assert lokal.startswith(hermes.CTX_OPEN) and lokal.endswith("Sag nur: eins")
     assert "Bilder erzeugen" not in lokal and "Zahnarzt" in lokal
+    assert "```ui" not in lokal
     assert hermes.strip_context(lokal) == "Sag nur: eins"
     sonst = hermes.with_context("Sag nur: eins")
     assert sonst.startswith("Sag nur: eins") and "Bilder erzeugen" in sonst
+    assert "```ui" in sonst
     assert hermes.strip_context(sonst) == "Sag nur: eins"
 
 

@@ -1,0 +1,109 @@
+.card {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--green-faint);
+  border-radius: var(--radius);
+  background: rgba(var(--accent-rgb), 0.05);
+  animation: global(fade) 0.25s ease;
+}
+.question {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.option {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--green-faint);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.option:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: var(--green);
+}
+.option:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.option.chosen {
+  opacity: 1;
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-accent);
+  font-weight: bold;
+}
+
+.event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.body {
+  flex: 1;
+  min-width: 0;
+}
+.title {
+  font-weight: bold;
+  color: var(--text);
+}
+.when {
+  font-size: 12px;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.notes {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+.error {
+  font-size: 12px;
+  color: var(--err);
+  margin-top: 4px;
+}
+.add {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--green);
+  color: var(--on-accent);
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.done {
+  font-size: 12px;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.pending {
+  margin: 10px 0;
+  font-size: 12px;
+  opacity: 0.6;
+  animation: global(pulse) 1.2s ease-in-out infinite;
+}

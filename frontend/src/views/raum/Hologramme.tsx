@@ -11,7 +11,14 @@ import { useTeamStand } from '@/api/team'
 import { useLiveZug } from '@/components/firma/useLiveZug'
 import { RUHIG, useMedien } from '@/hooks/useMedien'
 import { useFx } from '@/lib/fx'
-import { PLUS_ORT, brust, nebenMitarbeiter, wartende, type Holo, type Stellung } from './hologramme'
+import {
+  PLUS_ORT,
+  brust,
+  nebenMitarbeiter,
+  wartende,
+  type Holo,
+  type Stellung,
+} from './hologrammeDaten'
 import { BUERO_BUEHNE, BUERO_SPRITES, WERKBANK } from './stationen'
 import type { BueroStand, Sitz } from './useBuero'
 import s from './Raum.module.css'
@@ -20,7 +27,7 @@ import { useHologramme } from './useHologramme'
 // Helfer als Hologramme: eine grün leuchtende Kopie der Figur baut sich aus
 // Scanlinien neben ihr auf, geht an die Station ihres Werkzeugs und zerfällt am
 // Ende in Code-Regen; ein Blatt schwebt zum Besitzer zurück. Welche wo stehen,
-// rechnet hologramme.ts aus, hier wird nur gezeichnet.
+// rechnet hologrammeDaten.ts aus, hier wird nur gezeichnet.
 
 /** Sparmodus und „Bewegung reduzieren“: nur weich ein- und ausblenden. */
 function useRuhig() {
