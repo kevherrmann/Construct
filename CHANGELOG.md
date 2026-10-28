@@ -2,6 +2,17 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.12.1 — 2026-10-28
+
+### Fixed
+- **Ticket cards no longer get stuck in QA.** A card only moved to Done once
+  all its commits were on a remote, so it waited forever in three cases: a
+  repository without a remote, a commit rewritten before the push (rebase,
+  amend) and a commit whose worktree was deleted. Now a commit on main/master
+  of a repository without a remote counts as done, and so does a commit that
+  is no longer on any branch or no longer exists. A commit made in the middle
+  of a rebase still waits.
+
 ## 8.12.0 — 2026-10-28
 
 ### Added

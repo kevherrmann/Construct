@@ -23,6 +23,8 @@ Wie Karten wandern:
     hat; wer eine Spalte in seiner Akte trägt (Janus: review, Miranda: qa),
     zieht sie dorthin, sobald er drankommt. Ein fertiger Auftrag → QA.
   - Sind alle Commits einer Karte auf dem Remote → Done (der Server fragt git).
+    Ohne Remote reicht main/master; umgeschriebene, verworfene oder verschwundene
+    Commits zählen auch als erledigt (_gepusht).
   - Von Hand: immer. Wer eine Karte nach dem letzten Commit selbst gezogen hat,
     dem schiebt die Push-Prüfung sie nicht wieder weg.
 
@@ -382,10 +384,30 @@ _PUSH = {"zuletzt": 0.0}
 PUSH_TAKT = 15
 
 
+HAUPTBRANCHES = ("main", "master")
+
+
 def _gepusht(c: dict) -> bool:
-    """Liegt der Commit auf einem Remote-Branch? Ohne Remote: nie."""
-    out = _git(c["repo"], "branch", "-r", "--contains", c["sha"])
-    return bool(out and out.strip())
+    """Ist der Commit erledigt? Heißt fast immer: auf einem Remote-Branch. Daneben
+    drei Fälle, die sonst für immer in QA stünden (Board vom 28.10.2026: 129
+    Karten in QA, keine davon offen):
+
+      - Repo ohne Remote (Construct3D): auf main/master ist das Ende des Wegs.
+      - Commit auf keinem Branch mehr: vor dem Push umgeschrieben (Rebase, neue
+        Nummer) oder verworfen. HEAD zählt mit, sonst träfe es einen laufenden
+        Rebase.
+      - Repo oder Commit gibt es nicht mehr (Worktree gelöscht)."""
+    repo, sha = c["repo"], c["sha"]
+    if not Path(repo).is_dir() or _git(repo, "cat-file", "-e", f"{sha}^{{commit}}") is None:
+        return True
+    if (_git(repo, "branch", "-r", "--contains", sha) or "").strip():
+        return True
+    lokal = (_git(repo, "branch", "--format=%(refname:short)", "--contains", sha) or "").split()
+    if not lokal:
+        return _git(repo, "merge-base", "--is-ancestor", sha, "HEAD") is None
+    if not (_git(repo, "remote") or "").strip():
+        return any(b in HAUPTBRANCHES for b in lokal)
+    return False
 
 
 def push_pruefen(erzwingen: bool = False) -> bool:

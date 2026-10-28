@@ -196,10 +196,60 @@ def test_von_hand_zurueckgezogen_bleibt_trotz_push(repo, tmp_path):
     assert tk.holen(nr)["spalte"] == "qa"
 
 
-def test_ohne_remote_nie_done(repo):
+def test_ohne_remote_done_auf_main(repo):
     nr = tk.commit_buchen(committen(repo, "Lokal"), "git commit", str(repo))
     tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "done"
+
+
+def test_ohne_remote_auf_nebenbranch_bleibt_qa(repo):
+    committen(repo, "Basis")
+    git(repo, "switch", "-q", "-c", "versuch")
+    nr = tk.commit_buchen(committen(repo, "Auf dem Ast"), "git commit", str(repo))
+    tk.push_pruefen(erzwingen=True)
     assert tk.holen(nr)["spalte"] == "qa"
+
+
+def test_mit_remote_ungepusht_bleibt_qa(repo, tmp_path):
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    nr = tk.commit_buchen(committen(repo, "Noch lokal"), "git commit", str(repo))
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "qa"
+
+
+def test_umgeschriebener_commit_ist_erledigt(repo, tmp_path):
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    committen(repo, "Basis")
+    nr = tk.commit_buchen(committen(repo, "Erster Wurf"), "git commit", str(repo))
+    # vor dem Push umgeschrieben, ohne dass das Board es mitbekommt
+    git(repo, "commit", "-q", "--amend", "-m", "Umgeschrieben")
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "done"
+
+
+def test_laufender_rebase_ist_nicht_erledigt(repo, tmp_path):
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    committen(repo, "Basis")
+    git(repo, "switch", "-q", "--detach")
+    nr = tk.commit_buchen(committen(repo, "Mitten im Rebase"), "git commit", str(repo))
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "qa"
+
+
+def test_geloeschtes_repo_ist_erledigt(repo):
+    import shutil
+    committen(repo, "Basis")
+    git(repo, "switch", "-q", "-c", "worktree-ast")
+    nr = tk.commit_buchen(committen(repo, "Im Worktree"), "git commit", str(repo))
+    shutil.rmtree(repo)
+    tk.push_pruefen(erzwingen=True)
+    assert tk.holen(nr)["spalte"] == "done"
 
 
 # ---------- Firma ----------
