@@ -42,4 +42,4 @@ def test_anleitung_nur_im_chat(tmp_path, monkeypatch, chat):
     datei = Path(gesehen[0][gesehen[0].index("--append-system-prompt-file") + 1])
     persona = datei.read_text(encoding="utf-8")
     datei.unlink()
-    assert ("## Bausteine im Chat" in persona) is chat
+    assert (genui.regeln() in persona) is chat
