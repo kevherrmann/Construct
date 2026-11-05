@@ -2,6 +2,15 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.13.1 — 2026-11-05
+
+### Fixed
+- **Dragging the signature no longer uploads it.** Dragging the signature
+  preview made the browser hand it over as a file, so the chat attached it
+  and the document area filed it as a new document. Now it is dragged onto
+  the page directly and lands where you let go; a click places it at the
+  bottom right as before.
+
 ## 8.13.0 — 2026-11-05
 
 ### Added

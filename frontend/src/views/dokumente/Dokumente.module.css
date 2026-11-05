@@ -641,3 +641,14 @@ label.knopf {
   text-decoration: none;
   cursor: pointer;
 }
+.sigvorschau img {
+  cursor: grab;
+  touch-action: none;
+}
+.schweben {
+  position: fixed;
+  z-index: 90;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.75;
+}

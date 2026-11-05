@@ -42,6 +42,14 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
   const blatt = useRef<HTMLDivElement | null>(null)
   const [blattBreite, setBlattBreite] = useState(0)
   const griff = useRef<Griff>(null)
+  // Unterschrift aus der Vorschau aufs Blatt ziehen. Bewusst mit Zeiger-
+  // Ereignissen statt HTML-Drag&Drop: ein gezogenes <img> wird im Browser zur
+  // Datei, und die nehmen Chat und Dokumente-Ablage als Upload an.
+  const [schweben, setSchweben] = useState<{
+    x: number
+    y: number
+    start: { x: number; y: number }
+  } | null>(null)
 
   const hatSig = !!data?.unterschrift || sigV > 0
   useEffect(() => {
@@ -84,6 +92,35 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
   }
   const los = () => (griff.current = null)
 
+  const sigNeu = (mitte?: { x: number; y: number }): Element => {
+    const breite = 0.3
+    const hoehe = (breite * seite.breite * sigVerh) / seite.hoehe
+    if (!mitte)
+      return { art: 'unterschrift', seite: n, x: 0.55, y: Math.min(0.78, 0.97 - hoehe), breite }
+    return verschoben(
+      { art: 'unterschrift', seite: n, x: 0, y: 0, breite },
+      mitte.x - breite / 2,
+      mitte.y - hoehe / 2,
+    )
+  }
+  const ablegen = (e: PointerEvent) => {
+    const sw = schweben
+    setSchweben(null)
+    if (!sw) return
+    // Nur geklickt, nicht gezogen: wie „+ Unterschrift“
+    if (Math.hypot(e.clientX - sw.start.x, e.clientY - sw.start.y) < 5) return dazu(sigNeu())
+    const r = blatt.current?.getBoundingClientRect()
+    if (
+      !r ||
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    )
+      return
+    dazu(sigNeu({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }))
+  }
+
   const fertig = async () => {
     setFehler('')
     try {
@@ -120,7 +157,7 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
   }
 
   return (
-    <div className={s.detail}>
+    <div className={s.detail} onDragStart={(e) => e.preventDefault()}>
       <div>
         {isError && <div className={s.fehler}>{t('Die Seiten lassen sich nicht lesen.')}</div>}
         {seiten.length > 1 && (
@@ -220,6 +257,19 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
             <img
               src={unterschriftUrl(sigV)}
               alt={t('Unterschrift')}
+              title={t('Auf die Seite ziehen')}
+              draggable={false}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.currentTarget.setPointerCapture(e.pointerId)
+                const p = { x: e.clientX, y: e.clientY }
+                setSchweben({ ...p, start: p })
+              }}
+              onPointerMove={(e) =>
+                schweben && setSchweben({ ...schweben, x: e.clientX, y: e.clientY })
+              }
+              onPointerUp={ablegen}
+              onPointerCancel={() => setSchweben(null)}
               onLoad={(e) =>
                 setSigVerh(e.currentTarget.naturalHeight / e.currentTarget.naturalWidth || 0.35)
               }
@@ -235,20 +285,7 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
         )}
         <div className={s.aktionen}>
           {hatSig ? (
-            <button
-              type="button"
-              className={s.knopf}
-              onClick={() =>
-                dazu({
-                  art: 'unterschrift',
-                  seite: n,
-                  x: 0.55,
-                  // unten rechts, aber ganz auf der Seite
-                  y: Math.min(0.78, 0.97 - (0.3 * seite.breite * sigVerh) / seite.hoehe),
-                  breite: 0.3,
-                })
-              }
-            >
+            <button type="button" className={s.knopf} onClick={() => dazu(sigNeu())}>
               {t('+ UNTERSCHRIFT')}
             </button>
           ) : (
@@ -288,7 +325,7 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
         <p className={s.leise}>
           {elemente.length
             ? t('Zum Verschieben ziehen, Größe am Griff unten rechts.')
-            : t('Füg die Unterschrift hinzu und zieh sie an die richtige Stelle.')}
+            : t('Zieh die Unterschrift aus der Vorschau auf die Seite.')}
         </p>
         {fehler && <div className={s.fehler}>{fehler}</div>}
         <div className={s.aktionen}>
@@ -305,6 +342,14 @@ export function Unterschreiben({ d, onFertig, onZu }: Props) {
           </button>
         </div>
       </div>
+      {schweben && (
+        <img
+          className={s.schweben}
+          src={unterschriftUrl(sigV)}
+          alt=""
+          style={{ left: schweben.x, top: schweben.y, width: 0.3 * (blattBreite || 300) }}
+        />
+      )}
       <UnterschriftPad
         open={pad}
         onClose={() => setPad(false)}
