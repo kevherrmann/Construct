@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from server import config as cfg
-from server.dokumente import ablage, ocr, scanner, sicherung
+from server.dokumente import ablage, ocr, scanner, sicherung, unterschrift
 from server.sicherung import Fehler as SicherungsFehler
 
 DATEI_MAX = 60 * 1024 * 1024
@@ -212,6 +212,34 @@ async def sicherung_pruefen(req: Request):
         return _fehler(ablage.Fehler(str(e)))
 
 
+# ---------- Unterschrift ----------
+
+@router.get("/unterschrift")
+def unterschrift_bild():
+    try:
+        return Response(unterschrift.lesen(), media_type="image/png", headers={"Cache-Control": "no-store"})
+    except KeyError:
+        raise HTTPException(status_code=404)
+
+
+@router.post("/unterschrift")
+async def unterschrift_speichern(datei: UploadFile = File(...)):
+    """Gezeichnet (PNG mit Alpha) oder Foto einer Unterschrift auf Papier."""
+    inhalt = await datei.read(15 * 1024 * 1024 + 1)
+    if len(inhalt) > 15 * 1024 * 1024:
+        return _fehler(ablage.Fehler(cfg.L("Bild zu groß (max. 15 MB)", "Image too large (max 15 MB)")))
+    try:
+        return await asyncio.to_thread(unterschrift.speichern, inhalt)
+    except ablage.Fehler as e:
+        return _fehler(e)
+
+
+@router.delete("/unterschrift")
+def unterschrift_loeschen():
+    unterschrift.loeschen()
+    return {"ok": True}
+
+
 # ---------- Einzelnes Dokument (zuletzt: /{id_} würde sonst /scan und /hochladen schlucken) ----------
 
 @router.get("/{id_}")
@@ -255,3 +283,35 @@ def vorschau(id_: int):
     if not p:
         raise HTTPException(status_code=404)
     return FileResponse(p, media_type="image/webp")
+
+
+@router.get("/{id_}/seiten")
+async def seiten(id_: int):
+    try:
+        return {"seiten": await asyncio.to_thread(unterschrift.seiten, id_),
+                "unterschrift": unterschrift.vorhanden()}
+    except KeyError:
+        raise HTTPException(status_code=404)
+    except Exception as e:      # kaputtes PDF: pypdf wirft vieles
+        return _fehler(ablage.Fehler(str(e)))
+
+
+@router.get("/{id_}/seite/{n}")
+async def seite(id_: int, n: int):
+    try:
+        bild = await asyncio.to_thread(unterschrift.seitenbild, id_, n)
+    except KeyError:
+        raise HTTPException(status_code=404)
+    if not bild:
+        raise HTTPException(status_code=404)
+    return Response(bild, media_type="image/webp", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/{id_}/unterschreiben")
+async def unterschreiben(id_: int, req: Request):
+    b = await _body(req)
+    el = b.get("elemente")
+    try:
+        return await asyncio.to_thread(unterschrift.unterschreiben, id_, el if isinstance(el, list) else [])
+    except (ablage.Fehler, KeyError) as e:
+        return _fehler(e)

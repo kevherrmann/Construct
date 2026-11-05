@@ -2,6 +2,19 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.13.0 — 2026-11-05
+
+### Added
+- **Sign documents.** In a document's details, "sign" opens the pages with
+  your signature ready to place: drag it into position, resize it at the
+  handle, and add a "place, date" line if needed (the place is remembered
+  for next time). Signing files a new document "… (signed)" with the same
+  sender, type and tags and offers it for download; the original stays as
+  it was. The signature is drawn once with mouse, finger or pen, or loaded
+  from a photo of it on paper (the background is removed). It is kept in
+  `dokumente/unterschrift.png`. Rotated pages are handled; without
+  Ghostscript there is no page preview, but placing still works.
+
 ## 8.12.1 — 2026-10-28
 
 ### Fixed

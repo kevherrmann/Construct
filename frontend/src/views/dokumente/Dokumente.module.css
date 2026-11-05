@@ -534,3 +534,110 @@ button.tag {
   border: 1px solid var(--green-dim);
   border-radius: var(--radius);
 }
+
+/* Unterschreiben */
+.pad {
+  width: 100%;
+  height: 200px;
+  /* Papierweiß, damit die Tinte so aussieht wie später auf dem Blatt */
+  background: #fff;
+  border: 1px solid var(--green-dim);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.blaettern {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.blatt {
+  position: relative;
+  width: 100%;
+  min-width: 260px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--green-faint);
+  border-radius: 4px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+.blatt > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.stempel {
+  position: absolute;
+  cursor: move;
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+}
+.stempel:hover,
+.gewaehlt {
+  outline-color: var(--green-dim);
+}
+.stempel img {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+}
+.stempeltext {
+  display: block;
+  white-space: nowrap;
+  line-height: 1;
+  padding: 1px 0;
+  /* Wie im PDF (Helvetica), damit die Breite am Schirm passt */
+  font-family: Helvetica, Arial, sans-serif;
+  color: #1a1a26;
+}
+.stempelweg {
+  position: absolute;
+  /* außerhalb des Kastens, sonst verdeckt er bei kurzem Text die letzten Zeichen */
+  top: -24px;
+  right: -16px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--err);
+  background: var(--deep);
+  color: var(--err);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.stempelgriff {
+  position: absolute;
+  right: -16px;
+  bottom: -12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--green);
+  cursor: nwse-resize;
+}
+.sigvorschau {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sigvorschau img {
+  max-width: 220px;
+  max-height: 70px;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 6px;
+}
+a.knopf,
+label.knopf {
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}

@@ -9,6 +9,7 @@ import {
   type Dok,
 } from '@/api/dokumente'
 import { tagsDazu } from './format'
+import { Unterschreiben } from './Unterschreiben'
 import s from './Dokumente.module.css'
 
 interface Props {
@@ -19,7 +20,13 @@ interface Props {
   onZu: () => void
 }
 
-function Formular({ d, reihe, onWeiter, onZu }: Omit<Props, 'id'> & { d: Dok }) {
+function Formular({
+  d,
+  reihe,
+  onWeiter,
+  onZu,
+  onUnterschreiben,
+}: Omit<Props, 'id'> & { d: Dok; onUnterschreiben: () => void }) {
   const { t } = useTranslation()
   const act = useDokumenteAktionen()
   const absender = useNamen('absender').data ?? []
@@ -190,6 +197,15 @@ function Formular({ d, reihe, onWeiter, onZu }: Omit<Props, 'id'> & { d: Dok }) 
         <button type="button" className={s.link} onClick={() => setText(!text)}>
           {text ? t('Text ausblenden') : t('gelesenen Text zeigen')}
         </button>
+        {d.zustand !== 'lesen' && (
+          <>
+            {' '}
+            ·{' '}
+            <button type="button" className={s.link} onClick={onUnterschreiben}>
+              {t('unterschreiben')}
+            </button>
+          </>
+        )}
         {d.seiten > 1 && (
           <>
             {' '}
@@ -247,6 +263,7 @@ function Formular({ d, reihe, onWeiter, onZu }: Omit<Props, 'id'> & { d: Dok }) 
 export function DokumentDetail({ id, reihe, onWeiter, onZu }: Props) {
   const { t } = useTranslation()
   const { data: d, isError } = useDokument(id)
+  const [signieren, setSignieren] = useState<number | null>(null)
   const i = reihe.indexOf(id)
   return (
     <div>
@@ -277,7 +294,17 @@ export function DokumentDetail({ id, reihe, onWeiter, onZu }: Props) {
         )}
       </div>
       {isError && <div className={s.leer}>{t('Das Dokument gibt es nicht mehr.')}</div>}
-      {d && (
+      {d && signieren === d.id && (
+        <Unterschreiben
+          d={d}
+          onFertig={(neu) => {
+            setSignieren(null)
+            onWeiter(neu.id)
+          }}
+          onZu={() => setSignieren(null)}
+        />
+      )}
+      {d && signieren !== d.id && (
         <div className={s.detail}>
           <iframe
             className={s.pdf}
@@ -292,6 +319,7 @@ export function DokumentDetail({ id, reihe, onWeiter, onZu }: Props) {
             reihe={reihe}
             onWeiter={onWeiter}
             onZu={onZu}
+            onUnterschreiben={() => setSignieren(d.id)}
           />
         </div>
       )}

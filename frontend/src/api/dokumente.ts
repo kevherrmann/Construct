@@ -116,6 +116,9 @@ export const dateiUrl = (id: number, download = false) =>
   `${B}/${id}/datei${download ? '?download=1' : ''}`
 export const vorschauUrl = (d: Pick<Dok, 'id' | 'geaendert' | 'zustand'>) =>
   `${B}/${d.id}/vorschau?v=${encodeURIComponent(d.geaendert)}${d.zustand}`
+export const seiteUrl = (id: number, n: number) => `${B}/${id}/seite/${n}`
+/** v: Zähler, damit nach dem Ändern das neue Bild kommt. */
+export const unterschriftUrl = (v: number) => `${B}/unterschrift?v=${v}`
 export const scanSeiteUrl = (sid: string, seite: 'vorne' | 'hinten', n: number) =>
   `${B}/scan/${sid}/seite/${seite}/${n}`
 
@@ -157,6 +160,20 @@ export const useDokument = (id: number) =>
     queryKey: ['dokumente', 'eins', id],
     queryFn: () => apiGet<Dok>(`${B}/${id}`),
     refetchInterval: (q) => nachfragen(q.state.data?.zustand === 'lesen'),
+  })
+
+/** Was auf eine Seite gelegt wird; Lage als Anteil der sichtbaren Seite, Ursprung oben links. */
+export type Element =
+  | { art: 'unterschrift'; seite: number; x: number; y: number; breite: number }
+  | { art: 'text'; seite: number; x: number; y: number; hoehe: number; text: string }
+
+export const useSeiten = (id: number) =>
+  useQuery({
+    queryKey: ['dokumente', 'seiten', id],
+    queryFn: () =>
+      apiGet<{ seiten: { breite: number; hoehe: number }[]; unterschrift: boolean }>(
+        `${B}/${id}/seiten`,
+      ),
   })
 
 export const useNamen = (tabelle: 'absender' | 'typen' | 'tags') =>
@@ -202,6 +219,18 @@ export function useDokumenteAktionen() {
       // Leere headers: der Browser setzt den multipart-Rand selbst.
       return apiPost<Dok>(`${B}/hochladen`, undefined, { body: fd, headers: {} })
     }),
+    unterschriftSpeichern: useAktion((bild: Blob) => {
+      const fd = new FormData()
+      fd.append('datei', bild, 'unterschrift.png')
+      return apiPost<{ breite: number; hoehe: number }>(`${B}/unterschrift`, undefined, {
+        body: fd,
+        headers: {},
+      })
+    }),
+    unterschriftLoeschen: useAktion(() => apiDelete<{ ok: boolean }>(`${B}/unterschrift`)),
+    unterschreiben: useAktion((v: { id: number; elemente: Element[] }) =>
+      apiPost<Dok>(`${B}/${v.id}/unterschreiben`, { elemente: v.elemente }),
+    ),
     scanStart: useAktion(
       (v: { quelle: 'auto' | 'einzug' | 'glas'; farbe: boolean; geraet?: string }) =>
         apiPost<ScanStand>(`${B}/scan`, v),
