@@ -10,6 +10,7 @@ import {
 } from '@/api/dokumente'
 import { DokumentDetail } from './DokumentDetail'
 import { ScanDialog } from './ScanDialog'
+import { ModellDialog } from './ModellDialog'
 import { SicherungDialog } from './SicherungDialog'
 import { datum } from './format'
 import { useDokumenteAnsicht } from './store'
@@ -65,6 +66,8 @@ export function DokumenteMain() {
     setScannen,
     sicherung,
     setSicherung,
+    modell,
+    setModell,
   } = useDokumenteAnsicht()
   const { data: u } = useUebersicht()
   const { data, isPending } = useDokumente(filter)
@@ -185,6 +188,7 @@ export function DokumenteMain() {
       )}
       <ScanDialog open={scannen} onClose={() => setScannen(false)} />
       <SicherungDialog open={sicherung} onClose={() => setSicherung(false)} />
+      <ModellDialog open={modell} onClose={() => setModell(false)} />
     </div>
   )
 }

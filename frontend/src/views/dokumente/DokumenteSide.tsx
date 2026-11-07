@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useDokumenteAktionen,
+  useModell,
   useNamen,
   useSicherung,
   useUebersicht,
@@ -19,8 +20,9 @@ const FELD: Record<Liste, keyof Filter> = { absender: 'absender', typen: 'typ', 
 export function DokumenteSide() {
   const { t } = useTranslation()
   const { data: u } = useUebersicht()
-  const { filter, bereich, setScannen, setSicherung } = useDokumenteAnsicht()
+  const { filter, bereich, setScannen, setSicherung, setModell } = useDokumenteAnsicht()
   const sich = useSicherung().data
+  const modell = useModell(true).data?.modell
   const zu = useUi((st) => st.setSideOpen)
   const act = useDokumenteAktionen()
   const datei = useRef<HTMLInputElement>(null)
@@ -148,6 +150,12 @@ export function DokumenteSide() {
                       .pop() ?? '',
                   ) || t('noch nicht')
                 }`}
+        </button>
+      )}
+      {u && u.gesamt > 0 && (
+        <button type="button" className={s.sicherung} onClick={() => (setModell(true), zu(false))}>
+          🧠{' '}
+          {modell ? t('Lokales Modell: {m}', { m: modell }) : t('Einsortieren mit lokalem Modell')}
         </button>
       )}
       {u && u.lesen > 0 && (

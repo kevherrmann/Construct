@@ -633,17 +633,38 @@ def _lesen(id_: int, roh: Path) -> None:
 
 def vorschlagen(text: str) -> dict:
     """Titel aus dem Kopf, Absender, Typ und Tags von den ähnlichsten
-    bestätigten Dokumenten (erkennen.vorschlag)."""
+    bestätigten Dokumenten (erkennen.vorschlag). Ist ein lokales Modell
+    eingestellt, schreibt es den Titel und hilft bei unbekannten Absendern
+    (modell.vorschlag)."""
     with db() as c:
         bestaetigt = [dict(r) for r in c.execute(
-            "SELECT id, text, absender_id, typ_id FROM dokumente WHERE eingang = 0 AND zustand = 'fertig'")]
+            "SELECT id, titel, text, absender_id, typ_id FROM dokumente WHERE eingang = 0 AND zustand = 'fertig'")]
         tags_je: dict[int, set[int]] = {}
         for r in c.execute("SELECT x.dok_id, x.tag_id FROM dok_tags x JOIN dokumente d ON d.id = x.dok_id "
                            "WHERE d.eingang = 0"):
             tags_je.setdefault(r[0], set()).add(r[1])
+        absender = {r[0]: r[1] for r in c.execute("SELECT id, name FROM absender")}
+        typen = {r[0]: r[1] for r in c.execute("SELECT id, name FROM typen")}
     beispiele = [{"id": r["id"], "woerter": erkennen.woerter(r["text"]), "absender": r["absender_id"],
                   "typ": r["typ_id"], "tags": tags_je.get(r["id"], set())} for r in bestaetigt]
-    return {"titel": erkennen.titel(text), **erkennen.vorschlag(erkennen.woerter(text), beispiele)}
+    v = {"titel": erkennen.titel(text), **erkennen.vorschlag(erkennen.woerter(text), beispiele)}
+    nachbarn = v.pop("nachbarn")
+
+    from . import modell        # hier, weil modell.py selbst ablage braucht
+    je = {r["id"]: r for r in bestaetigt}
+    m = modell.vorschlag(
+        text,
+        {"absender": sorted(absender.values()), "typen": sorted(typen.values())},
+        [{"titel": je[i]["titel"], "absender": absender.get(je[i]["absender_id"]),
+          "typ": typen.get(je[i]["typ_id"])} for i in nachbarn])
+    if m:
+        v["titel"] = m["titel"] or v["titel"]
+        if v["absender"] is None:
+            # Die Nachbarn kennen den Brief nicht: dann darf das Modell, aber
+            # nur Namen, die es schon gibt (modell._passend)
+            v["absender"] = next((i for i, n in absender.items() if n == m["absender"]), None)
+            v["typ"] = v["typ"] or next((i for i, n in typen.items() if n == m["typ"]), None)
+    return v
 
 
 def wieder_anstellen() -> int:

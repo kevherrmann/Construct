@@ -183,12 +183,14 @@ class Nachbarn:
 
 def vorschlag(ws: set[str], beispiele: list[dict]) -> dict:
     """beispiele: bestätigte Dokumente mit id, woerter, absender, typ, tags.
-    Absender und Typ vom ähnlichsten, Tags, die die Mehrheit der ähnlichen hat."""
+    Absender und Typ vom ähnlichsten, Tags, die die Mehrheit der ähnlichen hat;
+    nachbarn: die ids der ähnlichen (für das lokale Modell als Beispiele)."""
     nach = Nachbarn([(b["id"], b["woerter"]) for b in beispiele]).naechste(ws)
     if not nach:
-        return {"absender": None, "typ": None, "tags": []}
+        return {"absender": None, "typ": None, "tags": [], "nachbarn": []}
     von = {b["id"]: b for b in beispiele}
     erster = von[nach[0][1]]
     zaehl = Counter(t for _, i in nach for t in von[i]["tags"])
     return {"absender": erster["absender"], "typ": erster["typ"],
-            "tags": sorted(t for t, n in zaehl.items() if n * 2 > len(nach))}
+            "tags": sorted(t for t, n in zaehl.items() if n * 2 > len(nach)),
+            "nachbarn": [i for _, i in nach]}

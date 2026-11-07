@@ -105,6 +105,22 @@ export interface ProbeErgebnis {
   dokumente_soll: number
 }
 
+export interface ModellStand {
+  /** eingestelltes Ollama-Modell, '' = aus */
+  modell: string
+  erreichbar: boolean
+  installiert: string[]
+  /** Ollama ist installiert (von CONSTRUCT oder systemweit) */
+  ollama: boolean
+}
+
+export const useModell = (an: boolean) =>
+  useQuery({
+    queryKey: ['dokumente', 'modell'],
+    queryFn: () => apiGet<ModellStand>(`${B}/modell`),
+    enabled: an,
+  })
+
 export const useSicherung = () =>
   useQuery({
     queryKey: ['dokumente', 'sicherung'],
@@ -251,6 +267,9 @@ export function useDokumenteAktionen() {
     sicherungJetzt: useAktion(() => apiPost<SicherungStand>(`${B}/sicherung/jetzt`, {})),
     sicherungPruefen: useAktion((ziel: 'ordner' | 'server') =>
       apiPost<ProbeErgebnis>(`${B}/sicherung/pruefen`, { ziel }),
+    ),
+    modellEinstellen: useAktion((modell: string) =>
+      apiPost<ModellStand>(`${B}/modell`, { modell }),
     ),
     umbenennen: useAktion(
       (v: { tabelle: 'absender' | 'typen' | 'tags'; id: number; name: string }) =>

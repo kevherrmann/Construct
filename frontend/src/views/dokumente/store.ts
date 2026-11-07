@@ -18,12 +18,14 @@ interface DokumenteState {
   offen: number | null
   scannen: boolean
   sicherung: boolean
+  modell: boolean
   setFilter: (f: Partial<Filter>) => void
   /** Ein Bereich der Seitenleiste: ersetzt alle Filter außer der Suche. */
   bereich: (f: Partial<Filter>) => void
   oeffne: (id: number | null) => void
   setScannen: (an: boolean) => void
   setSicherung: (an: boolean) => void
+  setModell: (an: boolean) => void
 }
 
 export const useDokumenteAnsicht = create<DokumenteState>((set) => ({
@@ -31,9 +33,11 @@ export const useDokumenteAnsicht = create<DokumenteState>((set) => ({
   offen: null,
   scannen: false,
   sicherung: false,
+  modell: false,
   setFilter: (f) => set((st) => ({ filter: { ...st.filter, ...f } })),
   bereich: (f) => set((st) => ({ filter: { ...OHNE_FILTER, q: st.filter.q, ...f }, offen: null })),
   oeffne: (offen) => set({ offen }),
   setScannen: (scannen) => set({ scannen }),
   setSicherung: (sicherung) => set({ sicherung }),
+  setModell: (modell) => set({ modell }),
 }))

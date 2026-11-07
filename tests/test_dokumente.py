@@ -449,3 +449,99 @@ def test_kontext_ruft_cli_mit_dem_venv_python(daten):
     # python3 aus dem PATH hat pypdf nicht: doku.py bräche schon beim Import ab
     from server.dokumente import kontext
     assert f'"{sys.executable}" "{kontext.CLI}"' in kontext.block()
+
+
+# ---------- Lokales Modell (server/dokumente/modell.py) ----------
+
+@pytest.fixture
+def modell_an(daten, monkeypatch):
+    """Ein eingestelltes Modell, dessen Antworten der Test vorgibt (kein Ollama nötig)."""
+    from server.dokumente import modell
+    modell.einstellen("qwen3.5:9b")
+    monkeypatch.setattr(modell, "_ollama_bereit", lambda: True)
+    aufrufe = []
+
+    def antwort(**j):
+        def fragen(name, system, text):
+            aufrufe.append({"modell": name, "system": system, "text": text})
+            return j
+        monkeypatch.setattr(modell, "_fragen", fragen)
+    antwort.aufrufe = aufrufe
+    return antwort
+
+
+def _finanzamt(daten, n=2):
+    for i in range(n):
+        d = aufnehmen(daten, f"fa{i}", ["Finanzamt Ibbenbüren", f"Einkommensteuerbescheid 20{i}", "Steuernummer 327"])
+        ablage.aendern(d["id"], {"titel": f"Einkommensteuerbescheid 20{i}", "absender": "Finanzamt Ibbenbüren",
+                                 "typ": "Bescheid", "tags": ["Steuer"], "eingang": False})
+
+
+def test_modell_schreibt_titel_nachbarn_behalten_absender(daten, modell_an):
+    _finanzamt(daten)
+    modell_an(titel="Einkommensteuerbescheid 2022: Erstattung 87 €", absender="Stadt Lengerich", typ="Brief")
+    neu = aufnehmen(daten, "Scan 01.11.2026 10:00", ["Finanzamt Ibbenbüren", "Einkommensteuerbescheid 2022",
+                                                      "Steuernummer 327"])
+    assert neu["titel"] == "Einkommensteuerbescheid 2022: Erstattung 87 €"
+    # Die Nachbarn kennen den Absender: das Modell redet da nicht rein
+    assert neu["absender"] == "Finanzamt Ibbenbüren" and neu["typ"] == "Bescheid"
+    assert [t["name"] for t in neu["tags"]] == ["Steuer"]
+    # Die ähnlichen Dokumente stehen als Beispiele im Prompt, der Text geht mit
+    a = modell_an.aufrufe[-1]
+    assert a["modell"] == "qwen3.5:9b" and "Einkommensteuerbescheid 200" in a["system"]
+    assert "Steuernummer 327" in a["text"]
+
+
+def test_modell_hilft_bei_unbekanntem_absender_nur_mit_vorhandenen_namen(daten, modell_an):
+    _finanzamt(daten)
+    d = aufnehmen(daten, "sk", ["Stadtsparkasse Lengerich", "Kontoauszug"])
+    ablage.aendern(d["id"], {"absender": "Stadtsparkasse Lengerich", "typ": "Brief", "eingang": False})
+    fremd = ["Wasserversorgungsverband Tecklenburger Land", "Gebührenbescheid Frischwasser 179 Kubikmeter"]
+
+    modell_an(titel="Wasser 2023", absender="stadtsparkasse lengerich", typ="bescheid")
+    neu = aufnehmen(daten, "w1", fremd)
+    assert neu["absender"] == "Stadtsparkasse Lengerich"     # vorhandener Name, dessen Schreibweise
+    assert neu["typ"] == "Bescheid"
+
+    modell_an(titel="Wasser 2023", absender="Wasserversorgungsverband TL", typ="Gebührenbescheid")
+    neu = aufnehmen(daten, "w2", fremd)
+    assert neu["absender"] is None and neu["typ"] is None    # neue Namen erfindet es nicht in die Ablage
+    assert {n["name"] for n in ablage.namen("absender")} == {"Finanzamt Ibbenbüren", "Stadtsparkasse Lengerich"}
+
+
+def test_modell_titel_ersetzt_nur_platzhalter(daten, modell_an):
+    modell_an(titel="Rundfunkbeitrag 2021")
+    d = ablage.neu(pdf_mit_text(daten / "r.pdf", ["Beitragsservice", "Rundfunkbeitrag"]), titel="Mein Titel")
+    ablage.jetzt_lesen_alle()
+    assert ablage.dokument(d["id"])["titel"] == "Mein Titel"
+
+
+def test_modell_fehler_oder_aus_faellt_auf_regeln_zurueck(daten, modell_an, monkeypatch):
+    from server.dokumente import modell
+
+    def kaputt(*a):
+        raise TimeoutError("Ollama antwortet nicht")
+    monkeypatch.setattr(modell, "_fragen", kaputt)
+    neu = aufnehmen(daten, "", ["Finanzamt Ibbenbüren", "Einkommensteuerbescheid 2021"])
+    assert neu["titel"] == "Einkommensteuerbescheid 2021"    # Titel aus der Regel wie ohne Modell
+
+    modell.einstellen("")
+    assert modell.vorschlag("Text", {"absender": [], "typen": []}, []) is None
+
+
+def test_modell_einstellen_prueft_namen(daten):
+    from server.dokumente import modell
+    assert modell.eingestellt() == ""
+    with pytest.raises(ablage.Fehler):
+        modell.einstellen("qwen; rm -rf /")
+    assert modell.einstellen(" gemma3:4b ") == "gemma3:4b" and modell.eingestellt() == "gemma3:4b"
+
+
+def test_api_modell(client, daten, monkeypatch):
+    from server import llm
+    monkeypatch.setattr(llm, "ollama_installed", lambda: [{"name": "qwen3.5:9b"}])
+    r = client.get("/api/dokumente/modell").json()
+    assert r["modell"] == "" and r["erreichbar"] and r["installiert"] == ["qwen3.5:9b"]
+    assert client.post("/api/dokumente/modell", json={"modell": "qwen3.5:9b"}).json()["modell"] == "qwen3.5:9b"
+    assert client.post("/api/dokumente/modell", json={"modell": "a b"}).status_code == 400
+    assert client.post("/api/dokumente/modell", json={"modell": ""}).json()["modell"] == ""

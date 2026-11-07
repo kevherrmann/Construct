@@ -2,6 +2,24 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.14.0 — 2026-11-07
+
+### Added
+- **Documents: filing with a local model.** A language model running in
+  Ollama on your own computer can now help while a document is read: it
+  writes the title ("Water 2023: 179 m³, 434.23 € (back payment 49.23 €)"
+  instead of "Fee notice") and, for letters the similar documents do not
+  recognise, suggests sender and type, but only from names you already
+  use. Sender, type and tags of known letters still come from the most
+  similar filed documents and the date from the text, because they are
+  more reliable there. The letters never leave the computer. Switch it on
+  in the documents sidebar ("Filing with a local model"); without Ollama
+  or a model nothing changes. Measured on 136 filed letters with
+  qwen3.5:9b on an 8 GB graphics card: titles matched 73 % of the words of
+  the confirmed title instead of 11 %, the amount in the title was right
+  in 56 of 63 cases, about 10 seconds per document. On the command line:
+  `doku.py model qwen3.5:9b` (or `off`).
+
 ## 8.13.1 — 2026-11-05
 
 ### Fixed

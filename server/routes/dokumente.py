@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from server import config as cfg
-from server.dokumente import ablage, ocr, scanner, sicherung, unterschrift
+from server.dokumente import ablage, modell, ocr, scanner, sicherung, unterschrift
 from server.sicherung import Fehler as SicherungsFehler
 
 DATEI_MAX = 60 * 1024 * 1024
@@ -210,6 +210,23 @@ async def sicherung_pruefen(req: Request):
         return await asyncio.to_thread(sicherung.pruefen, str(b.get("ziel") or ""))
     except (SicherungsFehler, OSError) as e:
         return _fehler(ablage.Fehler(str(e)))
+
+
+# ---------- Lokales Modell (Titel und unbekannte Absender) ----------
+
+@router.get("/modell")
+async def modell_stand():
+    return await asyncio.to_thread(modell.stand)
+
+
+@router.post("/modell")
+async def modell_einstellen(req: Request):
+    b = await _body(req)
+    try:
+        modell.einstellen(str(b.get("modell") or ""))
+    except ablage.Fehler as e:
+        return _fehler(e)
+    return await asyncio.to_thread(modell.stand)
 
 
 # ---------- Unterschrift ----------

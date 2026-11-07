@@ -9,6 +9,7 @@
   doku.py split 12 "1-2, 3, 4-6"          in mehrere Dokumente aufteilen
   doku.py merge 12 13 14                 zu einem Dokument zusammenfügen (in dieser Reihenfolge)
   doku.py names                         Absender, Typen, Tags mit Anzahl
+  doku.py model [qwen3.5:9b|off]        lokales Modell für Titel (Ollama) zeigen/einstellen
   doku.py backup [--status]             jetzt sichern (oder nur Zustand zeigen)
   doku.py backup-check ordner|server    Probe: zurückholen und vergleichen
   doku.py restore --from ordner|server --to DIR   Ablage aus der Sicherung holen
@@ -67,6 +68,8 @@ def main(argv=None) -> int:
     mg = sub.add_parser("merge")
     mg.add_argument("ids", type=int, nargs="+")
     sub.add_parser("names")
+    mo = sub.add_parser("model")
+    mo.add_argument("name", nargs="?")
     b = sub.add_parser("backup")
     b.add_argument("--status", action="store_true")
     bc = sub.add_parser("backup-check")
@@ -144,6 +147,16 @@ def main(argv=None) -> int:
         elif a.cmd == "names":
             for tab, titel in (("absender", "Absender"), ("typen", "Typen"), ("tags", "Tags")):
                 print(f"{titel}: " + ", ".join(f"{n['name']} ({n['anzahl']})" for n in ablage.namen(tab)))
+        elif a.cmd == "model":
+            from server.dokumente import modell
+            if a.name is not None:
+                modell.einstellen("" if a.name in ("off", "aus") else a.name)
+            st = modell.stand()
+            print(f"Modell: {st['modell'] or 'keins (nur Regeln und Nachbarn)'}"
+                  f"  ·  Ollama {'läuft' if st['erreichbar'] else 'läuft nicht'}"
+                  + (f"  ·  installiert: {', '.join(st['installiert'])}" if st["installiert"] else ""))
+            if st["modell"] and st["erreichbar"] and st["modell"] not in st["installiert"]:
+                print("Achtung: dieses Modell ist in Ollama nicht installiert.")
         elif a.cmd == "wait":
             ende = time.time() + a.timeout
             while ablage.uebersicht()["lesen"] and time.time() < ende:
