@@ -2,6 +2,23 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.15.0 — 2026-11-10
+
+### Added
+- **Mail accounts on your own domain.** Adding an address like
+  info@company.com no longer fails with "unknown provider". CONSTRUCT now
+  finds the servers itself: first from the domain's MX record (Google
+  Workspace, Microsoft 365, IONOS, Strato, Hostinger, all-inkl, netcup),
+  then from the Thunderbird database and the domain's own autoconfig. The
+  MX record comes first because a domain's autoconfig sometimes still
+  points to the domain host while the mail lives elsewhere. If nothing is
+  found, the IMAP and SMTP servers can be entered by hand (port 993/465
+  means SSL, any other STARTTLS; unencrypted connections are refused).
+  Each account shows its servers and where they came from. Microsoft 365
+  business accounts sign in through the business login instead of the one
+  for Hotmail. Needs the new dependency `dnspython`, which the next start
+  installs.
+
 ## 8.14.0 — 2026-11-07
 
 ### Added

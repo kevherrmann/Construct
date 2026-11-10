@@ -6,6 +6,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Ganze Fehlerantwort, falls der Server mehr mitschickt als die Meldung. */
+    readonly body?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -25,7 +27,7 @@ async function handle<T>(res: Response): Promise<T> {
         : typeof b.detail === 'string'
           ? b.detail
           : `${res.status} ${res.statusText}`
-    throw new ApiError(msg, res.status)
+    throw new ApiError(msg, res.status, body)
   }
   return body as T
 }

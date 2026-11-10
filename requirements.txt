@@ -9,3 +9,5 @@ pillow
 pillow-heif
 # Verschlüsselt Sicherungen, die auf einen Server gehen (Dokumente)
 cryptography
+# MX-Eintrag lesen: Server eigener Mail-Domains erkennen (E-Mail)
+dnspython

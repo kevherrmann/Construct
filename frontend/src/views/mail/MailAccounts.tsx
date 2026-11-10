@@ -2,7 +2,15 @@ import { useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { MAIL_KEYS, errText, mailApi, patchMailList, type MailAccount } from '@/api/mail'
+import {
+  MAIL_KEYS,
+  errText,
+  mailApi,
+  needsServer,
+  patchMailList,
+  type MailAccount,
+  type MailServerInput,
+} from '@/api/mail'
 import { accColor } from './format'
 import { useMsLogin } from './msLogin'
 import { useMail, useServerText } from './useMail'
@@ -11,7 +19,22 @@ import s from './MailAccounts.module.css'
 
 type Status = { node: ReactNode; ok?: boolean }
 
-// Wie oft beim Microsoft-Login (Device-Flow) nachgefragt wird.
+const NO_SERVER: MailServerInput = {
+  imap_host: '',
+  imap_port: '993',
+  smtp_host: '',
+  smtp_port: '465',
+  user: '',
+}
+
+// Woher die Server eines Kontos stammen (mail.detect()) — für die Zeile unter dem Hinweis.
+const SOURCE: Record<string, string> = {
+  Adresse: 'bekannter Anbieter',
+  MX: 'erkannt über den MX-Eintrag',
+  'Thunderbird-Datenbank': 'aus der Thunderbird-Datenbank',
+  Autoconfig: 'aus der Autoconfig der Domain',
+  'von Hand': 'von Hand eingetragen',
+}
 
 /**
  * Konten verwalten: /mail/accounts. Auch das Ziel des Links aus
@@ -27,7 +50,11 @@ export function MailAccounts() {
   const [pw, setPw] = useState<Record<string, string>>({})
   const [newEmail, setNewEmail] = useState('')
   const [newPw, setNewPw] = useState('')
-  const [newMsg, setNewMsg] = useState('')
+  const [newMsg, setNewMsg] = useState<Status | null>(null)
+  // Serverfelder: null = zu. Gehen auf, wenn die Erkennung nichts findet
+  // oder man sie selbst aufklappt.
+  const [srv, setSrv] = useState<MailServerInput | null>(null)
+  const [adding, setAdding] = useState(false)
   const ms = useMsLogin((x) => x.byAccount)
 
   // Eigene Aktion auf der Seite ersetzt eine ältere Microsoft-Meldung.
@@ -104,17 +131,48 @@ export function MailAccounts() {
 
   const add = async () => {
     const em = newEmail.trim()
-    if (!em) return setNewMsg(t('⚠ Adresse fehlt'))
+    if (!em) return setNewMsg({ node: t('⚠ Adresse fehlt') })
+    // Die Erkennung fragt DNS und die Thunderbird-Datenbank — das dauert einen Moment.
+    setNewMsg({ node: srv ? t('⟲ speichere …') : t('⟲ suche die Mail-Server …') })
+    setAdding(true)
+    let r
     try {
-      await mailApi.saveAccount(em, newPw)
+      r = await mailApi.saveAccount(em, newPw, srv ?? undefined)
     } catch (e) {
-      return setNewMsg('⚠ ' + st(errText(e)))
+      if (needsServer(e)) setSrv((cur) => cur ?? { ...NO_SERVER })
+      return setNewMsg({ node: '⚠ ' + st(errText(e)) })
+    } finally {
+      setAdding(false)
     }
     setNewEmail('')
     setNewPw('')
-    setNewMsg('')
+    setSrv(null)
+    setNewMsg(
+      r && r.provider
+        ? {
+            node: t('✓ {em}: {provider}', { em: em.toLowerCase(), provider: r.provider }),
+            ok: true,
+          }
+        : null,
+    )
     await reloadAccounts()
   }
+
+  const srcText = (src?: string) => {
+    const k = src ? SOURCE[src] : undefined
+    return k ? ` · ${t(k)}` : ''
+  }
+
+  const srvField = (k: keyof MailServerInput, placeholder: string, port?: boolean) => (
+    <input
+      className={port ? s.port : undefined}
+      value={srv?.[k] ?? ''}
+      aria-label={placeholder}
+      onChange={(e) => setSrv((cur) => ({ ...(cur ?? NO_SERVER), [k]: e.target.value }))}
+      placeholder={placeholder}
+      inputMode={port ? 'numeric' : undefined}
+    />
+  )
 
   const stEl = (a: MailAccount, grow?: boolean) => {
     const m = ms[a.email]
@@ -180,6 +238,12 @@ export function MailAccounts() {
             </span>
           </div>
           <div className={`${shared.vhint} ${s.hint}`}>{st(a.hint || '')}</div>
+          {a.imap && a.smtp && (
+            <div className={`${shared.vhint} ${s.servers}`}>
+              IMAP {a.imap} · SMTP {a.smtp}
+              {srcText(a.source)}
+            </div>
+          )}
           {a.auth === 'oauth' ? (
             <div className={s.row}>
               <button type="button" className={shared.tbtn} onClick={() => void msLogin(a.email)}>
@@ -225,14 +289,50 @@ export function MailAccounts() {
           />
           <input
             type="password"
+            autoComplete="new-password"
             value={newPw}
             onChange={(e) => setNewPw(e.target.value)}
-            placeholder={t('Passwort (bei Outlook/Hotmail leer lassen)')}
+            placeholder={t('Passwort (bei Outlook/Microsoft 365 leer lassen)')}
           />
-          <button type="button" className={shared.tbtn} onClick={() => void add()}>
+          <button
+            type="button"
+            className={shared.tbtn}
+            disabled={adding}
+            onClick={() => void add()}
+          >
             {t('HINZUFÜGEN')}
           </button>
-          <span className={shared.vhint}>{newMsg}</span>
+        </div>
+        {srv && (
+          <>
+            <div className={s.row}>
+              {srvField('imap_host', t('IMAP-Server, z. B. imap.firma.de'))}
+              {srvField('imap_port', t('Port'), true)}
+              {srvField('smtp_host', t('SMTP-Server, z. B. smtp.firma.de'))}
+              {srvField('smtp_port', t('Port'), true)}
+            </div>
+            <div className={s.row}>{srvField('user', t('Benutzername (leer = die Adresse)'))}</div>
+            <div className={`${shared.vhint} ${s.hint}`}>
+              {t(
+                'Die Angaben stehen in der Hilfe deines Mail-Anbieters. Port 993 bzw. 465 heißt SSL, alle anderen STARTTLS. Unverschlüsselt geht nicht.',
+              )}
+            </div>
+          </>
+        )}
+        <div className={s.row}>
+          <button
+            type="button"
+            className={s.toggle}
+            onClick={() => setSrv((cur) => (cur ? null : { ...NO_SERVER }))}
+          >
+            {srv ? t('▾ Server automatisch suchen') : t('▸ Server selbst eintragen')}
+          </button>
+          <span className={`${shared.vhint} ${newMsg?.ok ? shared.ok : ''}`}>{newMsg?.node}</span>
+        </div>
+        <div className={`${shared.vhint} ${s.hint}`}>
+          {t(
+            'Für eigene Domains (info@firma.de) sucht CONSTRUCT die Server selbst: über den MX-Eintrag der Domain und die Datenbank von Thunderbird.',
+          )}
         </div>
       </div>
       <div className={`${shared.vhint} ${s.foot}`}>

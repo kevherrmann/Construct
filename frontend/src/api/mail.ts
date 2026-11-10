@@ -13,7 +13,35 @@ export interface MailAccount {
   /** Deutscher Einrichtungshinweis des Anbieters (leer, wenn unbekannt). */
   hint: string
   configured: boolean
+  /** "host:port" der Server; fehlt bei älteren Backends. */
+  imap?: string
+  smtp?: string
+  /** Woher die Server stammen: "Adresse", "MX", "Thunderbird-Datenbank", "Autoconfig", "von Hand". */
+  source?: string
 }
+
+/** Von Hand eingetragene Server (wenn die Erkennung nichts findet). */
+export interface MailServerInput {
+  imap_host: string
+  imap_port: string
+  smtp_host: string
+  smtp_port: string
+  user: string
+}
+
+export interface SavedAccount {
+  ok: true
+  provider: string
+  auth: 'password' | 'oauth'
+  source: string
+}
+
+/** Der Server hat die Mail-Server der Domain nicht gefunden. */
+export const needsServer = (e: unknown) =>
+  e instanceof ApiError &&
+  !!e.body &&
+  typeof e.body === 'object' &&
+  (e.body as { need_server?: unknown }).need_server === true
 
 /** Ein Eintrag aus mail.list_messages() + Kategorie aus list_all(). */
 export interface MailSummary {
@@ -179,8 +207,8 @@ export function patchMailList(qc: QueryClient, fn: (msgs: MailSummary[]) => Mail
 }
 
 export const mailApi = {
-  saveAccount: (email: string, password: string) =>
-    apiPost<{ ok: true }>('/api/mail/accounts', { email, password }),
+  saveAccount: (email: string, password: string, server?: MailServerInput) =>
+    apiPost<SavedAccount>('/api/mail/accounts', { email, password, server }),
   deleteAccount: (email: string) =>
     apiGet<{ ok: true }>(`/api/mail/accounts/${encodeURIComponent(email)}`, { method: 'DELETE' }),
   test: (email: string) => apiPost<{ ok: true; inbox: number }>('/api/mail/test', { email }),

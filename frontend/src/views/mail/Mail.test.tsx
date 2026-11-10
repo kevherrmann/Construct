@@ -212,6 +212,67 @@ describe('Einrichtung', () => {
     vi.useRealTimers()
   })
 
+  it('unbekannte Domain: Serverfelder gehen auf, von Hand eingetragen wird gespeichert', async () => {
+    let accounts: MailAccount[] = []
+    backend({
+      'GET /api/mail/accounts': () => ({ accounts }),
+      'POST /api/mail/accounts': (_u, init) => {
+        const b = JSON.parse(String(init?.body)) as { server?: { imap_host: string } }
+        if (!b.server)
+          return json(
+            {
+              error:
+                'Für firma.de habe ich keine Server-Einstellungen gefunden — bitte IMAP- und SMTP-Server von Hand eintragen.',
+              need_server: true,
+            },
+            400,
+          )
+        accounts = [
+          {
+            email: 'info@firma.de',
+            provider: 'Eigener Server',
+            auth: 'password',
+            hint: 'Server von Hand eingetragen.',
+            configured: true,
+            imap: 'mail.firma.de:993',
+            smtp: 'mail.firma.de:465',
+            source: 'von Hand',
+          },
+        ]
+        return { ok: true, provider: 'Eigener Server', auth: 'password', source: 'von Hand' }
+      },
+    })
+    renderMail('/mail/accounts')
+    fireEvent.change(await main().findByPlaceholderText('neue@adresse.de'), {
+      target: { value: 'info@firma.de' },
+    })
+    fireEvent.click(main().getByText('HINZUFÜGEN'))
+    expect(await main().findByText(/keine Server-Einstellungen gefunden/)).toBeInTheDocument()
+    fireEvent.change(main().getByLabelText('IMAP-Server, z. B. imap.firma.de'), {
+      target: { value: 'mail.firma.de' },
+    })
+    fireEvent.change(main().getByLabelText('SMTP-Server, z. B. smtp.firma.de'), {
+      target: { value: 'mail.firma.de' },
+    })
+    fireEvent.click(main().getByText('HINZUFÜGEN'))
+    expect(await main().findByText('✓ info@firma.de: Eigener Server')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST').pop()?.body).toEqual({
+      email: 'info@firma.de',
+      password: '',
+      server: {
+        imap_host: 'mail.firma.de',
+        imap_port: '993',
+        smtp_host: 'mail.firma.de',
+        smtp_port: '465',
+        user: '',
+      },
+    })
+    expect(
+      main().getByText('IMAP mail.firma.de:993 · SMTP mail.firma.de:465 · von Hand eingetragen'),
+    ).toBeInTheDocument()
+    expect(main().queryByLabelText('IMAP-Server, z. B. imap.firma.de')).toBeNull()
+  })
+
   it('/mail/accounts ist direkt erreichbar (Link aus den Einstellungen)', async () => {
     backend()
     renderMail('/mail/accounts')

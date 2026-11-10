@@ -20,6 +20,8 @@ router = APIRouter()
 def _mail_call(fn, *a, **kw):
     try:
         return fn(*a, **kw)
+    except mailmod.NeedServer as e:
+        return JSONResponse({"error": str(e), "need_server": True}, status_code=400)
     except mailmod.MailError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
@@ -34,8 +36,10 @@ def mail_accounts():
 @router.post("/api/mail/accounts")
 async def mail_accounts_save(req: Request):
     body = await req.json()
-    return _mail_call(mailmod.save_account,
-                      (body.get("email") or ""), body.get("password") or "")
+    server = body.get("server") if isinstance(body.get("server"), dict) else None
+    # Erkennen fragt DNS und Thunderbird-Datenbank — blockiert, also in den Threadpool.
+    return await asyncio.to_thread(_mail_call, mailmod.save_account,
+                                   (body.get("email") or ""), body.get("password") or "", server)
 
 
 @router.delete("/api/mail/accounts/{addr}")

@@ -26,6 +26,18 @@ const RX: [RegExp, string][] = [
   [/^Lokale Stimme nicht erreichbar: (.+)$/, 'Local voice not reachable: $1'],
   [/^(\S+) beendet mit Code (-?\d+)$/, '$1 exited with code $2'],
   [/^Ordner (.+) nicht wählbar$/, 'Folder $1 not selectable'],
+  // E-Mail-Server erkennen (server/mail.py)
+  [
+    /^Für (\S+) habe ich keine Server-Einstellungen gefunden — bitte IMAP- und SMTP-Server von Hand eintragen\.$/,
+    'I found no server settings for $1 — please enter the IMAP and SMTP servers by hand.',
+  ],
+  [
+    /^Postfach bei (.+): hier das Passwort des Postfachs eintragen\.$/,
+    'Mailbox at $1: enter the mailbox password here.',
+  ],
+  [/^Ungültiger (IMAP|SMTP)-Server: (.*)$/, 'Invalid $1 server: $2'],
+  [/^Ungültiger (IMAP|SMTP)-Port$/, 'Invalid $1 port'],
+  [/^Keine Verbindung zu (\S+): (.+)$/, 'No connection to $1: $2'],
 ]
 
 // Satzteile mit eingesetzten Werten ("Unbekannter Anbieter für x@y — …"):

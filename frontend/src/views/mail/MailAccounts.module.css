@@ -56,6 +56,22 @@
   outline: none;
   border-radius: var(--radius);
 }
+.row input.port {
+  flex: 0 0 80px;
+  min-width: 70px;
+}
+.servers {
+  padding: 3px 0 0;
+  font-size: 11px;
+}
+.toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--link);
+  cursor: pointer;
+  font-size: 12px;
+}
 .addTitle {
   color: var(--green);
 }

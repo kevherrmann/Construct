@@ -21,6 +21,7 @@ import mimetypes
 import os
 import re
 import smtplib
+import ssl
 import threading
 import time
 import urllib.error
@@ -46,21 +47,40 @@ class MailError(Exception):
 
 
 # ---------- Anbieter ----------
+# Jeder Anbieter: Anmeldeart plus IMAP/SMTP als (Host, Port, Verschlüsselung).
+# "SSL" = TLS ab dem ersten Byte (993/465), "STARTTLS" = erst Klartext, dann
+# TLS (143/587). Unverschlüsselt gibt es nicht — da ginge das Passwort im
+# Klartext übers Netz.
+GOOGLE_HINT = ("Google-Konto → Sicherheit → 2-Faktor aktivieren → „App-Passwörter“ → neues "
+               "App-Passwort (16 Zeichen) erzeugen und hier eintragen (NICHT das normale Passwort).")
 PROVIDERS = {
     "gmx": {
         "name": "GMX", "auth": "password",
-        "imap": ("imap.gmx.net", 993), "smtp": ("mail.gmx.net", 587),
+        "imap": ("imap.gmx.net", 993, "SSL"), "smtp": ("mail.gmx.net", 587, "STARTTLS"),
         "hint": "GMX-Webmail → Einstellungen → POP3/IMAP → „Zugriff erlauben“ aktivieren. Dann hier das normale GMX-Passwort eintragen.",
     },
     "gmail": {
         "name": "Gmail", "auth": "password",
-        "imap": ("imap.gmail.com", 993), "smtp": ("smtp.gmail.com", 587),
-        "hint": "Google-Konto → Sicherheit → 2-Faktor aktivieren → „App-Passwörter“ → neues App-Passwort (16 Zeichen) erzeugen und hier eintragen (NICHT das normale Passwort).",
+        "imap": ("imap.gmail.com", 993, "SSL"), "smtp": ("smtp.gmail.com", 587, "STARTTLS"),
+        "hint": GOOGLE_HINT,
+    },
+    "workspace": {
+        "name": "Google Workspace", "kind": "gmail", "auth": "password",
+        "imap": ("imap.gmail.com", 993, "SSL"), "smtp": ("smtp.gmail.com", 587, "STARTTLS"),
+        "hint": GOOGLE_HINT + " Gibt es den Punkt „App-Passwörter“ nicht, hat der Workspace-Admin "
+                "sie gesperrt: admin.google.com → Sicherheit → Zugriffs- und Datenkontrolle.",
     },
     "outlook": {
-        "name": "Outlook/Hotmail", "auth": "oauth",
-        "imap": ("outlook.office365.com", 993), "smtp": ("smtp-mail.outlook.com", 587),
+        "name": "Outlook/Hotmail", "auth": "oauth", "tenant": "consumers",
+        "imap": ("outlook.office365.com", 993, "SSL"), "smtp": ("smtp-mail.outlook.com", 587, "STARTTLS"),
         "hint": "Microsoft erlaubt kein Passwort-IMAP mehr — einfach auf MICROSOFT-LOGIN klicken und den angezeigten Code auf der Microsoft-Seite eingeben.",
+    },
+    "m365": {
+        "name": "Microsoft 365", "kind": "outlook", "auth": "oauth", "tenant": "organizations",
+        "imap": ("outlook.office365.com", 993, "SSL"), "smtp": ("smtp.office365.com", 587, "STARTTLS"),
+        "hint": "Firmenkonto bei Microsoft 365 — auf MICROSOFT-LOGIN klicken und den Code eingeben. "
+                "Meldet Microsoft „Administratorgenehmigung erforderlich“, muss der Admin der Firma "
+                "den Zugriff (App „Thunderbird“) einmal erlauben.",
     },
 }
 _DOMAINS = {
@@ -70,6 +90,23 @@ _DOMAINS = {
     "outlook.de": "outlook", "live.com": "outlook", "live.de": "outlook", "msn.com": "outlook",
 }
 
+# Eigene Domains (info@firma.de) verraten den Anbieter erst über ihren
+# MX-Eintrag. Die großen Hoster stehen hier fest, weil die Thunderbird-Datenbank
+# sie über den MX nicht findet; alles andere fragt detect() dort nach.
+# Schlüssel: Endung des MX-Hosts. Host None = der MX-Host selbst ist auch der
+# IMAP/SMTP-Server (all-inkl, netcup: jede Kundin hat ihren eigenen).
+_MX_HOSTS = [
+    ("google.com", "workspace"), ("googlemail.com", "workspace"),
+    ("mail.protection.outlook.com", "m365"),
+    ("ionos.de", ("IONOS", "imap.ionos.de", "smtp.ionos.de")),
+    ("kundenserver.de", ("IONOS", "imap.ionos.de", "smtp.ionos.de")),
+    ("ionos.com", ("IONOS", "imap.ionos.com", "smtp.ionos.com")),
+    ("hostinger.com", ("Hostinger", "imap.hostinger.com", "smtp.hostinger.com")),
+    ("rzone.de", ("Strato", "imap.strato.de", "smtp.strato.de")),
+    ("kasserver.com", ("all-inkl", None, None)),
+    ("netcup.net", ("netcup", None, None)),
+]
+
 # Beim ersten Start vorangelegte Konten. Leer: jede Installation traegt ihre
 # eigenen Adressen ueber ⚙ → E-Mail-Konten ein (Passwoerter sowieso nur dort).
 # Wer immer dieselben Konten will, kann sie hier eintragen — sie landen dann
@@ -77,10 +114,192 @@ _DOMAINS = {
 DEFAULT_ACCOUNTS = []
 
 
+def _domain(addr: str) -> str:
+    return (addr or "").rsplit("@", 1)[-1].strip().lower()
+
+
 def provider_for(addr: str):
-    dom = (addr or "").rsplit("@", 1)[-1].lower()
-    key = _DOMAINS.get(dom)
-    return PROVIDERS.get(key) if key else None
+    """Anbieter allein aus der Adresse (GMX, Gmail, Hotmail …), ohne Netz."""
+    key = _DOMAINS.get(_domain(addr))
+    return _named(key) if key else None
+
+
+def _named(key: str) -> dict:
+    p = dict(PROVIDERS[key])
+    p.setdefault("kind", key)
+    return p
+
+
+def provider_of(acc: dict):
+    """Server-Einstellungen eines Kontos: beim Einrichten erkannte oder von Hand
+    eingetragene, sonst (alte Konten) die der bekannten Adress-Endung."""
+    srv = acc.get("server")
+    if isinstance(srv, dict) and srv.get("imap") and srv.get("smtp"):
+        return srv
+    return provider_for(acc.get("email", ""))
+
+
+# ---------- Server erkennen ----------
+def _mx_hosts(domain: str) -> list:
+    """MX-Hosts nach Priorität. Ohne dnspython (frisch aktualisiert, noch nicht
+    neu gestartet) leer — dann bleiben Thunderbird-Datenbank und Handeintrag."""
+    try:
+        import dns.resolver
+    except ImportError:
+        return []
+    try:
+        ans = dns.resolver.resolve(domain, "MX", lifetime=6)
+    except Exception:
+        return []
+    rows = sorted((r.preference, str(r.exchange).rstrip(".").lower()) for r in ans)
+    return [h for _, h in rows if h]
+
+
+def _ends(host: str, suffix: str) -> bool:
+    return host == suffix or host.endswith("." + suffix)
+
+
+def _from_mx(mx: list):
+    for host in mx:
+        for suffix, what in _MX_HOSTS:
+            if not _ends(host, suffix):
+                continue
+            if isinstance(what, str):
+                return _named(what)
+            name, imap, smtp = what
+            return {
+                "name": name, "kind": "custom", "auth": "password",
+                "imap": (imap or host, 993, "SSL"), "smtp": (smtp or host, 465, "SSL"),
+                "hint": f"Postfach bei {name}: hier das Passwort des Postfachs eintragen.",
+            }
+    return None
+
+
+def _http_get(url: str, limit: int = 65536) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "CONSTRUCT-mail-setup"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        return r.read(limit + 1)[:limit]
+
+
+def _parse_autoconfig(xml: bytes, addr: str):
+    """Thunderbird-Autoconfig (ISPDB / autoconfig.<domain>) → Anbieter-Dict.
+    Nimmt den ersten verschlüsselten IMAP- und SMTP-Server mit Passwort-Login."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return None
+    prov = root.find("emailProvider")
+    if prov is None:
+        return None
+    local = addr.split("@", 1)[0]
+
+    def pick(tag, typ):
+        found = []
+        for s in prov.findall(tag):
+            if s.get("type") != typ:
+                continue
+            sec = (s.findtext("socketType") or "").strip().upper()
+            auths = {(a.text or "").strip() for a in s.findall("authentication")}
+            if sec not in ("SSL", "STARTTLS") or not auths & {"password-cleartext", "plain"}:
+                continue
+            try:
+                port = int(s.findtext("port") or 0)
+            except ValueError:
+                continue
+            host = (s.findtext("hostname") or "").strip().lower()
+            user = (s.findtext("username") or "%EMAILADDRESS%").strip()
+            user = (user.replace("%EMAILADDRESS%", addr).replace("%EMAILLOCALPART%", local)
+                    .replace("%EMAILDOMAIN%", _domain(addr)))
+            if _valid_host(host) and 0 < port < 65536:
+                found.append(((sec != "SSL"), host, port, sec, user))
+        found.sort(key=lambda f: f[0])       # SSL vor STARTTLS
+        return found[0][1:] if found else None
+
+    imap, smtp = pick("incomingServer", "imap"), pick("outgoingServer", "smtp")
+    if not imap or not smtp:
+        return None
+    name = (prov.findtext("displayShortName") or prov.findtext("displayName") or "").strip()
+    return {
+        "name": name[:40] or _domain(addr), "kind": "custom", "auth": "password",
+        "imap": imap[:3], "smtp": smtp[:3],
+        "user": imap[3] if imap[3] != addr else "",
+        "hint": "Hier das Passwort des Postfachs eintragen.",
+    }
+
+
+def _autoconfig(url: str, addr: str):
+    try:
+        return _parse_autoconfig(_http_get(url), addr)
+    except Exception:
+        return None
+
+
+def _base_domain(host: str) -> str:
+    # "mx01.mail.example.co.uk" → grob die letzten zwei Teile; reicht für die
+    # Datenbank-Abfrage, die bei Treffern ohnehin nur große Anbieter kennt.
+    parts = host.split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else host
+
+
+def detect(addr: str):
+    """Wo liegt das Postfach? Reihenfolge:
+      1. bekannte Endung (gmx.de, gmail.com …) — ohne Netz
+      2. MX-Eintrag eines großen Hosters (Google, Microsoft 365, IONOS …).
+         Kommt VOR der Autoconfig der Domain: die zeigt manchmal noch auf den
+         Domain-Hoster, obwohl die Mails längst woanders liegen.
+      3. Thunderbird-Datenbank für die Domain, dann für den MX
+      4. autoconfig.<domain> und /.well-known der Domain
+    None = nichts gefunden, dann trägt man die Server von Hand ein."""
+    p = provider_for(addr)
+    if p:
+        return dict(p, source="Adresse")
+    dom = _domain(addr)
+    mx = _mx_hosts(dom)
+    p = _from_mx(mx)
+    if p:
+        return dict(p, source="MX")
+    tries = [f"https://autoconfig.thunderbird.net/v1.1/{dom}"]
+    for base in dict.fromkeys(_base_domain(h) for h in mx):
+        if base != dom:
+            tries.append(f"https://autoconfig.thunderbird.net/v1.1/{base}")
+    tries += [f"https://autoconfig.{dom}/mail/config-v1.1.xml",
+              f"https://{dom}/.well-known/autoconfig/mail/config-v1.1.xml"]
+    for url in tries:
+        p = _autoconfig(url, addr)
+        if p:
+            return dict(p, source="Thunderbird-Datenbank" if "thunderbird.net" in url else "Autoconfig")
+    return None
+
+
+_HOST_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
+
+
+def _valid_host(h: str) -> bool:
+    return bool(_HOST_RE.match(h or ""))
+
+
+def manual_server(imap_host: str, imap_port, smtp_host: str, smtp_port, user: str = "") -> dict:
+    """Von Hand eingetragene Server. Verschlüsselung folgt dem Port (993/465 =
+    SSL, sonst STARTTLS) — die üblichen Kombinationen, ohne extra Auswahl."""
+    out = {"name": "Eigener Server", "kind": "custom", "auth": "password", "source": "von Hand",
+           "hint": "Server von Hand eingetragen."}
+    for key, host, port, ssl_port in (("imap", imap_host, imap_port, 993),
+                                      ("smtp", smtp_host, smtp_port, 465)):
+        host = (host or "").strip().lower()
+        if not _valid_host(host):
+            raise MailError(f"Ungültiger {key.upper()}-Server: {host or '(leer)'}")
+        try:
+            port = int(port or (ssl_port if key == "imap" else 587))
+        except (TypeError, ValueError):
+            raise MailError(f"Ungültiger {key.upper()}-Port")
+        if not 0 < port < 65536:
+            raise MailError(f"Ungültiger {key.upper()}-Port")
+        out[key] = (host, port, "SSL" if port == ssl_port else "STARTTLS")
+    user = (user or "").strip()
+    if user:
+        out["user"] = user
+    return out
 
 
 # ---------- Konten-Datei ----------
@@ -132,30 +351,67 @@ def public_accounts() -> list:
     """Konten OHNE Geheimnisse — fürs Frontend."""
     out = []
     for a in load_accounts():
-        p = provider_for(a["email"]) or {}
+        p = provider_of(a) or {}
         out.append({
             "email": a["email"],
             "provider": p.get("name", "?"),
             "auth": p.get("auth", "password"),
             "hint": p.get("hint", ""),
             "configured": _configured(a),
+            "imap": _hostport(p.get("imap")),
+            "smtp": _hostport(p.get("smtp")),
+            "source": p.get("source", ""),
         })
     return out
 
 
-def save_account(addr: str, password: str = "") -> dict:
+def _hostport(x) -> str:
+    return f"{x[0]}:{x[1]}" if x else ""
+
+
+class NeedServer(MailError):
+    """Anbieter nicht erkannt — die Oberfläche blendet dann die Serverfelder ein."""
+
+
+def save_account(addr: str, password: str = "", server: dict = None) -> dict:
+    """Konto anlegen oder Passwort ändern. server = von Hand eingetragene Server
+    (imap_host, imap_port, smtp_host, smtp_port, user); ohne sucht detect()
+    selbst — aber nur beim ersten Mal, danach bleibt, was einmal gefunden wurde."""
     addr = addr.strip().lower()
-    if "@" not in addr:
+    # Die Domain landet in Abfrage-URLs (autoconfig.<domain>) — nur echte Hostnamen.
+    if "@" not in addr or " " in addr or not _valid_host(_domain(addr)):
         raise MailError("Keine gültige E-Mail-Adresse")
-    p = provider_for(addr)
-    if not p:
-        raise MailError(f"Unbekannter Anbieter für {addr} — ich kenne GMX, Gmail und Outlook/Hotmail.")
     fields = {}
+    if server:
+        fields["server"] = manual_server(server.get("imap_host"), server.get("imap_port"),
+                                         server.get("smtp_host"), server.get("smtp_port"),
+                                         server.get("user") or "")
+    else:
+        old = next((a for a in load_accounts() if a.get("email") == addr), None)
+        if not old or not provider_of(old):
+            p = detect(addr)
+            if not p:
+                raise NeedServer(f"Für {_domain(addr)} habe ich keine Server-Einstellungen gefunden "
+                                 "— bitte IMAP- und SMTP-Server von Hand eintragen.")
+            fields["server"] = p
+    srv = fields.get("server")
+    if srv and _old_kind(addr) != srv.get("kind"):
+        fields["ms_refresh"] = ""          # alter Microsoft-Login passt nicht mehr
+        _MS_TOKENS.pop(addr, None)
     password = password.strip()     # Copy-Paste-Leerzeichen an den Rändern weg
     if password:                    # leer = altes Passwort behalten
         fields["password"] = password
     _update_account(addr, **fields)
-    return {"ok": True}
+    p = provider_of(account(addr)) or {}
+    return {"ok": True, "provider": p.get("name", "?"), "auth": p.get("auth", "password"),
+            "source": p.get("source", "")}
+
+
+def _old_kind(addr: str) -> str:
+    for a in load_accounts():
+        if a.get("email") == addr:
+            return (provider_of(a) or {}).get("kind", "")
+    return ""
 
 
 def delete_account(addr: str) -> dict:
@@ -177,8 +433,15 @@ def delete_account(addr: str) -> dict:
 MS_CLIENT_ID = "9e5f94bc-e8a4-4e73-b8be-63364c29d753"
 MS_SCOPE = ("https://outlook.office.com/IMAP.AccessAsUser.All "
             "https://outlook.office.com/SMTP.Send offline_access")
-MS_DEVICE_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode"
-MS_TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+# Privatkonten (Hotmail) laufen über "consumers", Firmenkonten (Microsoft 365)
+# über "organizations" — der Token muss beim selben Endpunkt erneuert werden.
+MS_URL = "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/{what}"
+
+
+def _ms_url(acc: dict, what: str) -> str:
+    tenant = (provider_of(acc) or {}).get("tenant") or "consumers"
+    return MS_URL.format(tenant=tenant, what=what)
+
 
 _MS_FLOWS = {}    # email -> laufender Device-Flow
 _MS_TOKENS = {}   # email -> (access_token, gültig_bis)
@@ -199,11 +462,11 @@ def _http_form(url: str, params: dict) -> dict:
 
 
 def ms_login_start(addr: str) -> dict:
-    account(addr)                   # muss existieren
-    j = _http_form(MS_DEVICE_URL, {"client_id": MS_CLIENT_ID, "scope": MS_SCOPE})
+    acc = account(addr)             # muss existieren
+    j = _http_form(_ms_url(acc, "devicecode"), {"client_id": MS_CLIENT_ID, "scope": MS_SCOPE})
     if "device_code" not in j:
         raise MailError(j.get("error_description") or j.get("error") or "Device-Flow fehlgeschlagen")
-    _MS_FLOWS[addr] = j
+    _MS_FLOWS[addr] = dict(j, token_url=_ms_url(acc, "token"))
     return {"url": j.get("verification_uri") or "https://microsoft.com/devicelogin",
             "code": j.get("user_code", "?")}
 
@@ -212,7 +475,7 @@ def ms_poll(addr: str) -> dict:
     flow = _MS_FLOWS.get(addr)
     if not flow:
         return {"error": "Kein Login aktiv — nochmal auf MICROSOFT-LOGIN klicken."}
-    j = _http_form(MS_TOKEN_URL, {
+    j = _http_form(flow["token_url"], {
         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         "client_id": MS_CLIENT_ID, "device_code": flow["device_code"],
     })
@@ -235,7 +498,7 @@ def _ms_access_token(acc: dict) -> str:
         return tok
     if not acc.get("ms_refresh"):
         raise MailError("Microsoft-Login nötig — unter ⚙ Konten verwalten anmelden.")
-    j = _http_form(MS_TOKEN_URL, {
+    j = _http_form(_ms_url(acc, "token"), {
         "grant_type": "refresh_token", "client_id": MS_CLIENT_ID,
         "refresh_token": acc["ms_refresh"], "scope": MS_SCOPE,
     })
@@ -253,21 +516,33 @@ def _xoauth2(user: str, token: str) -> str:
 
 
 # ---------- Verbindungen ----------
-def _imap(acc: dict) -> imaplib.IMAP4_SSL:
-    p = provider_for(acc["email"])
+def _login_name(acc: dict, p: dict) -> str:
+    return p.get("user") or acc["email"]
+
+
+def _imap(acc: dict) -> imaplib.IMAP4:
+    p = provider_of(acc)
     if not p:
         raise MailError("Unbekannter Anbieter")
-    host, port = p["imap"]
+    host, port, sec = p["imap"]
     try:
-        conn = imaplib.IMAP4_SSL(host, port, timeout=25)
+        if sec == "SSL":
+            conn = imaplib.IMAP4_SSL(host, port, timeout=25)
+        else:
+            conn = imaplib.IMAP4(host, port, timeout=25)
+            try:
+                conn.starttls(ssl.create_default_context())
+            except Exception:
+                conn.shutdown()
+                raise
     except Exception as e:
-        raise MailError(f"Keine Verbindung zu {host}: {e}")
+        raise MailError(f"Keine Verbindung zu {host}:{port}: {e}")
     try:
         if p["auth"] == "oauth" and acc.get("ms_refresh"):
             tok = _ms_access_token(acc)
             conn.authenticate("XOAUTH2", lambda _: _xoauth2(acc["email"], tok).encode())
         elif acc.get("password"):
-            conn.login(acc["email"], acc["password"])
+            conn.login(_login_name(acc, p), acc["password"])
         else:
             raise MailError("Konto nicht eingerichtet (⚙ Konten verwalten)")
     except MailError:
@@ -283,13 +558,22 @@ def _imap(acc: dict) -> imaplib.IMAP4_SSL:
 
 
 def _smtp(acc: dict) -> smtplib.SMTP:
-    p = provider_for(acc["email"])
-    host, port = p["smtp"]
-    s = smtplib.SMTP(host, port, timeout=30)
+    p = provider_of(acc)
+    if not p:
+        raise MailError("Unbekannter Anbieter")
+    host, port, sec = p["smtp"]
+    try:
+        if sec == "SSL":
+            s = smtplib.SMTP_SSL(host, port, timeout=30, context=ssl.create_default_context())
+        else:
+            s = smtplib.SMTP(host, port, timeout=30)
+    except Exception as e:
+        raise MailError(f"Keine Verbindung zu {host}:{port}: {e}")
     try:
         s.ehlo()
-        s.starttls()
-        s.ehlo()
+        if sec != "SSL":
+            s.starttls(context=ssl.create_default_context())
+            s.ehlo()
         if p["auth"] == "oauth" and acc.get("ms_refresh"):
             tok = _ms_access_token(acc)
             auth = base64.b64encode(_xoauth2(acc["email"], tok).encode()).decode()
@@ -297,7 +581,7 @@ def _smtp(acc: dict) -> smtplib.SMTP:
             if code != 235:
                 raise MailError(f"SMTP-OAuth fehlgeschlagen: {resp.decode('utf-8', 'replace')[:200]}")
         elif acc.get("password"):
-            s.login(acc["email"], acc["password"])
+            s.login(_login_name(acc, p), acc["password"])
         else:
             raise MailError("Konto nicht eingerichtet")
     except MailError:
@@ -681,7 +965,7 @@ def _safe_attachments(items) -> list:
 def send_mail(addr: str, to: str, cc: str = "", bcc: str = "", subject: str = "",
               body: str = "", attachments=None, reply_to_id: str = "") -> dict:
     acc = account(addr)
-    p = provider_for(addr)
+    p = provider_of(acc)
     to, cc, bcc = (to or "").strip(), (cc or "").strip(), (bcc or "").strip()
     rcpt = [a for a in re.split(r"[,;\s]+", f"{to} {cc} {bcc}") if "@" in a]
     if not rcpt:
@@ -714,7 +998,7 @@ def send_mail(addr: str, to: str, cc: str = "", bcc: str = "", subject: str = ""
             pass
 
     # Kopie in „Gesendet“ ablegen — Gmail macht das beim SMTP-Versand selbst
-    if p["name"] != "Gmail":
+    if p.get("kind") != "gmail":
         try:
             conn = _imap(acc)
             try:
