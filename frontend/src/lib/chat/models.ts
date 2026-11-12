@@ -11,6 +11,7 @@ import type { Provider } from '@/api/providers'
 // Gemessen am 15.10.2026 mit Claude Code 2.1.296: sonnet→claude-sonnet-5-5,
 // haiku→claude-haiku-5-5 (1M Kontext). Am 30.09. (2.1.283) zeigten beide noch
 // auf Sonnet 5 und Haiku 4.5; fable→claude-fable-5-1, opus→claude-opus-5-5.
+// Am 12.11.2026 (2.1.322): fable→claude-fable-5-2, die übrigen unverändert.
 
 export interface ModelInfo {
   v: string
@@ -27,8 +28,8 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     d: 'neuestes Opus — stark für Coding und komplexe Aufgaben',
   },
   {
-    v: 'claude-fable-5-1',
-    l: 'Fable 5.1',
+    v: 'claude-fable-5-2',
+    l: 'Fable 5.2',
     d: 'stärkstes Modell — für die härtesten und längsten Aufgaben',
   },
   { v: 'claude-sonnet-5-5', l: 'Sonnet 5.5', d: 'schnell, schont das Limit' },
@@ -39,7 +40,7 @@ export const CLAUDE_MODELS: ModelInfo[] = [
 export const DEFAULT_MODEL = 'claude-opus-5-5'
 
 const MODEL_ALIAS: Record<string, string> = {
-  fable: 'claude-fable-5-1',
+  fable: 'claude-fable-5-2',
   opus: 'claude-opus-5-5',
   sonnet: 'claude-sonnet-5-5',
   haiku: 'claude-haiku-5-5',
@@ -50,6 +51,7 @@ const RETIRED: Record<string, string> = {
   'claude-opus-5': 'claude-opus-5-5',
   'claude-sonnet-5': 'claude-sonnet-5-5',
   'claude-haiku-4-5': 'claude-haiku-5-5',
+  'claude-fable-5-1': 'claude-fable-5-2',
 }
 /** Entfallene Anbieter (8.3.0: Bonsai) → gespeicherte Wahl geht auf die Vorgabe. */
 const RETIRED_PROVIDERS = ['bonsai']

@@ -4,7 +4,7 @@ import type { Berechtigung, Effort, Modell } from '@/api/team'
 
 // Die Aliase laufen auf das jeweils neueste Modell (wie lib/chat/models.ts).
 export const MODELLE: Record<Modell, string> = {
-  fable: 'Fable 5.1',
+  fable: 'Fable 5.2',
   opus: 'Opus 5.5',
   sonnet: 'Sonnet 5.5',
   haiku: 'Haiku 5.5',

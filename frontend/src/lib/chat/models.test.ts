@@ -36,6 +36,7 @@ describe('modelInfo', () => {
     expect(successor('claude-opus-5')).toBe('claude-opus-5-5')
     expect(successor('claude-sonnet-5')).toBe('claude-sonnet-5-5')
     expect(successor('claude-haiku-4-5')).toBe('claude-haiku-5-5')
+    expect(successor('claude-fable-5-1')).toBe('claude-fable-5-2')
     expect(successor('claude-opus-4-8')).toBe('claude-opus-4-8')
     expect(successor('')).toBe('')
     expect(successor('bonsai:Ternary-Bonsai-8B')).toBe('claude-opus-5-5')

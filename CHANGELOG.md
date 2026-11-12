@@ -2,6 +2,15 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.15.1 — 2026-11-12
+
+### Changed
+- **Fable 5.2 instead of Fable 5.1.** The model picker now offers Fable 5.2.
+  A chat that still had Fable 5.1 selected moves to 5.2, and the team's
+  personnel files show "Fable 5.2" (the alias `fable` already ran 5.2,
+  only the label was old). Measured with Claude Code 2.1.322: `fable` now
+  resolves to `claude-fable-5-2`; Opus, Sonnet and Haiku are unchanged.
+
 ## 8.15.0 — 2026-11-10
 
 ### Added

@@ -97,7 +97,9 @@ IMAGE_MODELS = ("openai/gpt-image-2", "fal-ai/flux-pro/v1.1-ultra", "fal-ai/nano
 # CLI auf das nächste der Liste (zu Beginn jeder Nachricht wird wieder das
 # eigentliche versucht). Welches wirklich lief, meldet `modelUsage`.
 _FALLBACK = {
-    "claude-fable-5-1": "claude-opus-5-5,claude-sonnet-5-5",
+    "claude-fable-5-2": "claude-opus-5-5,claude-sonnet-5-5",
+    # Aus der Auswahl genommen; gespeichert kann es noch sein (geplante Aufgaben).
+    "claude-fable-5-1": "claude-fable-5-2,claude-opus-5-5",
     "claude-opus-5-5": "claude-sonnet-5-5,claude-haiku-5-5",
     "claude-sonnet-5-5": "claude-opus-5-5,claude-haiku-5-5",
     "claude-haiku-5-5": "claude-sonnet-5-5",
