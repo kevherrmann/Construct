@@ -37,3 +37,24 @@ def test_sperre_folgt_den_laeufen(monkeypatch):
 def test_abschaltbar(monkeypatch):
     monkeypatch.setenv("CODY_WACH_HALTEN", "0")
     asyncio.run(asyncio.wait_for(wachhalten.wach_loop(), 1))   # kehrt sofort zurück
+
+
+def test_windows_helfer_endet_mit_dem_server(monkeypatch):
+    # Windows räumt Kindprozesse nicht ab: der Helfer muss von selbst gehen,
+    # sobald der Prozess endet, auf den er wartet (sonst schliefe der Rechner nie mehr).
+    import os
+    import subprocess
+    import pytest
+    if os.name != "nt":
+        pytest.skip("SetThreadExecutionState gibt es nur unter Windows")
+    eltern = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(3)"])
+    monkeypatch.setattr(os, "getpid", lambda: eltern.pid)
+    helfer = subprocess.Popen(wachhalten.befehl())
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            helfer.wait(1)                     # hält, solange der "Server" lebt
+        eltern.wait()
+        assert helfer.wait(10) is not None     # und geht mit ihm
+    finally:
+        helfer.kill()
+        eltern.kill()

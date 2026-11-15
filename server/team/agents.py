@@ -398,6 +398,10 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _lf(b: bytes) -> bytes:
+    return b.replace(b"\r\n", b"\n")
+
+
 def _stand_datei() -> Path:
     return AGENTS_DIR / ".vorlagen.json"
 
@@ -443,7 +447,10 @@ def _vorlage_nachziehen(slug: str):
         if not (src.exists() and dst.exists()):
             continue
         soll = src.read_text(encoding="utf-8")
-        ist = dst.read_bytes()
+        # Zeilenenden zählen nicht: Windows (Editor, git autocrlf, frühere Fassungen
+        # dieser Datei) macht aus \n ein \r\n. Sonst gälte jede Akte dort als
+        # "von Hand angepasst" und folgte nie mehr der Vorlage.
+        ist = _lf(dst.read_bytes())
         if ist == soll.encode("utf-8"):
             if stand.get(key) != _sha(soll):
                 neu[key] = _sha(soll)
@@ -453,7 +460,7 @@ def _vorlage_nachziehen(slug: str):
         for vorlagen in (DEFAULTS_DIR, VORLAGEN_DIR / "agents.default.en"):
             f = vorlagen / slug / name
             if f.exists():
-                bekannt.add(hashlib.sha256(f.read_bytes()).hexdigest())
+                bekannt.add(hashlib.sha256(_lf(f.read_bytes())).hexdigest())
         if h not in bekannt:
             if name == "AGENT.md":
                 _textfelder_nachziehen(dst, slug)
@@ -517,7 +524,7 @@ def _seed_from_defaults():
             tgt = dst / f.name
             if not tgt.exists():
                 text = f.read_text(encoding="utf-8")
-                tgt.write_text(text, encoding="utf-8")
+                tgt.write_text(text, encoding="utf-8", newline="")
                 gebucht[f"{quelle.name}/{f.name}"] = _sha(text)
     _stand_buchen(gebucht)
 
@@ -728,7 +735,7 @@ def org_tree(workspace) -> dict:
 def _atomic(p: Path, text: str):
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8", newline="")   # \n bleibt \n, auch unter Windows
     tmp.replace(p)
 
 

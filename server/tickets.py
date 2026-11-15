@@ -91,10 +91,16 @@ def _leer() -> dict:
     return {"zaehler": 0, "tickets": []}
 
 
+def _pfad(p) -> str:
+    """Ein Ordner, eine Schreibweise. git meldet unter Windows C:/x/y, Python
+    und die Oberfläche C:\\x\\y: ohne das stünde dasselbe Projekt zweimal im Board."""
+    return os.path.normpath(str(p)) if p else ""
+
+
 def _commit_bereinigt(c) -> dict | None:
     if not isinstance(c, dict) or not re.fullmatch(r"[0-9a-f]{7,40}", str(c.get("sha") or "")):
         return None
-    return {"sha": c["sha"], "repo": str(c.get("repo") or ""), "branch": str(c.get("branch") or ""),
+    return {"sha": c["sha"], "repo": _pfad(c.get("repo")), "branch": str(c.get("branch") or ""),
             "betreff": str(c.get("betreff") or "")[:200], "ts": str(c.get("ts") or ""),
             "von": str(c.get("von") or ""), "gepusht": bool(c.get("gepusht"))}
 
@@ -121,7 +127,7 @@ def _bereinigt(d: dict) -> dict:
             "titel": str(t.get("titel") or f"Ticket {nr}")[:TITEL_MAX],
             "text": str(t.get("text") or "")[:TEXT_MAX],
             "spalte": t.get("spalte") if t.get("spalte") in SPALTEN else "neu",
-            "projekt": str(t.get("projekt") or ""),
+            "projekt": _pfad(t.get("projekt")),
             "von": str(t.get("von") or ""),
             "erstellt": str(t.get("erstellt") or ""),
             "geaendert": str(t.get("geaendert") or t.get("erstellt") or ""),
@@ -205,7 +211,7 @@ def anlegen(titel: str, text: str = "", projekt: str = "", spalte: str = "neu", 
         raise ValueError(cfg.L("Titel fehlt", "title missing"))
     with _aendern() as d:
         return _neu(d, titel, spalte if spalte in SPALTEN else "neu",
-                    text=str(text or "")[:TEXT_MAX], projekt=str(projekt or ""), von=von)
+                    text=str(text or "")[:TEXT_MAX], projekt=_pfad(projekt), von=von)
 
 
 def aendern(nr: int, titel=None, text=None, spalte=None, projekt=None) -> dict:
@@ -218,7 +224,7 @@ def aendern(nr: int, titel=None, text=None, spalte=None, projekt=None) -> dict:
         if text is not None:
             t["text"] = str(text)[:TEXT_MAX]
         if projekt is not None:
-            t["projekt"] = str(projekt)
+            t["projekt"] = _pfad(projekt)
         if spalte is not None:
             if spalte not in SPALTEN:
                 raise ValueError(cfg.L("unbekannte Spalte", "unknown column"))
@@ -273,7 +279,7 @@ def _repos(befehl: str, cwd: str) -> list[str]:
     orte.append(basis)
     out = []
     for ort in orte:
-        top = (_git(str(ort), "rev-parse", "--show-toplevel") or "").strip()
+        top = _pfad((_git(str(ort), "rev-parse", "--show-toplevel") or "").strip())
         if top and top not in out:
             out.append(top)
     return out
@@ -447,7 +453,7 @@ def auftrag_angelegt(auftrag_id: str, titel: str, brief: str, cwd: str, session:
         if t is None:
             top = (_git(cwd, "rev-parse", "--show-toplevel") or "").strip() if cwd else ""
             t = _neu(d, kurz(titel), "arbeit", text=str(brief or "")[:TEXT_MAX],
-                     projekt=top or cwd, von="assistent", session=session)
+                     projekt=_pfad(top or cwd), von="assistent", session=session)
         t["auftrag"] = auftrag_id
         _schieben(t, "arbeit")
         return t["nr"]
@@ -466,6 +472,7 @@ def auftrag_spalte(auftrag_id: str, spalte: str):
 # ---------- Für die Oberfläche ----------
 def board(projekt: str = "") -> dict:
     d = laden()
+    projekt = _pfad(projekt)
     tickets = [t for t in d["tickets"] if not projekt or t["projekt"] == projekt]
     projekte = sorted({t["projekt"] for t in d["tickets"] if t["projekt"]}, key=lambda p: Path(p).name.lower())
     return {"spalten": list(SPALTEN), "tickets": tickets,

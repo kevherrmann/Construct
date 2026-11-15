@@ -37,6 +37,7 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from server.geheim import nur_fuer_mich
 from server.sicherung import Fehler, krypto
 from server.sicherung.sftp import Server
 
@@ -101,7 +102,7 @@ def _kennwort_setzen(neu: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps({"kennwort": neu}), encoding="utf-8")
-    tmp.chmod(0o600)
+    nur_fuer_mich(tmp)
     tmp.replace(p)
 
 

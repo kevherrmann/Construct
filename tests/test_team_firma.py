@@ -56,7 +56,7 @@ def test_geschaeftsfuehrung_ist_der_assistent(firma):
     (firma / "settings.json").write_text(json.dumps({"names": {"assistant": "Nova"}}))
     assert ag.load_agent(ag.OWNER_SLUG, WS)["name"] == "Nova"
     # In der Akte selbst steht weiter der mitgelieferte Name, nie der eigene
-    assert "name: Cody" in (ag.AGENTS_DIR / "chef" / "AGENT.md").read_text()
+    assert "name: Cody" in (ag.AGENTS_DIR / "chef" / "AGENT.md").read_text(encoding="utf-8")
 
 
 def test_speichern_aus_der_oberflaeche_schreibt_den_assistentennamen_nicht_in_die_akte(firma):
@@ -141,15 +141,15 @@ def test_unveraenderte_alte_werkzeugliste_wird_nachgezogen(firma):
     for alt in ag.ALTE_WERKZEUGE["luna"]:
         f = firma / "firma" / "agents" / "luna" / "AGENT.md"
         # Eigener Text: die Akte ist angepasst, nur die Werkzeugzeile folgt der Vorlage
-        f.write_text(f.read_text().replace(neu_liste, "allowed_tools: " + alt)
-                     + "\nEigener Text bleibt.\n")
+        f.write_text(f.read_text(encoding="utf-8").replace(neu_liste, "allowed_tools: " + alt)
+                     + "\nEigener Text bleibt.\n", encoding="utf-8")
         a = ag.load_agent("luna", WS)
         assert "WebSearch" in a["allowed_tools"] and not a["problems"]
-        assert neu_liste in f.read_text() and "Eigener Text bleibt." in f.read_text()
+        assert neu_liste in f.read_text(encoding="utf-8") and "Eigener Text bleibt." in f.read_text(encoding="utf-8")
     # Eigene Liste: bleibt
     j = firma / "firma" / "agents" / "janus" / "AGENT.md"
-    j.write_text(j.read_text().replace("allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
-                                       "allowed_tools: Read, Bash, WebFetch"))
+    j.write_text(j.read_text(encoding="utf-8").replace("allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
+                                       "allowed_tools: Read, Bash, WebFetch"), encoding="utf-8")
     assert ag.load_agent("janus", WS)["allowed_tools"] == ["Read", "Bash", "WebFetch"]
 
 
@@ -165,15 +165,27 @@ def test_sprachwechsel_zieht_unveraenderte_akten_nach(firma):
     eigen.write_text("Elara, von Hand angepasst.\n")
     (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
     xs = {a["slug"]: a for a in ag.list_agents(WS)}
-    assert (akte / "luna" / "SOUL.md").read_text() == _vorlage("en", "luna", "SOUL.md")
-    assert (akte / "chef" / "AGENT.md").read_text() == _vorlage("en", "chef", "AGENT.md")
+    assert (akte / "luna" / "SOUL.md").read_text(encoding="utf-8") == _vorlage("en", "luna", "SOUL.md")
+    assert (akte / "chef" / "AGENT.md").read_text(encoding="utf-8") == _vorlage("en", "chef", "AGENT.md")
     assert xs["luna"]["title"] == "Backend and engineering"
-    assert eigen.read_text() == "Elara, von Hand angepasst.\n"          # angepasst: bleibt
-    assert (akte / "elara" / "AGENT.md").read_text() == _vorlage("en", "elara", "AGENT.md")
+    assert eigen.read_text(encoding="utf-8") == "Elara, von Hand angepasst.\n"          # angepasst: bleibt
+    assert (akte / "elara" / "AGENT.md").read_text(encoding="utf-8") == _vorlage("en", "elara", "AGENT.md")
     # und zurück
     (firma / "settings.json").write_text(json.dumps({"lang": "de"}))
     ag.list_agents(WS)
-    assert (akte / "luna" / "SOUL.md").read_text() == _vorlage("de", "luna", "SOUL.md")
+    assert (akte / "luna" / "SOUL.md").read_text(encoding="utf-8") == _vorlage("de", "luna", "SOUL.md")
+
+
+def test_akte_mit_windows_zeilenenden_folgt_dem_sprachwechsel(firma):
+    # Unter Windows lagen die Akten mit \r\n auf der Platte (write_text übersetzt
+    # dort \n). Byteweise verglichen galten sie als angepasst und zogen nie nach.
+    ag.list_agents(WS)
+    akte = firma / "firma" / "agents" / "luna" / "SOUL.md"
+    akte.write_bytes(akte.read_bytes().replace(b"\n", b"\r\n"))
+    ag._ABGEGLICHEN.clear()
+    (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
+    ag.list_agents(WS)
+    assert akte.read_bytes() == _vorlage("en", "luna", "SOUL.md").encode("utf-8")
 
 
 def test_akte_einer_frueheren_fassung_folgt_der_vorlage(firma):
@@ -186,11 +198,11 @@ def test_akte_einer_frueheren_fassung_folgt_der_vorlage(firma):
         "allowed_tools: " + ag._werkzeuge_der_vorlage("janus"),
         "allowed_tools: Read, Bash, Grep, Glob").replace("prueft: ja\n", "").replace("spalte: review\n", "")
     assert hashlib.sha256(alt.encode()).hexdigest() in ag._fruehere()["janus/AGENT.md"]
-    akte.write_text(alt)
+    akte.write_text(alt, encoding="utf-8")   # unter Windows mit \r\n: muss trotzdem nachziehen
     (ag.AGENTS_DIR / ".vorlagen.json").unlink()
     ag._ABGEGLICHEN.clear()
     ag.load_agent("janus", WS)
-    assert akte.read_text() == _vorlage("de", "janus", "AGENT.md")
+    assert akte.read_text(encoding="utf-8") == _vorlage("de", "janus", "AGENT.md")
 
 
 def test_englische_vorlagen_sind_vollstaendig():
@@ -213,7 +225,7 @@ def test_user_merken_landet_in_den_ergaenzungen_nicht_in_user_md(firma):
     ag.user_read()
     ok, _ = ag.user_append("mag Kaffee", "luna")
     assert ok and "mag Kaffee" in ag.user_read()                 # die Firma liest es
-    assert "mag Kaffee" not in (firma / "USER.md").read_text()   # der Chat-Assistent nicht
+    assert "mag Kaffee" not in (firma / "USER.md").read_text(encoding="utf-8")   # der Chat-Assistent nicht
     assert "mag Kaffee" in ag.ergaenzungen_read()
 
 
@@ -348,7 +360,7 @@ def test_prüfstand_schalter_landet_nicht_in_settings(firma, monkeypatch):
     monkeypatch.setenv("CONSTRUCT_TEAM", "1")
     assert cfg.load_settings()["team"]["aktiv"]
     assert cfg.apply_patch({"theme": "matrix"})["team"]["aktiv"]
-    assert not json.loads((firma / "settings.json").read_text())["team"]["aktiv"]
+    assert not json.loads((firma / "settings.json").read_text(encoding="utf-8"))["team"]["aktiv"]
 
 
 def test_fingerabdruck_nur_von_echten_dateien(tmp_path):
@@ -361,9 +373,9 @@ def test_fingerabdruck_nur_von_echten_dateien(tmp_path):
 
 def test_geschaeftsfuehrung_laesst_sich_nicht_entlassen(firma):
     ag.list_agents(WS)
-    vorher = (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text()
+    vorher = (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text(encoding="utf-8")
     assert not ag.fire_agent("chef", WS)
-    assert (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text() == vorher
+    assert (firma / "firma" / "agents" / "chef" / "AGENT.md").read_text(encoding="utf-8") == vorher
 
 
 # ---------- Englische Installation (F2) ----------
@@ -380,7 +392,7 @@ def test_englische_installation_bekommt_englische_belegschaft(englisch):
     assert all(not a["problems"] for a in xs.values())
     assert "You" in xs["luna"]["soul"] and "Du " not in xs["luna"]["soul"]
     # dieselben Werkzeuge wie die deutsche Vorlage
-    de = ag._split_frontmatter((ag.DEFAULTS_DIR / "luna" / "AGENT.md").read_text())[0]
+    de = ag._split_frontmatter((ag.DEFAULTS_DIR / "luna" / "AGENT.md").read_text(encoding="utf-8"))[0]
     assert xs["luna"]["allowed_tools"] == ag._as_list(ag._fm_get(de, "allowed_tools"))
 
 
@@ -434,7 +446,7 @@ def test_belegschaft_zeigt_wer_prueft(firma):
     assert "Prüfer" not in ag.faehigkeiten(xs["luna"])
     # Angepasste Akte von vor dem Feld: bleibt Prüfer
     f = firma / "firma" / "agents" / "miranda" / "AGENT.md"
-    f.write_text(f.read_text().replace("prueft: ja\n", "").replace("model: sonnet", "model: opus"))
+    f.write_text(f.read_text(encoding="utf-8").replace("prueft: ja\n", "").replace("model: sonnet", "model: opus"), encoding="utf-8")
     assert ag.load_agent("miranda", WS)["prueft"] is True
     (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
     assert ag.faehigkeiten(ag.load_agent("janus", WS)).startswith("reviewer (does not build)")
@@ -443,13 +455,13 @@ def test_belegschaft_zeigt_wer_prueft(firma):
 def test_angepasste_akte_bekommt_titel_in_der_neuen_sprache(firma):
     ag.list_agents(WS)
     f = firma / "firma" / "agents" / "miranda" / "AGENT.md"
-    f.write_text(f.read_text().replace("model: sonnet", "model: opus"))   # in ⚙ umgestellt
+    f.write_text(f.read_text(encoding="utf-8").replace("model: sonnet", "model: opus"), encoding="utf-8")   # in ⚙ umgestellt
     (firma / "settings.json").write_text(json.dumps({"lang": "en"}))
     a = ag.load_agent("miranda", WS)
     assert a["title"] == "Quality assurance" and a["model"] == "opus"
     assert a["model_grund"] == ag._feld_der_vorlage("miranda", "model_grund",
                                                    ag.VORLAGEN_DIR / "agents.default.en")
     # Eigener Titel bleibt
-    f.write_text(f.read_text().replace("title: Quality assurance", "title: Testchefin"))
+    f.write_text(f.read_text(encoding="utf-8").replace("title: Quality assurance", "title: Testchefin"), encoding="utf-8")
     (firma / "settings.json").write_text(json.dumps({"lang": "de"}))
     assert ag.load_agent("miranda", WS)["title"] == "Testchefin"

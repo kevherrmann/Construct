@@ -10,6 +10,8 @@ from server.team.chat import ohne_meldung
 def _lage(monkeypatch, text):
     monkeypatch.setattr(cal, "lage_block", lambda *a, **kw: text)
     monkeypatch.setattr(core, "_dokumente_an", lambda: False)
+    # Nicht die SOUL.md dieser Installation: in der kann das Wort als Beispiel stehen
+    monkeypatch.setattr(core, "persona_text", lambda: "Ich bin die Assistentin.")
 
 
 def test_chat_persona_ohne_termine_aber_mit_anleitung(monkeypatch):

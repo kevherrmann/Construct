@@ -32,6 +32,11 @@ from email.header import decode_header
 from email.message import EmailMessage
 from pathlib import Path
 
+try:
+    from server.geheim import nur_fuer_mich
+except ModuleNotFoundError:     # direkt als Skript gestartet (python server/mail.py …)
+    from geheim import nur_fuer_mich
+
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
 BASE_DIR = Path(__file__).resolve().parent.parent
 ACC_FILE = BASE_DIR / ".mail-accounts.json"
@@ -317,7 +322,7 @@ def load_accounts() -> list:
 def _write_accounts(accs: list):
     tmp = ACC_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({"accounts": accs}, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.chmod(0o600)
+    nur_fuer_mich(tmp)
     tmp.replace(ACC_FILE)
 
 

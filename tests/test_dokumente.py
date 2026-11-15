@@ -49,7 +49,8 @@ def daten(tmp_path, monkeypatch):
 
 
 def aufnehmen(tmp_path, name, zeilen, **kw):
-    d = ablage.neu(pdf_mit_text(tmp_path / f"{name}.pdf", zeilen), titel=name, **kw)
+    # ":" darf unter Windows in keinem Dateinamen stehen, im Titel schon
+    d = ablage.neu(pdf_mit_text(tmp_path / f"{name.replace(':', '-')}.pdf", zeilen), titel=name, **kw)
     ablage.jetzt_lesen_alle()
     return ablage.dokument(d["id"])
 
@@ -545,3 +546,11 @@ def test_api_modell(client, daten, monkeypatch):
     assert client.post("/api/dokumente/modell", json={"modell": "qwen3.5:9b"}).json()["modell"] == "qwen3.5:9b"
     assert client.post("/api/dokumente/modell", json={"modell": "a b"}).status_code == 400
     assert client.post("/api/dokumente/modell", json={"modell": ""}).json()["modell"] == ""
+
+
+def test_dateiname_ohne_windows_fallen():
+    assert ablage._sauber("Brief: 10:00 / Rückfrage?", 60) == "Brief 1000  Rückfrage"
+    # Geräte-Namen legt Windows weder als Datei noch als Ordner an
+    assert ablage._sauber("CON", 60) == "_CON"
+    assert ablage._sauber("nul.txt", 60) == "_nul.txt"
+    assert ablage._sauber("Contoso GmbH", 60) == "Contoso GmbH"

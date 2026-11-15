@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+from conftest import nur_fuer_mich_lesbar
 
 from server.dokumente import ablage, ocr, sicherung
 from server.sicherung import Fehler, krypto
@@ -203,7 +204,7 @@ def test_kennwort_nie_in_der_sicherung(daten):
     for f in (platte / sicherung.UNTERORDNER).rglob("*"):
         if f.is_file():
             assert b"geheim-genug" not in f.read_bytes()
-    assert oct((ablage.DATEN / "geheim.json").stat().st_mode)[-3:] == "600"
+    assert nur_fuer_mich_lesbar(ablage.DATEN / "geheim.json")
 
 
 def test_api(client, daten):

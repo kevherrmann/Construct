@@ -14,6 +14,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from conftest import befehl_aus_skript
 import uvicorn
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,9 +51,7 @@ def firma(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
 
     # Das falsche claude als ausführbare Datei
-    bin_ = tmp_path / "claude"
-    bin_.write_text(f"#!/bin/sh\nexec {sys.executable} {FAKE} \"$@\"\n")
-    bin_.chmod(bin_.stat().st_mode | stat.S_IEXEC)
+    bin_ = befehl_aus_skript(tmp_path, FAKE)
     monkeypatch.setattr(lauf, "claude_bin", lambda: str(bin_))
     monkeypatch.setattr(runs, "claude_bin", lambda: str(bin_))
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)

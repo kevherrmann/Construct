@@ -114,10 +114,10 @@ def test_nicht_installiert_meldet_sich_verstaendlich(einstellungen, monkeypatch,
 
 
 def test_start_prueft_den_freien_vram(monkeypatch, tmp_path):
-    py = tmp_path / "venv" / "bin" / "python"
+    monkeypatch.setattr(tts_lokal, "VENV", tmp_path / "venv")
+    py = tts_lokal.python_bin()                    # bin/python, unter Windows Scripts\python.exe
     py.parent.mkdir(parents=True)
     py.write_text("")
-    monkeypatch.setattr(tts_lokal, "VENV", tmp_path / "venv")
     monkeypatch.setattr(tts_lokal, "MARKER", py)   # gilt als installiert
     monkeypatch.setattr(tts_lokal, "reachable", lambda: False)
     monkeypatch.setattr(tts_lokal, "gpu", lambda: {"name": "X", "total_gb": 8.0, "free_gb": 2.1})

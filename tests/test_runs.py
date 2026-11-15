@@ -6,6 +6,7 @@ import sys
 import time
 
 import pytest
+from conftest import befehl_aus_skript
 
 from server import runs
 
@@ -27,7 +28,7 @@ out({"type": "result", "subtype": "success", "session_id": "sid-1", "usage": {}}
 
 def _lauf_der_im_nachlauf_endet(tmp_path, monkeypatch):
     stub = tmp_path / "claude_stub.py"
-    stub.write_text(STUB)
+    stub.write_text(STUB, encoding="utf-8")
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
     monkeypatch.setattr(runs, "load_persona", lambda **_: "")
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
@@ -314,7 +315,7 @@ def _lauf_mit(tmp_path, monkeypatch, zeilen, nachher="", schalter=(), **felder):
     Argumente (der falsche claude überliest sie); felder: am Run gesetzt."""
     stub = tmp_path / "claude_stub.py"
     stub.write_text("import sys, time\nsys.stdin.readline()\nsys.stdout.write(sys.argv[1])\n"
-                    "sys.stdout.flush()\n" + nachher)
+                    "sys.stdout.flush()\n" + nachher, encoding="utf-8")
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
     text = "".join(json.dumps(z, ensure_ascii=False) + "\n" for z in zeilen)
@@ -549,7 +550,7 @@ for zeile in sys.stdin:
 def _interaktiver_lauf(tmp_path, monkeypatch, waehrenddessen, befehl="sleep 300"):
     """run_claude gegen INTERAKTIV; waehrenddessen(run) läuft, sobald das Werkzeug steht."""
     stub = tmp_path / "claude_interaktiv.py"
-    stub.write_text(INTERAKTIV.replace('"sleep 300"', json.dumps(befehl)))
+    stub.write_text(INTERAKTIV.replace('"sleep 300"', json.dumps(befehl)), encoding="utf-8")
     monkeypatch.setattr(runs, "claude_bin", lambda: sys.executable)
     monkeypatch.setattr(runs, "maybe_notify", lambda run: None)
 
@@ -711,9 +712,9 @@ def test_verweigertes_werkzeug_wird_gemeldet(tmp_path, monkeypatch):
 
 def _falsches_claude(tmp_path, monkeypatch, hilfe):
     from server import core
-    exe = tmp_path / "claude"
-    exe.write_text(f"#!/bin/sh\necho '{hilfe}'\n")
-    exe.chmod(0o755)
+    skript = tmp_path / "hilfe.py"
+    skript.write_text(f"print({hilfe!r})\n", encoding="utf-8")
+    exe = befehl_aus_skript(tmp_path, skript)
     monkeypatch.setattr(core, "claude_bin", lambda: str(exe))
     monkeypatch.setattr(core, "_HILFE", {"key": None, "text": ""})
     return exe

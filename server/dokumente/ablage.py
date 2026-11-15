@@ -23,13 +23,12 @@ import queue
 import re
 import shutil
 import sqlite3
-import sys
 import threading
-import time
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 
+from server import prozess
 from server.core import BASE_DIR
 
 from . import erkennen, ocr
@@ -439,11 +438,14 @@ def loeschen(id_: int) -> None:
 # ---------- Dateiname und Suchindex ----------
 
 _UNERLAUBT = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+# Geräte-Namen: unter Windows weder als Datei noch als Ordner anlegbar, auch nicht mit Endung.
+_GERAETE = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 
 
 def _sauber(s: str, n: int) -> str:
     s = _UNERLAUBT.sub("", s).strip().strip(".")
-    return s[:n].strip() or "_"
+    s = s[:n].strip() or "_"
+    return f"_{s}" if s.split(".")[0].strip().upper() in _GERAETE else s
 
 
 def _wunschpfad(d: dict) -> str:
@@ -558,17 +560,8 @@ def _sperre_lebt(sperre: Path) -> bool:
         pid = int(sperre.read_text().strip() or 0)
     except (OSError, ValueError):
         return False
-    if sys.platform == "win32":
-        # os.kill(pid, 0) beendet unter Windows den Prozess: dort zählt das Alter
-        try:
-            return time.time() - sperre.stat().st_mtime < 1800
-        except OSError:
-            return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ValueError):
-        return False
+    # Nicht os.kill(pid, 0): das beendet unter Windows den Prozess.
+    return prozess.lebt(pid)
 
 
 def lesen(id_: int) -> None:

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from server.geheim import nur_fuer_mich
 from server.core import (CRED_FILE, LIMIT_HIT, STREAM_USAGE, TOKEN_FILE, WEB_LOGIN_OK, claude_bin,
                          konto_login, load_web_token, read_creds)
 
@@ -260,7 +261,7 @@ def _refresh_credentials() -> dict:
     data["claudeAiOauth"] = c
     tmp = CRED_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(data), encoding="utf-8")
-    tmp.chmod(0o600)
+    nur_fuer_mich(tmp)
     tmp.replace(CRED_FILE)          # atomar -> kein halb geschriebenes File
     print("[auth] Interactive-Login per Refresh-Token erneuert", flush=True)
     return c

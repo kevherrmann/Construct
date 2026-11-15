@@ -1,6 +1,9 @@
 """Grundlagen (server/core.py) und Einstellungen (config.py)."""
 import json
+import os
 import time
+
+import pytest
 
 from server import config, core
 from server.core import (BASE_DIR, LIMIT_HIT, STREAM_USAGE, VERSION, extract_text, friendly_claude_error,
@@ -102,6 +105,10 @@ def test_einstellungen_ohne_objekt_sind_ein_400(client, tmp_path, monkeypatch):
 
 # ---------- Hermes aktuell halten (server/updates.py) ----------
 
+# _update_hermes() überspringt Windows mit Absicht ("nur Linux / macOS").
+NUR_POSIX = pytest.mark.skipif(os.name != "posix", reason="Hermes-Update gibt es nur unter Linux/macOS")
+
+
 def _hermes_update(monkeypatch, check_ausgabe, check_code=0):
     from server import hermes as hermesmod
     from server import updates
@@ -121,6 +128,7 @@ def _hermes_update(monkeypatch, check_ausgabe, check_code=0):
     return aufrufe, updates._STATE["steps"]["hermes"]
 
 
+@NUR_POSIX
 def test_hermes_release_kanal_wird_als_neuerung_erkannt(monkeypatch):
     # Wortgleich aus `hermes update --check` am 15.10.2026 (Kanal stable)
     aufrufe, step = _hermes_update(monkeypatch, "→ Update channel: stable\n"
@@ -130,6 +138,7 @@ def test_hermes_release_kanal_wird_als_neuerung_erkannt(monkeypatch):
     assert step["state"] == "new"
 
 
+@NUR_POSIX
 def test_hermes_ohne_neuerung_zieht_nichts(monkeypatch):
     aufrufe, step = _hermes_update(monkeypatch, "→ Update channel: stable\n"
                                    "✓ Up to date with the latest release (stable v0.22.2).")

@@ -1,5 +1,6 @@
 """Ticket-Board: Karten von Hand, aus Commits, Spalten und Push (server/tickets.py)."""
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -243,11 +244,16 @@ def test_laufender_rebase_ist_nicht_erledigt(repo, tmp_path):
 
 
 def test_geloeschtes_repo_ist_erledigt(repo):
-    import shutil
+    import shutil, stat, sys
+
+    def schreibbar(f, pfad, _):
+        # Unter Windows legt git seine Objekte schreibgeschützt ab.
+        os.chmod(pfad, stat.S_IWRITE)
+        f(pfad)
     committen(repo, "Basis")
     git(repo, "switch", "-q", "-c", "worktree-ast")
     nr = tk.commit_buchen(committen(repo, "Im Worktree"), "git commit", str(repo))
-    shutil.rmtree(repo)
+    shutil.rmtree(repo, **({"onexc": schreibbar} if sys.version_info >= (3, 12) else {"onerror": schreibbar}))
     tk.push_pruefen(erzwingen=True)
     assert tk.holen(nr)["spalte"] == "done"
 
@@ -327,7 +333,7 @@ def test_api_roundtrip(client):
     r = client.post(f"/api/tickets/{t['nr']}", json={"spalte": "arbeit"}).json()
     assert r["spalte"] == "arbeit"
     b = client.get("/api/tickets").json()
-    assert b["spalten"] == list(tk.SPALTEN) and b["projekte"] == [{"pfad": "/p", "name": "p"}]
+    assert b["spalten"] == list(tk.SPALTEN) and b["projekte"] == [{"pfad": os.path.normpath("/p"), "name": "p"}]
     assert client.get("/api/tickets?projekt=/anders").json()["tickets"] == []
     assert client.post(f"/api/tickets/{t['nr']}", json={"spalte": "x"}).status_code == 400
     assert client.delete(f"/api/tickets/{t['nr']}").json() == {"ok": True}

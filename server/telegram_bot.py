@@ -36,6 +36,7 @@ import urllib.request
 from pathlib import Path
 
 import cal
+from server.geheim import nur_fuer_mich
 from server import config as cfg
 from server.core import persona_datei
 
@@ -138,7 +139,7 @@ def save_conf(patch: dict) -> dict:
     tmp = CONF_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(c, indent=2), encoding="utf-8")
     try:
-        tmp.chmod(0o600)
+        nur_fuer_mich(tmp)
     except OSError:
         pass
     tmp.replace(CONF_FILE)

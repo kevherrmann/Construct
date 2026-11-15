@@ -23,6 +23,7 @@ import time
 import uuid
 from pathlib import Path
 
+from server.geheim import nur_fuer_mich
 from server import config as cfg
 from server import telegram_bot as tgmod
 from server.core import BASE_DIR, WORKSPACE, bus_base
@@ -91,6 +92,8 @@ def bus_datei(d: Path, slug: str, token: str, ticket_id: str) -> Path:
     p = d / f".bus-{ticket_id}-{uuid.uuid4().hex[:8]}.json"
     fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        if os.name == "nt":
+            nur_fuer_mich(p)        # dort wirkt der Modus oben nicht; abschließen, bevor das Token drinsteht
         fh.write(bus_config(slug, token, ticket_id))
     return p
 

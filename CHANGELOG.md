@@ -2,6 +2,41 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.16.0 — 2026-11-15
+
+Tested on a real Windows 11 machine: the whole test suite now passes there
+(before: 33 failures), and still on Linux.
+
+### Added
+- **Windows: the computer stays awake while CONSTRUCT works.** Like on
+  Linux and macOS, a long task no longer stalls because Windows went to
+  standby. A small helper blocks standby (not the screen) only while a run
+  is working, and ends together with the server, so a crash can never keep
+  the computer awake for good.
+- **Windows: keys and passwords only for your account.** API keys, mail
+  passwords, the Telegram token, the backup password and the Claude login
+  used to inherit the folder's permissions. On a second drive (D:\) that
+  usually means every user of the computer could read and change them. They
+  now get their own access list with only your account, like `chmod 600`
+  on Linux.
+
+### Fixed
+- **Windows: the team followed neither language switch nor template
+  updates.** Personnel files were written with Windows line endings and
+  then no longer matched their template, so every file counted as edited
+  by hand. Line endings no longer count, and existing installations heal on
+  the next start.
+- **Windows: one project could appear twice on the ticket board.** git
+  reports folders as `C:/x/y`, CONSTRUCT as `C:\x\y`; cards from commits and
+  cards created by hand landed under two different projects. Paths are now
+  written one way, existing boards are corrected when loaded.
+- **Windows: a crashed document reader blocked its document for 30
+  minutes.** The lock now checks whether the reading process still runs,
+  like on Linux.
+- **Documents: senders named like Windows devices** (`CON`, `NUL`, `AUX`,
+  `COM1` …) got a folder Windows cannot create. Such names now get a
+  leading underscore.
+
 ## 8.15.1 — 2026-11-12
 
 ### Changed

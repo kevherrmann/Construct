@@ -26,6 +26,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from server.geheim import nur_fuer_mich
 from server import config as cfg  # Einstellungen der Installation (Namen)
 
 # Liegt in server/ — Daten und Einstellungen bleiben im Projektordner darüber.
@@ -85,7 +86,7 @@ def load_config() -> dict:
 def save_config(cfg: dict):
     tmp = CONFIG_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.chmod(0o600)
+    nur_fuer_mich(tmp)
     tmp.replace(CONFIG_FILE)
 
 

@@ -27,6 +27,7 @@ import time
 import urllib.request
 from pathlib import Path
 
+from server.geheim import nur_fuer_mich
 from server import config as cfg
 from server import llm as llmmod
 
@@ -175,7 +176,7 @@ def sync_soul(lokal: bool = False) -> bool:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(want, encoding="utf-8")
-        path.chmod(0o600)
+        nur_fuer_mich(path)
     except OSError:
         return False
     return True

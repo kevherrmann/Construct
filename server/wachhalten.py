@@ -11,6 +11,8 @@ auch die Sperre (sie hängt am Prozess, nicht an einer Einstellung).
 - KDE: kde-inhibit, blockiert Bildschirm aus, Sperre und Standby
 - sonst Linux: systemd-inhibit, blockiert wenigstens den Standby
 - macOS: caffeinate (Bildschirm und Ruhezustand)
+- Windows: SetThreadExecutionState in einem Helfer, der mit dem Server endet
+  (blockiert den Standby, nicht den Bildschirm)
 
 Aus mit CODY_WACH_HALTEN=0.
 """
@@ -35,6 +37,17 @@ def befehl() -> list[str] | None:
     """Der Hilfsprozess für diese Umgebung, None = geht hier nicht."""
     if sys.platform == "darwin" and shutil.which("caffeinate"):
         return ["caffeinate", "-d", "-i"]
+    if os.name == "nt":
+        # ES_CONTINUOUS | ES_SYSTEM_REQUIRED gilt, solange der Prozess lebt, der es
+        # gesetzt hat; den Bildschirm darf Windows weiter abschalten. Windows räumt
+        # Kindprozesse nicht mit ab: darum wartet der Helfer auf das Ende des
+        # Servers (SYNCHRONIZE-Handle), statt als Waise den Standby ewig zu sperren.
+        # Rückgabe von SetThreadExecutionState ist der VORIGE Zustand (auch 0): nicht verketten.
+        return [sys.executable, "-c",
+                "import ctypes, sys; k = ctypes.windll.kernel32; "
+                f"h = k.OpenProcess(0x00100000, False, {os.getpid()}); "
+                "h or sys.exit(1); "
+                "k.SetThreadExecutionState(0x80000001); k.WaitForSingleObject(h, 0xFFFFFFFF)"]
     if not sys.platform.startswith("linux"):
         return None
     if shutil.which("kde-inhibit") and os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
@@ -70,9 +83,10 @@ async def _an():
         _kaputt = True
         return
     try:
+        extra = {"creationflags": 0x08000000} if os.name == "nt" else {}   # CREATE_NO_WINDOW
         _proc = await asyncio.create_subprocess_exec(
             *cmd, stdin=asyncio.subprocess.DEVNULL, start_new_session=True,
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, **extra)
     except OSError as e:
         print(f"[wach] {cmd[0]} startet nicht: {e}", flush=True)
         _kaputt = True
@@ -95,7 +109,10 @@ def aus():
         # Die ganze Gruppe: ein beendetes kde-inhibit ließe sein sleep sonst
         # als Waise zurück.
         try:
-            os.killpg(_proc.pid, signal.SIGTERM)
+            if os.name == "nt":
+                _proc.terminate()   # killpg gibt es dort nicht; der Helfer hat keine Kinder
+            else:
+                os.killpg(_proc.pid, signal.SIGTERM)
         except (ProcessLookupError, PermissionError):
             pass
         print("[wach] Sperre freigegeben", flush=True)

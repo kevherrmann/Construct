@@ -14,23 +14,23 @@ def home(tmp_path, monkeypatch):
 
 def test_soul_wird_angelegt_und_nachgefuehrt(home, monkeypatch):
     assert hermes.sync_soul()
-    soul = (home / "SOUL.md").read_text()
+    soul = (home / "SOUL.md").read_text(encoding="utf-8")
     assert soul.startswith(hermes.SOUL_MARK) and "Ich bin Cody." in soul
     monkeypatch.setattr(core, "persona_text", lambda: "Ich bin Cody, jetzt mit Humor.")
     assert hermes.sync_soul()
-    assert "jetzt mit Humor" in (home / "SOUL.md").read_text()
+    assert "jetzt mit Humor" in (home / "SOUL.md").read_text(encoding="utf-8")
 
 
 def test_hermes_vorgabe_wird_ersetzt(home):
-    (home / "SOUL.md").write_text(hermes.HERMES_DEFAULT_SOUL + " Be direct.")
+    (home / "SOUL.md").write_text(hermes.HERMES_DEFAULT_SOUL + " Be direct.", encoding="utf-8")
     assert hermes.sync_soul()
-    assert "Ich bin Cody." in (home / "SOUL.md").read_text()
+    assert "Ich bin Cody." in (home / "SOUL.md").read_text(encoding="utf-8")
 
 
 def test_eigene_soul_bleibt_unangetastet(home):
-    (home / "SOUL.md").write_text("Du bist mein Piraten-Agent.")
+    (home / "SOUL.md").write_text("Du bist mein Piraten-Agent.", encoding="utf-8")
     assert not hermes.sync_soul()
-    assert (home / "SOUL.md").read_text() == "Du bist mein Piraten-Agent."
+    assert (home / "SOUL.md").read_text(encoding="utf-8") == "Du bist mein Piraten-Agent."
 
 
 def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(home, monkeypatch):
@@ -53,9 +53,9 @@ def test_kalender_geht_mit_und_verschwindet_in_der_anzeige(home, monkeypatch):
 def test_anleitungen_in_der_soul_oder_an_der_nachricht(home, monkeypatch):
     monkeypatch.setattr(core, "lage_text", lambda: "")
     assert hermes.sync_soul()
-    assert "```ui" in (home / "SOUL.md").read_text()
+    assert "```ui" in (home / "SOUL.md").read_text(encoding="utf-8")
     # Eine selbst geschriebene SOUL.md bleibt, dann müssen sie an die Nachricht.
-    (home / "SOUL.md").write_text("Du bist mein Piraten-Agent.")
+    (home / "SOUL.md").write_text("Du bist mein Piraten-Agent.", encoding="utf-8")
     sent = hermes.with_context("Hallo")
     assert "```ui" in sent and hermes.strip_context(sent) == "Hallo"
 
@@ -81,17 +81,17 @@ def test_lokale_modelle_bekommen_kontext_vorn_und_ohne_bilder(monkeypatch):
 def test_eigene_persona_nur_fuer_lokale_modelle(home, monkeypatch):
     monkeypatch.setattr(hermes, "lokale_persona", lambda: "Du bist ein grummeliger Pirat.")
     assert hermes.sync_soul(lokal=True)
-    soul = (home / "SOUL.md").read_text()
+    soul = (home / "SOUL.md").read_text(encoding="utf-8")
     assert "Pirat" in soul and "Ich bin Cody." not in soul
     assert hermes.sync_soul(lokal=False)
-    soul = (home / "SOUL.md").read_text()
+    soul = (home / "SOUL.md").read_text(encoding="utf-8")
     assert "Ich bin Cody." in soul and "Pirat" not in soul
 
 
 def test_ohne_eigene_persona_gilt_auch_lokal_codys(home, monkeypatch):
     monkeypatch.setattr(hermes, "lokale_persona", lambda: "")
     assert hermes.sync_soul(lokal=True)
-    assert "Ich bin Cody." in (home / "SOUL.md").read_text()
+    assert "Ich bin Cody." in (home / "SOUL.md").read_text(encoding="utf-8")
 
 
 def test_persona_datei_fuer_lokale_modelle_ist_speicherbar(tmp_path, monkeypatch):
