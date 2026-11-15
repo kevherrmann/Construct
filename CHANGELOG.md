@@ -2,6 +2,20 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.16.2 — 2026-11-15
+
+### Fixed
+- **Windows: the calendar tool crashed after saving.** When the assistant
+  added an appointment in the chat, `cal.py` saved it and then died on its
+  own "✓" (Windows writes pipes as cp1252). The chat only saw an error, and
+  the appointment could end up in the calendar twice. The same affected the
+  documents, tickets and image tools and the team's connection to Claude
+  (umlauts garbled, arrows crashed it). CONSTRUCT now runs everything it
+  starts on Windows in UTF-8 mode, and the tools switch to UTF-8 on their
+  own when called from a terminal.
+- **Windows: CONSTRUCT did not start with its output going to a log file**
+  (autostart task, service): the 🟢 of the start message crashed it.
+
 ## 8.16.1 — 2026-11-15
 
 ### Fixed

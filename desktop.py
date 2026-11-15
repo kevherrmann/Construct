@@ -42,6 +42,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)                    # app.py legt Pfade relativ zu sich an
 sys.path.insert(0, str(BASE_DIR))
+if os.name == "nt":
+    # Windows schreibt in Dateien und Pipes cp1252: schon das 🟢 der Startmeldung
+    # ließ den Start abstürzen, sobald die Ausgabe in ein Log ging (Autostart,
+    # Dienst). Und ein Werkzeug wie cal.py, das Claude im Chat aufruft, starb nach
+    # dem Speichern an seinem "✓". Der UTF-8-Modus gilt für alle Kindprozesse.
+    os.environ.setdefault("PYTHONUTF8", "1")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 sys.stdout.reconfigure(line_buffering=True)   # Meldungen sofort im journal/Log
 
 HOST = os.environ.get("MATRIX_HOST", "127.0.0.1")

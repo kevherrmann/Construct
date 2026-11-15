@@ -42,4 +42,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":   # in Pipe/Datei sonst cp1252: "✓", "→" und Emojis brächen ab
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

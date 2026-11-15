@@ -283,4 +283,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        # claude spricht UTF-8; Windows läse und schriebe die Pipe sonst als cp1252
+        sys.stdin.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     main()
