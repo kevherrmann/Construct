@@ -25,3 +25,19 @@ def test_rechte_ueberleben_das_atomare_ersetzen(tmp_path):
     nur_fuer_mich(tmp)
     tmp.replace(ziel)
     assert nur_fuer_mich_lesbar(ziel) and ziel.read_text(encoding="utf-8") == "neu"
+
+
+def test_alte_dateien_werden_beim_start_abgeschlossen(tmp_path, monkeypatch):
+    import os
+    from server import geheim
+    alt = tmp_path / ".llm-config.json"
+    alt.write_text("{}", encoding="utf-8")
+    alt.chmod(0o644)
+    fehlt = tmp_path / ".telegram.json"
+    geheim.alte_abschliessen([alt, fehlt])     # fehlende Dateien stören nicht
+    if os.name == "nt":
+        assert nur_fuer_mich_lesbar(alt)
+    else:
+        # Unter Linux/macOS war chmod 600 schon immer da: nichts anfassen
+        assert not nur_fuer_mich_lesbar(alt)
+    assert not fehlt.exists()

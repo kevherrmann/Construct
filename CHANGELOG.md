@@ -2,6 +2,14 @@
 
 All notable changes to CONSTRUCT. Versions follow [semantic versioning](https://semver.org).
 
+## 8.16.1 — 2026-11-15
+
+### Fixed
+- **Windows: keys saved before 8.16.0 are locked too.** 8.16.0 gave key
+  and password files their own access list only when they were saved
+  again, so an API key you never touch again stayed readable for everyone.
+  CONSTRUCT now locks existing ones once at startup.
+
 ## 8.16.0 — 2026-11-15
 
 Tested on a real Windows 11 machine: the whole test suite now passes there

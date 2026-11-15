@@ -18,7 +18,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from server import config as cfg
+from server import geheim
 from server import llm as llmmod
+from server import mail as mailmod
 from server import telegram_bot as tgmod
 from server import tts_lokal as ttslokal
 from server import updates as updmod
@@ -26,7 +28,7 @@ from server import runs as runsmod
 from server import uploads_gc
 from server import wachhalten
 
-from server.core import (APP_DIR, STATIC_DIR, UPLOAD_DIR, WORKSPACE,
+from server.core import (APP_DIR, STATIC_DIR, TOKEN_FILE, UPLOAD_DIR, WORKSPACE,
                          auth_ok, claude_bin, claude_env, fremde_herkunft, fremder_host,
                          frischer_systemprompt, load_persona, remember_server)
 from server.dokumente import ablage as dok_ablage
@@ -51,6 +53,9 @@ async def lifespan(_app: FastAPI):
                persona=load_persona, workspace=WORKSPACE, frisch=frischer_systemprompt)
     tgmod.restart()
     uploads_gc.start()   # verwaiste Anhänge nach ein paar Tagen wegräumen
+    # Schlüssel und Kennwörter aus älteren Fassungen: unter Windows nur fürs eigene Konto
+    asyncio.get_running_loop().run_in_executor(None, geheim.alte_abschliessen, (
+        llmmod.CONFIG_FILE, mailmod.ACC_FILE, tgmod.CONF_FILE, TOKEN_FILE, dok_sicherung._geheim_pfad()))
     # Früher installiertes Ollama nach Container-Neustart wieder hochfahren
     asyncio.get_running_loop().run_in_executor(None, llmmod.ollama_autostart)
     # Claude Code / Hermes aktuell halten. Der Aufruf kehrt sofort zurück —

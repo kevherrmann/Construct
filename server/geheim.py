@@ -47,3 +47,14 @@ def nur_fuer_mich(p: Path) -> None:
                        capture_output=True, timeout=15, creationflags=_OHNE_FENSTER)
     except (OSError, subprocess.SubprocessError):
         pass
+
+
+def alte_abschliessen(dateien) -> None:
+    """Beim Start, nur Windows: Geheimnis-Dateien aus Fassungen vor 8.16.0 nachträglich
+    abschließen. Sonst bekämen sie die eigene Zugriffsliste erst beim nächsten Speichern,
+    und ein API-Key, den man nie wieder anfasst, bliebe für alle lesbar."""
+    if os.name != "nt":
+        return
+    for p in dateien:
+        if Path(p).is_file():
+            nur_fuer_mich(p)
